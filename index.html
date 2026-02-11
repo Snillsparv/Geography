@@ -174,11 +174,11 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(10deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(3) hue-rotate(230deg);
     }
 
     .hover-highlight.active {
-      opacity: 0.35;
+      opacity: 0.5;
     }
 
     /* ── Cursor label (Seterra mode) ── */
@@ -205,7 +205,13 @@
       display: flex;
       flex-direction: column;
       box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .info-panel-content {
+      flex: 1;
       overflow-y: auto;
+      min-height: 0;
     }
 
     .info-header {
@@ -551,6 +557,15 @@
       transition: all 0.2s;
     }
 
+    .retry-btn {
+      background: linear-gradient(135deg, #d4820a, #e8a030);
+    }
+
+    .retry-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(232,160,48,0.3);
+    }
+
     .restart-btn:hover {
       transform: scale(1.05);
       box-shadow: 0 4px 16px rgba(46,204,113,0.3);
@@ -563,7 +578,7 @@
       flex-direction: column;
       align-items: center;
       gap: 8px;
-      margin-top: auto;
+      flex-shrink: 0;
       border-top: 1px solid rgba(255,255,255,0.06);
     }
 
@@ -627,6 +642,7 @@
   </div>
 
   <div class="info-panel" id="info-panel">
+    <div class="info-panel-content">
     <!-- EXPLORE MODE -->
     <div id="explore-ui">
       <div class="info-header"><h2>Landinformation</h2></div>
@@ -700,8 +716,10 @@
 
         <div class="highscore-list" id="highscore-list"></div>
 
+        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">\u00d6va p\u00e5 felaktiga</button>
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
       </div>
+    </div>
     </div>
 
     <div class="jonas-section">
@@ -797,6 +815,8 @@ let seterraTimerInterval = null;
 let seterraLocked = false;
 let seterraTargetMisses = 0; // misses for current target
 let seterraElapsed = 0;
+let seterraMissedCountries = new Set(); // countries that had wrong clicks
+let seterraIsRetry = false;
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -1027,6 +1047,39 @@ function startSeterra() {
   seterraTotal = COUNTRIES.length;
   seterraLocked = false;
   seterraTargetMisses = 0;
+  seterraIsRetry = false;
+  seterraMissedCountries.clear();
+  seterraStartTime = Date.now();
+
+  seterraGame.classList.add('active');
+  seterraDone.classList.remove('active');
+  cursorLabel.style.display = 'block';
+
+  updateSeterraUI();
+  nextSeterraTarget();
+
+  clearInterval(seterraTimerInterval);
+  seterraTimerInterval = setInterval(updateSeterraTimer, 500);
+}
+
+function startSeterraRetry() {
+  const missedList = COUNTRIES.filter(c => seterraMissedCountries.has(c.filename));
+  if (missedList.length === 0) return;
+
+  // Keep already-correct countries visible
+  resetOverlays();
+  COUNTRIES.forEach(c => {
+    if (!seterraMissedCountries.has(c.filename)) revealCountry(c.filename);
+  });
+
+  seterraQueue = shuffle([...missedList]);
+  seterraCorrect = 0;
+  seterraWrong = 0;
+  seterraTotal = missedList.length;
+  seterraLocked = false;
+  seterraTargetMisses = 0;
+  seterraIsRetry = true;
+  seterraMissedCountries.clear();
   seterraStartTime = Date.now();
 
   seterraGame.classList.add('active');
@@ -1067,6 +1120,7 @@ function seterraClick(c) {
   } else {
     seterraWrong++;
     seterraTargetMisses++;
+    seterraMissedCountries.add(seterraTarget.filename);
     flashWrong(c.filename);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
     seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div><div class="fb-desc">${c.desc}</div>`;
@@ -1118,10 +1172,24 @@ function endSeterra() {
   document.getElementById('seterra-final-detail').innerHTML =
     `${seterraCorrect} av ${seterraTotal} l\u00e4nder<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
 
-  // Show save form, hide saved message
-  document.getElementById('hs-form').style.display = '';
-  document.getElementById('hs-saved-msg').style.display = 'none';
-  document.getElementById('hs-name').value = '';
+  // Show/hide retry button
+  const retryBtn = document.getElementById('seterra-retry');
+  if (seterraMissedCountries.size > 0) {
+    retryBtn.style.display = '';
+    retryBtn.textContent = `\u00d6va p\u00e5 felaktiga (${seterraMissedCountries.size} st)`;
+  } else {
+    retryBtn.style.display = 'none';
+  }
+
+  // Show save form only for non-retry rounds
+  if (seterraIsRetry) {
+    document.getElementById('hs-form').style.display = 'none';
+    document.getElementById('hs-saved-msg').style.display = 'none';
+  } else {
+    document.getElementById('hs-form').style.display = '';
+    document.getElementById('hs-saved-msg').style.display = 'none';
+    document.getElementById('hs-name').value = '';
+  }
 
   renderHighscores();
 }
@@ -1188,6 +1256,7 @@ document.getElementById('hs-name').addEventListener('keydown', (e) => {
 });
 
 document.getElementById('seterra-restart').addEventListener('click', startSeterra);
+document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
 
 // ══════════════════════
 // Mode switching
