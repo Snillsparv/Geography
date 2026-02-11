@@ -12,12 +12,12 @@
       background: #0f1b2d;
       color: #e0e0e0;
       min-height: 100vh;
-      overflow-x: hidden;
+      overflow: hidden;
     }
 
     header {
       background: linear-gradient(135deg, #1a2940, #2a4060);
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -30,28 +30,17 @@
       color: #5bbfff;
     }
 
-    .score-display {
-      display: flex;
-      gap: 20px;
-      font-size: 1rem;
+    .header-hint {
+      color: #6a8eab;
+      font-size: 0.85rem;
     }
-
-    .score-display span {
-      padding: 6px 14px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.08);
-    }
-
-    .score-correct { color: #4cdf8b; }
-    .score-wrong { color: #ff6b6b; }
-    .score-remaining { color: #5bbfff; }
 
     .game-container {
       display: flex;
-      height: calc(100vh - 64px);
+      height: calc(100vh - 56px);
     }
 
-    /* Left panel: map */
+    /* ── Map panel ── */
     .map-panel {
       flex: 1;
       position: relative;
@@ -65,233 +54,178 @@
     .map-wrapper {
       position: relative;
       max-height: 100%;
+      cursor: pointer;
     }
 
     .map-wrapper img.base-map {
-      max-height: calc(100vh - 104px);
+      max-height: calc(100vh - 96px);
       width: auto;
       display: block;
-      opacity: 0.35;
-      filter: saturate(0.5);
-      transition: opacity 0.5s;
-    }
-
-    .map-wrapper img.base-map.game-over {
-      opacity: 0.8;
-      filter: saturate(1);
+      filter: brightness(2) saturate(0) contrast(0.6) brightness(1.8);
+      transition: filter 0.4s;
     }
 
     .country-overlay {
       position: absolute;
-      transition: opacity 0.6s ease;
+      transition: opacity 0.4s ease;
       opacity: 0;
       pointer-events: none;
     }
 
-    .country-overlay.revealed {
+    .country-overlay.visible {
       opacity: 1;
     }
 
-    .country-overlay.wrong-reveal {
-      opacity: 0.6;
-      filter: hue-rotate(320deg) brightness(0.8);
-    }
-
-    .country-label {
+    /* Hover highlight canvas */
+    #hit-canvas {
       position: absolute;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7);
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    .hover-highlight {
+      position: absolute;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.6s ease;
-      transform: translate(-50%, -50%);
-      white-space: nowrap;
+      transition: opacity 0.15s;
+      mix-blend-mode: screen;
+      filter: brightness(0.5) sepia(1) hue-rotate(170deg) saturate(3) brightness(0.7);
     }
 
-    .country-label.revealed {
-      opacity: 1;
+    .hover-highlight.active {
+      opacity: 0.4;
     }
 
-    /* Right panel: quiz */
-    .quiz-panel {
+    /* ── Info panel ── */
+    .info-panel {
       width: 380px;
       background: linear-gradient(180deg, #162235, #1a2a42);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 24px;
       box-shadow: -4px 0 20px rgba(0,0,0,0.3);
       overflow-y: auto;
     }
 
-    .quiz-prompt {
-      font-size: 1rem;
-      color: #88b4d8;
-      margin-bottom: 16px;
-      text-align: center;
+    .info-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    .shape-display {
-      width: 280px;
-      height: 280px;
+    .info-header h2 {
+      font-size: 1rem;
+      color: #5a8aaa;
+      font-weight: 500;
+    }
+
+    /* Default state – no country selected */
+    .info-default {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      text-align: center;
+      color: #4a6a82;
+    }
+
+    .info-default .arrow-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+
+    .info-default p {
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    /* Country info card */
+    .info-card {
+      display: none;
+      flex-direction: column;
+      padding: 24px;
+      gap: 16px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .info-card.active {
+      display: flex;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .info-card .country-name {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #5bbfff;
+    }
+
+    .info-card .country-shape-preview {
+      width: 100%;
+      height: 180px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: rgba(255,255,255,0.03);
-      border: 2px solid rgba(91,191,255,0.15);
-      border-radius: 16px;
-      margin-bottom: 24px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .shape-display img {
-      max-width: 250px;
-      max-height: 250px;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
-      transition: transform 0.3s ease;
-    }
-
-    .options-container {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .option-btn {
-      width: 100%;
-      padding: 14px 20px;
-      background: rgba(255,255,255,0.06);
-      border: 2px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(91,191,255,0.1);
       border-radius: 12px;
-      color: #cde;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
     }
 
-    .option-btn:hover:not(:disabled) {
-      background: rgba(91,191,255,0.12);
-      border-color: rgba(91,191,255,0.4);
-      transform: translateX(4px);
+    .info-card .country-shape-preview img {
+      max-width: 90%;
+      max-height: 160px;
+      object-fit: contain;
     }
 
-    .option-btn.correct {
-      background: rgba(76,223,139,0.2);
-      border-color: #4cdf8b;
-      color: #4cdf8b;
+    .info-card .description {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #b0c8d8;
     }
 
-    .option-btn.wrong {
-      background: rgba(255,107,107,0.15);
-      border-color: #ff6b6b;
-      color: #ff6b6b;
-    }
-
-    .option-btn:disabled {
-      cursor: default;
-      opacity: 0.6;
-    }
-
-    .feedback {
-      margin-top: 20px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 1rem;
+    .info-card .close-hint {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #4a6a82;
       text-align: center;
-      opacity: 0;
-      transition: opacity 0.3s ease;
     }
 
-    .feedback.show { opacity: 1; }
-    .feedback.correct-fb { background: rgba(76,223,139,0.15); color: #4cdf8b; }
-    .feedback.wrong-fb { background: rgba(255,107,107,0.15); color: #ff6b6b; }
-
-    .next-btn {
-      margin-top: 16px;
-      padding: 12px 32px;
-      background: linear-gradient(135deg, #2980b9, #3498db);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: none;
-    }
-
-    .next-btn:hover {
-      background: linear-gradient(135deg, #3498db, #5dade2);
-      transform: scale(1.05);
-    }
-
-    /* Game over screen */
-    .game-over-panel {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+    /* Counter */
+    .counter {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      color: #5a8aaa;
+      font-size: 0.85rem;
       text-align: center;
-      gap: 16px;
+      margin-top: auto;
     }
 
-    .game-over-panel h2 {
-      font-size: 1.8rem;
+    .counter strong {
       color: #5bbfff;
     }
 
-    .game-over-panel .final-score {
-      font-size: 3rem;
-      font-weight: 700;
-      color: #4cdf8b;
-    }
-
-    .game-over-panel .final-detail {
-      color: #88b4d8;
-      font-size: 1.1rem;
-    }
-
-    .play-again-btn {
-      margin-top: 12px;
-      padding: 14px 40px;
-      background: linear-gradient(135deg, #27ae60, #2ecc71);
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .play-again-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 20px rgba(46,204,113,0.3);
-    }
-
-    /* Responsive */
+    /* ── Responsive ── */
     @media (max-width: 900px) {
+      body { overflow: auto; }
       .game-container {
         flex-direction: column;
         height: auto;
       }
       .map-panel {
-        height: 45vh;
+        height: 50vh;
         min-height: 300px;
       }
       .map-wrapper img.base-map {
-        max-height: 40vh;
+        max-height: 46vh;
       }
-      .quiz-panel {
+      .info-panel {
         width: 100%;
-        min-height: 55vh;
+        min-height: 50vh;
       }
     }
   </style>
@@ -300,88 +234,163 @@
 
 <header>
   <h1>Sydamerika – Forma-spelet</h1>
-  <div class="score-display">
-    <span class="score-correct">Rätt: <strong id="correct-count">0</strong></span>
-    <span class="score-wrong">Fel: <strong id="wrong-count">0</strong></span>
-    <span class="score-remaining">Kvar: <strong id="remaining-count">13</strong></span>
-  </div>
+  <span class="header-hint">Klicka på ett land för att utforska det</span>
 </header>
 
 <div class="game-container">
   <div class="map-panel">
     <div class="map-wrapper" id="map-wrapper">
       <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta">
-      <!-- Country overlays will be injected here -->
+      <!-- Overlays injected by JS -->
     </div>
   </div>
 
-  <div class="quiz-panel">
-    <div id="quiz-content">
-      <p class="quiz-prompt">Vilket land har denna form?</p>
-      <div class="shape-display">
-        <img id="shape-img" src="" alt="Land-form">
-      </div>
-      <div class="options-container" id="options-container"></div>
-      <div class="feedback" id="feedback"></div>
-      <button class="next-btn" id="next-btn">Nästa land</button>
+  <div class="info-panel">
+    <div class="info-header">
+      <h2>Landinformation</h2>
     </div>
 
-    <div class="game-over-panel" id="game-over-panel">
-      <h2>Bra jobbat!</h2>
-      <div class="final-score" id="final-score"></div>
-      <div class="final-detail" id="final-detail"></div>
-      <button class="play-again-btn" id="play-again-btn">Spela igen</button>
+    <div class="info-default" id="info-default">
+      <div class="arrow-icon">&larr;</div>
+      <p>Klicka på ett land på kartan<br>för att se dess form och<br>läsa om det!</p>
+    </div>
+
+    <div class="info-card" id="info-card">
+      <div class="country-name" id="info-name"></div>
+      <div class="country-shape-preview">
+        <img id="info-shape" src="" alt="">
+      </div>
+      <div class="description" id="info-desc"></div>
+      <div class="close-hint">Klicka på landet igen för att dölja</div>
+    </div>
+
+    <div class="counter" id="counter">
+      Utforskade: <strong id="explored-count">0</strong> / <strong>13</strong> länder
     </div>
   </div>
 </div>
 
 <script>
 const COUNTRIES = [
-  { name: "Argentina", filename: "argentina", left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215 },
-  { name: "Chile", filename: "chile", left: 1391, top: 1950, width: 524, height: 2375, centerX: 1653, centerY: 3137 },
-  { name: "Uruguay", filename: "uruguay", left: 2165, top: 2689, width: 271, height: 327, centerX: 2300, centerY: 2852 },
-  { name: "Paraguay", filename: "paraguay", left: 1947, top: 1916, width: 539, height: 613, centerX: 2216, centerY: 2222 },
-  { name: "Brasilien", filename: "brasilien", left: 1113, top: 420, width: 2511, height: 2488, centerX: 2368, centerY: 1664 },
-  { name: "Bolivia", filename: "bolivia", left: 1240, top: 1035, width: 1076, height: 1250, centerX: 1778, centerY: 1660 },
-  { name: "Peru", filename: "peru", left: 632, top: 768, width: 856, height: 1238, centerX: 1060, centerY: 1387 },
-  { name: "Ecuador", filename: "eciador", left: 245, top: 732, width: 795, height: 915, centerX: 642, centerY: 1189 },
-  { name: "Colombia", filename: "colombia", left: 753, top: 14, width: 771, height: 975, centerX: 1138, centerY: 501 },
-  { name: "Venezuela", filename: "venezuela", left: 1066, top: 5, width: 951, height: 694, centerX: 1541, centerY: 352 },
-  { name: "Guyana", filename: "guyana", left: 1949, top: 204, width: 708, height: 446, centerX: 2303, centerY: 427 },
-  { name: "Surinam", filename: "surinam", left: 2124, top: 319, width: 360, height: 314, centerX: 2304, centerY: 476 },
-  { name: "Franska Guyana", filename: "franska_guyana", left: 2448, top: 372, width: 219, height: 220, centerX: 2557, centerY: 482 }
+  {
+    name: "Argentina",
+    filename: "argentina",
+    left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215,
+    desc: "Argentina är Sydamerikas näst största land och sträcker sig från subtropiska norra regioner ner till det iskalla Patagonien. Landet är känt för tango, biff, och fotbollslegenden Maradona. Huvudstaden Buenos Aires kallas ofta \"Sydamerikas Paris\"."
+  },
+  {
+    name: "Chile",
+    filename: "chile",
+    left: 1391, top: 1950, width: 524, height: 2375, centerX: 1653, centerY: 3137,
+    desc: "Chile är världens smalaste land och sträcker sig över 4 300 km längs Sydamerikas västkust. Landets unika form ger det en otrolig variation – från Atacamaöknen i norr (världens torraste plats) till glaciärer i söder."
+  },
+  {
+    name: "Uruguay",
+    filename: "uruguay",
+    left: 2165, top: 2689, width: 271, height: 327, centerX: 2300, centerY: 2852,
+    desc: "Uruguay är ett av Sydamerikas minsta länder men rankas ofta högst i demokrati och levnadsstandard. Det lilla landet mellan Argentina och Brasilien vann den första fotbolls-VM-finalen 1930 på hemmaplan."
+  },
+  {
+    name: "Paraguay",
+    filename: "paraguay",
+    left: 1947, top: 1916, width: 539, height: 613, centerX: 2216, centerY: 2222,
+    desc: "Paraguay är ett av bara två landlåsta länder i Sydamerika. Floden Paraguay delar landet i två helt olika halvor – det gröna östlandet och den vilda, glest befolkade Chaco-regionen i väst."
+  },
+  {
+    name: "Brasilien",
+    filename: "brasilien",
+    left: 1113, top: 420, width: 2511, height: 2488, centerX: 2368, centerY: 1664,
+    desc: "Brasilien är Sydamerikas gigant och täcker nästan halva kontinenten. Landet rymmer Amazonas regnskog – jordens \"lunga\" – och är världens femte största land. Karnevalen i Rio och fotboll är en del av själen."
+  },
+  {
+    name: "Bolivia",
+    filename: "bolivia",
+    left: 1240, top: 1035, width: 1076, height: 1250, centerX: 1778, centerY: 1660,
+    desc: "Bolivia är Sydamerikas andra landlåsta land och hem till Salar de Uyuni – världens största saltöken. Huvudstaden La Paz ligger på över 3 600 meters höjd, vilket gör den till en av världens högst belägna huvudstäder."
+  },
+  {
+    name: "Peru",
+    filename: "peru",
+    left: 632, top: 768, width: 856, height: 1238, centerX: 1060, centerY: 1387,
+    desc: "Peru var hjärtat av Inkariket och hem till den legendariska Machu Picchu. Landet har tre distinkta zoner: den torra kusten, de mäktiga Anderna och Amazonas regnskog i öster."
+  },
+  {
+    name: "Ecuador",
+    filename: "eciador",
+    left: 245, top: 732, width: 795, height: 915, centerX: 642, centerY: 1189,
+    desc: "Ecuador är uppkallat efter ekvatorn som löper rakt igenom landet. Trots sin lilla storlek har det enorm biologisk mångfald – från Galapagosöarna (som inspirerade Darwins evolutionsteori) till Andernas toppar."
+  },
+  {
+    name: "Colombia",
+    filename: "colombia",
+    left: 753, top: 14, width: 771, height: 975, centerX: 1138, centerY: 501,
+    desc: "Colombia är det enda sydamerikanska landet med kust mot både Stilla havet och Karibiska havet. Landet är världens tredje största kaffeproducent och känt för sin otroliga biologiska mångfald."
+  },
+  {
+    name: "Venezuela",
+    filename: "venezuela",
+    left: 1066, top: 5, width: 951, height: 694, centerX: 1541, centerY: 352,
+    desc: "Venezuela är hem till Salto Ángel – världens högsta vattenfall på hela 979 meter. Landet har också några av världens största oljereserver. Sjön Maracaibo är Sydamerikas största sjö."
+  },
+  {
+    name: "Guyana",
+    filename: "guyana",
+    left: 1949, top: 204, width: 708, height: 446, centerX: 2303, centerY: 427,
+    desc: "Guyana är det enda engelskspråkiga landet i Sydamerika. Över 80% av landet är täckt av regnskog. Trots att det ligger i Sydamerika har Guyana starka kulturella band till Karibien."
+  },
+  {
+    name: "Surinam",
+    filename: "surinam",
+    left: 2124, top: 319, width: 360, height: 314, centerX: 2304, centerY: 476,
+    desc: "Surinam är Sydamerikas minsta land och det enda där nederländska är officiellt språk – ett arv från kolonialtidens Nederländerna. Landet har en unik kulturell mix av indiska, indonesiska, afrikanska och inhemska traditioner."
+  },
+  {
+    name: "Franska Guyana",
+    filename: "franska_guyana",
+    left: 2448, top: 372, width: 219, height: 220, centerX: 2557, centerY: 482,
+    desc: "Franska Guyana är tekniskt sett inte ett eget land utan ett franskt utomeuropeiskt departement – och därmed en del av EU! Här ligger Europas rymdhamn i Kourou, varifrån Ariane-raketer skjuts upp."
+  }
 ];
 
-// PSD canvas and map layer info
-const PSD_W = 4000, PSD_H = 4346;
 const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
-
-let remaining = [];
-let current = null;
-let correctCount = 0;
-let wrongCount = 0;
-let answered = false;
 
 const mapWrapper = document.getElementById('map-wrapper');
 const baseMap = document.getElementById('base-map');
-const shapeImg = document.getElementById('shape-img');
-const optionsContainer = document.getElementById('options-container');
-const feedbackEl = document.getElementById('feedback');
-const nextBtn = document.getElementById('next-btn');
-const quizContent = document.getElementById('quiz-content');
-const gameOverPanel = document.getElementById('game-over-panel');
+const infoDefault = document.getElementById('info-default');
+const infoCard = document.getElementById('info-card');
+const infoName = document.getElementById('info-name');
+const infoShape = document.getElementById('info-shape');
+const infoDesc = document.getElementById('info-desc');
+const exploredCount = document.getElementById('explored-count');
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+// Track state
+const revealed = new Set();
+let activeCountry = null;  // currently shown in info panel
+const hitCanvases = {};     // offscreen canvases per country for hit detection
+
+// ── Load offscreen canvases for pixel-perfect hit detection ──
+function loadHitData() {
+  return Promise.all(COUNTRIES.map(c => new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = c.width;
+      canvas.height = c.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      hitCanvases[c.filename] = { canvas, ctx, country: c };
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = `assets/countries/${c.filename}.png`;
+  })));
 }
 
+// ── Create DOM overlays on the map ──
 function createOverlays() {
   COUNTRIES.forEach(c => {
-    // Country image overlay
+    // Colored overlay (hidden initially)
     const img = document.createElement('img');
     img.className = 'country-overlay';
     img.src = `assets/countries/${c.filename}.png`;
@@ -389,14 +398,13 @@ function createOverlays() {
     img.alt = c.name;
     mapWrapper.appendChild(img);
 
-    // Country name label
-    const label = document.createElement('div');
-    label.className = 'country-label';
-    label.dataset.country = c.filename;
-    label.textContent = c.name;
-    mapWrapper.appendChild(label);
+    // Hover highlight overlay
+    const hover = document.createElement('img');
+    hover.className = 'hover-highlight';
+    hover.src = `assets/countries/${c.filename}.png`;
+    hover.dataset.country = c.filename;
+    mapWrapper.appendChild(hover);
   });
-
   positionOverlays();
   window.addEventListener('resize', positionOverlays);
 }
@@ -404,147 +412,117 @@ function createOverlays() {
 function positionOverlays() {
   const mapRect = baseMap.getBoundingClientRect();
   const wrapperRect = mapWrapper.getBoundingClientRect();
-  const displayW = mapRect.width;
-  const displayH = mapRect.height;
-  const scale = displayW / MAP_W;
-
-  // Offset of the map image within the wrapper
+  const scale = mapRect.width / MAP_W;
   const offsetX = mapRect.left - wrapperRect.left;
   const offsetY = mapRect.top - wrapperRect.top;
 
   COUNTRIES.forEach(c => {
-    const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
-    const label = mapWrapper.querySelector(`.country-label[data-country="${c.filename}"]`);
-
-    // Convert PSD coordinates to map-relative coordinates
     const relLeft = (c.left - MAP_LEFT) * scale;
     const relTop = (c.top - MAP_TOP) * scale;
     const relW = c.width * scale;
     const relH = c.height * scale;
 
-    overlay.style.left = (offsetX + relLeft) + 'px';
-    overlay.style.top = (offsetY + relTop) + 'px';
-    overlay.style.width = relW + 'px';
-    overlay.style.height = relH + 'px';
-
-    // Label at center
-    const labelX = offsetX + ((c.centerX - MAP_LEFT) * scale);
-    const labelY = offsetY + ((c.centerY - MAP_TOP) * scale);
-    label.style.left = labelX + 'px';
-    label.style.top = labelY + 'px';
-  });
-}
-
-function revealCountry(filename, isCorrect) {
-  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
-  const label = mapWrapper.querySelector(`.country-label[data-country="${filename}"]`);
-  overlay.classList.add('revealed');
-  if (!isCorrect) overlay.classList.add('wrong-reveal');
-  label.classList.add('revealed');
-}
-
-function startGame() {
-  correctCount = 0;
-  wrongCount = 0;
-  answered = false;
-  remaining = shuffle([...COUNTRIES]);
-
-  document.getElementById('correct-count').textContent = '0';
-  document.getElementById('wrong-count').textContent = '0';
-  document.getElementById('remaining-count').textContent = COUNTRIES.length;
-
-  // Reset overlays
-  document.querySelectorAll('.country-overlay').forEach(el => {
-    el.classList.remove('revealed', 'wrong-reveal');
-  });
-  document.querySelectorAll('.country-label').forEach(el => {
-    el.classList.remove('revealed');
-  });
-  baseMap.classList.remove('game-over');
-
-  quizContent.style.display = '';
-  gameOverPanel.style.display = 'none';
-
-  nextQuestion();
-}
-
-function nextQuestion() {
-  if (remaining.length === 0) {
-    endGame();
-    return;
-  }
-
-  answered = false;
-  current = remaining.pop();
-  feedbackEl.classList.remove('show', 'correct-fb', 'wrong-fb');
-  nextBtn.style.display = 'none';
-
-  // Show shape (white silhouette)
-  shapeImg.src = `assets/countries/${current.filename}.png`;
-
-  // Generate 4 options
-  const wrong = shuffle(COUNTRIES.filter(c => c.filename !== current.filename)).slice(0, 3);
-  const options = shuffle([current, ...wrong]);
-
-  optionsContainer.innerHTML = '';
-  options.forEach(opt => {
-    const btn = document.createElement('button');
-    btn.className = 'option-btn';
-    btn.textContent = opt.name;
-    btn.addEventListener('click', () => handleAnswer(btn, opt));
-    optionsContainer.appendChild(btn);
-  });
-}
-
-function handleAnswer(btn, chosen) {
-  if (answered) return;
-  answered = true;
-
-  const buttons = optionsContainer.querySelectorAll('.option-btn');
-  buttons.forEach(b => b.disabled = true);
-
-  if (chosen.filename === current.filename) {
-    btn.classList.add('correct');
-    correctCount++;
-    feedbackEl.textContent = `Rätt! Det är ${current.name}!`;
-    feedbackEl.classList.add('correct-fb', 'show');
-    revealCountry(current.filename, true);
-  } else {
-    btn.classList.add('wrong');
-    // Highlight correct answer
-    buttons.forEach(b => {
-      if (b.textContent === current.name) b.classList.add('correct');
+    const selectors = [
+      `img.country-overlay[data-country="${c.filename}"]`,
+      `.hover-highlight[data-country="${c.filename}"]`
+    ];
+    selectors.forEach(sel => {
+      const el = mapWrapper.querySelector(sel);
+      if (!el) return;
+      el.style.left = (offsetX + relLeft) + 'px';
+      el.style.top = (offsetY + relTop) + 'px';
+      el.style.width = relW + 'px';
+      el.style.height = relH + 'px';
     });
-    wrongCount++;
-    feedbackEl.textContent = `Fel! Det var ${current.name}.`;
-    feedbackEl.classList.add('wrong-fb', 'show');
-    revealCountry(current.filename, false);
+  });
+}
+
+// ── Hit test: which country is at this map click? ──
+function hitTest(clientX, clientY) {
+  const mapRect = baseMap.getBoundingClientRect();
+  const scale = MAP_W / mapRect.width;
+  const mapX = (clientX - mapRect.left) * scale + MAP_LEFT;
+  const mapY = (clientY - mapRect.top) * scale + MAP_TOP;
+
+  // Check countries in reverse order (smallest / top layers first for better UX)
+  const sorted = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
+
+  for (const c of sorted) {
+    const localX = Math.round(mapX - c.left);
+    const localY = Math.round(mapY - c.top);
+    if (localX < 0 || localY < 0 || localX >= c.width || localY >= c.height) continue;
+
+    const hc = hitCanvases[c.filename];
+    if (!hc) continue;
+    const pixel = hc.ctx.getImageData(localX, localY, 1, 1).data;
+    if (pixel[3] > 30) return c;  // non-transparent = hit
+  }
+  return null;
+}
+
+// ── Hover ──
+let currentHover = null;
+
+function onMouseMove(e) {
+  const hit = hitTest(e.clientX, e.clientY);
+  const newHover = hit ? hit.filename : null;
+
+  if (newHover !== currentHover) {
+    if (currentHover) {
+      mapWrapper.querySelector(`.hover-highlight[data-country="${currentHover}"]`)
+        .classList.remove('active');
+    }
+    if (newHover) {
+      mapWrapper.querySelector(`.hover-highlight[data-country="${newHover}"]`)
+        .classList.add('active');
+      mapWrapper.style.cursor = 'pointer';
+    } else {
+      mapWrapper.style.cursor = 'default';
+    }
+    currentHover = newHover;
+  }
+}
+
+// ── Click ──
+function onClick(e) {
+  const hit = hitTest(e.clientX, e.clientY);
+  if (!hit) return;
+
+  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${hit.filename}"]`);
+
+  if (revealed.has(hit.filename)) {
+    // Toggle off
+    overlay.classList.remove('visible');
+    revealed.delete(hit.filename);
+
+    if (activeCountry === hit.filename) {
+      activeCountry = null;
+      infoCard.classList.remove('active');
+      infoDefault.style.display = '';
+    }
+  } else {
+    // Toggle on
+    overlay.classList.add('visible');
+    revealed.add(hit.filename);
+
+    // Show info
+    activeCountry = hit.filename;
+    infoName.textContent = hit.name;
+    infoShape.src = `assets/countries/${hit.filename}.png`;
+    infoDesc.textContent = hit.desc;
+    infoDefault.style.display = 'none';
+    infoCard.classList.add('active');
   }
 
-  document.getElementById('correct-count').textContent = correctCount;
-  document.getElementById('wrong-count').textContent = wrongCount;
-  document.getElementById('remaining-count').textContent = remaining.length;
-
-  nextBtn.style.display = 'inline-block';
+  exploredCount.textContent = revealed.size;
 }
 
-function endGame() {
-  quizContent.style.display = 'none';
-  gameOverPanel.style.display = 'flex';
-  baseMap.classList.add('game-over');
-
-  const pct = Math.round((correctCount / COUNTRIES.length) * 100);
-  document.getElementById('final-score').textContent = `${pct}%`;
-  document.getElementById('final-detail').textContent =
-    `${correctCount} av ${COUNTRIES.length} rätt (${wrongCount} fel)`;
-}
-
-nextBtn.addEventListener('click', nextQuestion);
-document.getElementById('play-again-btn').addEventListener('click', startGame);
-
-// Init
+// ── Init ──
 createOverlays();
-startGame();
+loadHitData().then(() => {
+  mapWrapper.addEventListener('mousemove', onMouseMove);
+  mapWrapper.addEventListener('click', onClick);
+});
 </script>
 
 </body>
