@@ -17,27 +17,60 @@
 
     header {
       background: linear-gradient(135deg, #1a2940, #2a4060);
-      padding: 14px 24px;
+      padding: 10px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      gap: 16px;
     }
 
     header h1 {
-      font-size: 1.4rem;
+      font-size: 1.3rem;
       font-weight: 600;
       color: #5bbfff;
+      white-space: nowrap;
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .mode-btn {
+      padding: 8px 18px;
+      border: none;
+      background: transparent;
+      color: #6a8eab;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .mode-btn.active {
+      background: rgba(91,191,255,0.15);
+      color: #5bbfff;
+      font-weight: 600;
+    }
+
+    .mode-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.05);
     }
 
     .header-hint {
       color: #6a8eab;
       font-size: 0.85rem;
+      text-align: right;
+      min-width: 0;
     }
 
     .game-container {
       display: flex;
-      height: calc(100vh - 56px);
+      height: calc(100vh - 52px);
     }
 
     /* ── Map panel ── */
@@ -65,7 +98,7 @@
     }
 
     .map-wrapper img.base-map {
-      max-height: calc(100vh - 96px);
+      max-height: calc(100vh - 92px);
       width: auto;
       display: block;
       transition: filter 0.4s;
@@ -122,12 +155,10 @@
       opacity: 1;
     }
 
-    /* Hover highlight canvas */
-    #hit-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
+    .country-overlay.flash-wrong {
+      opacity: 1;
+      filter: hue-rotate(300deg) brightness(1.2) saturate(1.5);
+      transition: opacity 0.15s;
     }
 
     .hover-highlight {
@@ -143,6 +174,23 @@
       opacity: 0.4;
     }
 
+    /* ── Cursor label (Seterra mode) ── */
+    .cursor-label {
+      position: fixed;
+      pointer-events: none;
+      z-index: 100;
+      background: rgba(16, 28, 48, 0.92);
+      color: #5bbfff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(91,191,255,0.3);
+      white-space: nowrap;
+      display: none;
+      transform: translate(14px, 14px);
+    }
+
     /* ── Info panel ── */
     .info-panel {
       width: 380px;
@@ -154,7 +202,7 @@
     }
 
     .info-header {
-      padding: 20px 24px 16px;
+      padding: 16px 24px 12px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
@@ -164,7 +212,7 @@
       font-weight: 500;
     }
 
-    /* Default state – no country selected */
+    /* Default state */
     .info-default {
       flex: 1;
       display: flex;
@@ -241,7 +289,6 @@
       text-align: center;
     }
 
-    /* Counter */
     .counter {
       padding: 16px 24px;
       border-top: 1px solid rgba(255,255,255,0.06);
@@ -255,39 +302,191 @@
       color: #5bbfff;
     }
 
+    /* ── Seterra panel ── */
+    .seterra-panel {
+      display: none;
+      flex-direction: column;
+      padding: 24px;
+      gap: 20px;
+    }
+
+    .seterra-panel.active {
+      display: flex;
+    }
+
+    .seterra-target {
+      text-align: center;
+    }
+
+    .seterra-target .label {
+      font-size: 0.85rem;
+      color: #5a8aaa;
+      margin-bottom: 6px;
+    }
+
+    .seterra-target .target-name {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #5bbfff;
+    }
+
+    .seterra-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-box .stat-label {
+      font-size: 0.75rem;
+      color: #5a8aaa;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-box .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #cde;
+    }
+
+    .stat-box .stat-value.correct { color: #4cdf8b; }
+    .stat-box .stat-value.wrong { color: #ff6b6b; }
+    .stat-box .stat-value.score { color: #5bbfff; }
+    .stat-box .stat-value.time { color: #e8c547; }
+
+    .seterra-feedback {
+      min-height: 80px;
+      padding: 14px;
+      border-radius: 10px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .seterra-feedback.correct-fb {
+      background: rgba(76,223,139,0.1);
+      border: 1px solid rgba(76,223,139,0.2);
+    }
+
+    .seterra-feedback.wrong-fb {
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.2);
+    }
+
+    .seterra-feedback .fb-title {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .seterra-feedback.correct-fb .fb-title { color: #4cdf8b; }
+    .seterra-feedback.wrong-fb .fb-title { color: #ff6b6b; }
+
+    .seterra-feedback .fb-desc {
+      font-size: 0.85rem;
+      color: #8ab0c8;
+      line-height: 1.5;
+    }
+
+    .seterra-progress {
+      background: rgba(255,255,255,0.06);
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .seterra-progress .bar {
+      height: 100%;
+      background: linear-gradient(90deg, #2980b9, #5bbfff);
+      transition: width 0.4s ease;
+      border-radius: 6px;
+    }
+
+    .seterra-progress-label {
+      font-size: 0.8rem;
+      color: #5a8aaa;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* Game over overlay in seterra panel */
+    .seterra-done {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .seterra-done.active { display: flex; }
+
+    .seterra-done h2 {
+      font-size: 1.5rem;
+      color: #5bbfff;
+    }
+
+    .seterra-done .big-score {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #4cdf8b;
+    }
+
+    .seterra-done .done-detail {
+      color: #88b4d8;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .restart-btn {
+      padding: 12px 36px;
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .restart-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(46,204,113,0.3);
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       body { overflow: auto; }
-      .game-container {
-        flex-direction: column;
-        height: auto;
-      }
-      .map-panel {
-        height: 50vh;
-        min-height: 300px;
-      }
-      .map-wrapper img.base-map {
-        max-height: 46vh;
-      }
-      .info-panel {
-        width: 100%;
-        min-height: 50vh;
-      }
+      .game-container { flex-direction: column; height: auto; }
+      .map-panel { height: 50vh; min-height: 300px; }
+      .map-wrapper img.base-map { max-height: 46vh; }
+      .info-panel { width: 100%; min-height: 50vh; }
     }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Sydamerika – Forma-spelet</h1>
-  <span class="header-hint">Klicka på ett land för att utforska det</span>
+  <h1>Sydamerika</h1>
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="explore">Utforska</button>
+    <button class="mode-btn" data-mode="seterra">Klassiskt Quiz</button>
+  </div>
+  <span class="header-hint" id="header-hint">Klicka på ett land</span>
 </header>
 
 <div class="game-container">
   <div class="map-panel">
     <div class="map-wrapper" id="map-wrapper">
       <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta" draggable="false">
-      <!-- Overlays injected by JS -->
     </div>
     <div class="zoom-controls">
       <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
@@ -296,138 +495,173 @@
     </div>
   </div>
 
-  <div class="info-panel">
-    <div class="info-header">
-      <h2>Landinformation</h2>
-    </div>
+  <div class="info-panel" id="info-panel">
+    <!-- ── EXPLORE MODE ── -->
+    <div id="explore-ui">
+      <div class="info-header"><h2>Landinformation</h2></div>
 
-    <div class="info-default" id="info-default">
-      <div class="arrow-icon">&larr;</div>
-      <p>Klicka på ett land på kartan<br>för att se dess form och<br>läsa om det!</p>
-    </div>
-
-    <div class="info-card" id="info-card">
-      <div class="country-name" id="info-name"></div>
-      <div class="country-shape-preview">
-        <img id="info-shape" src="" alt="">
+      <div class="info-default" id="info-default">
+        <div class="arrow-icon">&larr;</div>
+        <p>Klicka på ett land på kartan<br>för att se dess form och<br>läsa om det!</p>
       </div>
-      <div class="description" id="info-desc"></div>
-      <div class="close-hint">Klicka på landet igen för att dölja</div>
+
+      <div class="info-card" id="info-card">
+        <div class="country-name" id="info-name"></div>
+        <div class="country-shape-preview">
+          <img id="info-shape" src="" alt="">
+        </div>
+        <div class="description" id="info-desc"></div>
+        <div class="close-hint">Klicka på landet igen för att dölja</div>
+      </div>
+
+      <div class="counter">
+        Utforskade: <strong id="explored-count">0</strong> / <strong>13</strong> länder
+      </div>
     </div>
 
-    <div class="counter" id="counter">
-      Utforskade: <strong id="explored-count">0</strong> / <strong>13</strong> länder
+    <!-- ── SETERRA MODE ── -->
+    <div id="seterra-ui" style="display:none;">
+      <div class="info-header"><h2>Klassiskt Quiz</h2></div>
+
+      <div class="seterra-panel active" id="seterra-game">
+        <div class="seterra-target">
+          <div class="label">Hitta detta land:</div>
+          <div class="target-name" id="seterra-target-name">---</div>
+        </div>
+
+        <div class="seterra-stats">
+          <div class="stat-box">
+            <div class="stat-label">Poäng</div>
+            <div class="stat-value score" id="seterra-score">100%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Tid</div>
+            <div class="stat-value time" id="seterra-time">0:00</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Rätt</div>
+            <div class="stat-value correct" id="seterra-correct">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Fel</div>
+            <div class="stat-value wrong" id="seterra-wrong">0</div>
+          </div>
+        </div>
+
+        <div class="seterra-progress">
+          <div class="bar" id="seterra-bar" style="width:0%"></div>
+        </div>
+        <div class="seterra-progress-label" id="seterra-progress-label">0 / 13</div>
+
+        <div class="seterra-feedback" id="seterra-feedback"></div>
+      </div>
+
+      <div class="seterra-done" id="seterra-done">
+        <h2>Klart!</h2>
+        <div class="big-score" id="seterra-final-score"></div>
+        <div class="done-detail" id="seterra-final-detail"></div>
+        <button class="restart-btn" id="seterra-restart">Spela igen</button>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- Cursor-following label for Seterra mode -->
+<div class="cursor-label" id="cursor-label"></div>
+
 <script>
 const COUNTRIES = [
-  {
-    name: "Argentina",
-    filename: "argentina",
-    left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215,
-    desc: "Argentina är Sydamerikas näst största land och sträcker sig från subtropiska norra regioner ner till det iskalla Patagonien. Landet är känt för tango, biff, och fotbollslegenden Maradona. Huvudstaden Buenos Aires kallas ofta \"Sydamerikas Paris\"."
-  },
-  {
-    name: "Chile",
-    filename: "chile",
-    left: 1391, top: 1950, width: 524, height: 2375, centerX: 1653, centerY: 3137,
-    desc: "Chile är världens smalaste land och sträcker sig över 4 300 km längs Sydamerikas västkust. Landets unika form ger det en otrolig variation – från Atacamaöknen i norr (världens torraste plats) till glaciärer i söder."
-  },
-  {
-    name: "Uruguay",
-    filename: "uruguay",
-    left: 2165, top: 2689, width: 271, height: 327, centerX: 2300, centerY: 2852,
-    desc: "Uruguay är ett av Sydamerikas minsta länder men rankas ofta högst i demokrati och levnadsstandard. Det lilla landet mellan Argentina och Brasilien vann den första fotbolls-VM-finalen 1930 på hemmaplan."
-  },
-  {
-    name: "Paraguay",
-    filename: "paraguay",
-    left: 1947, top: 1916, width: 539, height: 613, centerX: 2216, centerY: 2222,
-    desc: "Paraguay är ett av bara två landlåsta länder i Sydamerika. Floden Paraguay delar landet i två helt olika halvor – det gröna östlandet och den vilda, glest befolkade Chaco-regionen i väst."
-  },
-  {
-    name: "Brasilien",
-    filename: "brasilien",
-    left: 1113, top: 420, width: 2511, height: 2488, centerX: 2368, centerY: 1664,
-    desc: "Brasilien är Sydamerikas gigant och täcker nästan halva kontinenten. Landet rymmer Amazonas regnskog – jordens \"lunga\" – och är världens femte största land. Karnevalen i Rio och fotboll är en del av själen."
-  },
-  {
-    name: "Bolivia",
-    filename: "bolivia",
-    left: 1240, top: 1035, width: 1076, height: 1250, centerX: 1778, centerY: 1660,
-    desc: "Bolivia är Sydamerikas andra landlåsta land och hem till Salar de Uyuni – världens största saltöken. Huvudstaden La Paz ligger på över 3 600 meters höjd, vilket gör den till en av världens högst belägna huvudstäder."
-  },
-  {
-    name: "Peru",
-    filename: "peru",
-    left: 632, top: 768, width: 856, height: 1238, centerX: 1060, centerY: 1387,
-    desc: "Peru var hjärtat av Inkariket och hem till den legendariska Machu Picchu. Landet har tre distinkta zoner: den torra kusten, de mäktiga Anderna och Amazonas regnskog i öster."
-  },
-  {
-    name: "Ecuador",
-    filename: "eciador",
-    left: 245, top: 732, width: 795, height: 915, centerX: 642, centerY: 1189,
-    desc: "Ecuador är uppkallat efter ekvatorn som löper rakt igenom landet. Trots sin lilla storlek har det enorm biologisk mångfald – från Galapagosöarna (som inspirerade Darwins evolutionsteori) till Andernas toppar."
-  },
-  {
-    name: "Colombia",
-    filename: "colombia",
-    left: 753, top: 14, width: 771, height: 975, centerX: 1138, centerY: 501,
-    desc: "Colombia är det enda sydamerikanska landet med kust mot både Stilla havet och Karibiska havet. Landet är världens tredje största kaffeproducent och känt för sin otroliga biologiska mångfald."
-  },
-  {
-    name: "Venezuela",
-    filename: "venezuela",
-    left: 1066, top: 5, width: 951, height: 694, centerX: 1541, centerY: 352,
-    desc: "Venezuela är hem till Salto Ángel – världens högsta vattenfall på hela 979 meter. Landet har också några av världens största oljereserver. Sjön Maracaibo är Sydamerikas största sjö."
-  },
-  {
-    name: "Guyana",
-    filename: "guyana",
-    left: 1949, top: 204, width: 708, height: 446, centerX: 2303, centerY: 427,
-    desc: "Guyana är det enda engelskspråkiga landet i Sydamerika. Över 80% av landet är täckt av regnskog. Trots att det ligger i Sydamerika har Guyana starka kulturella band till Karibien."
-  },
-  {
-    name: "Surinam",
-    filename: "surinam",
-    left: 2124, top: 319, width: 360, height: 314, centerX: 2304, centerY: 476,
-    desc: "Surinam är Sydamerikas minsta land och det enda där nederländska är officiellt språk – ett arv från kolonialtidens Nederländerna. Landet har en unik kulturell mix av indiska, indonesiska, afrikanska och inhemska traditioner."
-  },
-  {
-    name: "Franska Guyana",
-    filename: "franska_guyana",
-    left: 2448, top: 372, width: 219, height: 220, centerX: 2557, centerY: 482,
-    desc: "Franska Guyana är tekniskt sett inte ett eget land utan ett franskt utomeuropeiskt departement – och därmed en del av EU! Här ligger Europas rymdhamn i Kourou, varifrån Ariane-raketer skjuts upp."
-  }
+  { name: "Argentina", filename: "argentina", left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215,
+    desc: "Argentina \u00e4r Sydamerikas n\u00e4st st\u00f6rsta land och str\u00e4cker sig fr\u00e5n subtropiska norra regioner ner till det iskalla Patagonien. Landet \u00e4r k\u00e4nt f\u00f6r tango, biff, och fotbollslegenden Maradona. Huvudstaden Buenos Aires kallas ofta \"Sydamerikas Paris\"." },
+  { name: "Chile", filename: "chile", left: 1391, top: 1950, width: 524, height: 2375, centerX: 1653, centerY: 3137,
+    desc: "Chile \u00e4r v\u00e4rldens smalaste land och str\u00e4cker sig \u00f6ver 4 300 km l\u00e4ngs Sydamerikas v\u00e4stkust. Landets unika form ger det en otrolig variation \u2013 fr\u00e5n Atacama\u00f6knen i norr (v\u00e4rldens torraste plats) till glaci\u00e4rer i s\u00f6der." },
+  { name: "Uruguay", filename: "uruguay", left: 2165, top: 2689, width: 271, height: 327, centerX: 2300, centerY: 2852,
+    desc: "Uruguay \u00e4r ett av Sydamerikas minsta l\u00e4nder men rankas ofta h\u00f6gst i demokrati och levnadsstandard. Det lilla landet mellan Argentina och Brasilien vann den f\u00f6rsta fotbolls-VM-finalen 1930 p\u00e5 hemmaplan." },
+  { name: "Paraguay", filename: "paraguay", left: 1947, top: 1916, width: 539, height: 613, centerX: 2216, centerY: 2222,
+    desc: "Paraguay \u00e4r ett av bara tv\u00e5 landl\u00e5sta l\u00e4nder i Sydamerika. Floden Paraguay delar landet i tv\u00e5 helt olika halvor \u2013 det gr\u00f6na \u00f6stlandet och den vilda, glest befolkade Chaco-regionen i v\u00e4st." },
+  { name: "Brasilien", filename: "brasilien", left: 1113, top: 420, width: 2511, height: 2488, centerX: 2368, centerY: 1664,
+    desc: "Brasilien \u00e4r Sydamerikas gigant och t\u00e4cker n\u00e4stan halva kontinenten. Landet rymmer Amazonas regnskog \u2013 jordens \"lunga\" \u2013 och \u00e4r v\u00e4rldens femte st\u00f6rsta land. Karnevalen i Rio och fotboll \u00e4r en del av sj\u00e4len." },
+  { name: "Bolivia", filename: "bolivia", left: 1240, top: 1035, width: 1076, height: 1250, centerX: 1778, centerY: 1660,
+    desc: "Bolivia \u00e4r Sydamerikas andra landl\u00e5sta land och hem till Salar de Uyuni \u2013 v\u00e4rldens st\u00f6rsta salt\u00f6ken. Huvudstaden La Paz ligger p\u00e5 \u00f6ver 3 600 meters h\u00f6jd, vilket g\u00f6r den till en av v\u00e4rldens h\u00f6gst bel\u00e4gna huvudst\u00e4der." },
+  { name: "Peru", filename: "peru", left: 632, top: 768, width: 856, height: 1238, centerX: 1060, centerY: 1387,
+    desc: "Peru var hj\u00e4rtat av Inkariket och hem till den legendariska Machu Picchu. Landet har tre distinkta zoner: den torra kusten, de m\u00e4ktiga Anderna och Amazonas regnskog i \u00f6ster." },
+  { name: "Ecuador", filename: "eciador", left: 245, top: 732, width: 795, height: 915, centerX: 642, centerY: 1189,
+    desc: "Ecuador \u00e4r uppkallat efter ekvatorn som l\u00f6per rakt igenom landet. Trots sin lilla storlek har det enorm biologisk m\u00e5ngfald \u2013 fr\u00e5n Gal\u00e1pagos\u00f6arna (som inspirerade Darwins evolutionsteori) till Andernas toppar." },
+  { name: "Colombia", filename: "colombia", left: 753, top: 14, width: 771, height: 975, centerX: 1138, centerY: 501,
+    desc: "Colombia \u00e4r det enda sydamerikanska landet med kust mot b\u00e5de Stilla havet och Karibiska havet. Landet \u00e4r v\u00e4rldens tredje st\u00f6rsta kaffeproducent och k\u00e4nt f\u00f6r sin otroliga biologiska m\u00e5ngfald." },
+  { name: "Venezuela", filename: "venezuela", left: 1066, top: 5, width: 951, height: 694, centerX: 1541, centerY: 352,
+    desc: "Venezuela \u00e4r hem till Salto \u00c1ngel \u2013 v\u00e4rldens h\u00f6gsta vattenfall p\u00e5 hela 979 meter. Landet har ocks\u00e5 n\u00e5gra av v\u00e4rldens st\u00f6rsta oljereserver. Sj\u00f6n Maracaibo \u00e4r Sydamerikas st\u00f6rsta sj\u00f6." },
+  { name: "Guyana", filename: "guyana", left: 1949, top: 204, width: 708, height: 446, centerX: 2303, centerY: 427,
+    desc: "Guyana \u00e4r det enda engelskspr\u00e5kiga landet i Sydamerika. \u00d6ver 80% av landet \u00e4r t\u00e4ckt av regnskog. Trots att det ligger i Sydamerika har Guyana starka kulturella band till Karibien." },
+  { name: "Surinam", filename: "surinam", left: 2124, top: 319, width: 360, height: 314, centerX: 2304, centerY: 476,
+    desc: "Surinam \u00e4r Sydamerikas minsta land och det enda d\u00e4r nederl\u00e4ndska \u00e4r officiellt spr\u00e5k \u2013 ett arv fr\u00e5n kolonialtidens Nederl\u00e4nderna. Landet har en unik kulturell mix av indiska, indonesiska, afrikanska och inhemska traditioner." },
+  { name: "Franska Guyana", filename: "franska_guyana", left: 2448, top: 372, width: 219, height: 220, centerX: 2557, centerY: 482,
+    desc: "Franska Guyana \u00e4r tekniskt sett inte ett eget land utan ett franskt utomeuropeiskt departement \u2013 och d\u00e4rmed en del av EU! H\u00e4r ligger Europas rymdhamn i Kourou, varifr\u00e5n Ariane-raketer skjuts upp." }
 ];
 
 const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
-const NO_HOVER = new Set(['eciador']); // countries where hover highlight is disabled
+const NO_HOVER = new Set(['eciador']);
 
 const mapPanel = document.querySelector('.map-panel');
 const mapWrapper = document.getElementById('map-wrapper');
 const baseMap = document.getElementById('base-map');
+const zoomLevelEl = document.getElementById('zoom-level');
+const cursorLabel = document.getElementById('cursor-label');
+const headerHint = document.getElementById('header-hint');
+
+// Explore UI
 const infoDefault = document.getElementById('info-default');
 const infoCard = document.getElementById('info-card');
 const infoName = document.getElementById('info-name');
 const infoShape = document.getElementById('info-shape');
 const infoDesc = document.getElementById('info-desc');
-const exploredCount = document.getElementById('explored-count');
-const zoomLevelEl = document.getElementById('zoom-level');
+const exploredCountEl = document.getElementById('explored-count');
 
-// Track state
+// Seterra UI
+const seterraTargetName = document.getElementById('seterra-target-name');
+const seterraScoreEl = document.getElementById('seterra-score');
+const seterraTimeEl = document.getElementById('seterra-time');
+const seterraCorrectEl = document.getElementById('seterra-correct');
+const seterraWrongEl = document.getElementById('seterra-wrong');
+const seterraBar = document.getElementById('seterra-bar');
+const seterraProgressLabel = document.getElementById('seterra-progress-label');
+const seterraFeedback = document.getElementById('seterra-feedback');
+const seterraDone = document.getElementById('seterra-done');
+const seterraGame = document.getElementById('seterra-game');
+
+// ── Shared state ──
+const hitCanvases = {};
 const revealed = new Set();
-let activeCountry = null;  // currently shown in info panel
-const hitCanvases = {};     // offscreen canvases per country for hit detection
+let currentMode = 'explore'; // 'explore' | 'seterra'
 
-// ── Zoom & Pan state ──
-let zoom = 1;
-let panX = 0, panY = 0;
+// ── Zoom & Pan ──
+let zoom = 1, panX = 0, panY = 0;
 const MIN_ZOOM = 1, MAX_ZOOM = 5;
 
-// ── Load offscreen canvases for pixel-perfect hit detection ──
+// ── Explore state ──
+let activeCountry = null;
+
+// ── Seterra state ──
+let seterraQueue = [];
+let seterraTarget = null;
+let seterraCorrect = 0;
+let seterraWrong = 0;
+let seterraTotal = 0;
+let seterraStartTime = 0;
+let seterraTimerInterval = null;
+let seterraLocked = false; // lock clicks briefly after wrong answer
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ══════════════════════════════════
+// ── Hit detection & overlays ──
+// ══════════════════════════════════
 function loadHitData() {
   return Promise.all(COUNTRIES.map(c => new Promise(resolve => {
     const img = new Image();
@@ -446,19 +680,15 @@ function loadHitData() {
   })));
 }
 
-// ── Create DOM overlays on the map ──
 function createOverlays() {
   COUNTRIES.forEach(c => {
-    // Colored overlay (hidden initially)
     const img = document.createElement('img');
     img.className = 'country-overlay';
     img.src = `assets/countries/${c.filename}.png`;
     img.dataset.country = c.filename;
-    img.alt = c.name;
     img.draggable = false;
     mapWrapper.appendChild(img);
 
-    // Hover highlight overlay
     const hover = document.createElement('img');
     hover.className = 'hover-highlight';
     hover.src = `assets/countries/${c.filename}.png`;
@@ -482,12 +712,8 @@ function positionOverlays() {
     const relTop = (c.top - MAP_TOP) * scale;
     const relW = c.width * scale;
     const relH = c.height * scale;
-
-    const selectors = [
-      `img.country-overlay[data-country="${c.filename}"]`,
-      `.hover-highlight[data-country="${c.filename}"]`
-    ];
-    selectors.forEach(sel => {
+    [`img.country-overlay[data-country="${c.filename}"]`,
+     `.hover-highlight[data-country="${c.filename}"]`].forEach(sel => {
       const el = mapWrapper.querySelector(sel);
       if (!el) return;
       el.style.left = (offsetX + relLeft) + 'px';
@@ -498,60 +724,75 @@ function positionOverlays() {
   });
 }
 
-// ── Hit test: which country is at this map click? ──
 function hitTest(clientX, clientY) {
   const mapRect = baseMap.getBoundingClientRect();
   const scale = MAP_W / mapRect.width;
   const mapX = (clientX - mapRect.left) * scale + MAP_LEFT;
   const mapY = (clientY - mapRect.top) * scale + MAP_TOP;
-
-  // Check countries in reverse order (smallest / top layers first for better UX)
   const sorted = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
-
   for (const c of sorted) {
-    const localX = Math.round(mapX - c.left);
-    const localY = Math.round(mapY - c.top);
-    if (localX < 0 || localY < 0 || localX >= c.width || localY >= c.height) continue;
-
+    const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
+    if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
     const hc = hitCanvases[c.filename];
     if (!hc) continue;
-    const pixel = hc.ctx.getImageData(localX, localY, 1, 1).data;
-    if (pixel[3] > 30) return c;  // non-transparent = hit
+    if (hc.ctx.getImageData(lx, ly, 1, 1).data[3] > 30) return c;
   }
   return null;
 }
 
+function revealCountry(filename) {
+  const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
+  if (el) { el.classList.remove('flash-wrong'); el.classList.add('visible'); }
+  revealed.add(filename);
+}
+
+function flashWrong(filename) {
+  const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
+  if (!el) return;
+  el.classList.add('flash-wrong');
+  setTimeout(() => { el.classList.remove('flash-wrong'); }, 1200);
+}
+
+function resetOverlays() {
+  document.querySelectorAll('.country-overlay').forEach(el => {
+    el.classList.remove('visible', 'flash-wrong');
+  });
+  revealed.clear();
+}
+
+// ══════════════════════
 // ── Hover ──
+// ══════════════════════
 let currentHover = null;
 
 function updateHover(e) {
   const hit = hitTest(e.clientX, e.clientY);
   const newHover = hit && !NO_HOVER.has(hit.filename) ? hit.filename : null;
-
   if (newHover !== currentHover) {
-    if (currentHover) {
-      mapWrapper.querySelector(`.hover-highlight[data-country="${currentHover}"]`)
-        .classList.remove('active');
-    }
-    if (newHover) {
-      mapWrapper.querySelector(`.hover-highlight[data-country="${newHover}"]`)
-        .classList.add('active');
-    }
+    if (currentHover)
+      mapWrapper.querySelector(`.hover-highlight[data-country="${currentHover}"]`).classList.remove('active');
+    if (newHover)
+      mapWrapper.querySelector(`.hover-highlight[data-country="${newHover}"]`).classList.add('active');
     currentHover = newHover;
+  }
+
+  // Update cursor label in seterra mode
+  if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
   }
 }
 
+// ══════════════════════
 // ── Drag & Click ──
-let isDragging = false;
-let didDrag = false;
-let dragStartX = 0, dragStartY = 0;
-let panStartX = 0, panStartY = 0;
+// ══════════════════════
+let isDragging = false, didDrag = false;
+let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
-  if (e.target.closest('.zoom-controls')) return; // let zoom buttons handle their own clicks
-  e.preventDefault(); // prevent native image drag
-  // Capture pointer so drag works even if cursor leaves the panel
+  if (e.target.closest('.zoom-controls')) return;
+  e.preventDefault();
   mapPanel.setPointerCapture(e.pointerId);
   isDragging = true;
   didDrag = false;
@@ -563,12 +804,8 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
-  if (!isDragging) {
-    updateHover(e);
-    return;
-  }
-  const dx = e.clientX - dragStartX;
-  const dy = e.clientY - dragStartY;
+  if (!isDragging) { updateHover(e); return; }
+  const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
   if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
   if (didDrag) {
     panX = panStartX + dx;
@@ -582,17 +819,22 @@ function onPointerUp(e) {
   mapWrapper.classList.remove('dragging');
   if (!isDragging) return;
   isDragging = false;
-
-  // Only toggle a country if it was a clean click (no drag movement)
   if (!didDrag) {
     const hit = hitTest(e.clientX, e.clientY);
-    if (hit) toggleCountry(hit);
+    if (hit) handleClick(hit);
   }
 }
 
-function toggleCountry(c) {
-  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
+function handleClick(c) {
+  if (currentMode === 'explore') exploreClick(c);
+  else seterraClick(c);
+}
 
+// ══════════════════════
+// ── Explore mode ──
+// ══════════════════════
+function exploreClick(c) {
+  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
   if (revealed.has(c.filename)) {
     overlay.classList.remove('visible');
     revealed.delete(c.filename);
@@ -602,8 +844,7 @@ function toggleCountry(c) {
       infoDefault.style.display = '';
     }
   } else {
-    overlay.classList.add('visible');
-    revealed.add(c.filename);
+    revealCountry(c.filename);
     activeCountry = c.filename;
     infoName.textContent = c.name;
     infoShape.src = `assets/countries/${c.filename}.png`;
@@ -611,31 +852,156 @@ function toggleCountry(c) {
     infoDefault.style.display = 'none';
     infoCard.classList.add('active');
   }
-  exploredCount.textContent = revealed.size;
+  exploredCountEl.textContent = revealed.size;
 }
 
+// ══════════════════════
+// ── Seterra mode ──
+// ══════════════════════
+function startSeterra() {
+  resetOverlays();
+  seterraQueue = shuffle([...COUNTRIES]);
+  seterraCorrect = 0;
+  seterraWrong = 0;
+  seterraTotal = COUNTRIES.length;
+  seterraLocked = false;
+  seterraStartTime = Date.now();
+
+  seterraGame.classList.add('active');
+  seterraDone.classList.remove('active');
+  cursorLabel.style.display = 'block';
+
+  updateSeterraUI();
+  nextSeterraTarget();
+
+  clearInterval(seterraTimerInterval);
+  seterraTimerInterval = setInterval(updateSeterraTimer, 500);
+}
+
+function nextSeterraTarget() {
+  if (seterraQueue.length === 0) {
+    endSeterra();
+    return;
+  }
+  seterraTarget = seterraQueue.pop();
+  seterraTargetName.textContent = seterraTarget.name;
+  cursorLabel.textContent = seterraTarget.name;
+  seterraFeedback.className = 'seterra-feedback';
+  seterraFeedback.innerHTML = '';
+}
+
+function seterraClick(c) {
+  if (!seterraTarget || seterraLocked) return;
+
+  if (c.filename === seterraTarget.filename) {
+    // Correct!
+    seterraCorrect++;
+    revealCountry(c.filename);
+    seterraFeedback.className = 'seterra-feedback correct-fb';
+    seterraFeedback.innerHTML = `<div class="fb-title">R\u00e4tt! ${c.name}</div><div class="fb-desc">${c.desc}</div>`;
+    updateSeterraUI();
+    nextSeterraTarget();
+  } else {
+    // Wrong
+    seterraWrong++;
+    flashWrong(c.filename);
+    seterraFeedback.className = 'seterra-feedback wrong-fb';
+    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div><div class="fb-desc">${c.desc}</div>`;
+    updateSeterraUI();
+
+    // Brief lock to prevent spam-clicking
+    seterraLocked = true;
+    setTimeout(() => { seterraLocked = false; }, 600);
+  }
+}
+
+function updateSeterraUI() {
+  const totalClicks = seterraCorrect + seterraWrong;
+  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  seterraScoreEl.textContent = score + '%';
+  seterraCorrectEl.textContent = seterraCorrect;
+  seterraWrongEl.textContent = seterraWrong;
+  const pct = Math.round((seterraCorrect / seterraTotal) * 100);
+  seterraBar.style.width = pct + '%';
+  seterraProgressLabel.textContent = `${seterraCorrect} / ${seterraTotal}`;
+}
+
+function updateSeterraTimer() {
+  const elapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  seterraTimeEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function endSeterra() {
+  clearInterval(seterraTimerInterval);
+  updateSeterraTimer();
+  seterraTarget = null;
+  cursorLabel.style.display = 'none';
+
+  const totalClicks = seterraCorrect + seterraWrong;
+  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  const elapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+
+  seterraGame.classList.remove('active');
+  seterraDone.classList.add('active');
+  document.getElementById('seterra-final-score').textContent = score + '%';
+  document.getElementById('seterra-final-detail').innerHTML =
+    `${seterraCorrect} av ${seterraTotal} l\u00e4nder<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
+}
+
+document.getElementById('seterra-restart').addEventListener('click', startSeterra);
+
+// ══════════════════════
+// ── Mode switching ──
+// ══════════════════════
+function switchMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+  if (mode === 'explore') {
+    document.getElementById('explore-ui').style.display = '';
+    document.getElementById('seterra-ui').style.display = 'none';
+    cursorLabel.style.display = 'none';
+    clearInterval(seterraTimerInterval);
+    seterraTarget = null;
+    headerHint.textContent = 'Klicka p\u00e5 ett land';
+    // Reset map for explore
+    resetOverlays();
+    activeCountry = null;
+    infoCard.classList.remove('active');
+    infoDefault.style.display = '';
+    exploredCountEl.textContent = '0';
+  } else {
+    document.getElementById('explore-ui').style.display = 'none';
+    document.getElementById('seterra-ui').style.display = '';
+    headerHint.textContent = 'Klicka d\u00e4r du tror landet \u00e4r!';
+    startSeterra();
+  }
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+});
+
+// ══════════════════════
 // ── Zoom & Transform ──
+// ══════════════════════
 function applyTransform() {
   mapWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
   zoomLevelEl.textContent = Math.round(zoom * 100) + '%';
 }
 
 function clampPan() {
-  // Layout size of the map (un-transformed)
-  const baseW = baseMap.offsetWidth;
-  const baseH = baseMap.offsetHeight;
-  // Displayed size after zoom
-  const dispW = baseW * zoom;
-  const dispH = baseH * zoom;
-  const panelW = mapPanel.clientWidth;
-  const panelH = mapPanel.clientHeight;
-
-  // Allow panning by the larger of: overflow beyond panel, or growth from zoom
-  // This ensures horizontal panning works even when the map is narrower than the panel
-  const growX = baseW * (zoom - 1) / 2;
-  const growY = baseH * (zoom - 1) / 2;
-  const maxX = Math.max(0, (dispW - panelW) / 2, growX);
-  const maxY = Math.max(0, (dispH - panelH) / 2, growY);
+  const baseW = baseMap.offsetWidth, baseH = baseMap.offsetHeight;
+  const panelW = mapPanel.clientWidth, panelH = mapPanel.clientHeight;
+  const growX = baseW * (zoom - 1) / 2, growY = baseH * (zoom - 1) / 2;
+  const maxX = Math.max(0, (baseW * zoom - panelW) / 2, growX);
+  const maxY = Math.max(0, (baseH * zoom - panelH) / 2, growY);
   panX = Math.max(-maxX, Math.min(maxX, panX));
   panY = Math.max(-maxY, Math.min(maxY, panY));
 }
@@ -644,34 +1010,28 @@ function setZoom(newZoom, cursorX, cursorY) {
   const oldZoom = zoom;
   zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
   if (zoom === oldZoom) return;
-
   if (cursorX !== undefined && cursorY !== undefined) {
-    // Keep the point under cursor stationary
-    const panelRect = mapPanel.getBoundingClientRect();
-    // Cursor position relative to panel center
-    const cx = cursorX - panelRect.left - panelRect.width / 2;
-    const cy = cursorY - panelRect.top - panelRect.height / 2;
-    // The map-space point under cursor: (cx - panX) / oldZoom
-    // After zoom it should still be at cx: newPanX = cx - mapPoint * newZoom
+    const r = mapPanel.getBoundingClientRect();
+    const cx = cursorX - r.left - r.width / 2;
+    const cy = cursorY - r.top - r.height / 2;
     panX = cx - ((cx - panX) / oldZoom) * zoom;
     panY = cy - ((cy - panY) / oldZoom) * zoom;
   }
-
   clampPan();
   applyTransform();
 }
 
 function onWheel(e) {
   e.preventDefault();
-  // Smooth multiplicative zoom – small steps
-  const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  setZoom(zoom * factor, e.clientX, e.clientY);
+  setZoom(zoom * (e.deltaY > 0 ? 0.9 : 1.1), e.clientX, e.clientY);
 }
 
 document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
 document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
 
+// ══════════════════════
 // ── Init ──
+// ══════════════════════
 createOverlays();
 loadHitData().then(() => {
   mapPanel.addEventListener('pointerdown', onPointerDown);
