@@ -173,13 +173,12 @@
       position: absolute;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
-      mix-blend-mode: screen;
-      filter: brightness(0.5) sepia(1) hue-rotate(170deg) saturate(3) brightness(0.7);
+      transition: opacity 0.2s;
+      filter: brightness(2) saturate(0.3);
     }
 
     .hover-highlight.active {
-      opacity: 0.4;
+      opacity: 0.25;
     }
 
     /* ── Cursor label (Seterra mode) ── */
@@ -703,7 +702,7 @@ const COUNTRIES = [
 ];
 
 const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
-const NO_HOVER = new Set(['eciador']);
+const NO_HOVER = new Set();
 const HS_KEY = 'sydamerika-highscores';
 
 const mapPanel = document.querySelector('.map-panel');
