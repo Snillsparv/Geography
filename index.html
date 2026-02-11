@@ -549,6 +549,7 @@ let panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
+  if (e.target.closest('.zoom-controls')) return; // let zoom buttons handle their own clicks
   e.preventDefault(); // prevent native image drag
   // Capture pointer so drag works even if cursor leaves the panel
   mapPanel.setPointerCapture(e.pointerId);
