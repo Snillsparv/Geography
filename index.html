@@ -624,11 +624,18 @@ function clampPan() {
   // Layout size of the map (un-transformed)
   const baseW = baseMap.offsetWidth;
   const baseH = baseMap.offsetHeight;
-  // How much bigger the map is than the viewport after zoom
-  const overflowX = Math.max(0, baseW * zoom - mapPanel.clientWidth);
-  const overflowY = Math.max(0, baseH * zoom - mapPanel.clientHeight);
-  const maxX = overflowX / 2;
-  const maxY = overflowY / 2;
+  // Displayed size after zoom
+  const dispW = baseW * zoom;
+  const dispH = baseH * zoom;
+  const panelW = mapPanel.clientWidth;
+  const panelH = mapPanel.clientHeight;
+
+  // Allow panning by the larger of: overflow beyond panel, or growth from zoom
+  // This ensures horizontal panning works even when the map is narrower than the panel
+  const growX = baseW * (zoom - 1) / 2;
+  const growY = baseH * (zoom - 1) / 2;
+  const maxX = Math.max(0, (dispW - panelW) / 2, growX);
+  const maxY = Math.max(0, (dispH - panelH) / 2, growY);
   panX = Math.max(-maxX, Math.min(maxX, panX));
   panY = Math.max(-maxY, Math.min(maxY, panY));
 }
