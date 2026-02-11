@@ -54,7 +54,13 @@
     .map-wrapper {
       position: relative;
       max-height: 100%;
-      cursor: pointer;
+      cursor: grab;
+      transform-origin: 0 0;
+      transition: none;
+    }
+
+    .map-wrapper.dragging {
+      cursor: grabbing;
     }
 
     .map-wrapper img.base-map {
@@ -63,6 +69,46 @@
       display: block;
       filter: brightness(2) saturate(0) contrast(0.6) brightness(1.8);
       transition: filter 0.4s;
+    }
+
+    /* Zoom controls */
+    .zoom-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
+    }
+
+    .zoom-btn {
+      width: 38px;
+      height: 38px;
+      background: rgba(22, 34, 53, 0.9);
+      border: 1px solid rgba(91,191,255,0.2);
+      border-radius: 8px;
+      color: #5bbfff;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .zoom-btn:hover {
+      background: rgba(42, 64, 96, 0.95);
+      border-color: rgba(91,191,255,0.5);
+    }
+
+    .zoom-level {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #4a6a82;
+      padding: 2px 0;
+      user-select: none;
     }
 
     .country-overlay {
@@ -243,6 +289,11 @@
       <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta">
       <!-- Overlays injected by JS -->
     </div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
+      <div class="zoom-level" id="zoom-level">100%</div>
+      <button class="zoom-btn" id="zoom-out" title="Zooma ut">&minus;</button>
+    </div>
   </div>
 
   <div class="info-panel">
@@ -353,7 +404,9 @@ const COUNTRIES = [
 ];
 
 const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
+const NO_HOVER = new Set(['eciador']); // countries where hover highlight is disabled
 
+const mapPanel = document.querySelector('.map-panel');
 const mapWrapper = document.getElementById('map-wrapper');
 const baseMap = document.getElementById('base-map');
 const infoDefault = document.getElementById('info-default');
@@ -362,11 +415,17 @@ const infoName = document.getElementById('info-name');
 const infoShape = document.getElementById('info-shape');
 const infoDesc = document.getElementById('info-desc');
 const exploredCount = document.getElementById('explored-count');
+const zoomLevelEl = document.getElementById('zoom-level');
 
 // Track state
 const revealed = new Set();
 let activeCountry = null;  // currently shown in info panel
 const hitCanvases = {};     // offscreen canvases per country for hit detection
+
+// ── Zoom & Pan state ──
+let zoom = 1;
+let panX = 0, panY = 0;
+const MIN_ZOOM = 1, MAX_ZOOM = 5, ZOOM_STEP = 0.15;
 
 // ── Load offscreen canvases for pixel-perfect hit detection ──
 function loadHitData() {
@@ -464,8 +523,9 @@ function hitTest(clientX, clientY) {
 let currentHover = null;
 
 function onMouseMove(e) {
+  if (isDragging) return;
   const hit = hitTest(e.clientX, e.clientY);
-  const newHover = hit ? hit.filename : null;
+  const newHover = hit && !NO_HOVER.has(hit.filename) ? hit.filename : null;
 
   if (newHover !== currentHover) {
     if (currentHover) {
@@ -477,51 +537,136 @@ function onMouseMove(e) {
         .classList.add('active');
       mapWrapper.style.cursor = 'pointer';
     } else {
-      mapWrapper.style.cursor = 'default';
+      mapWrapper.style.cursor = zoom > 1 ? 'grab' : 'default';
     }
     currentHover = newHover;
   }
 }
 
-// ── Click ──
-function onClick(e) {
-  const hit = hitTest(e.clientX, e.clientY);
-  if (!hit) return;
+// ── Click (with drag detection) ──
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let panStartX = 0, panStartY = 0;
+let didDrag = false;
 
-  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${hit.filename}"]`);
+function onPointerDown(e) {
+  if (e.button !== 0) return;
+  isDragging = true;
+  didDrag = false;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  panStartX = panX;
+  panStartY = panY;
+  mapWrapper.classList.add('dragging');
+}
 
-  if (revealed.has(hit.filename)) {
-    // Toggle off
-    overlay.classList.remove('visible');
-    revealed.delete(hit.filename);
+function onPointerMove(e) {
+  if (!isDragging) {
+    onMouseMove(e);
+    return;
+  }
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag = true;
+  if (didDrag) {
+    panX = panStartX + dx;
+    panY = panStartY + dy;
+    clampPan();
+    applyTransform();
+  }
+}
 
-    if (activeCountry === hit.filename) {
-      activeCountry = null;
-      infoCard.classList.remove('active');
-      infoDefault.style.display = '';
+function onPointerUp(e) {
+  mapWrapper.classList.remove('dragging');
+  if (!isDragging) return;
+  isDragging = false;
+
+  if (!didDrag) {
+    // It was a click, not a drag
+    const hit = hitTest(e.clientX, e.clientY);
+    if (!hit) return;
+
+    const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${hit.filename}"]`);
+
+    if (revealed.has(hit.filename)) {
+      overlay.classList.remove('visible');
+      revealed.delete(hit.filename);
+      if (activeCountry === hit.filename) {
+        activeCountry = null;
+        infoCard.classList.remove('active');
+        infoDefault.style.display = '';
+      }
+    } else {
+      overlay.classList.add('visible');
+      revealed.add(hit.filename);
+      activeCountry = hit.filename;
+      infoName.textContent = hit.name;
+      infoShape.src = `assets/countries/${hit.filename}.png`;
+      infoDesc.textContent = hit.desc;
+      infoDefault.style.display = 'none';
+      infoCard.classList.add('active');
     }
-  } else {
-    // Toggle on
-    overlay.classList.add('visible');
-    revealed.add(hit.filename);
+    exploredCount.textContent = revealed.size;
+  }
+}
 
-    // Show info
-    activeCountry = hit.filename;
-    infoName.textContent = hit.name;
-    infoShape.src = `assets/countries/${hit.filename}.png`;
-    infoDesc.textContent = hit.desc;
-    infoDefault.style.display = 'none';
-    infoCard.classList.add('active');
+// ── Zoom ──
+function applyTransform() {
+  mapWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  zoomLevelEl.textContent = Math.round(zoom * 100) + '%';
+}
+
+function clampPan() {
+  const panelRect = mapPanel.getBoundingClientRect();
+  const mapW = baseMap.naturalWidth || baseMap.offsetWidth;
+  const mapH = baseMap.naturalHeight || baseMap.offsetHeight;
+  // Get the displayed size of base-map at zoom=1
+  const style = getComputedStyle(baseMap);
+  const dispW = baseMap.offsetWidth * zoom;
+  const dispH = baseMap.offsetHeight * zoom;
+
+  const maxPanX = Math.max(0, (dispW - panelRect.width) / 2);
+  const maxPanY = Math.max(0, (dispH - panelRect.height) / 2);
+
+  panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+  panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+}
+
+function setZoom(newZoom, centerX, centerY) {
+  const oldZoom = zoom;
+  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+  if (zoom === oldZoom) return;
+
+  if (centerX !== undefined && centerY !== undefined) {
+    // Zoom towards cursor: adjust pan so the point under cursor stays put
+    const panelRect = mapPanel.getBoundingClientRect();
+    const cx = centerX - panelRect.left - panelRect.width / 2;
+    const cy = centerY - panelRect.top - panelRect.height / 2;
+    panX = cx - (cx - panX) * (zoom / oldZoom);
+    panY = cy - (cy - panY) * (zoom / oldZoom);
   }
 
-  exploredCount.textContent = revealed.size;
+  clampPan();
+  applyTransform();
 }
+
+function onWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+  setZoom(zoom + delta * zoom, e.clientX, e.clientY);
+}
+
+document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
+document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
 
 // ── Init ──
 createOverlays();
 loadHitData().then(() => {
-  mapWrapper.addEventListener('mousemove', onMouseMove);
-  mapWrapper.addEventListener('click', onClick);
+  mapPanel.addEventListener('pointermove', onPointerMove);
+  mapPanel.addEventListener('pointerdown', onPointerDown);
+  mapPanel.addEventListener('pointerup', onPointerUp);
+  mapPanel.addEventListener('pointerleave', onPointerUp);
+  mapPanel.addEventListener('wheel', onWheel, { passive: false });
 });
 </script>
 
