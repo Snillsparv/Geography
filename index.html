@@ -174,11 +174,11 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(2) saturate(0.3);
+      filter: brightness(0) invert(1);
     }
 
     .hover-highlight.active {
-      opacity: 0.25;
+      opacity: 0.2;
     }
 
     /* ── Cursor label (Seterra mode) ── */
@@ -917,6 +917,11 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+  // Always update cursor label position in seterra mode
+  if (currentMode === 'seterra' && seterraTarget) {
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
+  }
   if (!isDragging) { updateHover(e); return; }
   const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
   if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
