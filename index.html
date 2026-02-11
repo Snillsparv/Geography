@@ -556,6 +556,43 @@
       box-shadow: 0 4px 16px rgba(46,204,113,0.3);
     }
 
+    /* ── Jonas high-five ── */
+    .jonas-section {
+      padding: 12px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .jonas-section img {
+      width: 100px;
+      height: auto;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: transform 0.15s;
+      user-select: none;
+    }
+
+    .jonas-section img:hover {
+      transform: scale(1.08);
+    }
+
+    .jonas-section img:active {
+      transform: scale(0.95);
+    }
+
+    .highfive-counter {
+      font-size: 0.8rem;
+      color: #5a8aaa;
+    }
+
+    .highfive-counter strong {
+      color: #5bbfff;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       body { overflow: auto; }
@@ -665,6 +702,11 @@
 
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
       </div>
+    </div>
+
+    <div class="jonas-section">
+      <img id="jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+      <div class="highfive-counter">High fives: <strong id="highfive-count">0</strong></div>
     </div>
   </div>
 </div>
@@ -1225,6 +1267,23 @@ document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom
 // Init
 // ══════════════════════
 createOverlays();
+// ── Jonas high-five ──
+const jonasImg = document.getElementById('jonas-img');
+const highfiveCountEl = document.getElementById('highfive-count');
+const highfiveAudio = new Audio('high_five.wav');
+let highfiveCount = parseInt(localStorage.getItem('highfive-count') || '0', 10);
+highfiveCountEl.textContent = highfiveCount;
+
+jonasImg.addEventListener('click', () => {
+  highfiveCount++;
+  localStorage.setItem('highfive-count', highfiveCount);
+  highfiveCountEl.textContent = highfiveCount;
+  highfiveAudio.currentTime = 0;
+  highfiveAudio.play();
+  jonasImg.src = 'Jonas_2.webp';
+  setTimeout(() => { jonasImg.src = 'Jonas_1.webp'; }, 1000);
+});
+
 loadHitData().then(() => {
   mapPanel.addEventListener('pointerdown', onPointerDown);
   mapPanel.addEventListener('pointermove', onPointerMove);
