@@ -287,7 +287,7 @@
 <div class="game-container">
   <div class="map-panel">
     <div class="map-wrapper" id="map-wrapper">
-      <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta">
+      <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta" draggable="false">
       <!-- Overlays injected by JS -->
     </div>
     <div class="zoom-controls">
@@ -456,6 +456,7 @@ function createOverlays() {
     img.src = `assets/countries/${c.filename}.png`;
     img.dataset.country = c.filename;
     img.alt = c.name;
+    img.draggable = false;
     mapWrapper.appendChild(img);
 
     // Hover highlight overlay
@@ -463,6 +464,7 @@ function createOverlays() {
     hover.className = 'hover-highlight';
     hover.src = `assets/countries/${c.filename}.png`;
     hover.dataset.country = c.filename;
+    hover.draggable = false;
     mapWrapper.appendChild(hover);
   });
   positionOverlays();
@@ -548,6 +550,7 @@ let panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
+  e.preventDefault(); // prevent native image drag
   // Capture pointer so drag works even if cursor leaves the panel
   mapPanel.setPointerCapture(e.pointerId);
   isDragging = true;
