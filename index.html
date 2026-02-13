@@ -178,7 +178,7 @@
     }
 
     .hover-highlight.active {
-      opacity: 0.5;
+      opacity: 1;
     }
 
     /* ── Cursor label (Seterra mode) ── */
@@ -911,6 +911,10 @@ function revealCountry(filename) {
   const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
   if (el) { el.classList.remove('flash-wrong', 'hint-blink'); el.classList.add('visible'); }
   revealed.add(filename);
+  justRevealed.add(filename);
+  // Remove hover highlight immediately so the country shows in full color
+  const hoverEl = mapWrapper.querySelector(`.hover-highlight[data-country="${filename}"]`);
+  if (hoverEl) hoverEl.classList.remove('active');
 }
 
 function flashWrong(filename) {
@@ -934,20 +938,24 @@ function resetOverlays() {
     el.classList.remove('visible', 'flash-wrong', 'hint-blink');
   });
   revealed.clear();
+  justRevealed.clear();
 }
 
 // ══════════════════════
 // Hover
 // ══════════════════════
 let currentHover = null;
+const justRevealed = new Set();
 
 function updateHover(e) {
   const hit = hitTest(e.clientX, e.clientY);
   const newHover = hit && !NO_HOVER.has(hit.filename) ? hit.filename : null;
   if (newHover !== currentHover) {
-    if (currentHover)
+    if (currentHover) {
       mapWrapper.querySelector(`.hover-highlight[data-country="${currentHover}"]`).classList.remove('active');
-    if (newHover)
+      justRevealed.delete(currentHover);
+    }
+    if (newHover && !justRevealed.has(newHover))
       mapWrapper.querySelector(`.hover-highlight[data-country="${newHover}"]`).classList.add('active');
     currentHover = newHover;
   }
