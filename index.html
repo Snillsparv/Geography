@@ -174,7 +174,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(210deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(180deg);
       mix-blend-mode: multiply;
     }
 
@@ -294,6 +294,16 @@
       font-size: 0.95rem;
       line-height: 1.7;
       color: #b0c8d8;
+    }
+
+    .assoc-box {
+      background: rgba(100, 180, 255, 0.12);
+      border: 1px solid rgba(100, 180, 255, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-weight: 700;
+      color: #7ec8e3;
     }
 
     .info-card .close-hint {
@@ -1221,7 +1231,7 @@ function showInfoCard(c) {
   infoName.textContent = c.name;
   infoShape.src = `assets/countries/${c.filename}.png`;
   const assoc = IMAGE_ASSOCIATIONS[c.filename];
-  infoDesc.innerHTML = (assoc ? `<strong>${escHtml(assoc)}</strong><br><br>` : '') + escHtml(c.desc);
+  infoDesc.innerHTML = (assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : '') + escHtml(c.desc);
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
 }
@@ -1319,7 +1329,7 @@ function seterraClick(c) {
     revealCountry(c.filename);
     seterraFeedback.className = 'seterra-feedback correct-fb';
     const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Rätt! ${c.name}</div>${correctAssoc ? `<div class="fb-desc" style="font-weight:700;margin-bottom:4px">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Rätt! ${c.name}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
     nextSeterraTarget();
   } else {
@@ -1329,7 +1339,7 @@ function seterraClick(c) {
     flashWrong(c.filename);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
     const wrongAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div>${wrongAssoc ? `<div class="fb-desc" style="font-weight:700;margin-bottom:4px">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div>${wrongAssoc ? `<div class="assoc-box">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
 
     // After 3 misses on same target, blink the correct country
