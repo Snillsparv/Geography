@@ -174,7 +174,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(180deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(185deg);
       mix-blend-mode: multiply;
     }
 
@@ -947,6 +947,7 @@ const MIN_ZOOM = 1, MAX_ZOOM = 5;
 
 // Explore state
 let activeCountry = null;
+let exploreTooltipTimer = null;
 
 // Seterra state
 let seterraQueue = [];
@@ -1214,12 +1215,12 @@ function onPointerUp(e) {
   isDragging = false;
   if (!didDrag) {
     const hit = hitTest(e.clientX, e.clientY);
-    if (hit) handleClick(hit);
+    if (hit) handleClick(hit, e);
   }
 }
 
-function handleClick(c) {
-  if (currentMode === 'explore') exploreClick(c);
+function handleClick(c, e) {
+  if (currentMode === 'explore') exploreClick(c, e);
   else seterraClick(c);
 }
 
@@ -1236,7 +1237,7 @@ function showInfoCard(c) {
   infoCard.classList.add('active');
 }
 
-function exploreClick(c) {
+function exploreClick(c, e) {
   const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
   if (revealed.has(c.filename)) {
     // Hide the overlay but show info for this country
@@ -1248,6 +1249,19 @@ function exploreClick(c) {
     showInfoCard(c);
   }
   exploredCountEl.textContent = revealed.size;
+
+  // Show association as tooltip near cursor
+  const assoc = IMAGE_ASSOCIATIONS[c.filename];
+  if (assoc && e) {
+    clearTimeout(exploreTooltipTimer);
+    cursorLabel.textContent = assoc;
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
+    cursorLabel.style.display = 'block';
+    exploreTooltipTimer = setTimeout(() => {
+      cursorLabel.style.display = 'none';
+    }, 3000);
+  }
 }
 
 // ══════════════════════
@@ -1525,6 +1539,7 @@ function switchMode(mode) {
     document.getElementById('explore-ui').style.display = '';
     document.getElementById('seterra-ui').style.display = 'none';
     cursorLabel.style.display = 'none';
+    clearTimeout(exploreTooltipTimer);
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
     headerHint.textContent = 'Klicka p\u00e5 ett land';
