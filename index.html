@@ -174,7 +174,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(3) hue-rotate(230deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(190deg);
       mix-blend-mode: multiply;
     }
 
@@ -862,6 +862,10 @@ function createOverlays() {
     hover.src = `assets/countries/${c.filename}.png`;
     hover.dataset.country = c.filename;
     hover.draggable = false;
+    // Clip away the decorative beach ball on Bolivia's image
+    if (c.filename === 'bolivia') {
+      hover.style.clipPath = 'polygon(42% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%, 42% 25%)';
+    }
     mapWrapper.appendChild(hover);
   });
   positionOverlays();
