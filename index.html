@@ -90,7 +90,6 @@
       cursor: default;
       transform-origin: center center;
       transition: transform 0.18s ease-out;
-      contain: layout style paint;
     }
 
     .map-wrapper.dragging {
@@ -1180,6 +1179,47 @@ function processHoverImages() {
     ctx.putImageData(pixels, 0, 0);
     const hoverEl = hoverEls[c.filename];
     if (hoverEl) hoverEl.src = canvas.toDataURL();
+  });
+
+  // Trim country overlay images so they don't bleed beyond border lines.
+  // Uses the raw (non-dilated) mask for a tighter, exact-border trim.
+  COUNTRIES.forEach(c => {
+    const hc = hitCanvases[c.filename];
+    if (!hc) return;
+
+    const ow = c.width, oh = c.height;
+    const sx = c.left - MAP_LEFT;
+    const sy = c.top - MAP_TOP;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = ow;
+    canvas.height = oh;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(hc.canvas, 0, 0);
+
+    const pixels = ctx.getImageData(0, 0, ow, oh);
+    const d = pixels.data;
+    let changed = false;
+
+    for (let y = 0; y < oh; y++) {
+      for (let x = 0; x < ow; x++) {
+        const ci = (y * ow + x) * 4;
+        if (d[ci + 3] === 0) continue;
+        const mx = sx + x;
+        const my = sy + y;
+        if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H ||
+            raw[my * MAP_W + mx]) {
+          d[ci + 3] = 0;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      ctx.putImageData(pixels, 0, 0);
+      const oEl = overlayEls[c.filename];
+      if (oEl) oEl.src = canvas.toDataURL();
+    }
   });
 }
 
