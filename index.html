@@ -90,6 +90,7 @@
       cursor: default;
       transform-origin: center center;
       transition: transform 0.18s ease-out;
+      background: white;
     }
 
     .map-wrapper.dragging {
@@ -102,6 +103,9 @@
       width: auto;
       display: block;
       transition: filter 0.4s;
+      position: relative;
+      z-index: 2;
+      mix-blend-mode: multiply;
     }
 
     /* Zoom controls */
@@ -149,6 +153,7 @@
       transition: opacity 0.4s ease;
       opacity: 0;
       pointer-events: none;
+      z-index: 3;
     }
 
     .country-overlay.visible {
@@ -175,7 +180,7 @@
       opacity: 0;
       transition: opacity 0.2s;
       filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(190deg);
-      mix-blend-mode: multiply;
+      z-index: 1;
     }
 
     .hover-highlight.active {
