@@ -174,7 +174,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(190deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(210deg);
       mix-blend-mode: multiply;
     }
 
@@ -609,6 +609,110 @@
       color: #5bbfff;
     }
 
+    /* ── Name popup modal ── */
+    .name-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .name-modal-overlay.active {
+      display: flex;
+    }
+
+    .name-modal {
+      background: linear-gradient(135deg, #1a2940, #243654);
+      border: 1px solid rgba(91,191,255,0.3);
+      border-radius: 16px;
+      padding: 32px 36px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+      animation: modalIn 0.3s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .name-modal h3 {
+      font-size: 1.3rem;
+      color: #5bbfff;
+      margin-bottom: 6px;
+    }
+
+    .name-modal .modal-score {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #4cdf8b;
+      margin-bottom: 12px;
+    }
+
+    .name-modal .modal-detail {
+      font-size: 0.9rem;
+      color: #88b4d8;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .name-modal .modal-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .name-modal .modal-input-row input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(91,191,255,0.3);
+      background: rgba(0,0,0,0.3);
+      color: #e0e0e0;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .name-modal .modal-input-row input:focus {
+      border-color: rgba(91,191,255,0.7);
+      box-shadow: 0 0 12px rgba(91,191,255,0.15);
+    }
+
+    .name-modal .modal-input-row button {
+      padding: 12px 22px;
+      background: linear-gradient(135deg, #2980b9, #5bbfff);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.15s;
+    }
+
+    .name-modal .modal-input-row button:hover {
+      transform: scale(1.05);
+    }
+
+    .name-modal .modal-skip {
+      background: none;
+      border: none;
+      color: #4a6a82;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 6px 12px;
+    }
+
+    .name-modal .modal-skip:hover {
+      color: #6a8eab;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       body { overflow: auto; }
@@ -732,6 +836,19 @@
 
 <div class="cursor-label" id="cursor-label"></div>
 
+<div class="name-modal-overlay" id="name-modal-overlay">
+  <div class="name-modal">
+    <h3>Snyggt spelat!</h3>
+    <div class="modal-score" id="modal-score"></div>
+    <div class="modal-detail" id="modal-detail"></div>
+    <div class="modal-input-row">
+      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20">
+      <button id="modal-save">Spara</button>
+    </div>
+    <button class="modal-skip" id="modal-skip">Hoppa &ouml;ver</button>
+  </div>
+</div>
+
 <script>
 const COUNTRIES = [
   { name: "Argentina", filename: "argentina", left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215,
@@ -763,6 +880,22 @@ const COUNTRIES = [
 ];
 
 const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
+
+const IMAGE_ASSOCIATIONS = {
+  peru: 'En klättrare som heter PER',
+  eciador: 'En vattenslang som sprutar vatten längs hela EKVATORN',
+  colombia: 'En COOL ko med solglasögon',
+  venezuela: 'En VÄN som kommer springande och hälsar',
+  guyana: 'Ett kors, de som bor där säger "GUD? GÄRNA!"',
+  surinam: 'En SUR liten filur som smaskar: "NAM NAM NAM"',
+  franska_guyana: 'En FRANSK snigel som hänger ihop med GUYANA till vänster',
+  brasilien: 'Huvudet på ett lejon som tatuerat in ett fotbollsmönster för att stötta BRASILIENS landslag',
+  bolivia: 'En urna som det växer en BOLL i istället för en växt',
+  paraguay: 'Ett foster som vill ha PARA',
+  uruguay: 'Ett UR',
+  argentina: 'En ARG kille som har fått en kycklingklubba i ögat',
+  chile: 'En CHILI-peppar',
+};
 const NO_HOVER = new Set();
 const HS_KEY = 'sydamerika-highscores';
 
@@ -1087,7 +1220,8 @@ function showInfoCard(c) {
   activeCountry = c.filename;
   infoName.textContent = c.name;
   infoShape.src = `assets/countries/${c.filename}.png`;
-  infoDesc.textContent = c.desc;
+  const assoc = IMAGE_ASSOCIATIONS[c.filename];
+  infoDesc.innerHTML = (assoc ? `<strong>${escHtml(assoc)}</strong><br><br>` : '') + escHtml(c.desc);
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
 }
@@ -1184,7 +1318,8 @@ function seterraClick(c) {
     seterraTargetMisses = 0;
     revealCountry(c.filename);
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">R\u00e4tt! ${c.name}</div><div class="fb-desc">${c.desc}</div>`;
+    const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
+    seterraFeedback.innerHTML = `<div class="fb-title">Rätt! ${c.name}</div>${correctAssoc ? `<div class="fb-desc" style="font-weight:700;margin-bottom:4px">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
     nextSeterraTarget();
   } else {
@@ -1193,7 +1328,8 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.filename);
     flashWrong(c.filename);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div><div class="fb-desc">${c.desc}</div>`;
+    const wrongAssoc = IMAGE_ASSOCIATIONS[c.filename];
+    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div>${wrongAssoc ? `<div class="fb-desc" style="font-weight:700;margin-bottom:4px">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
 
     // After 3 misses on same target, blink the correct country
@@ -1251,14 +1387,13 @@ function endSeterra() {
     retryBtn.style.display = 'none';
   }
 
-  // Show save form only for non-retry rounds
-  if (seterraIsRetry) {
-    document.getElementById('hs-form').style.display = 'none';
-    document.getElementById('hs-saved-msg').style.display = 'none';
-  } else {
-    document.getElementById('hs-form').style.display = '';
-    document.getElementById('hs-saved-msg').style.display = 'none';
-    document.getElementById('hs-name').value = '';
+  // Hide inline form – we use the popup modal instead
+  document.getElementById('hs-form').style.display = 'none';
+  document.getElementById('hs-saved-msg').style.display = 'none';
+
+  // Show name popup for non-retry rounds
+  if (!seterraIsRetry) {
+    showNameModal(score, m, s);
   }
 
   renderHighscores();
@@ -1329,6 +1464,45 @@ document.getElementById('seterra-restart').addEventListener('click', startSeterr
 document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
 
 // ══════════════════════
+// Name popup modal
+// ══════════════════════
+const nameModalOverlay = document.getElementById('name-modal-overlay');
+const modalNameInput = document.getElementById('modal-name');
+
+function showNameModal(score, m, s) {
+  document.getElementById('modal-score').textContent = score + '%';
+  document.getElementById('modal-detail').innerHTML =
+    `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+  modalNameInput.value = '';
+  nameModalOverlay.classList.add('active');
+  setTimeout(() => modalNameInput.focus(), 100);
+}
+
+function closeNameModal() {
+  nameModalOverlay.classList.remove('active');
+}
+
+document.getElementById('modal-save').addEventListener('click', () => {
+  const name = modalNameInput.value.trim();
+  if (!name) { modalNameInput.focus(); return; }
+  const totalClicks = seterraCorrect + seterraWrong;
+  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  const entry = saveHighscore(name, score, seterraElapsed, seterraWrong);
+  closeNameModal();
+  renderHighscores(entry);
+});
+
+modalNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('modal-save').click();
+});
+
+document.getElementById('modal-skip').addEventListener('click', closeNameModal);
+
+nameModalOverlay.addEventListener('click', (e) => {
+  if (e.target === nameModalOverlay) closeNameModal();
+});
+
+// ══════════════════════
 // Mode switching
 // ══════════════════════
 function switchMode(mode) {
@@ -1372,9 +1546,10 @@ function applyTransform() {
 function clampPan() {
   const baseW = baseMap.offsetWidth, baseH = baseMap.offsetHeight;
   const panelW = mapPanel.clientWidth, panelH = mapPanel.clientHeight;
-  const growX = baseW * (zoom - 1) / 2, growY = baseH * (zoom - 1) / 2;
-  const maxX = Math.max(0, (baseW * zoom - panelW) / 2, growX);
-  const maxY = Math.max(0, (baseH * zoom - panelH) / 2, growY);
+  const scaledW = baseW * zoom, scaledH = baseH * zoom;
+  // Allow dragging generously – the map can be panned until only ~20% remains visible
+  const maxX = Math.max(0, (scaledW - panelW) / 2 + panelW * 0.5);
+  const maxY = Math.max(0, (scaledH - panelH) / 2 + panelH * 0.5);
   panX = Math.max(-maxX, Math.min(maxX, panX));
   panY = Math.max(-maxY, Math.min(maxY, panY));
 }
