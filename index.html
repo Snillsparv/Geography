@@ -174,7 +174,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(185deg);
+      filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(75deg);
       mix-blend-mode: multiply;
     }
 
@@ -197,6 +197,12 @@
       white-space: nowrap;
       display: none;
       transform: translate(14px, 14px);
+    }
+
+    .cursor-label.explore-tooltip {
+      white-space: pre-line;
+      max-width: 260px;
+      text-align: center;
     }
 
     /* ── Info panel ── */
@@ -1170,6 +1176,11 @@ function updateHover(e) {
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
   }
+
+  if (currentMode === 'explore' && cursorLabel.classList.contains('explore-tooltip')) {
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
+  }
 }
 
 // ══════════════════════
@@ -1240,28 +1251,34 @@ function showInfoCard(c) {
 function exploreClick(c, e) {
   const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
   if (revealed.has(c.filename)) {
-    // Hide the overlay but show info for this country
+    // Hide the overlay
     overlay.classList.remove('visible');
     revealed.delete(c.filename);
     showInfoCard(c);
+    hideExploreTooltip();
   } else {
     revealCountry(c.filename);
     showInfoCard(c);
+
+    // Show country name + association as tooltip near cursor
+    const assoc = IMAGE_ASSOCIATIONS[c.filename];
+    if (assoc && e) {
+      clearTimeout(exploreTooltipTimer);
+      cursorLabel.innerHTML = `<strong>${escHtml(c.name)}</strong>\n${escHtml(assoc)}`;
+      cursorLabel.classList.add('explore-tooltip');
+      cursorLabel.style.left = e.clientX + 'px';
+      cursorLabel.style.top = e.clientY + 'px';
+      cursorLabel.style.display = 'block';
+      exploreTooltipTimer = setTimeout(hideExploreTooltip, 3000);
+    }
   }
   exploredCountEl.textContent = revealed.size;
+}
 
-  // Show association as tooltip near cursor
-  const assoc = IMAGE_ASSOCIATIONS[c.filename];
-  if (assoc && e) {
-    clearTimeout(exploreTooltipTimer);
-    cursorLabel.textContent = assoc;
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-    cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(() => {
-      cursorLabel.style.display = 'none';
-    }, 3000);
-  }
+function hideExploreTooltip() {
+  clearTimeout(exploreTooltipTimer);
+  cursorLabel.style.display = 'none';
+  cursorLabel.classList.remove('explore-tooltip');
 }
 
 // ══════════════════════
@@ -1538,8 +1555,7 @@ function switchMode(mode) {
   if (mode === 'explore') {
     document.getElementById('explore-ui').style.display = '';
     document.getElementById('seterra-ui').style.display = 'none';
-    cursorLabel.style.display = 'none';
-    clearTimeout(exploreTooltipTimer);
+    hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
     headerHint.textContent = 'Klicka p\u00e5 ett land';
