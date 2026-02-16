@@ -1,0 +1,132 @@
+[
+  {
+    "name": "Argentina",
+    "filename": "argentina",
+    "left": 1507,
+    "top": 2150,
+    "width": 985,
+    "height": 2130,
+    "centerX": 1999,
+    "centerY": 3215
+  },
+  {
+    "name": "Chile",
+    "filename": "chile",
+    "left": 1391,
+    "top": 1950,
+    "width": 524,
+    "height": 2375,
+    "centerX": 1653,
+    "centerY": 3137
+  },
+  {
+    "name": "Uruguay",
+    "filename": "uruguay",
+    "left": 2165,
+    "top": 2689,
+    "width": 271,
+    "height": 327,
+    "centerX": 2300,
+    "centerY": 2852
+  },
+  {
+    "name": "Paraguay",
+    "filename": "paraguay",
+    "left": 1947,
+    "top": 1916,
+    "width": 539,
+    "height": 613,
+    "centerX": 2216,
+    "centerY": 2222
+  },
+  {
+    "name": "Brasilien",
+    "filename": "brasilien",
+    "left": 1113,
+    "top": 420,
+    "width": 2511,
+    "height": 2488,
+    "centerX": 2368,
+    "centerY": 1664
+  },
+  {
+    "name": "Bolivia",
+    "filename": "bolivia",
+    "left": 1240,
+    "top": 1035,
+    "width": 1076,
+    "height": 1250,
+    "centerX": 1778,
+    "centerY": 1660
+  },
+  {
+    "name": "Peru",
+    "filename": "peru",
+    "left": 632,
+    "top": 768,
+    "width": 856,
+    "height": 1238,
+    "centerX": 1060,
+    "centerY": 1387
+  },
+  {
+    "name": "Eciador",
+    "filename": "eciador",
+    "left": 245,
+    "top": 732,
+    "width": 795,
+    "height": 915,
+    "centerX": 642,
+    "centerY": 1189
+  },
+  {
+    "name": "Colombia",
+    "filename": "colombia",
+    "left": 753,
+    "top": 14,
+    "width": 771,
+    "height": 975,
+    "centerX": 1138,
+    "centerY": 501
+  },
+  {
+    "name": "Venezuela",
+    "filename": "venezuela",
+    "left": 1066,
+    "top": 5,
+    "width": 951,
+    "height": 694,
+    "centerX": 1541,
+    "centerY": 352
+  },
+  {
+    "name": "Guyana",
+    "filename": "guyana",
+    "left": 1949,
+    "top": 204,
+    "width": 708,
+    "height": 446,
+    "centerX": 2303,
+    "centerY": 427
+  },
+  {
+    "name": "Surinam",
+    "filename": "surinam",
+    "left": 2124,
+    "top": 319,
+    "width": 360,
+    "height": 314,
+    "centerX": 2304,
+    "centerY": 476
+  },
+  {
+    "name": "Franska Guyana",
+    "filename": "franska_guyana",
+    "left": 2448,
+    "top": 372,
+    "width": 219,
+    "height": 220,
+    "centerX": 2557,
+    "centerY": 482
+  }
+]
