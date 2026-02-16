@@ -1,0 +1,413 @@
+{
+  "name": "Asien",
+  "canvasWidth": 4000,
+  "canvasHeight": 3664,
+  "countries": [
+    {
+      "name": "Turkiet",
+      "file": "countries/turkiet.webp",
+      "left": 88,
+      "top": 1478,
+      "width": 529,
+      "height": 253
+    },
+    {
+      "name": "Indoneien",
+      "file": "countries/indoneien.webp",
+      "left": 1952,
+      "top": 2609,
+      "width": 1524,
+      "height": 901
+    },
+    {
+      "name": "Bahrain",
+      "file": "countries/bahrain.webp",
+      "left": 676,
+      "top": 2087,
+      "width": 28,
+      "height": 30
+    },
+    {
+      "name": "Singapore",
+      "file": "countries/singapore.webp",
+      "left": 2304,
+      "top": 3046,
+      "width": 26,
+      "height": 24
+    },
+    {
+      "name": "Papua Nya Guinea",
+      "file": "countries/papua_nya_guinea.webp",
+      "left": 3468,
+      "top": 3167,
+      "width": 496,
+      "height": 381
+    },
+    {
+      "name": "Malaysia",
+      "file": "countries/malaysia.webp",
+      "left": 2182,
+      "top": 2831,
+      "width": 618,
+      "height": 292
+    },
+    {
+      "name": "Filippinerna",
+      "file": "countries/filippinerna.webp",
+      "left": 2723,
+      "top": 2390,
+      "width": 298,
+      "height": 490
+    },
+    {
+      "name": "Taiwan",
+      "file": "countries/taiwan.webp",
+      "left": 2790,
+      "top": 2138,
+      "width": 55,
+      "height": 122
+    },
+    {
+      "name": "Kina",
+      "file": "countries/kina.webp",
+      "left": 1428,
+      "top": 1067,
+      "width": 1702,
+      "height": 1336
+    },
+    {
+      "name": "Östtimor",
+      "file": "countries/osttimor.webp",
+      "left": 2940,
+      "top": 3366,
+      "width": 90,
+      "height": 92
+    },
+    {
+      "name": "Burma",
+      "file": "countries/burma.webp",
+      "left": 1944,
+      "top": 2014,
+      "width": 260,
+      "height": 690
+    },
+    {
+      "name": "Thailand",
+      "file": "countries/thailand.webp",
+      "left": 2101,
+      "top": 2320,
+      "width": 256,
+      "height": 562
+    },
+    {
+      "name": "Kambodja",
+      "file": "countries/kambodja.webp",
+      "left": 2255,
+      "top": 2538,
+      "width": 166,
+      "height": 164
+    },
+    {
+      "name": "Vietnam",
+      "file": "countries/vietnam.webp",
+      "left": 2242,
+      "top": 2214,
+      "width": 234,
+      "height": 553
+    },
+    {
+      "name": "Laos",
+      "file": "countries/laos.webp",
+      "left": 2184,
+      "top": 2244,
+      "width": 234,
+      "height": 324
+    },
+    {
+      "name": "Sri Lanka",
+      "file": "countries/sri_lanka.webp",
+      "left": 1539,
+      "top": 2732,
+      "width": 69,
+      "height": 138
+    },
+    {
+      "name": "Indien",
+      "file": "countries/indien.webp",
+      "left": 1219,
+      "top": 1746,
+      "width": 884,
+      "height": 1044
+    },
+    {
+      "name": "Bangladesh",
+      "file": "countries/bangladesh.webp",
+      "left": 1814,
+      "top": 2084,
+      "width": 144,
+      "height": 216
+    },
+    {
+      "name": "Bhutan",
+      "file": "countries/bhutan.webp",
+      "left": 1841,
+      "top": 2022,
+      "width": 106,
+      "height": 66
+    },
+    {
+      "name": "Nepal",
+      "file": "countries/nepal.webp",
+      "left": 1580,
+      "top": 1940,
+      "width": 252,
+      "height": 162
+    },
+    {
+      "name": "Afghanistan",
+      "file": "countries/afghanistan.webp",
+      "left": 1014,
+      "top": 1634,
+      "width": 436,
+      "height": 345
+    },
+    {
+      "name": "Pakistan",
+      "file": "countries/pakistan.webp",
+      "left": 1013,
+      "top": 1691,
+      "width": 528,
+      "height": 508
+    },
+    {
+      "name": "Tadzjikistan",
+      "file": "countries/tadzjikistan.webp",
+      "left": 1250,
+      "top": 1540,
+      "width": 220,
+      "height": 164
+    },
+    {
+      "name": "Kirgizistan",
+      "file": "countries/kirgizistan.webp",
+      "left": 1306,
+      "top": 1458,
+      "width": 338,
+      "height": 152
+    },
+    {
+      "name": "Iran",
+      "file": "countries/iran.webp",
+      "left": 586,
+      "top": 1578,
+      "width": 490,
+      "height": 561
+    },
+    {
+      "name": "Japan",
+      "file": "countries/japan.webp",
+      "left": 3042,
+      "top": 1378,
+      "width": 430,
+      "height": 660
+    },
+    {
+      "name": "Ryssland",
+      "file": "countries/ryssland.webp",
+      "left": 402,
+      "top": 0,
+      "width": 3563,
+      "height": 1530
+    },
+    {
+      "name": "Nordkorea",
+      "file": "countries/nordkorea.webp",
+      "left": 2864,
+      "top": 1465,
+      "width": 163,
+      "height": 200
+    },
+    {
+      "name": "Sydkorea",
+      "file": "countries/sydkorea.webp",
+      "left": 2935,
+      "top": 1640,
+      "width": 100,
+      "height": 156
+    },
+    {
+      "name": "Mongoliet",
+      "file": "countries/mongoliet.webp",
+      "left": 1846,
+      "top": 1094,
+      "width": 870,
+      "height": 426
+    },
+    {
+      "name": "Maldiverna",
+      "file": "countries/maldiverna.webp",
+      "left": 1314,
+      "top": 2776,
+      "width": 80,
+      "height": 236
+    },
+    {
+      "name": "Brunei",
+      "file": "countries/brunei.webp",
+      "left": 2616,
+      "top": 2900,
+      "width": 65,
+      "height": 48
+    },
+    {
+      "name": "Kazakstan",
+      "file": "countries/kazakstan.webp",
+      "left": 750,
+      "top": 988,
+      "width": 1080,
+      "height": 572
+    },
+    {
+      "name": "Uzbekistan",
+      "file": "countries/uzbekistan.webp",
+      "left": 941,
+      "top": 1362,
+      "width": 485,
+      "height": 324
+    },
+    {
+      "name": "Turkmenistan",
+      "file": "countries/turkmenistan.webp",
+      "left": 824,
+      "top": 1466,
+      "width": 404,
+      "height": 294
+    },
+    {
+      "name": "Georgien",
+      "file": "countries/georgien.webp",
+      "left": 486,
+      "top": 1432,
+      "width": 208,
+      "height": 104
+    },
+    {
+      "name": "Azerbajdzjan",
+      "file": "countries/azerbajdzjan.webp",
+      "left": 617,
+      "top": 1500,
+      "width": 184,
+      "height": 136
+    },
+    {
+      "name": "Armenien",
+      "file": "countries/armenien.webp",
+      "left": 591,
+      "top": 1518,
+      "width": 77,
+      "height": 100
+    },
+    {
+      "name": "Irak",
+      "file": "countries/irak.webp",
+      "left": 384,
+      "top": 1669,
+      "width": 266,
+      "height": 318
+    },
+    {
+      "name": "Saudiarabien",
+      "file": "countries/saudiarabien.webp",
+      "left": 230,
+      "top": 1864,
+      "width": 595,
+      "height": 598
+    },
+    {
+      "name": "Jordanien",
+      "file": "countries/jordanien.webp",
+      "left": 245,
+      "top": 1820,
+      "width": 147,
+      "height": 160
+    },
+    {
+      "name": "Libanon",
+      "file": "countries/libanon.webp",
+      "left": 281,
+      "top": 1769,
+      "width": 52,
+      "height": 60
+    },
+    {
+      "name": "Syrien",
+      "file": "countries/syrien.webp",
+      "left": 291,
+      "top": 1666,
+      "width": 250,
+      "height": 198
+    },
+    {
+      "name": "Palestina",
+      "file": "countries/palestina.webp",
+      "left": 256,
+      "top": 1847,
+      "width": 33,
+      "height": 50
+    },
+    {
+      "name": "Israel",
+      "file": "countries/israel.webp",
+      "left": 232,
+      "top": 1820,
+      "width": 64,
+      "height": 146
+    },
+    {
+      "name": "Kuwait",
+      "file": "countries/kuwait.webp",
+      "left": 588,
+      "top": 1945,
+      "width": 48,
+      "height": 64
+    },
+    {
+      "name": "Qatar",
+      "file": "countries/qatar.webp",
+      "left": 690,
+      "top": 2100,
+      "width": 27,
+      "height": 58
+    },
+    {
+      "name": "Förenade Arabemiraten",
+      "file": "countries/forenade_arabemiraten.webp",
+      "left": 710,
+      "top": 2100,
+      "width": 154,
+      "height": 128
+    },
+    {
+      "name": "Oman",
+      "file": "countries/oman.webp",
+      "left": 700,
+      "top": 2140,
+      "width": 253,
+      "height": 319
+    },
+    {
+      "name": "Jemen",
+      "file": "countries/jemen.webp",
+      "left": 400,
+      "top": 2368,
+      "width": 328,
+      "height": 240
+    }
+  ],
+  "mapWidth": 3925,
+  "mapHeight": 3620,
+  "mapOffset": {
+    "left": 44,
+    "top": 0
+  }
+}

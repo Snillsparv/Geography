@@ -1,0 +1,125 @@
+{
+  "name": "Oceanien",
+  "canvasWidth": 4000,
+  "canvasHeight": 2884,
+  "countries": [
+    {
+      "name": "Australien",
+      "file": "countries/australien.webp",
+      "left": 159,
+      "top": 1328,
+      "width": 1491,
+      "height": 1323
+    },
+    {
+      "name": "Nya Zeeland",
+      "file": "countries/nya_zeeland.webp",
+      "left": 1881,
+      "top": 2271,
+      "width": 486,
+      "height": 534
+    },
+    {
+      "name": "Samoa",
+      "file": "countries/samoa.webp",
+      "left": 2843,
+      "top": 1314,
+      "width": 155,
+      "height": 181
+    },
+    {
+      "name": "Fiji",
+      "file": "countries/fiji.webp",
+      "left": 2423,
+      "top": 1293,
+      "width": 464,
+      "height": 379
+    },
+    {
+      "name": "Tonga",
+      "file": "countries/tonga.webp",
+      "left": 2703,
+      "top": 1421,
+      "width": 225,
+      "height": 385
+    },
+    {
+      "name": "Tuvalu",
+      "file": "countries/tuvalu.webp",
+      "left": 2385,
+      "top": 1165,
+      "width": 258,
+      "height": 457
+    },
+    {
+      "name": "Nauru",
+      "file": "countries/nauru.webp",
+      "left": 2071,
+      "top": 977,
+      "width": 115,
+      "height": 187
+    },
+    {
+      "name": "Solomonöarna",
+      "file": "countries/solomonoarna.webp",
+      "left": 1691,
+      "top": 966,
+      "width": 438,
+      "height": 484
+    },
+    {
+      "name": "Marshalöarna",
+      "file": "countries/marshaloarna.webp",
+      "left": 1583,
+      "top": 205,
+      "width": 677,
+      "height": 479
+    },
+    {
+      "name": "Mikronesien",
+      "file": "countries/mikronesien.webp",
+      "left": 1139,
+      "top": 491,
+      "width": 1074,
+      "height": 450
+    },
+    {
+      "name": "Palau",
+      "file": "countries/palau.webp",
+      "left": 777,
+      "top": 407,
+      "width": 569,
+      "height": 549
+    },
+    {
+      "name": "Kiribati",
+      "file": "countries/kiribati.webp",
+      "left": 2197,
+      "top": 765,
+      "width": 1249,
+      "height": 495
+    },
+    {
+      "name": "Vanuatu",
+      "file": "countries/vanuatu.webp",
+      "left": 2111,
+      "top": 1463,
+      "width": 207,
+      "height": 149
+    },
+    {
+      "name": "Papua Nya Guinea",
+      "file": "countries/papua_nya_guinea.webp",
+      "left": 1117,
+      "top": 1049,
+      "width": 417,
+      "height": 300
+    }
+  ],
+  "mapWidth": 3841,
+  "mapHeight": 2743,
+  "mapOffset": {
+    "left": 159,
+    "top": 62
+  }
+}

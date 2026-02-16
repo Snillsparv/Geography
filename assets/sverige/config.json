@@ -1,0 +1,229 @@
+{
+  "name": "Sverige",
+  "canvasWidth": 2083,
+  "canvasHeight": 4000,
+  "countries": [
+    {
+      "name": "Skåne",
+      "file": "countries/skane.webp",
+      "left": 487,
+      "top": 3486,
+      "width": 317,
+      "height": 335
+    },
+    {
+      "name": "Småland",
+      "file": "countries/smaland.webp",
+      "left": 589,
+      "top": 3034,
+      "width": 542,
+      "height": 509
+    },
+    {
+      "name": "Vättern",
+      "file": "countries/vattern.webp",
+      "left": 737,
+      "top": 2875,
+      "width": 134,
+      "height": 293
+    },
+    {
+      "name": "Södermanland",
+      "file": "countries/sodermanland.webp",
+      "left": 946,
+      "top": 2680,
+      "width": 444,
+      "height": 266
+    },
+    {
+      "name": "Närke",
+      "file": "countries/narke.webp",
+      "left": 768,
+      "top": 2701,
+      "width": 219,
+      "height": 218
+    },
+    {
+      "name": "Vänern",
+      "file": "countries/vanern.webp",
+      "left": 464,
+      "top": 2736,
+      "width": 274,
+      "height": 283
+    },
+    {
+      "name": "Dalsland",
+      "file": "countries/dalsland.webp",
+      "left": 372,
+      "top": 2776,
+      "width": 173,
+      "height": 234
+    },
+    {
+      "name": "Bohuslän",
+      "file": "countries/bohuslan.webp",
+      "left": 301,
+      "top": 2821,
+      "width": 166,
+      "height": 362
+    },
+    {
+      "name": "Värmland",
+      "file": "countries/varmland.webp",
+      "left": 401,
+      "top": 2292,
+      "width": 428,
+      "height": 561
+    },
+    {
+      "name": "Västmanland",
+      "file": "countries/vastmanland.webp",
+      "left": 766,
+      "top": 2511,
+      "width": 376,
+      "height": 245
+    },
+    {
+      "name": "Uppland",
+      "file": "countries/uppland.webp",
+      "left": 1092,
+      "top": 2357,
+      "width": 364,
+      "height": 403
+    },
+    {
+      "name": "Dalarna",
+      "file": "countries/dalarna.webp",
+      "left": 467,
+      "top": 1967,
+      "width": 630,
+      "height": 636
+    },
+    {
+      "name": "Gästrikland",
+      "file": "countries/gastrikland.webp",
+      "left": 1013,
+      "top": 2285,
+      "width": 206,
+      "height": 247
+    },
+    {
+      "name": "Hälsingland",
+      "file": "countries/halsingland.webp",
+      "left": 804,
+      "top": 1941,
+      "width": 414,
+      "height": 385
+    },
+    {
+      "name": "Medelpad",
+      "file": "countries/medelpad.webp",
+      "left": 815,
+      "top": 1774,
+      "width": 413,
+      "height": 218
+    },
+    {
+      "name": "Jämtland",
+      "file": "countries/jamtland.webp",
+      "left": 448,
+      "top": 1221,
+      "width": 680,
+      "height": 754
+    },
+    {
+      "name": "Blekinge",
+      "file": "countries/blekinge.webp",
+      "left": 775,
+      "top": 3498,
+      "width": 258,
+      "height": 156
+    },
+    {
+      "name": "Östergötland",
+      "file": "countries/ostergotland.webp",
+      "left": 804,
+      "top": 2825,
+      "width": 338,
+      "height": 359
+    },
+    {
+      "name": "Västergötland",
+      "file": "countries/vastergotland.webp",
+      "left": 390,
+      "top": 2828,
+      "width": 437,
+      "height": 505
+    },
+    {
+      "name": "Härjedalen",
+      "file": "countries/harjedalen.webp",
+      "left": 456,
+      "top": 1786,
+      "width": 388,
+      "height": 361
+    },
+    {
+      "name": "Halland",
+      "file": "countries/halland.webp",
+      "left": 405,
+      "top": 3203,
+      "width": 239,
+      "height": 341
+    },
+    {
+      "name": "Öland",
+      "file": "countries/oland.webp",
+      "left": 1068,
+      "top": 3255,
+      "width": 109,
+      "height": 325
+    },
+    {
+      "name": "Lappland",
+      "file": "countries/lappland.webp",
+      "left": 751,
+      "top": 153,
+      "width": 1098,
+      "height": 1384
+    },
+    {
+      "name": "Västerbotten",
+      "file": "countries/vasterbotten.webp",
+      "left": 1342,
+      "top": 1122,
+      "width": 348,
+      "height": 453
+    },
+    {
+      "name": "Norrbotten",
+      "file": "countries/norrbotten.webp",
+      "left": 1414,
+      "top": 381,
+      "width": 579,
+      "height": 821
+    },
+    {
+      "name": "Ångermanland",
+      "file": "countries/angermanland.webp",
+      "left": 871,
+      "top": 1377,
+      "width": 648,
+      "height": 511
+    },
+    {
+      "name": "Gotland",
+      "file": "countries/gotland.webp",
+      "left": 1323,
+      "top": 3091,
+      "width": 166,
+      "height": 296
+    }
+  ],
+  "mapWidth": 1684,
+  "mapHeight": 3668,
+  "mapOffset": {
+    "left": 305,
+    "top": 153
+  }
+}

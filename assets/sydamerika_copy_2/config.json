@@ -1,0 +1,117 @@
+{
+  "name": "Sydamerika copy 2",
+  "canvasWidth": 3682,
+  "canvasHeight": 4000,
+  "countries": [
+    {
+      "name": "Argentina",
+      "file": "countries/argentina.webp",
+      "left": 1387,
+      "top": 1979,
+      "width": 907,
+      "height": 1960
+    },
+    {
+      "name": "Chile",
+      "file": "countries/chile.webp",
+      "left": 1280,
+      "top": 1795,
+      "width": 482,
+      "height": 2186
+    },
+    {
+      "name": "Uruguay",
+      "file": "countries/uruguay.webp",
+      "left": 1993,
+      "top": 2475,
+      "width": 249,
+      "height": 301
+    },
+    {
+      "name": "Paraguay",
+      "file": "countries/paraguay.webp",
+      "left": 1792,
+      "top": 1763,
+      "width": 496,
+      "height": 564
+    },
+    {
+      "name": "Brasilien",
+      "file": "countries/brasilien.webp",
+      "left": 1024,
+      "top": 387,
+      "width": 2311,
+      "height": 2290
+    },
+    {
+      "name": "Bolivia",
+      "file": "countries/bolivia.webp",
+      "left": 1141,
+      "top": 953,
+      "width": 990,
+      "height": 1150
+    },
+    {
+      "name": "Peru",
+      "file": "countries/peru.webp",
+      "left": 582,
+      "top": 707,
+      "width": 788,
+      "height": 1139
+    },
+    {
+      "name": "Eciador",
+      "file": "countries/eciador.webp",
+      "left": 225,
+      "top": 674,
+      "width": 732,
+      "height": 842
+    },
+    {
+      "name": "Colombia",
+      "file": "countries/colombia.webp",
+      "left": 693,
+      "top": 13,
+      "width": 710,
+      "height": 897
+    },
+    {
+      "name": "Venezuela",
+      "file": "countries/venezuela.webp",
+      "left": 981,
+      "top": 5,
+      "width": 875,
+      "height": 639
+    },
+    {
+      "name": "Guyana",
+      "file": "countries/guyana.webp",
+      "left": 1796,
+      "top": 203,
+      "width": 652,
+      "height": 410
+    },
+    {
+      "name": "Surinam",
+      "file": "countries/surinam.webp",
+      "left": 1954,
+      "top": 298,
+      "width": 331,
+      "height": 289
+    },
+    {
+      "name": "Franska Guyana",
+      "file": "countries/franska_guyana.webp",
+      "left": 2242,
+      "top": 336,
+      "width": 202,
+      "height": 202
+    }
+  ],
+  "mapWidth": 2779,
+  "mapHeight": 3955,
+  "mapOffset": {
+    "left": 563,
+    "top": 18
+  }
+}

@@ -1,0 +1,413 @@
+{
+  "name": "USA",
+  "canvasWidth": 4000,
+  "canvasHeight": 2571,
+  "countries": [
+    {
+      "name": "Kalifornien",
+      "file": "countries/kalifornien.webp",
+      "left": 81,
+      "top": 671,
+      "width": 596,
+      "height": 1013
+    },
+    {
+      "name": "Nevada",
+      "file": "countries/nevada.webp",
+      "left": 348,
+      "top": 751,
+      "width": 467,
+      "height": 725
+    },
+    {
+      "name": "Oregon",
+      "file": "countries/oregon.webp",
+      "left": 96,
+      "top": 305,
+      "width": 625,
+      "height": 499
+    },
+    {
+      "name": "Washington",
+      "file": "countries/washington.webp",
+      "left": 228,
+      "top": 79,
+      "width": 527,
+      "height": 369
+    },
+    {
+      "name": "Idaho",
+      "file": "countries/idaho.webp",
+      "left": 610,
+      "top": 171,
+      "width": 439,
+      "height": 711
+    },
+    {
+      "name": "Montana",
+      "file": "countries/montana.webp",
+      "left": 787,
+      "top": 183,
+      "width": 751,
+      "height": 479
+    },
+    {
+      "name": "Wyoming",
+      "file": "countries/wyoming.webp",
+      "left": 997,
+      "top": 602,
+      "width": 515,
+      "height": 428
+    },
+    {
+      "name": "Utah",
+      "file": "countries/utah.webp",
+      "left": 724,
+      "top": 841,
+      "width": 414,
+      "height": 520
+    },
+    {
+      "name": "Colorado",
+      "file": "countries/colorado.webp",
+      "left": 1083,
+      "top": 986,
+      "width": 535,
+      "height": 427
+    },
+    {
+      "name": "Oklahoma",
+      "file": "countries/oklahoma.webp",
+      "left": 1516,
+      "top": 1397,
+      "width": 634,
+      "height": 332
+    },
+    {
+      "name": "Kansas",
+      "file": "countries/kansas.webp",
+      "left": 1592,
+      "top": 1126,
+      "width": 541,
+      "height": 302
+    },
+    {
+      "name": "Nebraska",
+      "file": "countries/nebraska.webp",
+      "left": 1474,
+      "top": 839,
+      "width": 608,
+      "height": 307
+    },
+    {
+      "name": "South Dakota",
+      "file": "countries/south_dakota.webp",
+      "left": 1489,
+      "top": 570,
+      "width": 519,
+      "height": 333
+    },
+    {
+      "name": "North Dakota",
+      "file": "countries/north_dakota.webp",
+      "left": 1505,
+      "top": 293,
+      "width": 491,
+      "height": 306
+    },
+    {
+      "name": "Louisiana",
+      "file": "countries/louisiana.webp",
+      "left": 2178,
+      "top": 1772,
+      "width": 416,
+      "height": 385
+    },
+    {
+      "name": "Mississippi",
+      "file": "countries/mississippi.webp",
+      "left": 2375,
+      "top": 1574,
+      "width": 266,
+      "height": 460
+    },
+    {
+      "name": "Alabama",
+      "file": "countries/alabama.webp",
+      "left": 2610,
+      "top": 1555,
+      "width": 287,
+      "height": 463
+    },
+    {
+      "name": "Georgia",
+      "file": "countries/georgia.webp",
+      "left": 2800,
+      "top": 1536,
+      "width": 405,
+      "height": 417
+    },
+    {
+      "name": "Florida",
+      "file": "countries/florida.webp",
+      "left": 2681,
+      "top": 1901,
+      "width": 701,
+      "height": 581
+    },
+    {
+      "name": "Alaska",
+      "file": "countries/alaska.webp",
+      "left": 53,
+      "top": 1868,
+      "width": 905,
+      "height": 703
+    },
+    {
+      "name": "Hawaii",
+      "file": "countries/hawaii.webp",
+      "left": 1003,
+      "top": 2191,
+      "width": 501,
+      "height": 309
+    },
+    {
+      "name": "Arizona",
+      "file": "countries/arizona.webp",
+      "left": 593,
+      "top": 1295,
+      "width": 501,
+      "height": 585
+    },
+    {
+      "name": "New Mexico",
+      "file": "countries/new_mexico.webp",
+      "left": 1016,
+      "top": 1347,
+      "width": 515,
+      "height": 538
+    },
+    {
+      "name": "Texas",
+      "file": "countries/texas.webp",
+      "left": 1211,
+      "top": 1446,
+      "width": 1026,
+      "height": 1005
+    },
+    {
+      "name": "Maine",
+      "file": "countries/maine.webp",
+      "left": 3619,
+      "top": 202,
+      "width": 281,
+      "height": 445
+    },
+    {
+      "name": "New Hampshire",
+      "file": "countries/new_hampshire.webp",
+      "left": 3579,
+      "top": 440,
+      "width": 123,
+      "height": 256
+    },
+    {
+      "name": "Vermont",
+      "file": "countries/vermont.webp",
+      "left": 3482,
+      "top": 469,
+      "width": 127,
+      "height": 238
+    },
+    {
+      "name": "Massachusetts",
+      "file": "countries/massachusetts.webp",
+      "left": 3532,
+      "top": 650,
+      "width": 269,
+      "height": 137
+    },
+    {
+      "name": "Rhode Island",
+      "file": "countries/rhode_island.webp",
+      "left": 3653,
+      "top": 732,
+      "width": 65,
+      "height": 79
+    },
+    {
+      "name": "Connecticut",
+      "file": "countries/connecticut.webp",
+      "left": 3539,
+      "top": 738,
+      "width": 131,
+      "height": 125
+    },
+    {
+      "name": "New York",
+      "file": "countries/new_york.webp",
+      "left": 3117,
+      "top": 499,
+      "width": 541,
+      "height": 410
+    },
+    {
+      "name": "Pennsylvania",
+      "file": "countries/pennsylvania.webp",
+      "left": 3061,
+      "top": 695,
+      "width": 439,
+      "height": 383
+    },
+    {
+      "name": "New Jersey",
+      "file": "countries/new_jersey.webp",
+      "left": 3451,
+      "top": 849,
+      "width": 113,
+      "height": 231
+    },
+    {
+      "name": "Delaware",
+      "file": "countries/delaware.webp",
+      "left": 3436,
+      "top": 1002,
+      "width": 78,
+      "height": 127
+    },
+    {
+      "name": "Maryland",
+      "file": "countries/maryland.webp",
+      "left": 3176,
+      "top": 1011,
+      "width": 339,
+      "height": 187
+    },
+    {
+      "name": "South Carolina",
+      "file": "countries/south_carolina.webp",
+      "left": 2979,
+      "top": 1459,
+      "width": 447,
+      "height": 329
+    },
+    {
+      "name": "North Carolina",
+      "file": "countries/north_carolina.webp",
+      "left": 2900,
+      "top": 1301,
+      "width": 792,
+      "height": 293
+    },
+    {
+      "name": "Virginia",
+      "file": "countries/virginia.webp",
+      "left": 2953,
+      "top": 1075,
+      "width": 550,
+      "height": 319
+    },
+    {
+      "name": "West Virginia",
+      "file": "countries/west_virginia.webp",
+      "left": 2980,
+      "top": 975,
+      "width": 335,
+      "height": 351
+    },
+    {
+      "name": "Ohio",
+      "file": "countries/ohio.webp",
+      "left": 2791,
+      "top": 867,
+      "width": 305,
+      "height": 353
+    },
+    {
+      "name": "Kentucky",
+      "file": "countries/kentucky.webp",
+      "left": 2511,
+      "top": 1173,
+      "width": 535,
+      "height": 283
+    },
+    {
+      "name": "Tennessee",
+      "file": "countries/tennessee.webp",
+      "left": 2459,
+      "top": 1371,
+      "width": 643,
+      "height": 223
+    },
+    {
+      "name": "Indiana",
+      "file": "countries/indiana.webp",
+      "left": 2600,
+      "top": 929,
+      "width": 225,
+      "height": 393
+    },
+    {
+      "name": "Illinois",
+      "file": "countries/illinois.webp",
+      "left": 2340,
+      "top": 884,
+      "width": 298,
+      "height": 520
+    },
+    {
+      "name": "Michigan",
+      "file": "countries/michigan.webp",
+      "left": 2371,
+      "top": 365,
+      "width": 565,
+      "height": 581
+    },
+    {
+      "name": "Wisconsin",
+      "file": "countries/wisconsin.webp",
+      "left": 2226,
+      "top": 482,
+      "width": 385,
+      "height": 417
+    },
+    {
+      "name": "Minnesota",
+      "file": "countries/minnesota.webp",
+      "left": 1883,
+      "top": 257,
+      "width": 630,
+      "height": 567
+    },
+    {
+      "name": "Iowa",
+      "file": "countries/iowa.webp",
+      "left": 1982,
+      "top": 803,
+      "width": 448,
+      "height": 299
+    },
+    {
+      "name": "Missouri",
+      "file": "countries/missouri.webp",
+      "left": 2046,
+      "top": 1069,
+      "width": 491,
+      "height": 437
+    },
+    {
+      "name": "Arkansas",
+      "file": "countries/arkansas.webp",
+      "left": 2123,
+      "top": 1447,
+      "width": 377,
+      "height": 346
+    }
+  ],
+  "mapWidth": 3889,
+  "mapHeight": 2495,
+  "mapOffset": {
+    "left": 53,
+    "top": 76
+  }
+}

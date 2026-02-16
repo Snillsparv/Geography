@@ -1,0 +1,453 @@
+{
+  "name": "Afrika",
+  "canvasWidth": 4000,
+  "canvasHeight": 3345,
+  "countries": [
+    {
+      "name": "Algeriet",
+      "file": "countries/algeriet.webp",
+      "left": 924,
+      "top": 130,
+      "width": 812,
+      "height": 770
+    },
+    {
+      "name": "Sao Tome & Principe",
+      "file": "countries/sao_tome__principe.webp",
+      "left": 1374,
+      "top": 1610,
+      "width": 240,
+      "height": 150
+    },
+    {
+      "name": "Marocko",
+      "file": "countries/marocko.webp",
+      "left": 751,
+      "top": 180,
+      "width": 498,
+      "height": 353
+    },
+    {
+      "name": "Västsahara",
+      "file": "countries/vastsahara.webp",
+      "left": 562,
+      "top": 523,
+      "width": 367,
+      "height": 274
+    },
+    {
+      "name": "Mauretanien",
+      "file": "countries/mauretanien.webp",
+      "left": 566,
+      "top": 535,
+      "width": 497,
+      "height": 544
+    },
+    {
+      "name": "Mali",
+      "file": "countries/mali.webp",
+      "left": 727,
+      "top": 626,
+      "width": 691,
+      "height": 650
+    },
+    {
+      "name": "Gambia",
+      "file": "countries/gambia.webp",
+      "left": 549,
+      "top": 1118,
+      "width": 119,
+      "height": 27
+    },
+    {
+      "name": "Senegal",
+      "file": "countries/senegal.webp",
+      "left": 530,
+      "top": 994,
+      "width": 234,
+      "height": 196
+    },
+    {
+      "name": "Guinea",
+      "file": "countries/guinea.webp",
+      "left": 608,
+      "top": 1166,
+      "width": 304,
+      "height": 242
+    },
+    {
+      "name": "Guinea-Bissau",
+      "file": "countries/guinea_bissau.webp",
+      "left": 562,
+      "top": 1160,
+      "width": 109,
+      "height": 68
+    },
+    {
+      "name": "Sierra Leone",
+      "file": "countries/sierra_leone.webp",
+      "left": 677,
+      "top": 1282,
+      "width": 128,
+      "height": 129
+    },
+    {
+      "name": "Burkina Faso",
+      "file": "countries/burkina_faso.webp",
+      "left": 998,
+      "top": 1067,
+      "width": 330,
+      "height": 244
+    },
+    {
+      "name": "Elfenbenskusten",
+      "file": "countries/elfenbenskusten.webp",
+      "left": 868,
+      "top": 1251,
+      "width": 257,
+      "height": 262
+    },
+    {
+      "name": "Liberia",
+      "file": "countries/liberia.webp",
+      "left": 749,
+      "top": 1346,
+      "width": 170,
+      "height": 169
+    },
+    {
+      "name": "Benin",
+      "file": "countries/benin.webp",
+      "left": 1261,
+      "top": 1184,
+      "width": 132,
+      "height": 259
+    },
+    {
+      "name": "Togo",
+      "file": "countries/togo.webp",
+      "left": 1225,
+      "top": 1234,
+      "width": 81,
+      "height": 216
+    },
+    {
+      "name": "Ghana",
+      "file": "countries/ghana.webp",
+      "left": 1090,
+      "top": 1236,
+      "width": 181,
+      "height": 266
+    },
+    {
+      "name": "Tchad",
+      "file": "countries/tchad.webp",
+      "left": 1790,
+      "top": 710,
+      "width": 438,
+      "height": 687
+    },
+    {
+      "name": "Kamerun",
+      "file": "countries/kamerun.webp",
+      "left": 1581,
+      "top": 1150,
+      "width": 321,
+      "height": 492
+    },
+    {
+      "name": "Nigeria",
+      "file": "countries/nigeria.webp",
+      "left": 1331,
+      "top": 1118,
+      "width": 511,
+      "height": 408
+    },
+    {
+      "name": "Niger",
+      "file": "countries/niger.webp",
+      "left": 1237,
+      "top": 703,
+      "width": 663,
+      "height": 504
+    },
+    {
+      "name": "Libyen",
+      "file": "countries/libyen.webp",
+      "left": 1638,
+      "top": 307,
+      "width": 630,
+      "height": 576
+    },
+    {
+      "name": "Tunisien",
+      "file": "countries/tunisien.webp",
+      "left": 1584,
+      "top": 122,
+      "width": 160,
+      "height": 304
+    },
+    {
+      "name": "Egypten",
+      "file": "countries/egypten.webp",
+      "left": 2246,
+      "top": 365,
+      "width": 485,
+      "height": 413
+    },
+    {
+      "name": "Sudan",
+      "file": "countries/sudan.webp",
+      "left": 2138,
+      "top": 769,
+      "width": 686,
+      "height": 578
+    },
+    {
+      "name": "Demokratiska Republiken Kongo",
+      "file": "countries/demokratiska_republiken_kongo.webp",
+      "left": 1734,
+      "top": 1489,
+      "width": 797,
+      "height": 804
+    },
+    {
+      "name": "Sydsudan",
+      "file": "countries/sydsudan.webp",
+      "left": 2227,
+      "top": 1197,
+      "width": 498,
+      "height": 371
+    },
+    {
+      "name": "Centralafrikanska Republiken",
+      "file": "countries/centralafrikanska_republiken.webp",
+      "left": 1824,
+      "top": 1238,
+      "width": 542,
+      "height": 364
+    },
+    {
+      "name": "Kenya",
+      "file": "countries/kenya.webp",
+      "left": 2637,
+      "top": 1514,
+      "width": 338,
+      "height": 413
+    },
+    {
+      "name": "Uganda",
+      "file": "countries/uganda.webp",
+      "left": 2458,
+      "top": 1546,
+      "width": 233,
+      "height": 231
+    },
+    {
+      "name": "Eritrea",
+      "file": "countries/eritrea.webp",
+      "left": 2741,
+      "top": 965,
+      "width": 272,
+      "height": 230
+    },
+    {
+      "name": "Somalia",
+      "file": "countries/somalia.webp",
+      "left": 2930,
+      "top": 1216,
+      "width": 428,
+      "height": 582
+    },
+    {
+      "name": "Etiopien",
+      "file": "countries/etiopien.webp",
+      "left": 2597,
+      "top": 1090,
+      "width": 630,
+      "height": 486
+    },
+    {
+      "name": "Djibouti",
+      "file": "countries/djibouti.webp",
+      "left": 2962,
+      "top": 1185,
+      "width": 67,
+      "height": 76
+    },
+    {
+      "name": "Tanzania",
+      "file": "countries/tanzania.webp",
+      "left": 2444,
+      "top": 1759,
+      "width": 462,
+      "height": 466
+    },
+    {
+      "name": "Rwanda",
+      "file": "countries/rwanda.webp",
+      "left": 2430,
+      "top": 1768,
+      "width": 85,
+      "height": 76
+    },
+    {
+      "name": "Burundi",
+      "file": "countries/burundi.webp",
+      "left": 2432,
+      "top": 1814,
+      "width": 79,
+      "height": 94
+    },
+    {
+      "name": "Zambia",
+      "file": "countries/zambia.webp",
+      "left": 2137,
+      "top": 2065,
+      "width": 487,
+      "height": 434
+    },
+    {
+      "name": "Malawi",
+      "file": "countries/malawi.webp",
+      "left": 2580,
+      "top": 2122,
+      "width": 137,
+      "height": 330
+    },
+    {
+      "name": "Mocambique",
+      "file": "countries/mocambique.webp",
+      "left": 2474,
+      "top": 2170,
+      "width": 442,
+      "height": 705
+    },
+    {
+      "name": "Madagaskar",
+      "file": "countries/madagaskar.webp",
+      "left": 2991,
+      "top": 2242,
+      "width": 330,
+      "height": 576
+    },
+    {
+      "name": "Angola",
+      "file": "countries/angola.webp",
+      "left": 1718,
+      "top": 1907,
+      "width": 510,
+      "height": 582
+    },
+    {
+      "name": "Kongo-Brazaville",
+      "file": "countries/kongo_brazaville.webp",
+      "left": 1686,
+      "top": 1555,
+      "width": 318,
+      "height": 380
+    },
+    {
+      "name": "Gabon",
+      "file": "countries/gabon.webp",
+      "left": 1594,
+      "top": 1616,
+      "width": 238,
+      "height": 265
+    },
+    {
+      "name": "Ekvatorialguinea",
+      "file": "countries/ekvatorialguinea.webp",
+      "left": 1620,
+      "top": 1615,
+      "width": 79,
+      "height": 59
+    },
+    {
+      "name": "Namibia",
+      "file": "countries/namibia.webp",
+      "left": 1714,
+      "top": 2440,
+      "width": 556,
+      "height": 522
+    },
+    {
+      "name": "Zimbabwe",
+      "file": "countries/zimbabwe.webp",
+      "left": 2270,
+      "top": 2386,
+      "width": 323,
+      "height": 298
+    },
+    {
+      "name": "Botswana",
+      "file": "countries/botswana.webp",
+      "left": 2053,
+      "top": 2476,
+      "width": 374,
+      "height": 396
+    },
+    {
+      "name": "Sydafrika",
+      "file": "countries/sydafrika.webp",
+      "left": 1920,
+      "top": 2668,
+      "width": 650,
+      "height": 537
+    },
+    {
+      "name": "Swaziland",
+      "file": "countries/swaziland.webp",
+      "left": 2489,
+      "top": 2825,
+      "width": 54,
+      "height": 67
+    },
+    {
+      "name": "Seychellerna",
+      "file": "countries/seychellerna.webp",
+      "left": 3385,
+      "top": 1889,
+      "width": 215,
+      "height": 182
+    },
+    {
+      "name": "Komorerna",
+      "file": "countries/komorerna.webp",
+      "left": 2863,
+      "top": 2090,
+      "width": 318,
+      "height": 282
+    },
+    {
+      "name": "Mauritius",
+      "file": "countries/mauritius.webp",
+      "left": 3522,
+      "top": 2537,
+      "width": 128,
+      "height": 93
+    },
+    {
+      "name": "Kap Verde",
+      "file": "countries/kap_verde.webp",
+      "left": 138,
+      "top": 898,
+      "width": 198,
+      "height": 210
+    },
+    {
+      "name": "Lesotho",
+      "file": "countries/lesotho.webp",
+      "left": 2333,
+      "top": 2942,
+      "width": 95,
+      "height": 91
+    }
+  ],
+  "mapWidth": 3550,
+  "mapHeight": 3083,
+  "mapOffset": {
+    "left": 150,
+    "top": 122
+  }
+}
