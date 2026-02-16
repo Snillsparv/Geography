@@ -174,8 +174,6 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(75deg);
-      mix-blend-mode: multiply;
     }
 
     .hover-highlight.active {
@@ -202,7 +200,7 @@
     .cursor-label.explore-tooltip {
       white-space: pre-line;
       max-width: 260px;
-      text-align: center;
+      text-align: left;
     }
 
     /* ── Info panel ── */
@@ -944,7 +942,11 @@ const seterraGame = document.getElementById('seterra-game');
 
 // Shared state
 const hitCanvases = {};
+const hitPixelData = {};          // cached Uint8ClampedArray per country
+const overlayEls = {};            // cached overlay DOM elements
+const hoverEls = {};              // cached hover-highlight DOM elements
 const revealed = new Set();
+let sortedCountries = [];         // pre-sorted by area (smallest first)
 let currentMode = 'explore';
 
 // Zoom & Pan
@@ -1006,6 +1008,7 @@ function createOverlays() {
     img.dataset.country = c.filename;
     img.draggable = false;
     mapWrapper.appendChild(img);
+    overlayEls[c.filename] = img;
 
     const hover = document.createElement('img');
     hover.className = 'hover-highlight';
@@ -1017,15 +1020,21 @@ function createOverlays() {
       hover.style.clipPath = 'polygon(42% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%, 42% 25%)';
     }
     mapWrapper.appendChild(hover);
+    hoverEls[c.filename] = hover;
   });
+
+  // Pre-sort countries by area (smallest first) for hit testing
+  sortedCountries = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
+
   positionOverlays();
   window.addEventListener('resize', positionOverlays);
 }
 
-// Remove hover-highlight pixels that overlap with the base map's dark
-// border lines (or transparent areas outside the continent).  This
-// prevents a visible fringe when hovering near coastlines and borders.
+// Process hover images: remove fringe pixels near borders/coastlines
+// and bake in the hover color (yellow tint) so no CSS filter is needed.
 function processHoverImages() {
+  const HOVER_R = 255, HOVER_G = 220, HOVER_B = 50; // yellow hover color
+
   const mapCanvas = document.createElement('canvas');
   mapCanvas.width = MAP_W;
   mapCanvas.height = MAP_H;
@@ -1036,6 +1045,10 @@ function processHoverImages() {
   COUNTRIES.forEach(c => {
     const hc = hitCanvases[c.filename];
     if (!hc) return;
+
+    // Cache pixel alpha data for fast hit testing
+    const hitData = hc.ctx.getImageData(0, 0, c.width, c.height).data;
+    hitPixelData[c.filename] = hitData;
 
     const sx = c.left - MAP_LEFT;
     const sy = c.top - MAP_TOP;
@@ -1066,15 +1079,17 @@ function processHoverImages() {
 
         if (brightness < 200 || alpha < 128) {
           d[ci + 3] = 0;
+        } else if (d[ci + 3] > 0) {
+          // Bake in yellow hover color
+          d[ci]     = HOVER_R;
+          d[ci + 1] = HOVER_G;
+          d[ci + 2] = HOVER_B;
         }
       }
     }
 
     ctx.putImageData(pixels, 0, 0);
-
-    const hoverEl = mapWrapper.querySelector(
-      `.hover-highlight[data-country="${c.filename}"]`
-    );
+    const hoverEl = hoverEls[c.filename];
     if (hoverEl) hoverEl.src = canvas.toDataURL();
   });
 }
@@ -1091,14 +1106,16 @@ function positionOverlays() {
     const relTop = (c.top - MAP_TOP) * scale;
     const relW = c.width * scale;
     const relH = c.height * scale;
-    [`img.country-overlay[data-country="${c.filename}"]`,
-     `.hover-highlight[data-country="${c.filename}"]`].forEach(sel => {
-      const el = mapWrapper.querySelector(sel);
+    const left = (offsetX + relLeft) + 'px';
+    const top = (offsetY + relTop) + 'px';
+    const width = relW + 'px';
+    const height = relH + 'px';
+    [overlayEls[c.filename], hoverEls[c.filename]].forEach(el => {
       if (!el) return;
-      el.style.left = (offsetX + relLeft) + 'px';
-      el.style.top = (offsetY + relTop) + 'px';
-      el.style.width = relW + 'px';
-      el.style.height = relH + 'px';
+      el.style.left = left;
+      el.style.top = top;
+      el.style.width = width;
+      el.style.height = height;
     });
   });
 }
@@ -1108,36 +1125,35 @@ function hitTest(clientX, clientY) {
   const scale = MAP_W / mapRect.width;
   const mapX = (clientX - mapRect.left) * scale + MAP_LEFT;
   const mapY = (clientY - mapRect.top) * scale + MAP_TOP;
-  const sorted = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
-  for (const c of sorted) {
+  for (const c of sortedCountries) {
     const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
     if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
-    const hc = hitCanvases[c.filename];
-    if (!hc) continue;
-    if (hc.ctx.getImageData(lx, ly, 1, 1).data[3] > 30) return c;
+    const data = hitPixelData[c.filename];
+    if (!data) continue;
+    if (data[((ly * c.width + lx) * 4) + 3] > 30) return c;
   }
   return null;
 }
 
 function revealCountry(filename) {
-  const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
+  const el = overlayEls[filename];
   if (el) { el.classList.remove('flash-wrong', 'hint-blink'); el.classList.add('visible'); }
   revealed.add(filename);
   justRevealed.add(filename);
   // Remove hover highlight immediately so the country shows in full color
-  const hoverEl = mapWrapper.querySelector(`.hover-highlight[data-country="${filename}"]`);
+  const hoverEl = hoverEls[filename];
   if (hoverEl) hoverEl.classList.remove('active');
 }
 
 function flashWrong(filename) {
-  const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
+  const el = overlayEls[filename];
   if (!el || revealed.has(filename)) return;
   el.classList.add('flash-wrong');
   setTimeout(() => { el.classList.remove('flash-wrong'); }, 1200);
 }
 
 function blinkHint(filename) {
-  const el = mapWrapper.querySelector(`img.country-overlay[data-country="${filename}"]`);
+  const el = overlayEls[filename];
   if (!el || revealed.has(filename)) return;
   el.classList.remove('hint-blink');
   void el.offsetWidth; // force reflow to restart animation
@@ -1164,11 +1180,11 @@ function updateHover(e) {
   const newHover = hit && !NO_HOVER.has(hit.filename) ? hit.filename : null;
   if (newHover !== currentHover) {
     if (currentHover) {
-      mapWrapper.querySelector(`.hover-highlight[data-country="${currentHover}"]`).classList.remove('active');
+      hoverEls[currentHover].classList.remove('active');
       justRevealed.delete(currentHover);
     }
     if (newHover && !justRevealed.has(newHover))
-      mapWrapper.querySelector(`.hover-highlight[data-country="${newHover}"]`).classList.add('active');
+      hoverEls[newHover].classList.add('active');
     currentHover = newHover;
   }
 
@@ -1249,7 +1265,7 @@ function showInfoCard(c) {
 }
 
 function exploreClick(c, e) {
-  const overlay = mapWrapper.querySelector(`img.country-overlay[data-country="${c.filename}"]`);
+  const overlay = overlayEls[c.filename];
   if (revealed.has(c.filename)) {
     // Hide the overlay
     overlay.classList.remove('visible');
