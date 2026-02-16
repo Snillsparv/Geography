@@ -1034,6 +1034,7 @@ function createOverlays() {
 // and bake in the hover color (yellow tint) so no CSS filter is needed.
 function processHoverImages() {
   const HOVER_R = 255, HOVER_G = 220, HOVER_B = 50; // yellow hover color
+  const BORDER_THRESHOLD = 150;
 
   const mapCanvas = document.createElement('canvas');
   mapCanvas.width = MAP_W;
@@ -1041,6 +1042,29 @@ function processHoverImages() {
   const mapCtx = mapCanvas.getContext('2d');
   mapCtx.drawImage(baseMap, 0, 0, MAP_W, MAP_H);
   const mapData = mapCtx.getImageData(0, 0, MAP_W, MAP_H).data;
+
+  // Build border mask: mark dark / transparent pixels on the base map
+  const raw = new Uint8Array(MAP_W * MAP_H);
+  for (let i = 0; i < MAP_W * MAP_H; i++) {
+    const mi = i * 4;
+    const b = (mapData[mi] + mapData[mi + 1] + mapData[mi + 2]) / 3;
+    if (b < BORDER_THRESHOLD || mapData[mi + 3] < 128) raw[i] = 1;
+  }
+
+  // Dilate border mask by 1 pixel (4-connected) to prevent edge leaking
+  const borderMask = new Uint8Array(raw);
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if (borderMask[y * MAP_W + x]) continue;
+      const i = y * MAP_W + x;
+      if ((x > 0 && raw[i - 1]) ||
+          (x < MAP_W - 1 && raw[i + 1]) ||
+          (y > 0 && raw[i - MAP_W]) ||
+          (y < MAP_H - 1 && raw[i + MAP_W])) {
+        borderMask[i] = 1;
+      }
+    }
+  }
 
   COUNTRIES.forEach(c => {
     const hc = hitCanvases[c.filename];
@@ -1068,16 +1092,8 @@ function processHoverImages() {
         const my = sy + y;
         const ci = (y * c.width + x) * 4;
 
-        if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) {
-          d[ci + 3] = 0;
-          continue;
-        }
-
-        const mi = (my * MAP_W + mx) * 4;
-        const brightness = (mapData[mi] + mapData[mi + 1] + mapData[mi + 2]) / 3;
-        const alpha = mapData[mi + 3];
-
-        if (brightness < 200 || alpha < 128) {
+        if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H ||
+            borderMask[my * MAP_W + mx]) {
           d[ci + 3] = 0;
         } else if (d[ci + 3] > 0) {
           // Bake in yellow hover color
@@ -1267,26 +1283,23 @@ function showInfoCard(c) {
 function exploreClick(c, e) {
   const overlay = overlayEls[c.filename];
   if (revealed.has(c.filename)) {
-    // Hide the overlay
     overlay.classList.remove('visible');
     revealed.delete(c.filename);
-    showInfoCard(c);
-    hideExploreTooltip();
   } else {
     revealCountry(c.filename);
-    showInfoCard(c);
+  }
+  showInfoCard(c);
 
-    // Show country name + association as tooltip near cursor
-    const assoc = IMAGE_ASSOCIATIONS[c.filename];
-    if (assoc && e) {
-      clearTimeout(exploreTooltipTimer);
-      cursorLabel.innerHTML = `<strong>${escHtml(c.name)}</strong>\n${escHtml(assoc)}`;
-      cursorLabel.classList.add('explore-tooltip');
-      cursorLabel.style.left = e.clientX + 'px';
-      cursorLabel.style.top = e.clientY + 'px';
-      cursorLabel.style.display = 'block';
-      exploreTooltipTimer = setTimeout(hideExploreTooltip, 3000);
-    }
+  // Show country name + association as tooltip near cursor
+  const assoc = IMAGE_ASSOCIATIONS[c.filename];
+  if (assoc && e) {
+    clearTimeout(exploreTooltipTimer);
+    cursorLabel.innerHTML = `<strong>${escHtml(c.name)}</strong>\n${escHtml(assoc)}`;
+    cursorLabel.classList.add('explore-tooltip');
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
+    cursorLabel.style.display = 'block';
+    exploreTooltipTimer = setTimeout(hideExploreTooltip, 3000);
   }
   exploredCountEl.textContent = revealed.size;
 }
