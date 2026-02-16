@@ -1272,6 +1272,9 @@ function revealCountry(filename) {
 function flashWrong(filename) {
   const el = overlayEls[filename];
   if (!el || revealed.has(filename)) return;
+  // Hide yellow hover so the country shadow is visible
+  const hoverEl = hoverEls[filename];
+  if (hoverEl) hoverEl.classList.remove('active');
   el.classList.add('flash-wrong');
   setTimeout(() => { el.classList.remove('flash-wrong'); }, 1200);
 }
@@ -1314,7 +1317,7 @@ function updateHover(e) {
       if (revealed.has(newHover)) {
         // Country is revealed – brighten the overlay image instead of yellow highlight
         overlayEls[newHover].classList.add('hovered');
-      } else {
+      } else if (!overlayEls[newHover].classList.contains('flash-wrong')) {
         hoverEls[newHover].classList.add('active');
       }
     }
