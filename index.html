@@ -180,6 +180,13 @@
       opacity: 1;
     }
 
+    /* Overlay: black contour lines always on top */
+    .map-overlay {
+      position: absolute;
+      pointer-events: none;
+      z-index: 5;
+    }
+
     /* ── Cursor label (Seterra mode) ── */
     .cursor-label {
       position: fixed;
@@ -913,6 +920,11 @@ const IMAGE_ASSOCIATIONS = {
 const NO_HOVER = new Set();
 const HS_KEY = 'sydamerika-highscores';
 
+// Bolivia shape: exact hover/hit shape (from PSD "Bolivia Shape" layer)
+const BOLIVIA_SHAPE = { left: 1385, top: 1326, width: 917, height: 956 };
+// Bolivia overlay: original colored overlay image position
+const BOLIVIA_OVERLAY = { left: 1240, top: 1035, width: 1076, height: 1250 };
+
 const mapPanel = document.querySelector('.map-panel');
 const mapWrapper = document.getElementById('map-wrapper');
 const baseMap = document.getElementById('base-map');
@@ -983,7 +995,7 @@ function shuffle(arr) {
 // Hit detection & overlays
 // ══════════════════════════════════
 function loadHitData() {
-  return Promise.all(COUNTRIES.map(c => new Promise(resolve => {
+  const promises = COUNTRIES.map(c => new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -997,7 +1009,26 @@ function loadHitData() {
     };
     img.onerror = resolve;
     img.src = `assets/countries/${c.filename}.png`;
-  })));
+  }));
+
+  // Load Bolivia Shape for hit detection (overrides bolivia.png)
+  promises.push(new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = BOLIVIA_SHAPE.width;
+      canvas.height = BOLIVIA_SHAPE.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, BOLIVIA_SHAPE.width, BOLIVIA_SHAPE.height);
+      hitCanvases['bolivia_shape'] = { canvas, ctx };
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = 'assets/countries/bolivia_shape.png';
+  }));
+
+  return Promise.all(promises);
 }
 
 function createOverlays() {
@@ -1012,16 +1043,25 @@ function createOverlays() {
 
     const hover = document.createElement('img');
     hover.className = 'hover-highlight';
-    hover.src = `assets/countries/${c.filename}.png`;
     hover.dataset.country = c.filename;
     hover.draggable = false;
-    // Clip away the decorative beach ball on Bolivia's image
+    // Use exact Bolivia Shape for hover instead of the full image with clip-path
     if (c.filename === 'bolivia') {
-      hover.style.clipPath = 'polygon(42% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%, 42% 25%)';
+      hover.src = 'assets/countries/bolivia_shape.png';
+    } else {
+      hover.src = `assets/countries/${c.filename}.png`;
     }
     mapWrapper.appendChild(hover);
     hoverEls[c.filename] = hover;
   });
+
+  // Add overlay (black contour lines) on top of everything
+  const overlayImg = document.createElement('img');
+  overlayImg.className = 'map-overlay';
+  overlayImg.src = 'assets/overlay.png';
+  overlayImg.draggable = false;
+  overlayImg.id = 'map-overlay';
+  mapWrapper.appendChild(overlayImg);
 
   // Pre-sort countries by area (smallest first) for hit testing
   sortedCountries = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
@@ -1074,23 +1114,48 @@ function processHoverImages() {
     const hitData = hc.ctx.getImageData(0, 0, c.width, c.height).data;
     hitPixelData[c.filename] = hitData;
 
-    const sx = c.left - MAP_LEFT;
-    const sy = c.top - MAP_TOP;
+    // For Bolivia, also cache the shape pixel data for hit detection
+    if (c.filename === 'bolivia') {
+      const shapeHc = hitCanvases['bolivia_shape'];
+      if (shapeHc) {
+        hitPixelData['bolivia_shape'] = shapeHc.ctx.getImageData(0, 0, BOLIVIA_SHAPE.width, BOLIVIA_SHAPE.height).data;
+      }
+    }
+
+    // Determine which canvas/coords to use for the hover highlight
+    let hoverSource, hoverLeft, hoverTop, hoverW, hoverH;
+    if (c.filename === 'bolivia' && hitCanvases['bolivia_shape']) {
+      // Use Bolivia Shape for hover
+      hoverSource = hitCanvases['bolivia_shape'].canvas;
+      hoverLeft = BOLIVIA_SHAPE.left;
+      hoverTop = BOLIVIA_SHAPE.top;
+      hoverW = BOLIVIA_SHAPE.width;
+      hoverH = BOLIVIA_SHAPE.height;
+    } else {
+      hoverSource = hc.canvas;
+      hoverLeft = c.left;
+      hoverTop = c.top;
+      hoverW = c.width;
+      hoverH = c.height;
+    }
+
+    const sx = hoverLeft - MAP_LEFT;
+    const sy = hoverTop - MAP_TOP;
 
     const canvas = document.createElement('canvas');
-    canvas.width = c.width;
-    canvas.height = c.height;
+    canvas.width = hoverW;
+    canvas.height = hoverH;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(hc.canvas, 0, 0);
+    ctx.drawImage(hoverSource, 0, 0);
 
-    const pixels = ctx.getImageData(0, 0, c.width, c.height);
+    const pixels = ctx.getImageData(0, 0, hoverW, hoverH);
     const d = pixels.data;
 
-    for (let y = 0; y < c.height; y++) {
-      for (let x = 0; x < c.width; x++) {
+    for (let y = 0; y < hoverH; y++) {
+      for (let x = 0; x < hoverW; x++) {
         const mx = sx + x;
         const my = sy + y;
-        const ci = (y * c.width + x) * 4;
+        const ci = (y * hoverW + x) * 4;
 
         if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H ||
             borderMask[my * MAP_W + mx]) {
@@ -1122,18 +1187,45 @@ function positionOverlays() {
     const relTop = (c.top - MAP_TOP) * scale;
     const relW = c.width * scale;
     const relH = c.height * scale;
-    const left = (offsetX + relLeft) + 'px';
-    const top = (offsetY + relTop) + 'px';
-    const width = relW + 'px';
-    const height = relH + 'px';
-    [overlayEls[c.filename], hoverEls[c.filename]].forEach(el => {
-      if (!el) return;
-      el.style.left = left;
-      el.style.top = top;
-      el.style.width = width;
-      el.style.height = height;
-    });
+
+    // Position the reveal overlay
+    const oEl = overlayEls[c.filename];
+    if (oEl) {
+      oEl.style.left = (offsetX + relLeft) + 'px';
+      oEl.style.top = (offsetY + relTop) + 'px';
+      oEl.style.width = relW + 'px';
+      oEl.style.height = relH + 'px';
+    }
+
+    // Position hover highlight (Bolivia uses different shape coordinates)
+    const hEl = hoverEls[c.filename];
+    if (hEl) {
+      if (c.filename === 'bolivia') {
+        const bRelLeft = (BOLIVIA_SHAPE.left - MAP_LEFT) * scale;
+        const bRelTop = (BOLIVIA_SHAPE.top - MAP_TOP) * scale;
+        const bRelW = BOLIVIA_SHAPE.width * scale;
+        const bRelH = BOLIVIA_SHAPE.height * scale;
+        hEl.style.left = (offsetX + bRelLeft) + 'px';
+        hEl.style.top = (offsetY + bRelTop) + 'px';
+        hEl.style.width = bRelW + 'px';
+        hEl.style.height = bRelH + 'px';
+      } else {
+        hEl.style.left = (offsetX + relLeft) + 'px';
+        hEl.style.top = (offsetY + relTop) + 'px';
+        hEl.style.width = relW + 'px';
+        hEl.style.height = relH + 'px';
+      }
+    }
   });
+
+  // Position the contour overlay (same size/position as the base map)
+  const overlayEl = document.getElementById('map-overlay');
+  if (overlayEl) {
+    overlayEl.style.left = offsetX + 'px';
+    overlayEl.style.top = offsetY + 'px';
+    overlayEl.style.width = mapRect.width + 'px';
+    overlayEl.style.height = mapRect.height + 'px';
+  }
 }
 
 function hitTest(clientX, clientY) {
@@ -1142,11 +1234,20 @@ function hitTest(clientX, clientY) {
   const mapX = (clientX - mapRect.left) * scale + MAP_LEFT;
   const mapY = (clientY - mapRect.top) * scale + MAP_TOP;
   for (const c of sortedCountries) {
-    const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
-    if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
-    const data = hitPixelData[c.filename];
-    if (!data) continue;
-    if (data[((ly * c.width + lx) * 4) + 3] > 30) return c;
+    // Bolivia uses the dedicated shape for hit detection
+    if (c.filename === 'bolivia') {
+      const lx = Math.round(mapX - BOLIVIA_SHAPE.left), ly = Math.round(mapY - BOLIVIA_SHAPE.top);
+      if (lx < 0 || ly < 0 || lx >= BOLIVIA_SHAPE.width || ly >= BOLIVIA_SHAPE.height) continue;
+      const data = hitPixelData['bolivia_shape'];
+      if (!data) continue;
+      if (data[((ly * BOLIVIA_SHAPE.width + lx) * 4) + 3] > 30) return c;
+    } else {
+      const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
+      if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
+      const data = hitPixelData[c.filename];
+      if (!data) continue;
+      if (data[((ly * c.width + lx) * 4) + 3] > 30) return c;
+    }
   }
   return null;
 }
@@ -1290,16 +1391,15 @@ function exploreClick(c, e) {
   }
   showInfoCard(c);
 
-  // Show country name + association as tooltip near cursor
-  const assoc = IMAGE_ASSOCIATIONS[c.filename];
-  if (assoc && e) {
+  // Show country name as tooltip near cursor
+  if (e) {
     clearTimeout(exploreTooltipTimer);
-    cursorLabel.innerHTML = `<strong>${escHtml(c.name)}</strong>\n${escHtml(assoc)}`;
-    cursorLabel.classList.add('explore-tooltip');
+    cursorLabel.textContent = c.name;
+    cursorLabel.classList.remove('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(hideExploreTooltip, 3000);
+    exploreTooltipTimer = setTimeout(hideExploreTooltip, 1000);
   }
   exploredCountEl.textContent = revealed.size;
 }
