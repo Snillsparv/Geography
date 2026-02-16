@@ -90,6 +90,7 @@
       cursor: default;
       transform-origin: center center;
       transition: transform 0.18s ease-out;
+      contain: layout style paint;
     }
 
     .map-wrapper.dragging {
@@ -149,10 +150,16 @@
       transition: opacity 0.4s ease;
       opacity: 0;
       pointer-events: none;
+      will-change: opacity, filter;
     }
 
     .country-overlay.visible {
       opacity: 1;
+    }
+
+    .country-overlay.hovered {
+      filter: brightness(1.35);
+      transition: filter 0.15s, opacity 0.4s ease;
     }
 
     .country-overlay.flash-wrong {
@@ -174,6 +181,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
+      will-change: opacity;
     }
 
     .hover-highlight.active {
@@ -1254,7 +1262,7 @@ function hitTest(clientX, clientY) {
 
 function revealCountry(filename) {
   const el = overlayEls[filename];
-  if (el) { el.classList.remove('flash-wrong', 'hint-blink'); el.classList.add('visible'); }
+  if (el) { el.classList.remove('flash-wrong', 'hint-blink', 'hovered'); el.classList.add('visible'); }
   revealed.add(filename);
   justRevealed.add(filename);
   // Remove hover highlight immediately so the country shows in full color
@@ -1280,10 +1288,11 @@ function blinkHint(filename) {
 
 function resetOverlays() {
   document.querySelectorAll('.country-overlay').forEach(el => {
-    el.classList.remove('visible', 'flash-wrong', 'hint-blink');
+    el.classList.remove('visible', 'flash-wrong', 'hint-blink', 'hovered');
   });
   revealed.clear();
   justRevealed.clear();
+  currentHover = null;
 }
 
 // ══════════════════════
@@ -1291,6 +1300,7 @@ function resetOverlays() {
 // ══════════════════════
 let currentHover = null;
 const justRevealed = new Set();
+let hoverRafPending = false;
 
 function updateHover(e) {
   const hit = hitTest(e.clientX, e.clientY);
@@ -1298,10 +1308,17 @@ function updateHover(e) {
   if (newHover !== currentHover) {
     if (currentHover) {
       hoverEls[currentHover].classList.remove('active');
+      overlayEls[currentHover].classList.remove('hovered');
       justRevealed.delete(currentHover);
     }
-    if (newHover && !justRevealed.has(newHover))
-      hoverEls[newHover].classList.add('active');
+    if (newHover && !justRevealed.has(newHover)) {
+      if (revealed.has(newHover)) {
+        // Country is revealed – brighten the overlay image instead of yellow highlight
+        overlayEls[newHover].classList.add('hovered');
+      } else {
+        hoverEls[newHover].classList.add('active');
+      }
+    }
     currentHover = newHover;
   }
 
@@ -1337,12 +1354,21 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
-  // Always update cursor label position in seterra mode
+  // Always update cursor label position
   if (currentMode === 'seterra' && seterraTarget) {
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
+  } else if (currentMode === 'explore' && cursorLabel.style.display === 'block') {
+    cursorLabel.style.left = e.clientX + 'px';
+    cursorLabel.style.top = e.clientY + 'px';
   }
-  if (!isDragging) { updateHover(e); return; }
+  if (!isDragging) {
+    if (!hoverRafPending) {
+      hoverRafPending = true;
+      requestAnimationFrame(() => { hoverRafPending = false; updateHover(e); });
+    }
+    return;
+  }
   const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
   if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
   if (didDrag) {
@@ -1384,7 +1410,7 @@ function showInfoCard(c) {
 function exploreClick(c, e) {
   const overlay = overlayEls[c.filename];
   if (revealed.has(c.filename)) {
-    overlay.classList.remove('visible');
+    overlay.classList.remove('visible', 'hovered');
     revealed.delete(c.filename);
   } else {
     revealCountry(c.filename);
@@ -1395,7 +1421,7 @@ function exploreClick(c, e) {
   if (e) {
     clearTimeout(exploreTooltipTimer);
     cursorLabel.textContent = c.name;
-    cursorLabel.classList.remove('explore-tooltip');
+    cursorLabel.classList.add('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
