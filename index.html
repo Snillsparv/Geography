@@ -90,7 +90,6 @@
       cursor: default;
       transform-origin: center center;
       transition: transform 0.18s ease-out;
-      background: white;
     }
 
     .map-wrapper.dragging {
@@ -103,9 +102,6 @@
       width: auto;
       display: block;
       transition: filter 0.4s;
-      position: relative;
-      z-index: 2;
-      mix-blend-mode: multiply;
     }
 
     /* Zoom controls */
@@ -153,7 +149,6 @@
       transition: opacity 0.4s ease;
       opacity: 0;
       pointer-events: none;
-      z-index: 3;
     }
 
     .country-overlay.visible {
@@ -180,7 +175,7 @@
       opacity: 0;
       transition: opacity 0.2s;
       filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(190deg);
-      z-index: 1;
+      mix-blend-mode: multiply;
     }
 
     .hover-highlight.active {
@@ -877,6 +872,63 @@ function createOverlays() {
   window.addEventListener('resize', positionOverlays);
 }
 
+// Remove hover-highlight pixels that overlap with the base map's dark
+// border lines (or transparent areas outside the continent).  This
+// prevents a visible fringe when hovering near coastlines and borders.
+function processHoverImages() {
+  const mapCanvas = document.createElement('canvas');
+  mapCanvas.width = MAP_W;
+  mapCanvas.height = MAP_H;
+  const mapCtx = mapCanvas.getContext('2d');
+  mapCtx.drawImage(baseMap, 0, 0, MAP_W, MAP_H);
+  const mapData = mapCtx.getImageData(0, 0, MAP_W, MAP_H).data;
+
+  COUNTRIES.forEach(c => {
+    const hc = hitCanvases[c.filename];
+    if (!hc) return;
+
+    const sx = c.left - MAP_LEFT;
+    const sy = c.top - MAP_TOP;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = c.width;
+    canvas.height = c.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(hc.canvas, 0, 0);
+
+    const pixels = ctx.getImageData(0, 0, c.width, c.height);
+    const d = pixels.data;
+
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        const mx = sx + x;
+        const my = sy + y;
+        const ci = (y * c.width + x) * 4;
+
+        if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) {
+          d[ci + 3] = 0;
+          continue;
+        }
+
+        const mi = (my * MAP_W + mx) * 4;
+        const brightness = (mapData[mi] + mapData[mi + 1] + mapData[mi + 2]) / 3;
+        const alpha = mapData[mi + 3];
+
+        if (brightness < 200 || alpha < 128) {
+          d[ci + 3] = 0;
+        }
+      }
+    }
+
+    ctx.putImageData(pixels, 0, 0);
+
+    const hoverEl = mapWrapper.querySelector(
+      `.hover-highlight[data-country="${c.filename}"]`
+    );
+    if (hoverEl) hoverEl.src = canvas.toDataURL();
+  });
+}
+
 function positionOverlays() {
   const mapRect = baseMap.getBoundingClientRect();
   const wrapperRect = mapWrapper.getBoundingClientRect();
@@ -1372,6 +1424,7 @@ jonasImg.addEventListener('click', () => {
 });
 
 loadHitData().then(() => {
+  processHoverImages();
   mapPanel.addEventListener('pointerdown', onPointerDown);
   mapPanel.addEventListener('pointermove', onPointerMove);
   mapPanel.addEventListener('pointerup', onPointerUp);
