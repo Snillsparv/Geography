@@ -1,119 +1,164 @@
 {
   "name": "Nordamerika",
+  "slug": "nordamerika",
+  "hsKey": "nordamerika-highscores",
   "canvasWidth": 4000,
   "canvasHeight": 3513,
+  "specialShapes": {},
   "countries": [
     {
       "name": "Kanada",
+      "filename": "kanada",
       "file": "countries/kanada.webp",
       "left": 1045,
       "top": 165,
       "width": 2598,
-      "height": 1630
+      "height": 1630,
+      "desc": "Kanada är världens näst största land till ytan och sträcker sig från Atlanten till Stilla havet. Landet är känt för sina vidsträckta skogar, Rocky Mountains och lönnlövet på flaggan. Ishockey är nationalsport.",
+      "imageAssociation": "Person som håller i ett LÖNNLÖV"
     },
     {
       "name": "USA",
+      "filename": "usa",
       "file": "countries/usa.webp",
       "left": 171,
       "top": 364,
       "width": 2995,
-      "height": 2189
+      "height": 2189,
+      "desc": "USA är världens tredje största land och består av 50 delstater. Landet är känt för allt från Hollywood och NASA till Frihetsgudinnan. Det är världens största ekonomi.",
+      "imageAssociation": "USA:s flagga"
     },
     {
       "name": "Haiti",
+      "filename": "haiti",
       "file": "countries/haiti.webp",
       "left": 2999,
       "top": 2787,
       "width": 100,
-      "height": 86
+      "height": 86,
+      "desc": "Haiti delar ön Hispaniola med Dominikanska republiken och var det första landet i Latinamerika att bli självständigt (1804). Det är det fattigaste landet i västra halvklotet.",
+      "imageAssociation": "En kille som HAR koll på IT"
     },
     {
       "name": "Dominikanska Republiken",
+      "filename": "dominikanska_republiken",
       "file": "countries/dominikanska_republiken.webp",
       "left": 3079,
       "top": 2780,
       "width": 130,
-      "height": 107
+      "height": 107,
+      "desc": "Dominikanska republiken ligger på östra delen av ön Hispaniola. Landet är populärt för sina stränder och resorts, och är en stormakt inom baseboll.",
+      "imageAssociation": "En elefant som DOMINERAR PUBLIKEN under en fotbollsmatch"
     },
     {
       "name": "Jamaica",
+      "filename": "jamaica",
       "file": "countries/jamaica.webp",
       "left": 2831,
       "top": 2822,
       "width": 119,
-      "height": 65
+      "height": 65,
+      "desc": "Jamaica är en ö-nation i Karibien känd som reggaemusikens hemland tack vare Bob Marley. Usain Bolt, världens snabbaste man, kommer härifrån.",
+      "imageAssociation": "En liten katt som JAMAR"
     },
     {
       "name": "Kuba",
+      "filename": "kuba",
       "file": "countries/kuba.webp",
       "left": 2637,
       "top": 2329,
       "width": 464,
-      "height": 459
+      "height": 459,
+      "desc": "Kuba är Karibiens största ö och känt för sina gamla amerikanska bilar, cigarrer och salsamusik. Landet har varit socialistiskt sedan Fidel Castros revolution 1959.",
+      "imageAssociation": "En KUBANSK CIGARR"
     },
     {
       "name": "Mexiko",
+      "filename": "mexiko",
       "file": "countries/mexiko.webp",
       "left": 1465,
       "top": 2206,
       "width": 1109,
-      "height": 829
+      "height": 829,
+      "desc": "Mexiko är Nordamerikas tredje största land och hem till den gamla aztekiska civilisationen. Landet är känt för tacos, Day of the Dead och Chichén Itzá-pyramiden.",
+      "imageAssociation": "En TORTILLA-wrap"
     },
     {
       "name": "Belize",
+      "filename": "belize",
       "file": "countries/belize.webp",
       "left": 2463,
       "top": 2853,
       "width": 46,
-      "height": 122
+      "height": 122,
+      "desc": "Belize är det enda centralamerikanska landet med engelska som officiellt språk. Landet har världens näst största barriärrev och fascinerande Maya-ruiner.",
+      "imageAssociation": "Bart Simpson som säger till Guatemala att BE hans syster LISA om hjälp"
     },
     {
       "name": "Guatemala",
+      "filename": "guatemala",
       "file": "countries/guatemala.webp",
       "left": 2357,
       "top": 2879,
       "width": 150,
-      "height": 192
+      "height": 192,
+      "desc": "Guatemala var hjärtat av Maya-civilisationen och har fortfarande en stor ursprungsbefolkning. Landet har dramatiska vulkaner och regnskog.",
+      "imageAssociation": "Person som maler te (GUd vA' mycket TE han kan MALA)"
     },
     {
       "name": "El Salvador",
+      "filename": "el_salvador",
       "file": "countries/el_salvador.webp",
       "left": 2431,
       "top": 3035,
       "width": 92,
-      "height": 59
+      "height": 59,
+      "desc": "El Salvador är Centralamerikas minsta och mest tätbefolkade land. Det är känt som 'vulkanernas land' med över 20 vulkaner.",
+      "imageAssociation": "En tub med SALVA under däcket på Honduras-skottkärran (HÄLL SALVA DÄR)"
     },
     {
       "name": "Honduras",
+      "filename": "honduras",
       "file": "countries/honduras.webp",
       "left": 2460,
       "top": 2971,
       "width": 220,
-      "height": 133
+      "height": 133,
+      "desc": "Honduras har Centralamerikas längsta kust mot Karibien och är hem till de imponerande Maya-ruinerna i Copán. Namnet betyder 'djupt vatten' på spanska.",
+      "imageAssociation": "En tant som ligger och lurar i en skottkärra (HON LURAS)"
     },
     {
       "name": "Nicaragua",
+      "filename": "nicaragua",
       "file": "countries/nicaragua.webp",
       "left": 2524,
       "top": 3015,
       "width": 159,
-      "height": 196
+      "height": 196,
+      "desc": "Nicaragua är Centralamerikas största land och har både Stilla havs- och Karibisk kust. Nicaraguasjön är en av världens få sjöar med hajar i sötvatten.",
+      "imageAssociation": "Person med stor trekantig frisyr som NICKAR"
     },
     {
       "name": "Costa Rica",
+      "filename": "costa_rica",
       "file": "countries/costa_rica.webp",
       "left": 2590,
       "top": 3185,
       "width": 133,
-      "height": 172
+      "height": 172,
+      "desc": "Costa Rica är känt för sin fantastiska biologiska mångfald och har avskaffat sin armé sedan 1949. Över 25% av landets yta är skyddade naturreservat.",
+      "imageAssociation": "En agent som tänker hämnas för att de rika roffat åt sig alla pengar (det kommer KOSTA de RIKA)"
     },
     {
       "name": "Panama",
+      "filename": "panama",
       "file": "countries/panama.webp",
       "left": 2694,
       "top": 3255,
       "width": 216,
-      "height": 111
+      "height": 111,
+      "desc": "Panama förbinder Nord- och Sydamerika och är mest känt för Panamakanalen som förbinder Atlanten med Stilla havet. Kanalen är en av världens viktigaste handelsvägar.",
+      "imageAssociation": "Ett PANNBAND"
     }
   ],
   "mapWidth": 3758,
