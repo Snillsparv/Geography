@@ -1,119 +1,161 @@
 {
-  "name": "Sydamerika 3",
+  "name": "Sydamerika",
+  "slug": "sydamerika",
+  "hsKey": "sydamerika-highscores",
   "canvasWidth": 3682,
   "canvasHeight": 4000,
-  "countries": [
-    {
-      "name": "Argentina",
-      "file": "countries/argentina.webp",
-      "left": 1387,
-      "top": 1979,
-      "width": 907,
-      "height": 1960
-    },
-    {
-      "name": "Chile",
-      "file": "countries/chile.webp",
-      "left": 1280,
-      "top": 1795,
-      "width": 482,
-      "height": 2186
-    },
-    {
-      "name": "Uruguay",
-      "file": "countries/uruguay.webp",
-      "left": 1993,
-      "top": 2475,
-      "width": 249,
-      "height": 301
-    },
-    {
-      "name": "Paraguay",
-      "file": "countries/paraguay.webp",
-      "left": 1792,
-      "top": 1763,
-      "width": 496,
-      "height": 564
-    },
-    {
-      "name": "Brasilien",
-      "file": "countries/brasilien.webp",
-      "left": 1024,
-      "top": 387,
-      "width": 2311,
-      "height": 2290
-    },
-    {
-      "name": "Bolivia",
-      "file": "countries/bolivia.webp",
-      "left": 1141,
-      "top": 953,
-      "width": 990,
-      "height": 1150
-    },
-    {
-      "name": "Peru",
-      "file": "countries/peru.webp",
-      "left": 582,
-      "top": 707,
-      "width": 788,
-      "height": 1139
-    },
-    {
-      "name": "Eciador",
-      "file": "countries/eciador.webp",
-      "left": 225,
-      "top": 674,
-      "width": 732,
-      "height": 842
-    },
-    {
-      "name": "Colombia",
-      "file": "countries/colombia.webp",
-      "left": 693,
-      "top": 13,
-      "width": 710,
-      "height": 897
-    },
-    {
-      "name": "Venezuela",
-      "file": "countries/venezuela.webp",
-      "left": 981,
-      "top": 5,
-      "width": 875,
-      "height": 639
-    },
-    {
-      "name": "Guyana",
-      "file": "countries/guyana.webp",
-      "left": 1796,
-      "top": 203,
-      "width": 652,
-      "height": 410
-    },
-    {
-      "name": "Surinam",
-      "file": "countries/surinam.webp",
-      "left": 1954,
-      "top": 298,
-      "width": 331,
-      "height": 289
-    },
-    {
-      "name": "Franska Guyana",
-      "file": "countries/franska_guyana.webp",
-      "left": 2242,
-      "top": 336,
-      "width": 202,
-      "height": 202
-    },
-    {
-      "name": "Bolivia Shape",
+  "specialShapes": {
+    "bolivia": {
       "file": "countries/bolivia_shape.webp",
       "left": 1275,
       "top": 1220,
       "width": 844,
       "height": 880
+    }
+  },
+  "countries": [
+    {
+      "name": "Argentina",
+      "filename": "argentina",
+      "file": "countries/argentina.webp",
+      "left": 1387,
+      "top": 1979,
+      "width": 907,
+      "height": 1960,
+      "desc": "Argentina är Sydamerikas näst största land och sträcker sig från subtropiska norra regioner ner till det iskalla Patagonien. Landet är känt för tango, biff, och fotbollslegenden Maradona. Huvudstaden Buenos Aires kallas ofta \"Sydamerikas Paris\".",
+      "imageAssociation": "En ARG kille som har fått en kycklingklubba i ögat"
+    },
+    {
+      "name": "Chile",
+      "filename": "chile",
+      "file": "countries/chile.webp",
+      "left": 1280,
+      "top": 1795,
+      "width": 482,
+      "height": 2186,
+      "desc": "Chile är världens smalaste land och sträcker sig över 4 300 km längs Sydamerikas västkust. Landets unika form ger det en otrolig variation – från Atacamaöknen i norr (världens torraste plats) till glaciärer i söder.",
+      "imageAssociation": "En CHILI-peppar"
+    },
+    {
+      "name": "Uruguay",
+      "filename": "uruguay",
+      "file": "countries/uruguay.webp",
+      "left": 1993,
+      "top": 2475,
+      "width": 249,
+      "height": 301,
+      "desc": "Uruguay är ett av Sydamerikas minsta länder men rankas ofta högst i demokrati och levnadsstandard. Det lilla landet mellan Argentina och Brasilien vann den första fotbolls-VM-finalen 1930 på hemmaplan.",
+      "imageAssociation": "Ett UR"
+    },
+    {
+      "name": "Paraguay",
+      "filename": "paraguay",
+      "file": "countries/paraguay.webp",
+      "left": 1792,
+      "top": 1763,
+      "width": 496,
+      "height": 564,
+      "desc": "Paraguay är ett av bara två landlåsta länder i Sydamerika. Floden Paraguay delar landet i två helt olika halvor – det gröna östlandet och den vilda, glest befolkade Chaco-regionen i väst.",
+      "imageAssociation": "Ett foster som vill ha PARA"
+    },
+    {
+      "name": "Brasilien",
+      "filename": "brasilien",
+      "file": "countries/brasilien.webp",
+      "left": 1024,
+      "top": 387,
+      "width": 2311,
+      "height": 2290,
+      "desc": "Brasilien är Sydamerikas gigant och täcker nästan halva kontinenten. Landet rymmer Amazonas regnskog – jordens \"lunga\" – och är världens femte största land. Karnevalen i Rio och fotboll är en del av själen.",
+      "imageAssociation": "Huvudet på ett lejon som tatuerat in ett fotbollsmönster för att stötta BRASILIENS landslag"
+    },
+    {
+      "name": "Bolivia",
+      "filename": "bolivia",
+      "file": "countries/bolivia.webp",
+      "left": 1141,
+      "top": 953,
+      "width": 990,
+      "height": 1150,
+      "desc": "Bolivia är Sydamerikas andra landlåsta land och hem till Salar de Uyuni – världens största saltöken. Huvudstaden La Paz ligger på över 3 600 meters höjd, vilket gör den till en av världens högst belägna huvudstäder.",
+      "imageAssociation": "En urna som det växer en BOLL i istället för en växt"
+    },
+    {
+      "name": "Peru",
+      "filename": "peru",
+      "file": "countries/peru.webp",
+      "left": 582,
+      "top": 707,
+      "width": 788,
+      "height": 1139,
+      "desc": "Peru var hjärtat av Inkariket och hem till den legendariska Machu Picchu. Landet har tre distinkta zoner: den torra kusten, de mäktiga Anderna och Amazonas regnskog i öster.",
+      "imageAssociation": "En klättrare som heter PER"
+    },
+    {
+      "name": "Ecuador",
+      "filename": "eciador",
+      "file": "countries/eciador.webp",
+      "left": 225,
+      "top": 674,
+      "width": 732,
+      "height": 842,
+      "desc": "Ecuador är uppkallat efter ekvatorn som löper rakt igenom landet. Trots sin lilla storlek har det enorm biologisk mångfald – från Galápagosöarna (som inspirerade Darwins evolutionsteori) till Andernas toppar.",
+      "imageAssociation": "En vattenslang som sprutar vatten längs hela EKVATORN"
+    },
+    {
+      "name": "Colombia",
+      "filename": "colombia",
+      "file": "countries/colombia.webp",
+      "left": 693,
+      "top": 13,
+      "width": 710,
+      "height": 897,
+      "desc": "Colombia är det enda sydamerikanska landet med kust mot både Stilla havet och Karibiska havet. Landet är världens tredje största kaffeproducent och känt för sin otroliga biologiska mångfald.",
+      "imageAssociation": "En COOL ko med solglasögon"
+    },
+    {
+      "name": "Venezuela",
+      "filename": "venezuela",
+      "file": "countries/venezuela.webp",
+      "left": 981,
+      "top": 5,
+      "width": 875,
+      "height": 639,
+      "desc": "Venezuela är hem till Salto Ángel – världens högsta vattenfall på hela 979 meter. Landet har också några av världens största oljereserver. Sjön Maracaibo är Sydamerikas största sjö.",
+      "imageAssociation": "En VÄN som kommer springande och hälsar"
+    },
+    {
+      "name": "Guyana",
+      "filename": "guyana",
+      "file": "countries/guyana.webp",
+      "left": 1796,
+      "top": 203,
+      "width": 652,
+      "height": 410,
+      "desc": "Guyana är det enda engelskspråkiga landet i Sydamerika. Över 80% av landet är täckt av regnskog. Trots att det ligger i Sydamerika har Guyana starka kulturella band till Karibien.",
+      "imageAssociation": "Ett kors, de som bor där säger \"GUD? GÄRNA!\""
+    },
+    {
+      "name": "Surinam",
+      "filename": "surinam",
+      "file": "countries/surinam.webp",
+      "left": 1954,
+      "top": 298,
+      "width": 331,
+      "height": 289,
+      "desc": "Surinam är Sydamerikas minsta land och det enda där nederländska är officiellt språk – ett arv från kolonialtidens Nederländerna. Landet har en unik kulturell mix av indiska, indonesiska, afrikanska och inhemska traditioner.",
+      "imageAssociation": "En SUR liten filur som smaskar: \"NAM NAM NAM\""
+    },
+    {
+      "name": "Franska Guyana",
+      "filename": "franska_guyana",
+      "file": "countries/franska_guyana.webp",
+      "left": 2242,
+      "top": 336,
+      "width": 202,
+      "height": 202,
+      "desc": "Franska Guyana är tekniskt sett inte ett eget land utan ett franskt utomeuropeiskt departement – och därmed en del av EU! Här ligger Europas rymdhamn i Kourou, varifrån Ariane-raketer skjuts upp.",
+      "imageAssociation": "En FRANSK snigel som hänger ihop med GUYANA till vänster"
     }
   ],
   "mapWidth": 2779,
