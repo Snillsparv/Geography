@@ -2,6 +2,9 @@
   "name": "Europa",
   "canvasWidth": 4000,
   "canvasHeight": 2938,
+  "slug": "europa",
+  "hsKey": "europa-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Ukraina",
@@ -9,7 +12,10 @@
       "left": 2096,
       "top": 1520,
       "width": 899,
-      "height": 612
+      "height": 612,
+      "filename": "ukraina",
+      "desc": "Ukraina är Europas till ytan näst största land och ligger i östeuropa vid Svarta havet. Landet är känt för sina vidsträckta slätter, den berömda floden Dnipro och en rik kultur med traditionell musik och dans. Huvudstaden Kyiv är en av Europas äldsta städer med över tusen år av historia.",
+      "imageAssociation": "En varelse som gråter och som vi varsamt frågar: Are U CRYIN'?"
     },
     {
       "name": "Malta",
@@ -17,7 +23,10 @@
       "left": 1701,
       "top": 2772,
       "width": 61,
-      "height": 63
+      "height": 63,
+      "filename": "malta",
+      "desc": "Malta är en liten östat i Medelhavet, söder om Sicilien. Trots sin ringa storlek har ön en fantastisk historia med forntida tempel som är äldre än pyramiderna i Egypten. Malta är också känt för sitt kristallklara vatten och varma klimat året runt.",
+      "imageAssociation": "En kille som heter MALTE som ror över Medelhavet"
     },
     {
       "name": "Moldavien",
@@ -25,7 +34,10 @@
       "left": 2333,
       "top": 1825,
       "width": 182,
-      "height": 231
+      "height": 231,
+      "filename": "moldavien",
+      "desc": "Moldavien är ett litet land i östeuropa som gränsar till Rumänien och Ukraina. Landet är känt för sina vidsträckta vingårdar och har några av världens största vinkällare. Trots att det är ett av Europas minst besökta länder har det en charmig landsbygd och vänliga invånare.",
+      "imageAssociation": "Ett kemiskt provrör som det kommer ett MOLN ur"
     },
     {
       "name": "Rumänien",
@@ -33,7 +45,10 @@
       "left": 2022,
       "top": 1835,
       "width": 479,
-      "height": 366
+      "height": 366,
+      "filename": "rumanien",
+      "desc": "Rumänien ligger i sydöstra Europa och är känt för Transsylvanien, legenden om Dracula och det imponerande Karpaterna-bergskedjan. Landet har en fascinerande blandning av medeltida borgar, målade kloster och moderna städer. Donaudeltat vid Svarta havet är ett av Europas viktigaste naturområden.",
+      "imageAssociation": "Ett hotell som har RUM ÄN"
     },
     {
       "name": "Turkiet",
@@ -41,7 +56,10 @@
       "left": 2316,
       "top": 2225,
       "width": 1259,
-      "height": 593
+      "height": 593,
+      "filename": "turkiet",
+      "desc": "Turkiet är ett unikt land som sträcker sig över både Europa och Asien, med Istanbul delat av sundet Bosporen. Landet har en otroligt rik historia med spår från antikens Troja, Bysantinska riket och Osmanska riket. Turkiet är också känt för sin fantastiska mat, som kebab och baklava.",
+      "imageAssociation": "En kalkon (TURKEY på engelska)"
     },
     {
       "name": "VItryssland",
@@ -49,7 +67,10 @@
       "left": 2131,
       "top": 1227,
       "width": 455,
-      "height": 375
+      "height": 375,
+      "filename": "vitryssland",
+      "desc": "Vitryssland, eller Belarus, är ett stort land i östeuropa som gränsar till bland annat Polen och Ryssland. Landet är känt för sina djupa skogar, där det fortfarande lever vilda visenter i Bialowieza-skogen. Huvudstaden Minsk är en modern stad som byggdes upp nästan helt efter andra världskriget.",
+      "imageAssociation": "En sjöjungfru som lyssnar på havets BRUS"
     },
     {
       "name": "Litauen",
@@ -57,7 +78,10 @@
       "left": 2017,
       "top": 1198,
       "width": 277,
-      "height": 202
+      "height": 202,
+      "filename": "litauen",
+      "desc": "Litauen är det sydligaste av de tre baltiska staterna och har en stolt historia som en gång sträckte sig ända till Svarta havet. Huvudstaden Vilnius har en vacker gammal stadskärna som är med på UNESCO:s världsarvslista. Litauen är också känt för sin passion för basket, som nästan är en nationalsport.",
+      "imageAssociation": "En person som lyfter en sten och ber oss att LITA på honom"
     },
     {
       "name": "Lettland",
@@ -65,7 +89,10 @@
       "left": 2014,
       "top": 1071,
       "width": 340,
-      "height": 190
+      "height": 190,
+      "filename": "lettland",
+      "desc": "Lettland ligger i mitten av de tre baltiska staterna vid Östersjön. Huvudstaden Riga är känd för sin fantastiska jugendarkitektur och sin livliga julmarknad. Landet har vidsträckta skogar och över 12 000 floder, vilket gör det till ett paradis för naturälskare.",
+      "imageAssociation": "En person som använder en gymmaskin och tycker att det är LÄTT"
     },
     {
       "name": "Estland",
@@ -73,7 +100,10 @@
       "left": 2043,
       "top": 951,
       "width": 278,
-      "height": 170
+      "height": 170,
+      "filename": "estland",
+      "desc": "Estland är det nordligaste baltiska landet och en av världens mest digitaliserade nationer. Huvudstaden Tallinn har en fantastisk medeltida stadskärna med koppartak och kullerstensgator. Estland har över 2 000 öar och är också känt för att ha uppfunnit Skype.",
+      "imageAssociation": "En häst (HÄST-LAND)"
     },
     {
       "name": "Finland",
@@ -81,7 +111,10 @@
       "left": 1942,
       "top": 133,
       "width": 497,
-      "height": 795
+      "height": 795,
+      "filename": "finland",
+      "desc": "Finland kallas ofta för de tusen sjöarnas land, men i verkligheten finns det hela 188 000 sjöar! Landet är känt för sin bastu-kultur, nordliga norrskenet och att det utsågs till världens lyckligaste land flera år i rad. I Lappland i norra Finland kan man besöka jultomtens by.",
+      "imageAssociation": "Ett paket som du FINNer något i"
     },
     {
       "name": "Norge",
@@ -89,7 +122,10 @@
       "left": 1293,
       "top": 50,
       "width": 1030,
-      "height": 1037
+      "height": 1037,
+      "filename": "norge",
+      "desc": "Norge är känt för sina spektakulära fjordar, höga berg och midnattssol. Landet sträcker sig långt norrut förbi polcirkeln och har en av världens längsta kustlinjer. Norge är också en av världens rikaste nationer tack vare sina olje- och gasfyndigheter i Nordsjön.",
+      "imageAssociation": "En VAL"
     },
     {
       "name": "Irland",
@@ -97,7 +133,10 @@
       "left": 506,
       "top": 1289,
       "width": 242,
-      "height": 303
+      "height": 303,
+      "filename": "irland",
+      "desc": "Irland kallas den gröna ön på grund av sitt frodiga, gröna landskap som formas av det milda och regniga klimatet. Landet har en rik tradition av musik, dans och berättarkonst, och är känt för sina legender om älvor och leprechauns. Dublin, huvudstaden, är en livlig stad med en lång litterär tradition.",
+      "imageAssociation": "Papegoja som IRRAR omkring över Atlanten"
     },
     {
       "name": "Nordirland",
@@ -105,7 +144,10 @@
       "left": 646,
       "top": 1299,
       "width": 133,
-      "height": 99
+      "height": 99,
+      "filename": "nordirland",
+      "desc": "Nordirland är en del av Storbritannien och ligger på den irländska ön. Här finns Giant's Causeway, en fantastisk naturformation med tusentals sexkantiga basaltpelare vid kusten. Belfast, huvudstaden, är staden där det berömda skeppet Titanic byggdes.",
+      "imageAssociation": "En liten mus som IRRAR i NORR"
     },
     {
       "name": "England",
@@ -113,7 +155,10 @@
       "left": 729,
       "top": 1245,
       "width": 380,
-      "height": 463
+      "height": 463,
+      "filename": "england",
+      "desc": "England är den största delen av Storbritannien och hem till huvudstaden London, en av världens mest besökta städer. Landet är känt för kungafamiljen, Big Ben, Stonehenge och att det är fotbollens hemland. England har också gett världen författare som Shakespeare och band som The Beatles.",
+      "imageAssociation": "En kanin som bor på en ÄNG"
     },
     {
       "name": "Skottland",
@@ -121,7 +166,10 @@
       "left": 706,
       "top": 866,
       "width": 329,
-      "height": 476
+      "height": 476,
+      "filename": "skottland",
+      "desc": "Skottland ligger i norra delen av Storbritannien och är känt för sina dramatiska högländer, mystiska sjöar och gamla slott. Legenden om odjuret i Loch Ness lockar fortfarande nyfikna besökare varje år. Skottland är också känt för säckpipemusik, kiltar och den skotska flaggan med sitt vita kors.",
+      "imageAssociation": "En fotbollsspelare som skjuter hårda SKOTT"
     },
     {
       "name": "Wales",
@@ -129,7 +177,10 @@
       "left": 762,
       "top": 1442,
       "width": 151,
-      "height": 157
+      "height": 157,
+      "filename": "wales",
+      "desc": "Wales är en del av Storbritannien och ligger väster om England. Landet har ett eget språk, walesiska, som fortfarande talas av många och har otroligt långa ortnamn. Wales är känt för sina gröna dalar, imponerande slott och den röda draken på sin flagga.",
+      "imageAssociation": "En brunn som det bor valar (WHALES på engelska) i"
     },
     {
       "name": "Island",
@@ -137,7 +188,10 @@
       "left": 112,
       "top": 409,
       "width": 447,
-      "height": 248
+      "height": 248,
+      "filename": "island",
+      "desc": "Island är en ö i Nordatlanten som är känd för sina vulkaner, gejsrar, heta källor och glaciärer. Trots sitt namn är landet inte täckt av is, utan har ett förvånansvärt milt klimat tack vare Golfströmmen. Island har också Europas största glaciär, Vatnajökull, och ett av världens äldsta parlament.",
+      "imageAssociation": "En drake (som orsakar GEYSRARNA och DE HETA KÄLLORNA)"
     },
     {
       "name": "Polen",
@@ -145,7 +199,10 @@
       "left": 1685,
       "top": 1321,
       "width": 503,
-      "height": 463
+      "height": 463,
+      "filename": "polen",
+      "desc": "Polen är ett stort land i centraleuropa med en rik och dramatisk historia. Landet är känt för städer som Kraków med sin medeltida stadskärna och Warszawa som byggdes upp efter krigets förstörelse. Polen är också berömt för sin mat, särskilt pierogi (fyllda degar) och sin starka tradition av vetenskap med kända namn som Copernicus och Marie Curie.",
+      "imageAssociation": "En isbjörn från NordPOLEN"
     },
     {
       "name": "Tyskland",
@@ -153,7 +210,10 @@
       "left": 1306,
       "top": 1309,
       "width": 445,
-      "height": 602
+      "height": 602,
+      "filename": "tyskland",
+      "desc": "Tyskland är Europas folkrikaste land och en av världens starkaste ekonomier. Landet är känt för sina bilar, Oktoberfest, och en rik kulturhistoria med tonsättare som Beethoven och Bach. Berlinmuren, som en gång delade landet i öst och väst, föll 1989 och blev en symbol för frihet.",
+      "imageAssociation": "En tysk häxa"
     },
     {
       "name": "Danmark",
@@ -161,7 +221,10 @@
       "left": 1415,
       "top": 1095,
       "width": 339,
-      "height": 249
+      "height": 249,
+      "filename": "danmark",
+      "desc": "Danmark är det minsta av de nordiska länderna och består av halvön Jylland och över 400 öar. Landet är känt för LEGO, den lilla sjöjungfrun i Köpenhamns hamn och H.C. Andersens sagor. Danmark rankas ofta som ett av världens lyckligaste länder och har gett oss begreppet 'hygge'.",
+      "imageAssociation": "En lägereld att grilla PØLSE på"
     },
     {
       "name": "Tjeckien",
@@ -169,7 +232,10 @@
       "left": 1607,
       "top": 1625,
       "width": 333,
-      "height": 190
+      "height": 190,
+      "filename": "tjeckien",
+      "desc": "Tjeckien ligger i hjärtat av Europa och har en av kontinentens vackraste huvudstäder, Prag, med sin berömda Karlsbro. Landet är känt för sin ölbryggartradition, vackra slott och en stark historia inom vetenskap och kultur. Tjeckien har fler slott och borgar per capita än något annat land i världen.",
+      "imageAssociation": "En get med en CHECK på mulen"
     },
     {
       "name": "Slovakien",
@@ -177,7 +243,10 @@
       "left": 1840,
       "top": 1739,
       "width": 281,
-      "height": 146
+      "height": 146,
+      "filename": "slovakien",
+      "desc": "Slovakien är ett bergigt land i centraleuropa som blev självständigt 1993 när Tjeckoslovakien delades. Huvudstaden Bratislava ligger vid Donau och är en av få huvudstäder som gränsar till två andra länder. Landet har fantastiska bergsområden i Tatrabergen som är populära för vandring och skidåkning.",
+      "imageAssociation": "Ett sjöodjur som SLÅR med svansen i en VAK"
     },
     {
       "name": "Ungern",
@@ -185,7 +254,10 @@
       "left": 1814,
       "top": 1812,
       "width": 325,
-      "height": 227
+      "height": 227,
+      "filename": "ungern",
+      "desc": "Ungern är ett land i centraleuropa som är känt för sin huvudstad Budapest, ofta kallad 'Donaus pärla'. Staden är berömd för sina termalbad, det magnifika parlamentsbyggnaden och ruinbarerna i den judiska kvarteren. Ungersk mat som gulasch och lángos är populär i hela Europa.",
+      "imageAssociation": "En fågel som är nöjd med att UNGEN har flyttat hemifrån"
     },
     {
       "name": "Serbien",
@@ -193,7 +265,10 @@
       "left": 1938,
       "top": 1999,
       "width": 230,
-      "height": 307
+      "height": 307,
+      "filename": "serbien",
+      "desc": "Serbien är ett land på Balkanhalvön med en lång och händelserik historia. Huvudstaden Belgrad är en av Europas äldsta städer och ligger där floderna Donau och Sava möts. Serbien är känt för sin gästfrihet, livliga musikscen och den berömda musikfestivalen EXIT.",
+      "imageAssociation": "En man som tittar i en kikare och SER bra (BIEN på franska)"
     },
     {
       "name": "Kosovo",
@@ -201,7 +276,10 @@
       "left": 2017,
       "top": 2225,
       "width": 89,
-      "height": 103
+      "height": 103,
+      "filename": "kosovo",
+      "desc": "Kosovo är ett av Europas yngsta länder och förklarade sig självständigt från Serbien 2008. Trots sin lilla storlek har landet en rik kulturhistoria och flera medeltida kloster. Huvudstaden Pristina är en ung och energisk stad med en växande kulturscen.",
+      "imageAssociation": "En KO som SOVER"
     },
     {
       "name": "Cypern",
@@ -209,7 +287,10 @@
       "left": 2695,
       "top": 2783,
       "width": 158,
-      "height": 114
+      "height": 114,
+      "filename": "cypern",
+      "desc": "Cypern är en ö i östra Medelhavet och är enligt myten födelseplatsen för kärleksgudinnan Afrodite. Ön har ett varmt klimat med över 300 soldagar per år och vackra stränder. Cypern har en fascinerande blandning av grekisk och turkisk kultur och delikata rätter som halloumi-ost.",
+      "imageAssociation": "En narval som SYR en PÄRM med sin horntand"
     },
     {
       "name": "Grekland",
@@ -217,7 +298,10 @@
       "left": 2009,
       "top": 2340,
       "width": 473,
-      "height": 530
+      "height": 530,
+      "filename": "grekland",
+      "desc": "Grekland anses vara den västerländska civilisationens vagga och gav världen demokrati, filosofi och de olympiska spelen. Landet har tusentals öar, antika ruiner som Parthenon i Aten och ett underbart medelhavsklimat. Grekisk mat som moussaka, tzatziki och souvlaki är älskad över hela världen.",
+      "imageAssociation": "En grekisk pelare"
     },
     {
       "name": "Bulgarien",
@@ -225,7 +309,10 @@
       "left": 2126,
       "top": 2151,
       "width": 328,
-      "height": 233
+      "height": 233,
+      "filename": "bulgarien",
+      "desc": "Bulgarien ligger på Balkanhalvön och har både en Svartahavskust och bergskedjor som Balkanbergen. Landet har en uråldrig historia och är känt för sin rosenproduktion i den berömda Rosendalen. Bulgarien är ett av de få länderna där man skakar på huvudet för att säga ja och nickar för att säga nej.",
+      "imageAssociation": "En person som äter en BULLE"
     },
     {
       "name": "Makedonien",
@@ -233,7 +320,10 @@
       "left": 2041,
       "top": 2294,
       "width": 138,
-      "height": 125
+      "height": 125,
+      "filename": "makedonien",
+      "desc": "Nordmakedonien är ett litet land på Balkanhalvön som fick sitt nuvarande namn 2019. Landet är känt för den vackra Ohridsjön, som är en av Europas äldsta och djupaste sjöar. Huvudstaden Skopje har en spännande blandning av osmansk och modern arkitektur.",
+      "imageAssociation": "En skink-MACKA"
     },
     {
       "name": "Albanien",
@@ -241,7 +331,10 @@
       "left": 1977,
       "top": 2275,
       "width": 102,
-      "height": 231
+      "height": 231,
+      "filename": "albanien",
+      "desc": "Albanien är ett land på Balkanhalvön med en vacker kust mot Adriatiska havet och Joniska havet. Landet var länge isolerat men har öppnat sig och blivit en populär resmål med sina orörda stränder och historiska städer. Den albanska flaggan med sin svarta dubbelörn på röd botten är en av Europas mest igenkännbara.",
+      "imageAssociation": "Någon har lagt ALLA BARN I EN barnvagn"
     },
     {
       "name": "Montenegro",
@@ -249,7 +342,10 @@
       "left": 1923,
       "top": 2207,
       "width": 102,
-      "height": 130
+      "height": 130,
+      "filename": "montenegro",
+      "desc": "Montenegro är ett litet land vid Adriatiska havet vars namn betyder 'svarta berget'. Landet har en dramatisk kust med den berömda Kotorbukten, ofta kallad Europas sydligaste fjord. Trots sin lilla storlek har Montenegro imponerande berg, djupa canyoner och charmiga medeltida städer.",
+      "imageAssociation": "En svart (NEGRO på spanska) MONTER"
     },
     {
       "name": "Bosnien-Hercegovina",
@@ -257,7 +353,10 @@
       "left": 1786,
       "top": 2073,
       "width": 204,
-      "height": 207
+      "height": 207,
+      "filename": "bosnien_hercegovina",
+      "desc": "Bosnien och Hercegovina är ett land på Balkanhalvön med en unik blandning av österländsk och västerländsk kultur. Huvudstaden Sarajevo var värd för vinter-OS 1984 och har en charmig gammal stadsdel med osmansk arkitektur. Den berömda gamla bron Stari Most i Mostar är ett av landets mest kända landmärken.",
+      "imageAssociation": "Link från tv-spelet Zelda som möter en BOSS som heter HERR SEG-Å-VINNA"
     },
     {
       "name": "Kroatien",
@@ -265,7 +364,10 @@
       "left": 1678,
       "top": 1976,
       "width": 294,
-      "height": 305
+      "height": 305,
+      "filename": "kroatien",
+      "desc": "Kroatien är ett land med en lång, vacker Adriatisk kust och över tusen öar. Dubrovnik, som användes som inspelation för King's Landing i Game of Thrones, är en av Europas mest spektakulära medeltida städer. Kroatien är också känt för sina nationalparker, särskilt Plitvicesjöarna med sina turkosa vattenfall.",
+      "imageAssociation": "En sax som är lite som en KROK eller KLO"
     },
     {
       "name": "Slovenien",
@@ -273,7 +375,10 @@
       "left": 1669,
       "top": 1949,
       "width": 171,
-      "height": 111
+      "height": 111,
+      "filename": "slovenien",
+      "desc": "Slovenien är ett litet men otroligt naturskönt land mellan Alperna och Medelhavet. Landet är känt för sin gröna huvudstad Ljubljana, den magiska Bledsjön med sin ö och kyrka, och de fascinerande Postojna-grottorna. Slovenien var det första landet att utropa sig till ett 'grönt resmål'.",
+      "imageAssociation": "En tomte som är din VÄN"
     },
     {
       "name": "Italien",
@@ -281,7 +386,10 @@
       "left": 1329,
       "top": 1927,
       "width": 616,
-      "height": 818
+      "height": 818,
+      "filename": "italien",
+      "desc": "Italien är format som en stövel och är känt för sin otroliga mat som pizza och pasta, konst och historia. Landet har fler UNESCO-världsarv än något annat land i världen, inklusive Colosseum i Rom och kanalerna i Venedig. Italien är också hem till modehuvudstaden Milano och det lutande tornet i Pisa.",
+      "imageAssociation": "En STÖVEL"
     },
     {
       "name": "Vatikanstaten",
@@ -289,7 +397,10 @@
       "left": 1608,
       "top": 2307,
       "width": 51,
-      "height": 61
+      "height": 61,
+      "filename": "vatikanstaten",
+      "desc": "Vatikanstaten är världens minsta land och ligger mitt i Rom, Italien. Det är centrum för den katolska kyrkan och hem till påven samt otroliga konstverk som Sixtinska kapellets tak, målat av Michelangelo. Trots att landet bara är 0,44 kvadratkilometer stort besöks det av miljontals turister varje år.",
+      "imageAssociation": "Ett kors"
     },
     {
       "name": "Österrike",
@@ -297,7 +408,10 @@
       "left": 1506,
       "top": 1779,
       "width": 352,
-      "height": 209
+      "height": 209,
+      "filename": "osterrike",
+      "desc": "Österrike är ett alpland i centraleuropa känt för sin klassiska musik med tonsättare som Mozart, Strauss och Schubert. Huvudstaden Wien är berömd för sina kafeer, operahus och pampiga palats som Schönbrunn. De österrikiska Alperna erbjuder fantastisk skidåkning och vandring.",
+      "imageAssociation": "En tröstande snigel, den TRÖSTERIKE"
     },
     {
       "name": "San Marino",
@@ -305,7 +419,10 @@
       "left": 1601,
       "top": 2148,
       "width": 70,
-      "height": 67
+      "height": 67,
+      "filename": "san_marino",
+      "desc": "San Marino är en av världens minsta republiker och ligger helt omgivet av Italien på berget Monte Titano. Det påstås vara världens äldsta republik, grundad redan år 301. Trots sin lilla storlek har landet tre medeltida torn som tronar på bergstoppen och syns vida omkring.",
+      "imageAssociation": "En bläckfisk (ett MARINT djur)"
     },
     {
       "name": "Schweiz",
@@ -313,7 +430,10 @@
       "left": 1305,
       "top": 1875,
       "width": 224,
-      "height": 154
+      "height": 154,
+      "filename": "schweiz",
+      "desc": "Schweiz är ett neutralt land i hjärtat av Alperna, känt för sin choklad, sina klockor och sitt banksystem. Landet har fyra officiella språk: tyska, franska, italienska och rätoromanska. Schweiz är också hem till organisationer som Röda Korset och har några av Europas mest spektakulära bergslandskap.",
+      "imageAssociation": "Ett svin (SCHWEIN på tyska)"
     },
     {
       "name": "Liechtenstein",
@@ -321,7 +441,10 @@
       "left": 1484,
       "top": 1911,
       "width": 37,
-      "height": 34
+      "height": 34,
+      "filename": "liechtenstein",
+      "desc": "Liechtenstein är ett litet furstendöme inklämt mellan Schweiz och Österrike och är ett av världens minsta länder. Trots sin storlek är det ett av världens rikaste länder per capita och känt för sina slott och alpina landskap. Huvudstaden Vaduz har ett vackert slott som tronar på en klippa ovanför staden.",
+      "imageAssociation": "En LITEN STEN på svinets tryne"
     },
     {
       "name": "Luxembourg",
@@ -329,7 +452,10 @@
       "left": 1295,
       "top": 1693,
       "width": 37,
-      "height": 54
+      "height": 54,
+      "filename": "luxembourg",
+      "desc": "Luxemburg är ett litet men rikt land i västeuropa som gränsar till Belgien, Frankrike och Tyskland. Trots sin lilla storlek är det hem till flera EU-institutioner och har en av Europas högsta levnadsstandarder. Huvudstaden Luxemburg stad har en imponerande gammal stadsdel med fästningsverk som är UNESCO-världsarv.",
+      "imageAssociation": "En LYXIG hamBURGARE"
     },
     {
       "name": "Spanien",
@@ -337,7 +463,10 @@
       "left": 502,
       "top": 2186,
       "width": 696,
-      "height": 605
+      "height": 605,
+      "filename": "spanien",
+      "desc": "Spanien är ett stort land på den Iberiska halvön, känt för sin livliga kultur med flamencodans, tapas och siesta. Landet har en fantastisk blandning av stränder, berg och historiska städer som Barcelona med Gaudís unika arkitektur. Spanien är också hem till La Liga, en av världens mest populära fotbollsligor.",
+      "imageAssociation": "En spansk tjur"
     },
     {
       "name": "Portugal",
@@ -345,7 +474,10 @@
       "left": 453,
       "top": 2310,
       "width": 195,
-      "height": 405
+      "height": 405,
+      "filename": "portugal",
+      "desc": "Portugal ligger längst ut i västra Europa vid Atlantkusten och var en gång ett av världens mäktigaste sjöfararriken. Huvudstaden Lissabon är byggd på sju kullar med charmiga spårvagnar och vacker kakelkonst. Portugal är också känt för sina pastéis de nata, fantastiska surfstränder och fadomusik.",
+      "imageAssociation": "En tupp som GAL"
     },
     {
       "name": "Belgien",
@@ -353,7 +485,10 @@
       "left": 1147,
       "top": 1592,
       "width": 178,
-      "height": 156
+      "height": 156,
+      "filename": "belgien",
+      "desc": "Belgien är ett litet land i västeuropa som är känt för sin choklad, sina våfflor och sitt öl. Huvudstaden Bryssel är också EU:s huvudstad och hem till den berömda statyn Manneken Pis. Landet har tre officiella språk: nederländska, franska och tyska, och har gett världen serietidningsfiguren Tintin.",
+      "imageAssociation": "En kanin som äter BRYSSELkål"
     },
     {
       "name": "Nederländerna",
@@ -361,7 +496,10 @@
       "left": 1180,
       "top": 1434,
       "width": 195,
-      "height": 216
+      "height": 216,
+      "filename": "nederlanderna",
+      "desc": "Nederländerna är ett litet, platt land som är känt för sina väderkvarnar, tulpaner och kanaler. Stora delar av landet ligger under havsnivån och skyddas av ett imponerande system av vallar och dammar. Amsterdam, huvudstaden, är berömd för sina grachtenhus, cyklar och världskända museer som Rijksmuseum och Van Gogh-museet.",
+      "imageAssociation": "En kille som HÅLLer en AND"
     },
     {
       "name": "Frankrike",
@@ -369,7 +507,10 @@
       "left": 768,
       "top": 1616,
       "width": 703,
-      "height": 764
+      "height": 764,
+      "filename": "frankrike",
+      "desc": "Frankrike är Europas till ytan tredje största land och känt för sin kultur, mat och konst. Eiffeltornet i Paris är en av världens mest igenkännliga byggnader och Louvren är världens mest besökta museum. Frankrike är också berömt för sina ostar, viner, croissanter och den franska rivieran.",
+      "imageAssociation": "En fransk mästerkock"
     },
     {
       "name": "Monaco",
@@ -377,7 +518,10 @@
       "left": 1335,
       "top": 2159,
       "width": 90,
-      "height": 77
+      "height": 77,
+      "filename": "monaco",
+      "desc": "Monaco är världens näst minsta land och ligger vid den franska rivieran vid Medelhavet. Furstendömet är känt för sitt lyxiga casino i Monte Carlo och det berömda Formel 1-loppet genom stadens gator. Trots att det bara är två kvadratkilometer stort är Monaco ett av världens tätast befolkade och rikaste länder.",
+      "imageAssociation": "Ett ROULETTEHJUL"
     },
     {
       "name": "Sverige",
@@ -385,7 +529,10 @@
       "left": 1559,
       "top": 214,
       "width": 544,
-      "height": 1074
+      "height": 1074,
+      "filename": "sverige",
+      "desc": "Sverige är det största nordiska landet och sträcker sig från Skånes slätter i söder till Lapplands fjällvärld i norr. Landet är känt för sin natur med djupa skogar och tusentals sjöar, samt innovationer som Spotify, IKEA och Minecraft. Sverige har också en stark tradition av jämlikhet och fika.",
+      "imageAssociation": "Marge Simpson (i GULT OCH BLÅTT)"
     },
     {
       "name": "Andorra",
@@ -393,7 +540,10 @@
       "left": 1023,
       "top": 2241,
       "width": 71,
-      "height": 69
+      "height": 69,
+      "filename": "andorra",
+      "desc": "Andorra är ett litet furstendöme i Pyrenéerna mellan Frankrike och Spanien. Landet är ett populärt skidresemål och känt för sin tax-free-shopping som lockar miljontals besökare varje år. Trots att det är ett av Europas minsta länder har det en unik styrelseform med två statschefer: Frankrikes president och biskopen av Urgell.",
+      "imageAssociation": "En AND"
     }
   ],
   "mapWidth": 3888,
