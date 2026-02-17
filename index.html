@@ -1,1810 +1,344 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sydamerika – Forma-spelet</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forma-spelet</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f1b2d; color: #e7eef7; min-height: 100vh; }
+    .hidden { display: none !important; }
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #0f1b2d;
-      color: #e0e0e0;
-      min-height: 100vh;
-      overflow: hidden;
-    }
-
-    header {
-      background: linear-gradient(135deg, #1a2940, #2a4060);
-      padding: 10px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-      gap: 16px;
-    }
-
-    header h1 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      color: #5bbfff;
-      white-space: nowrap;
-    }
-
-    .mode-toggle {
-      display: flex;
-      background: rgba(0,0,0,0.25);
-      border-radius: 8px;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .mode-btn {
-      padding: 8px 18px;
-      border: none;
-      background: transparent;
-      color: #6a8eab;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .mode-btn.active {
-      background: rgba(91,191,255,0.15);
-      color: #5bbfff;
-      font-weight: 600;
-    }
-
-    .mode-btn:hover:not(.active) {
-      background: rgba(255,255,255,0.05);
-    }
-
-    .header-hint {
-      color: #6a8eab;
-      font-size: 0.85rem;
-      text-align: right;
-      min-width: 0;
-    }
-
-    .game-container {
-      display: flex;
-      height: calc(100vh - 52px);
-    }
-
-    /* ── Map panel ── */
-    .map-panel {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow: hidden;
-    }
-
-    .map-wrapper {
-      position: relative;
-      max-height: 100%;
-      cursor: default;
-      transform-origin: center center;
-      transition: transform 0.18s ease-out;
-    }
-
-    .map-wrapper.dragging {
-      cursor: default;
-      transition: none !important;
-    }
-
-    .map-wrapper img.base-map {
-      max-height: calc(100vh - 92px);
-      width: auto;
-      display: block;
-      transition: filter 0.4s;
-    }
-
-    /* Zoom controls */
-    .zoom-controls {
-      position: absolute;
-      bottom: 24px;
-      left: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      z-index: 10;
-    }
-
-    .zoom-btn {
-      width: 38px;
-      height: 38px;
-      background: rgba(22, 34, 53, 0.9);
-      border: 1px solid rgba(91,191,255,0.2);
-      border-radius: 8px;
-      color: #5bbfff;
-      font-size: 1.3rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-      user-select: none;
-    }
-
-    .zoom-btn:hover {
-      background: rgba(42, 64, 96, 0.95);
-      border-color: rgba(91,191,255,0.5);
-    }
-
-    .zoom-level {
-      text-align: center;
-      font-size: 0.7rem;
-      color: #4a6a82;
-      padding: 2px 0;
-      user-select: none;
-    }
-
-    .country-overlay {
-      position: absolute;
-      transition: opacity 0.4s ease;
-      opacity: 0;
-      pointer-events: none;
-      will-change: opacity, filter;
-    }
-
-    .country-overlay.visible {
-      opacity: 1;
-    }
-
-    .country-overlay.hovered {
-      filter: brightness(0.78) saturate(0.9);
-      transition: filter 0.15s, opacity 0.4s ease;
-    }
-
-    .country-overlay.flash-wrong {
-      opacity: 0.45;
-      transition: opacity 0.15s;
-    }
-
-    .country-overlay.hint-blink {
-      animation: hintBlink 0.5s ease-in-out 3;
-    }
-
-    @keyframes hintBlink {
-      0%, 100% { opacity: 0; }
-      50% { opacity: 0.6; }
-    }
-
-    .hover-highlight {
-      position: absolute;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s;
-      will-change: opacity;
-    }
-
-    .hover-highlight.active {
-      opacity: 1;
-    }
-
-    /* Overlay: black contour lines always on top */
-    .map-overlay {
-      position: absolute;
-      pointer-events: none;
-      z-index: 5;
-    }
-
-    /* ── Cursor label (Seterra mode) ── */
-    .cursor-label {
-      position: fixed;
-      pointer-events: none;
-      z-index: 100;
-      background: rgba(16, 28, 48, 0.92);
-      color: #5bbfff;
-      font-size: 0.95rem;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(91,191,255,0.3);
-      white-space: nowrap;
-      display: none;
-      transform: translate(14px, 14px);
-    }
-
-    .cursor-label.explore-tooltip {
-      white-space: pre-line;
-      max-width: 260px;
+    .start-screen { min-height: 100vh; padding: 28px 20px 40px; }
+    .start-header { max-width: 1200px; margin: 0 auto 20px; }
+    .start-header h1 { color: #6bc8ff; font-size: clamp(1.8rem, 2.8vw, 2.5rem); }
+    .start-header p { color: #9fb7ce; margin-top: 6px; }
+    .group { max-width: 1200px; margin: 0 auto 22px; }
+    .group h2 { color: #8fb6d8; margin-bottom: 10px; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .region-card {
+      background: linear-gradient(135deg, #1c2d47, #22395b);
+      border: 1px solid rgba(111, 179, 230, .25);
+      border-radius: 12px; padding: 12px; cursor: pointer; transition: .15s transform, .15s border-color;
       text-align: left;
     }
-
-    /* ── Info panel ── */
-    .info-panel {
-      width: 380px;
-      background: linear-gradient(180deg, #162235, #1a2a42);
-      display: flex;
-      flex-direction: column;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.3);
-      overflow: hidden;
-    }
-
-    .info-panel-content {
-      flex: 1;
-      overflow-y: auto;
-      min-height: 0;
-    }
-
-    .info-header {
-      padding: 16px 24px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .info-header h2 {
-      font-size: 1rem;
-      color: #5a8aaa;
-      font-weight: 500;
-    }
-
-    /* Default state */
-    .info-default {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 24px;
-      text-align: center;
-      color: #4a6a82;
-    }
-
-    .info-default .arrow-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
-      opacity: 0.4;
-    }
-
-    .info-default p {
-      font-size: 1rem;
-      line-height: 1.6;
-    }
-
-    /* Country info card */
-    .info-card {
-      display: none;
-      flex-direction: column;
-      padding: 24px;
-      gap: 16px;
-      animation: slideIn 0.3s ease;
-    }
-
-    .info-card.active {
-      display: flex;
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .info-card .country-name {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #5bbfff;
-    }
-
-    .info-card .country-shape-preview {
-      width: 100%;
-      height: 180px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(91,191,255,0.1);
-      border-radius: 12px;
-    }
-
-    .info-card .country-shape-preview img {
-      max-width: 90%;
-      max-height: 160px;
-      object-fit: contain;
-    }
-
-    .info-card .description {
-      font-size: 0.95rem;
-      line-height: 1.7;
-      color: #b0c8d8;
-    }
-
-    .assoc-box {
-      background: rgba(100, 180, 255, 0.12);
-      border: 1px solid rgba(100, 180, 255, 0.3);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 12px;
-      font-weight: 700;
-      color: #7ec8e3;
-    }
-
-    .info-card .close-hint {
-      margin-top: 8px;
-      font-size: 0.8rem;
-      color: #4a6a82;
-      text-align: center;
-    }
-
-    .counter {
-      padding: 16px 24px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      color: #5a8aaa;
-      font-size: 0.85rem;
-      text-align: center;
-      margin-top: auto;
-    }
-
-    .counter strong {
-      color: #5bbfff;
-    }
-
-    /* ── Seterra panel ── */
-    .seterra-panel {
-      display: none;
-      flex-direction: column;
-      padding: 24px;
-      gap: 20px;
-    }
-
-    .seterra-panel.active {
-      display: flex;
-    }
-
-    .seterra-target {
-      text-align: center;
-    }
-
-    .seterra-target .label {
-      font-size: 0.85rem;
-      color: #5a8aaa;
-      margin-bottom: 6px;
-    }
-
-    .seterra-target .target-name {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #5bbfff;
-    }
-
-    .seterra-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .stat-box {
-      background: rgba(255,255,255,0.04);
-      border-radius: 10px;
-      padding: 14px;
-      text-align: center;
-    }
-
-    .stat-box .stat-label {
-      font-size: 0.75rem;
-      color: #5a8aaa;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-box .stat-value {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #cde;
-    }
-
-    .stat-box .stat-value.correct { color: #4cdf8b; }
-    .stat-box .stat-value.wrong { color: #ff6b6b; }
-    .stat-box .stat-value.score { color: #5bbfff; }
-    .stat-box .stat-value.time { color: #e8c547; }
-
-    .seterra-feedback {
-      min-height: 80px;
-      padding: 14px;
-      border-radius: 10px;
-      text-align: center;
-      transition: all 0.3s;
-    }
-
-    .seterra-feedback.correct-fb {
-      background: rgba(76,223,139,0.1);
-      border: 1px solid rgba(76,223,139,0.2);
-    }
-
-    .seterra-feedback.wrong-fb {
-      background: rgba(255,107,107,0.1);
-      border: 1px solid rgba(255,107,107,0.2);
-    }
-
-    .seterra-feedback .fb-title {
-      font-weight: 700;
-      font-size: 1rem;
-      margin-bottom: 4px;
-    }
-
-    .seterra-feedback.correct-fb .fb-title { color: #4cdf8b; }
-    .seterra-feedback.wrong-fb .fb-title { color: #ff6b6b; }
-
-    .seterra-feedback .fb-desc {
-      font-size: 0.85rem;
-      color: #8ab0c8;
-      line-height: 1.5;
-    }
-
-    .seterra-progress {
-      background: rgba(255,255,255,0.06);
-      border-radius: 6px;
-      height: 8px;
-      overflow: hidden;
-    }
-
-    .seterra-progress .bar {
-      height: 100%;
-      background: linear-gradient(90deg, #2980b9, #5bbfff);
-      transition: width 0.4s ease;
-      border-radius: 6px;
-    }
-
-    .seterra-progress-label {
-      font-size: 0.8rem;
-      color: #5a8aaa;
-      text-align: center;
-      margin-top: 4px;
-    }
-
-    /* Game over / high score */
-    .seterra-done {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      padding: 24px;
-      text-align: center;
-    }
-
-    .seterra-done.active { display: flex; }
-
-    .seterra-done h2 {
-      font-size: 1.5rem;
-      color: #5bbfff;
-    }
-
-    .seterra-done .big-score {
-      font-size: 3rem;
-      font-weight: 700;
-      color: #4cdf8b;
-    }
-
-    .seterra-done .done-detail {
-      color: #88b4d8;
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-
-    .hs-form {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .hs-form input {
-      flex: 1;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(91,191,255,0.3);
-      background: rgba(0,0,0,0.3);
-      color: #e0e0e0;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    .hs-form input:focus {
-      border-color: rgba(91,191,255,0.6);
-    }
-
-    .hs-form button {
-      padding: 10px 18px;
-      background: linear-gradient(135deg, #2980b9, #5bbfff);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .hs-saved-msg {
-      color: #4cdf8b;
-      font-size: 0.85rem;
-      display: none;
-    }
-
-    .highscore-list {
-      width: 100%;
-      max-width: 320px;
-    }
-
-    .highscore-list h3 {
-      font-size: 1rem;
-      color: #5a8aaa;
-      margin-bottom: 8px;
-    }
-
-    .hs-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .hs-table th {
-      font-size: 0.7rem;
-      color: #4a6a82;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 4px 6px;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .hs-table th:last-child,
-    .hs-table td:last-child { text-align: right; }
-
-    .hs-table td {
-      padding: 6px;
-      font-size: 0.9rem;
-      color: #b0c8d8;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-    }
-
-    .hs-table tr.hs-current td {
-      color: #5bbfff;
-      font-weight: 600;
-    }
-
-    .hs-empty {
-      color: #4a6a82;
-      font-size: 0.85rem;
-      font-style: italic;
-    }
-
-    .restart-btn {
-      padding: 12px 36px;
-      background: linear-gradient(135deg, #27ae60, #2ecc71);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .retry-btn {
-      background: linear-gradient(135deg, #d4820a, #e8a030);
-    }
-
-    .retry-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 16px rgba(232,160,48,0.3);
-    }
-
-    .restart-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 16px rgba(46,204,113,0.3);
-    }
-
-    /* ── Jonas high-five ── */
-    .jonas-section {
-      padding: 12px 24px 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .jonas-section img {
-      width: 100px;
-      height: auto;
-      cursor: pointer;
-      border-radius: 10px;
-      transition: transform 0.15s;
-      user-select: none;
-    }
-
-    .jonas-section img:hover {
-      transform: scale(1.08);
-    }
-
-    .jonas-section img:active {
-      transform: scale(0.95);
-    }
-
-    .highfive-counter {
-      font-size: 0.8rem;
-      color: #5a8aaa;
-    }
-
-    .highfive-counter strong {
-      color: #5bbfff;
-    }
-
-    /* ── Name popup modal ── */
-    .name-modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.65);
-      z-index: 200;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .name-modal-overlay.active {
-      display: flex;
-    }
-
-    .name-modal {
-      background: linear-gradient(135deg, #1a2940, #243654);
-      border: 1px solid rgba(91,191,255,0.3);
-      border-radius: 16px;
-      padding: 32px 36px;
-      max-width: 380px;
-      width: 90%;
-      text-align: center;
-      box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-      animation: modalIn 0.3s ease;
-    }
-
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.9) translateY(20px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .name-modal h3 {
-      font-size: 1.3rem;
-      color: #5bbfff;
-      margin-bottom: 6px;
-    }
-
-    .name-modal .modal-score {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #4cdf8b;
-      margin-bottom: 12px;
-    }
-
-    .name-modal .modal-detail {
-      font-size: 0.9rem;
-      color: #88b4d8;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    .name-modal .modal-input-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .name-modal .modal-input-row input {
-      flex: 1;
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: 1px solid rgba(91,191,255,0.3);
-      background: rgba(0,0,0,0.3);
-      color: #e0e0e0;
-      font-size: 1rem;
-      outline: none;
-    }
-
-    .name-modal .modal-input-row input:focus {
-      border-color: rgba(91,191,255,0.7);
-      box-shadow: 0 0 12px rgba(91,191,255,0.15);
-    }
-
-    .name-modal .modal-input-row button {
-      padding: 12px 22px;
-      background: linear-gradient(135deg, #2980b9, #5bbfff);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-weight: 600;
-      font-size: 1rem;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: transform 0.15s;
-    }
-
-    .name-modal .modal-input-row button:hover {
-      transform: scale(1.05);
-    }
-
-    .name-modal .modal-skip {
-      background: none;
-      border: none;
-      color: #4a6a82;
-      font-size: 0.85rem;
-      cursor: pointer;
-      padding: 6px 12px;
-    }
-
-    .name-modal .modal-skip:hover {
-      color: #6a8eab;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 900px) {
-      body { overflow: auto; }
-      .game-container { flex-direction: column; height: auto; }
-      .map-panel { height: 50vh; min-height: 300px; }
-      .map-wrapper img.base-map { max-height: 46vh; }
-      .info-panel { width: 100%; min-height: 50vh; }
+    .region-card:hover { transform: translateY(-2px); border-color: rgba(111, 179, 230, .55); }
+    .thumb { height: 96px; border-radius: 8px; background-size: cover; background-position: center; opacity: .9; }
+    .region-name { margin-top: 10px; font-weight: 700; color: #d8ecff; }
+    .region-meta { color: #9db7cf; font-size: .9rem; margin-top: 4px; }
+
+    .game-screen { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      background: linear-gradient(135deg, #17263c, #213658);
+      padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(111, 179, 230, .2);
+    }
+    .topbar h1 { font-size: 1.1rem; color: #6bc8ff; margin-right: auto; }
+    .btn { border: 1px solid rgba(111,179,230,.32); background: #1c304d; color: #d7eaff; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+    .btn:hover { background: #244061; }
+    .btn.active { border-color: #6bc8ff; background: #234267; color: #6bc8ff; font-weight: 600; }
+
+    .content { display: grid; grid-template-columns: 1fr 320px; min-height: calc(100vh - 52px); }
+    .map-panel { position: relative; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; }
+    .map-wrapper { position: relative; max-width: 100%; max-height: calc(100vh - 90px); }
+    .map-base, .map-outline { display: block; max-width: 100%; max-height: calc(100vh - 90px); }
+    .map-outline { position: absolute; inset: 0; pointer-events: none; }
+    .country-overlay { position: absolute; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .country-overlay.visible { opacity: 1; }
+    .hit-target { position: absolute; opacity: 0; cursor: pointer; }
+
+    .panel { border-left: 1px solid rgba(111,179,230,.2); background: #13243a; padding: 14px; }
+    .panel h3 { color: #6bc8ff; margin-bottom: 8px; }
+    .panel p { color: #cce2f7; line-height: 1.45; }
+    .muted { color: #93adca; }
+    .status { margin: 12px 0; color: #9bc0df; }
+    .loading { position: fixed; inset: 0; background: rgba(10,20,35,.82); display: grid; place-items: center; z-index: 50; }
+    .loading-box { background: #1a2e49; border: 1px solid rgba(111,179,230,.3); padding: 18px 22px; border-radius: 10px; color: #d6e9ff; }
+    ol { padding-left: 20px; margin-top: 8px; }
+
+    @media (max-width: 980px) {
+      .content { grid-template-columns: 1fr; }
+      .panel { border-left: none; border-top: 1px solid rgba(111,179,230,.2); }
+      .map-base, .map-outline, .map-wrapper { max-height: 58vh; }
     }
   </style>
 </head>
 <body>
+  <div id="loading" class="loading hidden"><div class="loading-box" id="loading-text">Laddar…</div></div>
 
-<header>
-  <h1>Sydamerika</h1>
-  <div class="mode-toggle">
-    <button class="mode-btn active" data-mode="explore">Utforska</button>
-    <button class="mode-btn" data-mode="seterra">Klassiskt Quiz</button>
-  </div>
-  <span class="header-hint" id="header-hint">Klicka p&aring; ett land</span>
-</header>
-
-<div class="game-container">
-  <div class="map-panel">
-    <div class="map-wrapper" id="map-wrapper">
-      <img class="base-map" id="base-map" src="assets/map.png" alt="Sydamerika karta" draggable="false">
+  <section class="start-screen" id="start-screen">
+    <div class="start-header">
+      <h1>Forma-spelet</h1>
+      <p>Välj en region och spela i Utforska- eller Quiz-läge.</p>
     </div>
-    <div class="zoom-controls">
-      <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
-      <div class="zoom-level" id="zoom-level">100%</div>
-      <button class="zoom-btn" id="zoom-out" title="Zooma ut">&minus;</button>
+    <div class="group">
+      <h2>Världsdelar</h2>
+      <div class="cards" id="continents"></div>
     </div>
-  </div>
+    <div class="group">
+      <h2>Övriga</h2>
+      <div class="cards" id="others"></div>
+    </div>
+  </section>
 
-  <div class="info-panel" id="info-panel">
-    <div class="info-panel-content">
-    <!-- EXPLORE MODE -->
-    <div id="explore-ui">
-      <div class="info-header"><h2>Landinformation</h2></div>
-
-      <div class="info-default" id="info-default">
-        <div class="arrow-icon">&larr;</div>
-        <p>Klicka p&aring; ett land p&aring; kartan<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
+  <section class="game-screen hidden" id="game-screen">
+    <header class="topbar">
+      <button class="btn" id="back-btn">← Tillbaka</button>
+      <h1 id="title">Forma-spelet</h1>
+      <button class="btn active" id="explore-btn">Utforska</button>
+      <button class="btn" id="quiz-btn">Quiz</button>
+    </header>
+    <div class="content">
+      <div class="map-panel">
+        <div class="map-wrapper" id="map-wrapper"></div>
       </div>
-
-      <div class="info-card" id="info-card">
-        <div class="country-name" id="info-name"></div>
-        <div class="country-shape-preview">
-          <img id="info-shape" src="" alt="">
-        </div>
-        <div class="description" id="info-desc"></div>
-        <div class="close-hint">Klicka p&aring; landet igen f&ouml;r att d&ouml;lja</div>
-      </div>
-
-      <div class="counter">
-        Utforskade: <strong id="explored-count">0</strong> / <strong>13</strong> l&auml;nder
-      </div>
+      <aside class="panel">
+        <h3 id="panel-title">Välj region</h3>
+        <p id="panel-body" class="muted">Klicka på en region för att börja.</p>
+        <div class="status" id="status"></div>
+        <h3>Topplista (region)</h3>
+        <ol id="highscores"></ol>
+      </aside>
     </div>
+  </section>
 
-    <!-- SETERRA MODE -->
-    <div id="seterra-ui" style="display:none;">
-      <div class="info-header"><h2>Klassiskt Quiz</h2></div>
+  <script>
+    const REGION_META = [
+      { id: 'sydamerika', name: 'Sydamerika', group: 'continents' },
+      { id: 'nordamerika', name: 'Nordamerika', group: 'continents' },
+      { id: 'europa', name: 'Europa', group: 'continents' },
+      { id: 'asien', name: 'Asien', group: 'continents' },
+      { id: 'afrika', name: 'Afrika', group: 'continents' },
+      { id: 'oceanien', name: 'Oceanien', group: 'continents' },
+      { id: 'vastindien', name: 'Västindien', group: 'others' },
+      { id: 'usa', name: 'USA (delstater)', group: 'others' },
+      { id: 'sverige', name: 'Sverige (landskap)', group: 'others' }
+    ];
 
-      <div class="seterra-panel active" id="seterra-game">
-        <div class="seterra-target">
-          <div class="label">Hitta detta land:</div>
-          <div class="target-name" id="seterra-target-name">---</div>
-        </div>
+    const NAME_FIXES = { VItryssland: 'Vitryssland', Eciador: 'Ecuador', Indoneien: 'Indonesien' };
+    const EXCLUDED = new Set(['Vättern', 'Vänern']);
 
-        <div class="seterra-stats">
-          <div class="stat-box">
-            <div class="stat-label">Po&auml;ng</div>
-            <div class="stat-value score" id="seterra-score">100%</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Tid</div>
-            <div class="stat-value time" id="seterra-time">0:00</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">R&auml;tt</div>
-            <div class="stat-value correct" id="seterra-correct">0</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Fel</div>
-            <div class="stat-value wrong" id="seterra-wrong">0</div>
-          </div>
-        </div>
-
-        <div class="seterra-progress">
-          <div class="bar" id="seterra-bar" style="width:0%"></div>
-        </div>
-        <div class="seterra-progress-label" id="seterra-progress-label">0 / 13</div>
-
-        <div class="seterra-feedback" id="seterra-feedback"></div>
-      </div>
-
-      <div class="seterra-done" id="seterra-done">
-        <h2>Klart!</h2>
-        <div class="big-score" id="seterra-final-score"></div>
-        <div class="done-detail" id="seterra-final-detail"></div>
-
-        <div class="hs-form" id="hs-form">
-          <input type="text" id="hs-name" placeholder="Ditt namn" maxlength="20">
-          <button id="hs-save">Spara</button>
-        </div>
-        <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
-
-        <div class="highscore-list" id="highscore-list"></div>
-
-        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">\u00d6va p\u00e5 felaktiga</button>
-        <button class="restart-btn" id="seterra-restart">Spela igen</button>
-      </div>
-    </div>
-    </div>
-
-    <div class="jonas-section">
-      <img id="jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
-      <div class="highfive-counter">High fives: <strong id="highfive-count">0</strong></div>
-    </div>
-  </div>
-</div>
-
-<div class="cursor-label" id="cursor-label"></div>
-
-<div class="name-modal-overlay" id="name-modal-overlay">
-  <div class="name-modal">
-    <h3>Snyggt spelat!</h3>
-    <div class="modal-score" id="modal-score"></div>
-    <div class="modal-detail" id="modal-detail"></div>
-    <div class="modal-input-row">
-      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20">
-      <button id="modal-save">Spara</button>
-    </div>
-    <button class="modal-skip" id="modal-skip">Hoppa &ouml;ver</button>
-  </div>
-</div>
-
-<script>
-const COUNTRIES = [
-  { name: "Argentina", filename: "argentina", left: 1507, top: 2150, width: 985, height: 2130, centerX: 1999, centerY: 3215,
-    desc: "Argentina \u00e4r Sydamerikas n\u00e4st st\u00f6rsta land och str\u00e4cker sig fr\u00e5n subtropiska norra regioner ner till det iskalla Patagonien. Landet \u00e4r k\u00e4nt f\u00f6r tango, biff, och fotbollslegenden Maradona. Huvudstaden Buenos Aires kallas ofta \"Sydamerikas Paris\"." },
-  { name: "Chile", filename: "chile", left: 1391, top: 1950, width: 524, height: 2375, centerX: 1653, centerY: 3137,
-    desc: "Chile \u00e4r v\u00e4rldens smalaste land och str\u00e4cker sig \u00f6ver 4 300 km l\u00e4ngs Sydamerikas v\u00e4stkust. Landets unika form ger det en otrolig variation \u2013 fr\u00e5n Atacama\u00f6knen i norr (v\u00e4rldens torraste plats) till glaci\u00e4rer i s\u00f6der." },
-  { name: "Uruguay", filename: "uruguay", left: 2165, top: 2689, width: 271, height: 327, centerX: 2300, centerY: 2852,
-    desc: "Uruguay \u00e4r ett av Sydamerikas minsta l\u00e4nder men rankas ofta h\u00f6gst i demokrati och levnadsstandard. Det lilla landet mellan Argentina och Brasilien vann den f\u00f6rsta fotbolls-VM-finalen 1930 p\u00e5 hemmaplan." },
-  { name: "Paraguay", filename: "paraguay", left: 1947, top: 1916, width: 539, height: 613, centerX: 2216, centerY: 2222,
-    desc: "Paraguay \u00e4r ett av bara tv\u00e5 landl\u00e5sta l\u00e4nder i Sydamerika. Floden Paraguay delar landet i tv\u00e5 helt olika halvor \u2013 det gr\u00f6na \u00f6stlandet och den vilda, glest befolkade Chaco-regionen i v\u00e4st." },
-  { name: "Brasilien", filename: "brasilien", left: 1113, top: 420, width: 2511, height: 2488, centerX: 2368, centerY: 1664,
-    desc: "Brasilien \u00e4r Sydamerikas gigant och t\u00e4cker n\u00e4stan halva kontinenten. Landet rymmer Amazonas regnskog \u2013 jordens \"lunga\" \u2013 och \u00e4r v\u00e4rldens femte st\u00f6rsta land. Karnevalen i Rio och fotboll \u00e4r en del av sj\u00e4len." },
-  { name: "Bolivia", filename: "bolivia", left: 1240, top: 1035, width: 1076, height: 1250, centerX: 1778, centerY: 1660,
-    desc: "Bolivia \u00e4r Sydamerikas andra landl\u00e5sta land och hem till Salar de Uyuni \u2013 v\u00e4rldens st\u00f6rsta salt\u00f6ken. Huvudstaden La Paz ligger p\u00e5 \u00f6ver 3 600 meters h\u00f6jd, vilket g\u00f6r den till en av v\u00e4rldens h\u00f6gst bel\u00e4gna huvudst\u00e4der." },
-  { name: "Peru", filename: "peru", left: 632, top: 768, width: 856, height: 1238, centerX: 1060, centerY: 1387,
-    desc: "Peru var hj\u00e4rtat av Inkariket och hem till den legendariska Machu Picchu. Landet har tre distinkta zoner: den torra kusten, de m\u00e4ktiga Anderna och Amazonas regnskog i \u00f6ster." },
-  { name: "Ecuador", filename: "eciador", left: 245, top: 732, width: 795, height: 915, centerX: 642, centerY: 1189,
-    desc: "Ecuador \u00e4r uppkallat efter ekvatorn som l\u00f6per rakt igenom landet. Trots sin lilla storlek har det enorm biologisk m\u00e5ngfald \u2013 fr\u00e5n Gal\u00e1pagos\u00f6arna (som inspirerade Darwins evolutionsteori) till Andernas toppar." },
-  { name: "Colombia", filename: "colombia", left: 753, top: 14, width: 771, height: 975, centerX: 1138, centerY: 501,
-    desc: "Colombia \u00e4r det enda sydamerikanska landet med kust mot b\u00e5de Stilla havet och Karibiska havet. Landet \u00e4r v\u00e4rldens tredje st\u00f6rsta kaffeproducent och k\u00e4nt f\u00f6r sin otroliga biologiska m\u00e5ngfald." },
-  { name: "Venezuela", filename: "venezuela", left: 1066, top: 5, width: 951, height: 694, centerX: 1541, centerY: 352,
-    desc: "Venezuela \u00e4r hem till Salto \u00c1ngel \u2013 v\u00e4rldens h\u00f6gsta vattenfall p\u00e5 hela 979 meter. Landet har ocks\u00e5 n\u00e5gra av v\u00e4rldens st\u00f6rsta oljereserver. Sj\u00f6n Maracaibo \u00e4r Sydamerikas st\u00f6rsta sj\u00f6." },
-  { name: "Guyana", filename: "guyana", left: 1951, top: 221, width: 708, height: 446, centerX: 2305, centerY: 444,
-    desc: "Guyana \u00e4r det enda engelskspr\u00e5kiga landet i Sydamerika. \u00d6ver 80% av landet \u00e4r t\u00e4ckt av regnskog. Trots att det ligger i Sydamerika har Guyana starka kulturella band till Karibien." },
-  { name: "Surinam", filename: "surinam", left: 2123, top: 324, width: 360, height: 314, centerX: 2303, centerY: 481,
-    desc: "Surinam \u00e4r Sydamerikas minsta land och det enda d\u00e4r nederl\u00e4ndska \u00e4r officiellt spr\u00e5k \u2013 ett arv fr\u00e5n kolonialtidens Nederl\u00e4nderna. Landet har en unik kulturell mix av indiska, indonesiska, afrikanska och inhemska traditioner." },
-  { name: "Franska Guyana", filename: "franska_guyana", left: 2436, top: 365, width: 219, height: 220, centerX: 2545, centerY: 475,
-    desc: "Franska Guyana \u00e4r tekniskt sett inte ett eget land utan ett franskt utomeuropeiskt departement \u2013 och d\u00e4rmed en del av EU! H\u00e4r ligger Europas rymdhamn i Kourou, varifr\u00e5n Ariane-raketer skjuts upp." }
-];
-
-const MAP_LEFT = 612, MAP_TOP = 20, MAP_W = 3019, MAP_H = 4297;
-
-const IMAGE_ASSOCIATIONS = {
-  peru: 'En klättrare som heter PER',
-  eciador: 'En vattenslang som sprutar vatten längs hela EKVATORN',
-  colombia: 'En COOL ko med solglasögon',
-  venezuela: 'En VÄN som kommer springande och hälsar',
-  guyana: 'Ett kors, de som bor där säger "GUD? GÄRNA!"',
-  surinam: 'En SUR liten filur som smaskar: "NAM NAM NAM"',
-  franska_guyana: 'En FRANSK snigel som hänger ihop med GUYANA till vänster',
-  brasilien: 'Huvudet på ett lejon som tatuerat in ett fotbollsmönster för att stötta BRASILIENS landslag',
-  bolivia: 'En urna som det växer en BOLL i istället för en växt',
-  paraguay: 'Ett foster som vill ha PARA',
-  uruguay: 'Ett UR',
-  argentina: 'En ARG kille som har fått en kycklingklubba i ögat',
-  chile: 'En CHILI-peppar',
-};
-const NO_HOVER = new Set();
-const HS_KEY = 'sydamerika-highscores';
-
-// Bolivia shape: exact hover/hit shape (from PSD "Bolivia Shape" layer)
-const BOLIVIA_SHAPE = { left: 1385, top: 1326, width: 917, height: 956 };
-// Bolivia overlay: original colored overlay image position
-const BOLIVIA_OVERLAY = { left: 1240, top: 1035, width: 1076, height: 1250 };
-
-const mapPanel = document.querySelector('.map-panel');
-const mapWrapper = document.getElementById('map-wrapper');
-const baseMap = document.getElementById('base-map');
-const zoomLevelEl = document.getElementById('zoom-level');
-const cursorLabel = document.getElementById('cursor-label');
-const headerHint = document.getElementById('header-hint');
-
-// Explore UI
-const infoDefault = document.getElementById('info-default');
-const infoCard = document.getElementById('info-card');
-const infoName = document.getElementById('info-name');
-const infoShape = document.getElementById('info-shape');
-const infoDesc = document.getElementById('info-desc');
-const exploredCountEl = document.getElementById('explored-count');
-
-// Seterra UI
-const seterraTargetName = document.getElementById('seterra-target-name');
-const seterraScoreEl = document.getElementById('seterra-score');
-const seterraTimeEl = document.getElementById('seterra-time');
-const seterraCorrectEl = document.getElementById('seterra-correct');
-const seterraWrongEl = document.getElementById('seterra-wrong');
-const seterraBar = document.getElementById('seterra-bar');
-const seterraProgressLabel = document.getElementById('seterra-progress-label');
-const seterraFeedback = document.getElementById('seterra-feedback');
-const seterraDone = document.getElementById('seterra-done');
-const seterraGame = document.getElementById('seterra-game');
-
-// Shared state
-const hitCanvases = {};
-const hitPixelData = {};          // cached Uint8ClampedArray per country
-const overlayEls = {};            // cached overlay DOM elements
-const hoverEls = {};              // cached hover-highlight DOM elements
-const revealed = new Set();
-let sortedCountries = [];         // pre-sorted by area (smallest first)
-let currentMode = 'explore';
-
-// Zoom & Pan
-let zoom = 1, panX = 0, panY = 0;
-const MIN_ZOOM = 1, MAX_ZOOM = 5;
-
-// Explore state
-let activeCountry = null;
-let exploreTooltipTimer = null;
-
-// Seterra state
-let seterraQueue = [];
-let seterraTarget = null;
-let seterraCorrect = 0;
-let seterraWrong = 0;
-let seterraTotal = 0;
-let seterraStartTime = 0;
-let seterraTimerInterval = null;
-let seterraLocked = false;
-let seterraTargetMisses = 0; // misses for current target
-let seterraElapsed = 0;
-let seterraMissedCountries = new Set(); // countries that had wrong clicks
-let seterraIsRetry = false;
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-// ══════════════════════════════════
-// Hit detection & overlays
-// ══════════════════════════════════
-function loadHitData() {
-  const promises = COUNTRIES.map(c => new Promise(resolve => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = c.width;
-      canvas.height = c.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, c.width, c.height);
-      hitCanvases[c.filename] = { canvas, ctx, country: c };
-      resolve();
+    const SOUTH_AMERICA_FACTS = {
+      Argentina: { desc: 'Långsträckt land från subtropiskt klimat till kalla Patagonien.' },
+      Brasilien: { desc: 'Störst i Sydamerika och hem till Amazonas.' },
+      Chile: { desc: 'Världens längsta smala land längs Anderna.' },
+      Bolivia: { desc: 'Höghöjdsland med Altiplano och Titicacasjön.' },
+      Peru: { desc: 'Machu Picchu och lång kust mot Stilla havet.' }
     };
-    img.onerror = resolve;
-    img.src = `assets/countries/${c.filename}.png`;
-  }));
 
-  // Load Bolivia Shape for hit detection (overrides bolivia.png)
-  promises.push(new Promise(resolve => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = BOLIVIA_SHAPE.width;
-      canvas.height = BOLIVIA_SHAPE.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, BOLIVIA_SHAPE.width, BOLIVIA_SHAPE.height);
-      hitCanvases['bolivia_shape'] = { canvas, ctx };
-      resolve();
-    };
-    img.onerror = resolve;
-    img.src = 'assets/countries/bolivia_shape.png';
-  }));
+    let mode = 'explore';
+    let currentRegion = null;
+    let quizQueue = [];
+    let quizStart = 0;
+    let guessed = new Set();
 
-  return Promise.all(promises);
-}
+    const el = id => document.getElementById(id);
+    const loading = (on, text='Laddar…') => { el('loading').classList.toggle('hidden', !on); el('loading-text').textContent = text; };
 
-function createOverlays() {
-  COUNTRIES.forEach(c => {
-    const img = document.createElement('img');
-    img.className = 'country-overlay';
-    img.src = `assets/countries/${c.filename}.png`;
-    img.dataset.country = c.filename;
-    img.draggable = false;
-    mapWrapper.appendChild(img);
-    overlayEls[c.filename] = img;
+    function normalizeName(name) { return NAME_FIXES[name] || name; }
 
-    const hover = document.createElement('img');
-    hover.className = 'hover-highlight';
-    hover.dataset.country = c.filename;
-    hover.draggable = false;
-    // Use exact Bolivia Shape for hover instead of the full image with clip-path
-    if (c.filename === 'bolivia') {
-      hover.src = 'assets/countries/bolivia_shape.png';
-    } else {
-      hover.src = `assets/countries/${c.filename}.png`;
+    async function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
     }
-    mapWrapper.appendChild(hover);
-    hoverEls[c.filename] = hover;
-  });
 
-  // Add overlay (black contour lines) on top of everything
-  const overlayImg = document.createElement('img');
-  overlayImg.className = 'map-overlay';
-  overlayImg.src = 'assets/overlay.png';
-  overlayImg.draggable = false;
-  overlayImg.id = 'map-overlay';
-  mapWrapper.appendChild(overlayImg);
-
-  // Pre-sort countries by area (smallest first) for hit testing
-  sortedCountries = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
-
-  positionOverlays();
-  window.addEventListener('resize', positionOverlays);
-}
-
-// Process hover images: remove fringe pixels near borders/coastlines
-// and bake in the hover color (yellow tint) so no CSS filter is needed.
-function processHoverImages() {
-  const HOVER_R = 255, HOVER_G = 220, HOVER_B = 50; // yellow hover color
-  const BORDER_THRESHOLD = 150;
-
-  const mapCanvas = document.createElement('canvas');
-  mapCanvas.width = MAP_W;
-  mapCanvas.height = MAP_H;
-  const mapCtx = mapCanvas.getContext('2d');
-  mapCtx.drawImage(baseMap, 0, 0, MAP_W, MAP_H);
-  const mapData = mapCtx.getImageData(0, 0, MAP_W, MAP_H).data;
-
-  // Build border mask: mark dark / transparent pixels on the base map
-  const raw = new Uint8Array(MAP_W * MAP_H);
-  for (let i = 0; i < MAP_W * MAP_H; i++) {
-    const mi = i * 4;
-    const b = (mapData[mi] + mapData[mi + 1] + mapData[mi + 2]) / 3;
-    if (b < BORDER_THRESHOLD || mapData[mi + 3] < 128) raw[i] = 1;
-  }
-
-  // Dilate border mask by 1 pixel (4-connected) to prevent edge leaking
-  const borderMask = new Uint8Array(raw);
-  for (let y = 0; y < MAP_H; y++) {
-    for (let x = 0; x < MAP_W; x++) {
-      if (borderMask[y * MAP_W + x]) continue;
-      const i = y * MAP_W + x;
-      if ((x > 0 && raw[i - 1]) ||
-          (x < MAP_W - 1 && raw[i + 1]) ||
-          (y > 0 && raw[i - MAP_W]) ||
-          (y < MAP_H - 1 && raw[i + MAP_W])) {
-        borderMask[i] = 1;
-      }
-    }
-  }
-
-  COUNTRIES.forEach(c => {
-    const hc = hitCanvases[c.filename];
-    if (!hc) return;
-
-    // Cache pixel alpha data for fast hit testing
-    const hitData = hc.ctx.getImageData(0, 0, c.width, c.height).data;
-    hitPixelData[c.filename] = hitData;
-
-    // For Bolivia, also cache the shape pixel data for hit detection
-    if (c.filename === 'bolivia') {
-      const shapeHc = hitCanvases['bolivia_shape'];
-      if (shapeHc) {
-        hitPixelData['bolivia_shape'] = shapeHc.ctx.getImageData(0, 0, BOLIVIA_SHAPE.width, BOLIVIA_SHAPE.height).data;
+    function buildCards() {
+      for (const region of REGION_META) {
+        fetch(`assets/${region.id}/config.json`).then(r => r.json()).then(cfg => {
+          const countries = cfg.countries.filter(c => !c.name.endsWith('!') && !EXCLUDED.has(c.name) && !/shape$/i.test(c.name));
+          const btn = document.createElement('button');
+          btn.className = 'region-card';
+          btn.innerHTML = `<div class="thumb" style="background-image:url('assets/${region.id}/map.webp')"></div>
+            <div class="region-name">${region.name}</div>
+            <div class="region-meta">${countries.length} områden</div>`;
+          btn.addEventListener('click', () => openRegion(region));
+          el(region.group).appendChild(btn);
+        });
       }
     }
 
-    // Determine which canvas/coords to use for the hover highlight
-    let hoverSource, hoverLeft, hoverTop, hoverW, hoverH;
-    if (c.filename === 'bolivia' && hitCanvases['bolivia_shape']) {
-      // Use Bolivia Shape for hover
-      hoverSource = hitCanvases['bolivia_shape'].canvas;
-      hoverLeft = BOLIVIA_SHAPE.left;
-      hoverTop = BOLIVIA_SHAPE.top;
-      hoverW = BOLIVIA_SHAPE.width;
-      hoverH = BOLIVIA_SHAPE.height;
-    } else {
-      hoverSource = hc.canvas;
-      hoverLeft = c.left;
-      hoverTop = c.top;
-      hoverW = c.width;
-      hoverH = c.height;
-    }
-
-    const sx = hoverLeft - MAP_LEFT;
-    const sy = hoverTop - MAP_TOP;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = hoverW;
-    canvas.height = hoverH;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(hoverSource, 0, 0);
-
-    const pixels = ctx.getImageData(0, 0, hoverW, hoverH);
-    const d = pixels.data;
-
-    for (let y = 0; y < hoverH; y++) {
-      for (let x = 0; x < hoverW; x++) {
-        const mx = sx + x;
-        const my = sy + y;
-        const ci = (y * hoverW + x) * 4;
-
-        if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H ||
-            borderMask[my * MAP_W + mx]) {
-          d[ci + 3] = 0;
-        } else if (d[ci + 3] > 0) {
-          // Bake in yellow hover color
-          d[ci]     = HOVER_R;
-          d[ci + 1] = HOVER_G;
-          d[ci + 2] = HOVER_B;
+    function parseCountries(cfg) {
+      const shapes = new Map();
+      for (const c of cfg.countries) {
+        if (/shape$/i.test(c.name) || /_shape\./i.test(c.file)) {
+          const key = normalizeName(c.name.replace(/\s*shape$/i, '').replace(/_shape$/i, ''));
+          shapes.set(key, c);
         }
       }
+
+      const main = [];
+      for (const c of cfg.countries) {
+        if (c.name.endsWith('!')) continue;
+        if (/shape$/i.test(c.name) || /_shape\./i.test(c.file)) continue;
+        const fixed = normalizeName(c.name);
+        if (EXCLUDED.has(fixed)) continue;
+        main.push({
+          key: fixed,
+          displayName: fixed,
+          display: c,
+          hit: shapes.get(fixed) || c
+        });
+      }
+      return main;
     }
 
-    ctx.putImageData(pixels, 0, 0);
-    const hoverEl = hoverEls[c.filename];
-    if (hoverEl) hoverEl.src = canvas.toDataURL();
-  });
-}
-
-function positionOverlays() {
-  const mapRect = baseMap.getBoundingClientRect();
-  const wrapperRect = mapWrapper.getBoundingClientRect();
-  const scale = mapRect.width / MAP_W;
-  const offsetX = mapRect.left - wrapperRect.left;
-  const offsetY = mapRect.top - wrapperRect.top;
-
-  COUNTRIES.forEach(c => {
-    const relLeft = (c.left - MAP_LEFT) * scale;
-    const relTop = (c.top - MAP_TOP) * scale;
-    const relW = c.width * scale;
-    const relH = c.height * scale;
-
-    // Position the reveal overlay
-    const oEl = overlayEls[c.filename];
-    if (oEl) {
-      oEl.style.left = (offsetX + relLeft) + 'px';
-      oEl.style.top = (offsetY + relTop) + 'px';
-      oEl.style.width = relW + 'px';
-      oEl.style.height = relH + 'px';
+    function setMode(nextMode) {
+      mode = nextMode;
+      el('explore-btn').classList.toggle('active', mode === 'explore');
+      el('quiz-btn').classList.toggle('active', mode === 'quiz');
+      if (!currentRegion) return;
+      if (mode === 'quiz') startQuiz();
+      else {
+        guessed.clear();
+        updateOverlays();
+        el('panel-title').textContent = 'Utforska';
+        el('panel-body').textContent = 'Hovra eller klicka på ett område för namn/info.';
+        el('status').textContent = `${currentRegion.countries.length} områden tillgängliga.`;
+      }
     }
 
-    // Position hover highlight (Bolivia uses different shape coordinates)
-    const hEl = hoverEls[c.filename];
-    if (hEl) {
-      if (c.filename === 'bolivia') {
-        const bRelLeft = (BOLIVIA_SHAPE.left - MAP_LEFT) * scale;
-        const bRelTop = (BOLIVIA_SHAPE.top - MAP_TOP) * scale;
-        const bRelW = BOLIVIA_SHAPE.width * scale;
-        const bRelH = BOLIVIA_SHAPE.height * scale;
-        hEl.style.left = (offsetX + bRelLeft) + 'px';
-        hEl.style.top = (offsetY + bRelTop) + 'px';
-        hEl.style.width = bRelW + 'px';
-        hEl.style.height = bRelH + 'px';
+    function updateOverlays(hoverKey = null) {
+      for (const c of currentRegion.countries) {
+        const show = mode === 'explore' ? c.key === hoverKey : guessed.has(c.key);
+        c.overlayEl.classList.toggle('visible', show);
+      }
+    }
+
+    function renderHighscores() {
+      const key = `${currentRegion.id}-highscores`;
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      el('highscores').innerHTML = list.length
+        ? list.map(s => `<li>${s.name} — ${s.time.toFixed(1)} s</li>`).join('')
+        : '<li class="muted">Inga resultat ännu.</li>';
+    }
+
+    function saveScore(seconds) {
+      const name = prompt('Namn till topplistan:', 'Spelare') || 'Spelare';
+      const key = `${currentRegion.id}-highscores`;
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      list.push({ name: name.slice(0, 20), time: seconds });
+      list.sort((a,b) => a.time - b.time);
+      localStorage.setItem(key, JSON.stringify(list.slice(0, 10)));
+      renderHighscores();
+    }
+
+    function startQuiz() {
+      guessed.clear();
+      quizQueue = [...currentRegion.countries].sort(() => Math.random() - 0.5);
+      quizStart = performance.now();
+      updateOverlays();
+      askNext();
+    }
+
+    function askNext() {
+      if (!quizQueue.length) {
+        const seconds = (performance.now() - quizStart) / 1000;
+        el('panel-title').textContent = 'Klart!';
+        el('panel-body').textContent = `Snyggt! Tid: ${seconds.toFixed(1)} sekunder.`;
+        el('status').textContent = `Alla ${currentRegion.countries.length} rätt.`;
+        saveScore(seconds);
+        return;
+      }
+      const target = quizQueue[0];
+      el('panel-title').textContent = 'Hitta området';
+      el('panel-body').textContent = target.displayName;
+      el('status').textContent = `${guessed.size}/${currentRegion.countries.length} rätt`;
+    }
+
+    function onCountryClick(country) {
+      if (mode === 'explore') {
+        const fact = currentRegion.id === 'sydamerika' ? SOUTH_AMERICA_FACTS[country.displayName]?.desc : null;
+        el('panel-title').textContent = country.displayName;
+        el('panel-body').textContent = fact || 'Ingen extra beskrivning för denna region ännu.';
+        updateOverlays(country.key);
+        return;
+      }
+      const target = quizQueue[0];
+      if (!target) return;
+      if (country.key === target.key) {
+        guessed.add(country.key);
+        quizQueue.shift();
+        updateOverlays();
+        askNext();
       } else {
-        hEl.style.left = (offsetX + relLeft) + 'px';
-        hEl.style.top = (offsetY + relTop) + 'px';
-        hEl.style.width = relW + 'px';
-        hEl.style.height = relH + 'px';
+        el('status').textContent = `Fel: ${country.displayName}. Försök igen med ${target.displayName}.`;
       }
     }
-  });
 
-  // Position the contour overlay (same size/position as the base map)
-  const overlayEl = document.getElementById('map-overlay');
-  if (overlayEl) {
-    overlayEl.style.left = offsetX + 'px';
-    overlayEl.style.top = offsetY + 'px';
-    overlayEl.style.width = mapRect.width + 'px';
-    overlayEl.style.height = mapRect.height + 'px';
-  }
-}
+    async function openRegion(region) {
+      loading(true, `Laddar ${region.name}…`);
+      try {
+        const cfg = await fetch(`assets/${region.id}/config.json`).then(r => r.json());
+        const countries = parseCountries(cfg);
+        const mapUrl = `assets/${region.id}/map.webp`;
+        const outlineUrl = `assets/${region.id}/overlay.webp`;
+        const mapImg = await loadImage(mapUrl);
+        await Promise.all(countries.map(c => loadImage(`assets/${region.id}/${c.display.file}`)));
 
-function hitTest(clientX, clientY) {
-  const mapRect = baseMap.getBoundingClientRect();
-  const scale = MAP_W / mapRect.width;
-  const mapX = (clientX - mapRect.left) * scale + MAP_LEFT;
-  const mapY = (clientY - mapRect.top) * scale + MAP_TOP;
-  for (const c of sortedCountries) {
-    // Bolivia uses the dedicated shape for hit detection
-    if (c.filename === 'bolivia') {
-      const lx = Math.round(mapX - BOLIVIA_SHAPE.left), ly = Math.round(mapY - BOLIVIA_SHAPE.top);
-      if (lx < 0 || ly < 0 || lx >= BOLIVIA_SHAPE.width || ly >= BOLIVIA_SHAPE.height) continue;
-      const data = hitPixelData['bolivia_shape'];
-      if (!data) continue;
-      if (data[((ly * BOLIVIA_SHAPE.width + lx) * 4) + 3] > 30) return c;
-    } else {
-      const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
-      if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
-      const data = hitPixelData[c.filename];
-      if (!data) continue;
-      if (data[((ly * c.width + lx) * 4) + 3] > 30) return c;
-    }
-  }
-  return null;
-}
+        currentRegion = { id: region.id, name: region.name, cfg, countries };
+        el('title').textContent = `Forma-spelet — ${region.name}`;
+        el('start-screen').classList.add('hidden');
+        el('game-screen').classList.remove('hidden');
 
-function revealCountry(filename) {
-  const el = overlayEls[filename];
-  if (el) { el.classList.remove('flash-wrong', 'hint-blink', 'hovered'); el.classList.add('visible'); }
-  revealed.add(filename);
-  justRevealed.add(filename);
-  // Remove hover highlight immediately so the country shows in full color
-  const hoverEl = hoverEls[filename];
-  if (hoverEl) hoverEl.classList.remove('active');
-}
+        const wrap = el('map-wrapper');
+        wrap.innerHTML = '';
+        const base = document.createElement('img');
+        base.src = mapUrl;
+        base.className = 'map-base';
+        wrap.appendChild(base);
 
-function flashWrong(filename) {
-  const el = overlayEls[filename];
-  if (!el || revealed.has(filename)) return;
-  // Hide yellow hover so the country shadow is visible
-  const hoverEl = hoverEls[filename];
-  if (hoverEl) hoverEl.classList.remove('active');
-  el.classList.add('flash-wrong');
-  setTimeout(() => { el.classList.remove('flash-wrong'); }, 1200);
-}
+        for (const c of countries) {
+          const overlay = document.createElement('img');
+          overlay.src = `assets/${region.id}/${c.display.file}`;
+          overlay.className = 'country-overlay';
+          overlay.style.left = `${(c.display.left / cfg.mapWidth) * 100}%`;
+          overlay.style.top = `${(c.display.top / cfg.mapHeight) * 100}%`;
+          overlay.style.width = `${(c.display.width / cfg.mapWidth) * 100}%`;
+          overlay.style.height = `${(c.display.height / cfg.mapHeight) * 100}%`;
 
-function blinkHint(filename) {
-  const el = overlayEls[filename];
-  if (!el || revealed.has(filename)) return;
-  el.classList.remove('hint-blink');
-  void el.offsetWidth; // force reflow to restart animation
-  el.classList.add('hint-blink');
-  el.addEventListener('animationend', () => el.classList.remove('hint-blink'), { once: true });
-}
+          const hit = document.createElement('img');
+          hit.src = `assets/${region.id}/${c.hit.file}`;
+          hit.className = 'hit-target';
+          hit.style.left = `${(c.hit.left / cfg.mapWidth) * 100}%`;
+          hit.style.top = `${(c.hit.top / cfg.mapHeight) * 100}%`;
+          hit.style.width = `${(c.hit.width / cfg.mapWidth) * 100}%`;
+          hit.style.height = `${(c.hit.height / cfg.mapHeight) * 100}%`;
+          hit.addEventListener('mouseenter', () => mode === 'explore' && updateOverlays(c.key));
+          hit.addEventListener('mouseleave', () => mode === 'explore' && updateOverlays());
+          hit.addEventListener('click', () => onCountryClick(c));
 
-function resetOverlays() {
-  document.querySelectorAll('.country-overlay').forEach(el => {
-    el.classList.remove('visible', 'flash-wrong', 'hint-blink', 'hovered');
-  });
-  revealed.clear();
-  justRevealed.clear();
-  currentHover = null;
-}
+          wrap.appendChild(overlay);
+          wrap.appendChild(hit);
+          c.overlayEl = overlay;
+        }
 
-// ══════════════════════
-// Hover
-// ══════════════════════
-let currentHover = null;
-const justRevealed = new Set();
-let hoverRafPending = false;
+        if (region.id !== 'vastindien') {
+          const outline = document.createElement('img');
+          outline.src = outlineUrl;
+          outline.className = 'map-outline';
+          outline.onerror = () => outline.remove();
+          wrap.appendChild(outline);
+        }
 
-function updateHover(e) {
-  const hit = hitTest(e.clientX, e.clientY);
-  const newHover = hit && !NO_HOVER.has(hit.filename) ? hit.filename : null;
-  if (newHover !== currentHover) {
-    if (currentHover) {
-      hoverEls[currentHover].classList.remove('active');
-      overlayEls[currentHover].classList.remove('hovered');
-      justRevealed.delete(currentHover);
-    }
-    if (newHover && !justRevealed.has(newHover)) {
-      if (revealed.has(newHover)) {
-        // Country is revealed – brighten the overlay image instead of yellow highlight
-        overlayEls[newHover].classList.add('hovered');
-      } else if (!overlayEls[newHover].classList.contains('flash-wrong')) {
-        hoverEls[newHover].classList.add('active');
+        renderHighscores();
+        setMode(mode);
+      } finally {
+        loading(false);
       }
     }
-    currentHover = newHover;
-  }
 
-  if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-  }
-
-  if (currentMode === 'explore' && cursorLabel.classList.contains('explore-tooltip')) {
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-  }
-}
-
-// ══════════════════════
-// Drag & Click
-// ══════════════════════
-let isDragging = false, didDrag = false;
-let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
-
-function onPointerDown(e) {
-  if (e.button !== 0) return;
-  if (e.target.closest('.zoom-controls')) return;
-  e.preventDefault();
-  mapPanel.setPointerCapture(e.pointerId);
-  isDragging = true;
-  didDrag = false;
-  dragStartX = e.clientX;
-  dragStartY = e.clientY;
-  panStartX = panX;
-  panStartY = panY;
-  mapWrapper.classList.add('dragging');
-}
-
-function onPointerMove(e) {
-  // Always update cursor label position
-  if (currentMode === 'seterra' && seterraTarget) {
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-  } else if (currentMode === 'explore' && cursorLabel.style.display === 'block') {
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-  }
-  if (!isDragging) {
-    if (!hoverRafPending) {
-      hoverRafPending = true;
-      requestAnimationFrame(() => { hoverRafPending = false; updateHover(e); });
-    }
-    return;
-  }
-  const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
-  if (didDrag) {
-    panX = panStartX + dx;
-    panY = panStartY + dy;
-    clampPan();
-    applyTransform();
-  }
-}
-
-function onPointerUp(e) {
-  mapWrapper.classList.remove('dragging');
-  if (!isDragging) return;
-  isDragging = false;
-  if (!didDrag) {
-    const hit = hitTest(e.clientX, e.clientY);
-    if (hit) handleClick(hit, e);
-  }
-}
-
-function handleClick(c, e) {
-  if (currentMode === 'explore') exploreClick(c, e);
-  else seterraClick(c);
-}
-
-// ══════════════════════
-// Explore mode
-// ══════════════════════
-function showInfoCard(c) {
-  activeCountry = c.filename;
-  infoName.textContent = c.name;
-  infoShape.src = `assets/countries/${c.filename}.png`;
-  const assoc = IMAGE_ASSOCIATIONS[c.filename];
-  infoDesc.innerHTML = (assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : '') + escHtml(c.desc);
-  infoDefault.style.display = 'none';
-  infoCard.classList.add('active');
-}
-
-function exploreClick(c, e) {
-  const overlay = overlayEls[c.filename];
-  if (revealed.has(c.filename)) {
-    overlay.classList.remove('visible', 'hovered');
-    revealed.delete(c.filename);
-  } else {
-    revealCountry(c.filename);
-  }
-  showInfoCard(c);
-
-  // Show country name as tooltip near cursor
-  if (e) {
-    clearTimeout(exploreTooltipTimer);
-    cursorLabel.textContent = c.name;
-    cursorLabel.classList.add('explore-tooltip');
-    cursorLabel.style.left = e.clientX + 'px';
-    cursorLabel.style.top = e.clientY + 'px';
-    cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(hideExploreTooltip, 1000);
-  }
-  exploredCountEl.textContent = revealed.size;
-}
-
-function hideExploreTooltip() {
-  clearTimeout(exploreTooltipTimer);
-  cursorLabel.style.display = 'none';
-  cursorLabel.classList.remove('explore-tooltip');
-}
-
-// ══════════════════════
-// Seterra mode
-// ══════════════════════
-function startSeterra() {
-  resetOverlays();
-  seterraQueue = shuffle([...COUNTRIES]);
-  seterraCorrect = 0;
-  seterraWrong = 0;
-  seterraTotal = COUNTRIES.length;
-  seterraLocked = false;
-  seterraTargetMisses = 0;
-  seterraIsRetry = false;
-  seterraMissedCountries.clear();
-  seterraStartTime = Date.now();
-
-  seterraGame.classList.add('active');
-  seterraDone.classList.remove('active');
-  cursorLabel.style.display = 'block';
-
-  updateSeterraUI();
-  nextSeterraTarget();
-
-  clearInterval(seterraTimerInterval);
-  seterraTimerInterval = setInterval(updateSeterraTimer, 500);
-}
-
-function startSeterraRetry() {
-  const missedList = COUNTRIES.filter(c => seterraMissedCountries.has(c.filename));
-  if (missedList.length === 0) return;
-
-  // Keep already-correct countries visible
-  resetOverlays();
-  COUNTRIES.forEach(c => {
-    if (!seterraMissedCountries.has(c.filename)) revealCountry(c.filename);
-  });
-
-  seterraQueue = shuffle([...missedList]);
-  seterraCorrect = 0;
-  seterraWrong = 0;
-  seterraTotal = missedList.length;
-  seterraLocked = false;
-  seterraTargetMisses = 0;
-  seterraIsRetry = true;
-  seterraMissedCountries.clear();
-  seterraStartTime = Date.now();
-
-  seterraGame.classList.add('active');
-  seterraDone.classList.remove('active');
-  cursorLabel.style.display = 'block';
-
-  updateSeterraUI();
-  nextSeterraTarget();
-
-  clearInterval(seterraTimerInterval);
-  seterraTimerInterval = setInterval(updateSeterraTimer, 500);
-}
-
-function nextSeterraTarget() {
-  if (seterraQueue.length === 0) {
-    endSeterra();
-    return;
-  }
-  seterraTarget = seterraQueue.pop();
-  seterraTargetMisses = 0;
-  seterraTargetName.textContent = seterraTarget.name;
-  cursorLabel.textContent = seterraTarget.name;
-  seterraFeedback.className = 'seterra-feedback';
-  seterraFeedback.innerHTML = '';
-}
-
-function seterraClick(c) {
-  if (!seterraTarget || seterraLocked) return;
-
-  if (c.filename === seterraTarget.filename) {
-    seterraCorrect++;
-    seterraTargetMisses = 0;
-    revealCountry(c.filename);
-    seterraFeedback.className = 'seterra-feedback correct-fb';
-    const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Rätt! ${c.name}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
-    updateSeterraUI();
-    nextSeterraTarget();
-  } else {
-    seterraWrong++;
-    seterraTargetMisses++;
-    seterraMissedCountries.add(seterraTarget.filename);
-    flashWrong(c.filename);
-    seterraFeedback.className = 'seterra-feedback wrong-fb';
-    const wrongAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div>${wrongAssoc ? `<div class="assoc-box">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
-    updateSeterraUI();
-
-    // After 3 misses on same target, blink the correct country
-    if (seterraTargetMisses >= 3) {
-      blinkHint(seterraTarget.filename);
-    }
-
-    seterraLocked = true;
-    setTimeout(() => { seterraLocked = false; }, 600);
-  }
-}
-
-function updateSeterraUI() {
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  seterraScoreEl.textContent = score + '%';
-  seterraCorrectEl.textContent = seterraCorrect;
-  seterraWrongEl.textContent = seterraWrong;
-  const pct = Math.round((seterraCorrect / seterraTotal) * 100);
-  seterraBar.style.width = pct + '%';
-  seterraProgressLabel.textContent = `${seterraCorrect} / ${seterraTotal}`;
-}
-
-function updateSeterraTimer() {
-  const elapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
-  const m = Math.floor(elapsed / 60);
-  const s = elapsed % 60;
-  seterraTimeEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-function endSeterra() {
-  clearInterval(seterraTimerInterval);
-  updateSeterraTimer();
-  seterraTarget = null;
-  cursorLabel.style.display = 'none';
-
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  seterraElapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
-  const m = Math.floor(seterraElapsed / 60);
-  const s = seterraElapsed % 60;
-
-  seterraGame.classList.remove('active');
-  seterraDone.classList.add('active');
-  document.getElementById('seterra-final-score').textContent = score + '%';
-  document.getElementById('seterra-final-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} l\u00e4nder<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
-
-  // Show/hide retry button
-  const retryBtn = document.getElementById('seterra-retry');
-  if (seterraMissedCountries.size > 0) {
-    retryBtn.style.display = '';
-    retryBtn.textContent = `\u00d6va p\u00e5 felaktiga (${seterraMissedCountries.size} st)`;
-  } else {
-    retryBtn.style.display = 'none';
-  }
-
-  // Hide inline form – we use the popup modal instead
-  document.getElementById('hs-form').style.display = 'none';
-  document.getElementById('hs-saved-msg').style.display = 'none';
-
-  // Show name popup for non-retry rounds
-  if (!seterraIsRetry) {
-    showNameModal(score, m, s);
-  }
-
-  renderHighscores();
-}
-
-// ══════════════════════
-// High scores
-// ══════════════════════
-function getHighscores() {
-  try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
-  catch { return []; }
-}
-
-function saveHighscore(name, score, time, wrong) {
-  const list = getHighscores();
-  const entry = { name, score, time, wrong, date: Date.now() };
-  list.push(entry);
-  // Sort: highest score first, then fastest time
-  list.sort((a, b) => b.score - a.score || a.time - b.time);
-  // Keep top 10
-  if (list.length > 10) list.length = 10;
-  localStorage.setItem(HS_KEY, JSON.stringify(list));
-  return entry;
-}
-
-function renderHighscores(highlightEntry) {
-  const list = getHighscores();
-  const container = document.getElementById('highscore-list');
-
-  if (list.length === 0) {
-    container.innerHTML = '<div class="hs-empty">Inga sparade resultat \u00e4nnu.</div>';
-    return;
-  }
-
-  let html = '<h3>Topplista</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Po\u00e4ng</th><th>Tid</th></tr></thead><tbody>';
-  list.forEach((e, i) => {
-    const m = Math.floor(e.time / 60);
-    const s = e.time % 60;
-    const isCurrent = highlightEntry && e.date === highlightEntry.date && e.name === highlightEntry.name;
-    html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(e.name)}</td><td>${e.score}%</td><td>${m}:${s.toString().padStart(2, '0')}</td></tr>`;
-  });
-  html += '</tbody></table>';
-  container.innerHTML = html;
-}
-
-function escHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-document.getElementById('hs-save').addEventListener('click', () => {
-  const name = document.getElementById('hs-name').value.trim();
-  if (!name) return;
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  const entry = saveHighscore(name, score, seterraElapsed, seterraWrong);
-  document.getElementById('hs-form').style.display = 'none';
-  document.getElementById('hs-saved-msg').style.display = '';
-  renderHighscores(entry);
-});
-
-document.getElementById('hs-name').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('hs-save').click();
-});
-
-document.getElementById('seterra-restart').addEventListener('click', startSeterra);
-document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
-
-// ══════════════════════
-// Name popup modal
-// ══════════════════════
-const nameModalOverlay = document.getElementById('name-modal-overlay');
-const modalNameInput = document.getElementById('modal-name');
-
-function showNameModal(score, m, s) {
-  document.getElementById('modal-score').textContent = score + '%';
-  document.getElementById('modal-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
-  modalNameInput.value = '';
-  nameModalOverlay.classList.add('active');
-  setTimeout(() => modalNameInput.focus(), 100);
-}
-
-function closeNameModal() {
-  nameModalOverlay.classList.remove('active');
-}
-
-document.getElementById('modal-save').addEventListener('click', () => {
-  const name = modalNameInput.value.trim();
-  if (!name) { modalNameInput.focus(); return; }
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  const entry = saveHighscore(name, score, seterraElapsed, seterraWrong);
-  closeNameModal();
-  renderHighscores(entry);
-});
-
-modalNameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('modal-save').click();
-});
-
-document.getElementById('modal-skip').addEventListener('click', closeNameModal);
-
-nameModalOverlay.addEventListener('click', (e) => {
-  if (e.target === nameModalOverlay) closeNameModal();
-});
-
-// ══════════════════════
-// Mode switching
-// ══════════════════════
-function switchMode(mode) {
-  if (mode === currentMode) return;
-  currentMode = mode;
-
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-
-  if (mode === 'explore') {
-    document.getElementById('explore-ui').style.display = '';
-    document.getElementById('seterra-ui').style.display = 'none';
-    hideExploreTooltip();
-    clearInterval(seterraTimerInterval);
-    seterraTarget = null;
-    headerHint.textContent = 'Klicka p\u00e5 ett land';
-    resetOverlays();
-    activeCountry = null;
-    infoCard.classList.remove('active');
-    infoDefault.style.display = '';
-    exploredCountEl.textContent = '0';
-  } else {
-    document.getElementById('explore-ui').style.display = 'none';
-    document.getElementById('seterra-ui').style.display = '';
-    headerHint.textContent = 'Klicka d\u00e4r du tror landet \u00e4r!';
-    startSeterra();
-  }
-}
-
-document.querySelectorAll('.mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => switchMode(btn.dataset.mode));
-});
-
-// ══════════════════════
-// Zoom & Transform
-// ══════════════════════
-function applyTransform() {
-  mapWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-  zoomLevelEl.textContent = Math.round(zoom * 100) + '%';
-}
-
-function clampPan() {
-  const baseW = baseMap.offsetWidth, baseH = baseMap.offsetHeight;
-  const panelW = mapPanel.clientWidth, panelH = mapPanel.clientHeight;
-  const scaledW = baseW * zoom, scaledH = baseH * zoom;
-  // Allow dragging generously – the map can be panned until only ~20% remains visible
-  const maxX = Math.max(0, (scaledW - panelW) / 2 + panelW * 0.5);
-  const maxY = Math.max(0, (scaledH - panelH) / 2 + panelH * 0.5);
-  panX = Math.max(-maxX, Math.min(maxX, panX));
-  panY = Math.max(-maxY, Math.min(maxY, panY));
-}
-
-function setZoom(newZoom, cursorX, cursorY) {
-  const oldZoom = zoom;
-  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-  if (zoom === oldZoom) return;
-  if (cursorX !== undefined && cursorY !== undefined) {
-    const r = mapPanel.getBoundingClientRect();
-    const cx = cursorX - r.left - r.width / 2;
-    const cy = cursorY - r.top - r.height / 2;
-    panX = cx - ((cx - panX) / oldZoom) * zoom;
-    panY = cy - ((cy - panY) / oldZoom) * zoom;
-  }
-  clampPan();
-  applyTransform();
-}
-
-function onWheel(e) {
-  e.preventDefault();
-  setZoom(zoom * (e.deltaY > 0 ? 0.9 : 1.1), e.clientX, e.clientY);
-}
-
-document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
-document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
-
-// ══════════════════════
-// Init
-// ══════════════════════
-createOverlays();
-// ── Jonas high-five ──
-const jonasImg = document.getElementById('jonas-img');
-const highfiveCountEl = document.getElementById('highfive-count');
-const highfiveAudio = new Audio('high_five.wav');
-let highfiveCount = parseInt(localStorage.getItem('highfive-count') || '0', 10);
-highfiveCountEl.textContent = highfiveCount;
-
-jonasImg.addEventListener('click', () => {
-  highfiveCount++;
-  localStorage.setItem('highfive-count', highfiveCount);
-  highfiveCountEl.textContent = highfiveCount;
-  highfiveAudio.currentTime = 0;
-  highfiveAudio.play();
-  jonasImg.src = 'Jonas_2.webp';
-  setTimeout(() => { jonasImg.src = 'Jonas_1.webp'; }, 1000);
-});
-
-loadHitData().then(() => {
-  processHoverImages();
-  mapPanel.addEventListener('pointerdown', onPointerDown);
-  mapPanel.addEventListener('pointermove', onPointerMove);
-  mapPanel.addEventListener('pointerup', onPointerUp);
-  mapPanel.addEventListener('pointercancel', onPointerUp);
-  mapPanel.addEventListener('wheel', onWheel, { passive: false });
-});
-</script>
-
+    el('explore-btn').addEventListener('click', () => setMode('explore'));
+    el('quiz-btn').addEventListener('click', () => setMode('quiz'));
+    el('back-btn').addEventListener('click', () => {
+      currentRegion = null;
+      el('game-screen').classList.add('hidden');
+      el('start-screen').classList.remove('hidden');
+    });
+
+    buildCards();
+  </script>
 </body>
 </html>

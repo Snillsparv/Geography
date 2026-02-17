@@ -13,3 +13,50 @@ Ett Seterra-liknande kartspel där du ska identifiera Sydamerikas länder utifr�
 ## Länder
 
 Argentina, Bolivia, Brasilien, Chile, Colombia, Ecuador, Franska Guyana, Guyana, Paraguay, Peru, Surinam, Uruguay, Venezuela
+
+## Hämta ändringar från Codex-branch
+
+Om du vill hämta en branch som Codex har skapat i GitHub till din lokala dator:
+
+```bash
+git fetch origin
+git branch -r
+git switch --track origin/<branch-namn>
+```
+
+Exempel:
+
+```bash
+git switch --track origin/claude/plan-fixes-review-GQCU8
+```
+
+Om din Git-version inte har `switch`, använd:
+
+```bash
+git checkout -b <branch-namn> origin/<branch-namn>
+```
+
+Tips: om du fastnar i pagern efter `git branch -r`, tryck `q` och kör nästa kommando i vanlig prompt.
+
+## Snabbtest (2 minuter)
+
+Om du snabbt vill verifiera exakt det jag kört, använd denna sekvens:
+
+```bash
+git fetch origin
+git switch --track origin/work   # eller den branch du hämtat
+python -m http.server 8000
+```
+
+Öppna sedan:
+
+- `http://localhost:8000/index.html`
+
+Snabb checklista i webbläsaren:
+
+1. Startskärmen visas med regionkort.
+2. Du kan välja region och komma in i spelvyn.
+3. Lägena **Utforska** och **Quiz** går att växla.
+4. Klick på karta ger rätt/fel-markering.
+
+Om du får cache-problem: kör hård uppdatering med `Ctrl+F5`.
