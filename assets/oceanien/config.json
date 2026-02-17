@@ -2,118 +2,163 @@
   "name": "Oceanien",
   "canvasWidth": 4000,
   "canvasHeight": 2884,
+  "slug": "oceanien",
+  "hsKey": "oceanien-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Australien",
+      "filename": "australien",
       "file": "countries/australien.webp",
       "left": 159,
       "top": 1328,
       "width": 1491,
-      "height": 1323
+      "height": 1323,
+      "desc": "Australien är världens minsta kontinent men sjätte största land. Landet är känt för sina unika djur som känguruer, koalor och näbbdjur som inte finns någon annanstans i världen. Stora delar av inlandet kallas \"outbacken\" och består av vidsträckt ökenlandskap med en fascinerande röd jord.",
+      "imageAssociation": "Pionjär som undersöker den Australiensiska vildmarken"
     },
     {
       "name": "Nya Zeeland",
+      "filename": "nya_zeeland",
       "file": "countries/nya_zeeland.webp",
       "left": 1881,
       "top": 2271,
       "width": 486,
-      "height": 534
+      "height": 534,
+      "desc": "Nya Zeeland består av två stora öar, Nordön och Sydön, och ligger i sydvästra Stilla havet. Landet är känt för sin dramatiska natur med vulkaner, glaciärer och fantastiska fjordar. Ursprungsbefolkningen maorierna har en rik kultur som fortfarande är en viktig del av landets identitet.",
+      "imageAssociation": "Pionjärens vandringsstav som hon använder för att SE NYA LAND"
     },
     {
       "name": "Samoa",
+      "filename": "samoa",
       "file": "countries/samoa.webp",
       "left": 2843,
       "top": 1314,
       "width": 155,
-      "height": 181
+      "height": 181,
+      "desc": "Samoa är en önation i södra Stilla havet som består av två större öar och flera mindre. Landet har en stark polynesisk kultur med traditioner som fa'a Samoa, den samoanska livsstilen, som betonar familj och gemenskap. Samoa var det första polynesiska landet att bli självständigt, år 1962.",
+      "imageAssociation": "En tjej som heter MOA och hålls fast med tången"
     },
     {
       "name": "Fiji",
+      "filename": "fiji",
       "file": "countries/fiji.webp",
       "left": 2423,
       "top": 1293,
       "width": 464,
-      "height": 379
+      "height": 379,
+      "desc": "Fiji är en ögrupp med över 330 öar i södra Stilla havet, varav ungefär en tredjedel är bebodda. Landet är känt för sina kristallklara vatten, korallrev och tropiska skogar. Fiji har en blandning av melanesisk och polynesisk kultur och är ett populärt resmål för turister från hela världen.",
+      "imageAssociation": "En pudel som heter FIFI"
     },
     {
       "name": "Tonga",
+      "filename": "tonga",
       "file": "countries/tonga.webp",
       "left": 2703,
       "top": 1421,
       "width": 225,
-      "height": 385
+      "height": 385,
+      "desc": "Tonga är en monarki i Stilla havet som består av 169 öar, varav 36 är bebodda. Landet är unikt i Stilla havet eftersom det aldrig har koloniserats av en europeisk makt. Tonga är också känt för sina valbeskådningsmöjligheter, då knölvalar vandrar till dess varma vatten varje år.",
+      "imageAssociation": "En TÅNG"
     },
     {
       "name": "Tuvalu",
+      "filename": "tuvalu",
       "file": "countries/tuvalu.webp",
       "left": 2385,
       "top": 1165,
       "width": 258,
-      "height": 457
+      "height": 457,
+      "desc": "Tuvalu är ett av världens minsta och mest avlägsna länder, bestående av nio låga korallatoller i Stilla havet. Landets högsta punkt är bara cirka fem meter över havet, vilket gör det extremt sårbart för stigande havsnivåer. Tuvalu tjänade oväntat mycket pengar genom att sälja sin internetdomän \".tv\" till TV-bolag världen över.",
+      "imageAssociation": "En svalkande TUVA"
     },
     {
       "name": "Nauru",
+      "filename": "nauru",
       "file": "countries/nauru.webp",
       "left": 2071,
       "top": 977,
       "width": 115,
-      "height": 187
+      "height": 187,
+      "desc": "Nauru är världens tredje minsta land till ytan och den minsta örepubliken, med bara 21 kvadratkilometer. Ön var en gång ett av världens rikaste länder per capita tack vare sina fosfatfyndigheter. Landet har ingen officiell huvudstad, men det administrativa centret ligger i distriktet Yaren.",
+      "imageAssociation": "Hammaren som Salomo höjer när han säger NU DU!"
     },
     {
       "name": "Solomonöarna",
+      "filename": "solomonoarna",
       "file": "countries/solomonoarna.webp",
       "left": 1691,
       "top": 966,
       "width": 438,
-      "height": 484
+      "height": 484,
+      "desc": "Solomonöarna är en ögrupp med nästan tusen öar i södra Stilla havet, öster om Papua Nya Guinea. Öarna fick sitt namn av en spansk upptäcktsresande som trodde att kung Salomos rikedomar kom därifrån. Landet har en otrolig biologisk mångfald med unika fågelarter och korallrev som tillhör de mest välbevarade i världen.",
+      "imageAssociation": "Kung SALOMO"
     },
     {
       "name": "Marshalöarna",
+      "filename": "marshaloarna",
       "file": "countries/marshaloarna.webp",
       "left": 1583,
       "top": 205,
       "width": 677,
-      "height": 479
+      "height": 479,
+      "desc": "Marshalöarna består av 29 korallatoller och fem enskilda öar utspridda över ett enormt havsområde i Stilla havet. Bikiniatollen i Marshalöarna blev känd som platsen där USA genomförde kärnvapenprover under kalla kriget. Marshalleserna var skickliga navigatörer som använde speciella sjökort gjorda av pinnar och snäckor för att segla mellan öarna.",
+      "imageAssociation": "En MARSHALL som driver mikrovågsugnen"
     },
     {
       "name": "Mikronesien",
+      "filename": "mikronesien",
       "file": "countries/mikronesien.webp",
       "left": 1139,
       "top": 491,
       "width": 1074,
-      "height": 450
+      "height": 450,
+      "desc": "Mikronesiens federerade stater består av över 600 öar utspridda över västra Stilla havet. På ön Yap används fortfarande enorma stenskivor kallade Rai som en form av traditionell valuta. Landet har några av världens bästa dykplatser med sjunkna vrak från andra världskriget och fantastiska korallrev.",
+      "imageAssociation": "En dinosaurie som drivs av en MIKROvågsugn"
     },
     {
       "name": "Palau",
+      "filename": "palau",
       "file": "countries/palau.webp",
       "left": 777,
       "top": 407,
       "width": 569,
-      "height": 549
+      "height": 549,
+      "desc": "Palau är en önation med över 500 öar i västra Stilla havet, känd för sina unika Rock Islands som ser ut som gröna svampar i turkost vatten. Landet skapade världens första hajskyddsområde år 2009 för att skydda sina marina ekosystem. Palaus berömda Jellyfish Lake innehåller miljontals maneter som har förlorat sin förmåga att brännas.",
+      "imageAssociation": "En PALL som dinosaurien välter"
     },
     {
       "name": "Kiribati",
+      "filename": "kiribati",
       "file": "countries/kiribati.webp",
       "left": 2197,
       "top": 765,
       "width": 1249,
-      "height": 495
+      "height": 495,
+      "desc": "Kiribati är en önation som sträcker sig över alla fyra hemisfärerna och består av 33 korallatoller. Landet var det första stället på jorden att välkomna det nya millenniet år 2000 tack vare sin position vid datumslinjen. Kiribati är allvarligt hotat av stigande havsnivåer och regeringen har köpt mark i Fiji som en möjlig framtida flyktplats för befolkningen.",
+      "imageAssociation": "En hungrig fladdermus (BAT på engelska) med KURR I magen"
     },
     {
       "name": "Vanuatu",
+      "filename": "vanuatu",
       "file": "countries/vanuatu.webp",
       "left": 2111,
       "top": 1463,
       "width": 207,
-      "height": 149
+      "height": 149,
+      "desc": "Vanuatu är en ögrupp med 83 öar i södra Stilla havet, känd för sina aktiva vulkaner och rika kultur. På ön Pentecost uppfanns den ursprungliga bungy-hoppningen, där unga män kastar sig från höga torn med lianer runt anklarna. Vanuatu har utsetts till ett av världens lyckligaste länder trots att det är ett av de fattigare länderna i Stilla havet.",
+      "imageAssociation": "Prinsen som blir förvånad över Salomos hammare och frågar VAD NU? och sedan nyser: ATTU!"
     },
     {
       "name": "Papua Nya Guinea",
+      "filename": "papua_nya_guinea",
       "file": "countries/papua_nya_guinea.webp",
       "left": 1117,
       "top": 1049,
       "width": 417,
-      "height": 300
+      "height": 300,
+      "desc": "Papua Nya Guinea är ett av världens mest språkligt mångfaldiga länder med över 800 talade språk. Landet delar ön Nya Guinea med den indonesiska provinsen Papua och har berg, regnskogar och kustnära korallrev. Många avlägsna stammar i Papua Nya Guineas högland hade ingen kontakt med omvärlden förrän mitten av 1900-talet.",
+      "imageAssociation": "En PAPP-dinosaurie som ska bli ditt NYA marsvin (GUINEA pig)"
     }
   ],
   "mapWidth": 3841,

@@ -2,406 +2,559 @@
   "name": "Asien",
   "canvasWidth": 4000,
   "canvasHeight": 3664,
+  "slug": "asien",
+  "hsKey": "asien-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Turkiet",
       "file": "countries/turkiet.webp",
+      "filename": "turkiet",
       "left": 88,
       "top": 1478,
       "width": 529,
-      "height": 253
+      "height": 253,
+      "desc": "Turkiet är ett land som sträcker sig över både Europa och Asien, med den berömda staden Istanbul delad av sundet Bosporen. Landet är känt för sin rika historia, bland annat det osmanska riket, samt för utsökt mat som kebab och baklava. Turkiets kustlinje längs Medelhavet och Egeiska havet lockar miljontals turister varje år.",
+      "imageAssociation": "En kalkon (TURKEY på engelska)"
     },
     {
       "name": "Indoneien",
       "file": "countries/indoneien.webp",
+      "filename": "indoneien",
       "left": 1952,
       "top": 2609,
       "width": 1524,
-      "height": 901
+      "height": 901,
+      "desc": "Indonesien är världens största örike med över 17 000 öar och är det fjärde folkrikaste landet i världen. Landet är hem för Komododraken, världens största ödla, och har fantastiska korallrev och regnskog. Bali, en av landets mest kända öar, lockar besökare med sina tempel, risterrasser och vulkaner.",
+      "imageAssociation": "Öar som du smetar ut med din KIND OCH NÄSA"
     },
     {
       "name": "Bahrain",
       "file": "countries/bahrain.webp",
+      "filename": "bahrain",
       "left": 676,
       "top": 2087,
       "width": 28,
-      "height": 30
+      "height": 30,
+      "desc": "Bahrain är en liten önation i Persiska viken och består av över 30 öar. Trots sin lilla storlek är landet känt för sin formel 1-bana och som ett viktigt finanscentrum i Mellanöstern. Bahrain var ett av de första länderna i Persiska viken där man upptäckte olja på 1930-talet.",
+      "imageAssociation": "En hjärna (BRAIN på engelska) som tillhör katten"
     },
     {
       "name": "Singapore",
       "file": "countries/singapore.webp",
+      "filename": "singapore",
       "left": 2304,
       "top": 3046,
       "width": 26,
-      "height": 24
+      "height": 24,
+      "desc": "Singapore är en liten stadsstat i Sydostasien som är ett av världens rikaste länder trots sin minimala yta. Landet är känt för sin futuristiska arkitektur, som det ikoniska Marina Bay Sands-hotellet, och sin fantastiska gatumat. Singapore har fyra officiella språk: engelska, mandarin, malajiska och tamil.",
+      "imageAssociation": "En mikrofon som malen sjunger SING-A-long i"
     },
     {
       "name": "Papua Nya Guinea",
       "file": "countries/papua_nya_guinea.webp",
+      "filename": "papua_nya_guinea",
       "left": 3468,
       "top": 3167,
       "width": 496,
-      "height": 381
+      "height": 381,
+      "desc": "Papua Nya Guinea ligger på den östra halvan av ön Nya Guinea och är ett av världens mest språkligt diversifierade länder med över 800 språk. Landets regnskog är hem för en mängd unika djurarter, inklusive paradisfåglar med otroligt färggranna fjädrar. Många samhällen lever fortfarande traditionellt och är relativt isolerade på grund av den bergiga terrängen.",
+      "imageAssociation": "En PAPP-dinosaurie som ska bli ditt NYA marsvin (GUINEA pig)"
     },
     {
       "name": "Malaysia",
       "file": "countries/malaysia.webp",
+      "filename": "malaysia",
       "left": 2182,
       "top": 2831,
       "width": 618,
-      "height": 292
+      "height": 292,
+      "desc": "Malaysia är ett land i Sydostasien som delas i två delar av Sydkinesiska havet – halvön Malaysia och delarna på ön Borneo. Petronas Twin Towers i huvudstaden Kuala Lumpur var världens högsta byggnader mellan 1998 och 2004. Landet är känt för sin mångkulturella befolkning och sin fantastiska matkultur som blandar malajiska, kinesiska och indiska smaker.",
+      "imageAssociation": "En MAL med stora ögon (EYES på engelska)"
     },
     {
       "name": "Filippinerna",
       "file": "countries/filippinerna.webp",
+      "filename": "filippinerna",
       "left": 2723,
       "top": 2390,
       "width": 298,
-      "height": 490
+      "height": 490,
+      "desc": "Filippinerna är en östat i Stilla havet med över 7 600 öar och är känt för sina vackra stränder och korallrev. Landet fick sitt namn efter den spanske kungen Filip II och var en spansk koloni i över 300 år. Filippinerna är också hem för världens minsta primat, spökdjuret tarsier, som har enorma ögon i förhållande till sin kropp.",
+      "imageAssociation": "En kock som heter FILIP"
     },
     {
       "name": "Taiwan",
       "file": "countries/taiwan.webp",
+      "filename": "taiwan",
       "left": 2790,
       "top": 2138,
       "width": 55,
-      "height": 122
+      "height": 122,
+      "desc": "Taiwan är en ö i västra Stilla havet som är känd för sin högteknologiska industri – här tillverkas en stor del av världens datorchips. Huvudstaden Taipei har den berömda skyskrapan Taipei 101, som var världens högsta byggnad fram till 2010. Taiwan är också känt för sina fantastiska nattmarknader med massor av god streetfood.",
+      "imageAssociation": "En mask som utövar TAI chi och VANN över Kina"
     },
     {
       "name": "Kina",
       "file": "countries/kina.webp",
+      "filename": "kina",
       "left": 1428,
       "top": 1067,
       "width": 1702,
-      "height": 1336
+      "height": 1336,
+      "desc": "Kina är världens folkrikaste land och har en av de äldsta civilisationerna i historien, med över 5 000 års sammanhängande kultur. Kinesiska muren, som sträcker sig över 2 000 mil, är ett av världens sju nya underverk. Landet är också hem för den sällsynta jättepandan, som blivit en symbol för bevarandet av hotade arter.",
+      "imageAssociation": "Höna med Kinas flagga på kammen"
     },
     {
       "name": "Östtimor",
       "file": "countries/osttimor.webp",
+      "filename": "osttimor",
       "left": 2940,
       "top": 3366,
       "width": 90,
-      "height": 92
+      "height": 92,
+      "desc": "Östtimor, officiellt Demokratiska republiken Timor-Leste, är ett av Asiens yngsta och minsta länder – det blev självständigt från Indonesien år 2002. Landet ligger på den östra halvan av ön Timor och har en befolkning på drygt en miljon invånare. Trots sin storlek har Östtimor rika korallrev som lockar dykare från hela världen.",
+      "imageAssociation": "TIMON från Lejonkungen som sitter och tittar åt ÖST"
     },
     {
       "name": "Burma",
       "file": "countries/burma.webp",
+      "filename": "burma",
       "left": 1944,
       "top": 2014,
       "width": 260,
-      "height": 690
+      "height": 690,
+      "desc": "Burma, även kallat Myanmar, är känt för sina tusentals gyllene buddhisttempel, särskilt den magnifika Shwedagon-pagoden i Yangon. Landet har en av Sydostasiens längsta kustlinjer och är rikt på ädelstenar, speciellt rubiner och jade. Inlesjön i Burma är berömd för sina fiskare som ror med benen – en unik teknik som finns bara där.",
+      "imageAssociation": "MYRslok"
     },
     {
       "name": "Thailand",
       "file": "countries/thailand.webp",
+      "filename": "thailand",
       "left": 2101,
       "top": 2320,
       "width": 256,
-      "height": 562
+      "height": 562,
+      "desc": "Thailand, känt som \"leendets land\", är det enda landet i Sydostasien som aldrig koloniserats av en europeisk makt. Landet är världsberömt för sin mat – rätter som pad thai, tom yum och gröna curryn är älskade över hela världen. Thailand har också spektakulära tempel, tropiska öar och ett livligt gatuliv som lockar miljontals besökare varje år.",
+      "imageAssociation": "Thailändsk blomma med fjäril"
     },
     {
       "name": "Kambodja",
       "file": "countries/kambodja.webp",
+      "filename": "kambodja",
       "left": 2255,
       "top": 2538,
       "width": 166,
-      "height": 164
+      "height": 164,
+      "desc": "Kambodja är hem för Angkor Wat, världens största religiösa byggnadsverk, som ursprungligen byggdes som ett hindutempel på 1100-talet. Landet ligger i hjärtat av Sydostasien och har en rik men dramatisk historia, inklusive det mäktiga Khmerriket. Tonle Sap, Sydostasiens största sötvattensjö, ändrar storlek dramatiskt mellan torr- och regnperioden.",
+      "imageAssociation": "Rund figur som KAMMAR sin BODY"
     },
     {
       "name": "Vietnam",
       "file": "countries/vietnam.webp",
+      "filename": "vietnam",
       "left": 2242,
       "top": 2214,
       "width": 234,
-      "height": 553
+      "height": 553,
+      "desc": "Vietnam är ett långsmalt land i Sydostasien som sträcker sig längs kusten med fantastiska landskap från risterrasser till dramatiska kalkstensformationer. Halong-bukten med sina tusentals kalkstensöar är ett UNESCO-världsarv och en av Asiens mest ikoniska vyer. Vietnamesisk mat, särskilt den doftande nudelsoppan pho, har blivit älskad över hela världen.",
+      "imageAssociation": "En person som äter vindkraftverket (VI ÄTER – NAM-NAM)"
     },
     {
       "name": "Laos",
       "file": "countries/laos.webp",
+      "filename": "laos",
       "left": 2184,
       "top": 2244,
       "width": 234,
-      "height": 324
+      "height": 324,
+      "desc": "Laos är ett bergigt och inlandsbeläget land i Sydostasien, ofta kallat \"en miljon elefanters land\". Floden Mekong flyter genom landet och är livsviktig för befolkningen som källa till mat och transport. Laos är känt för sina buddhistiska kloster och den magiska ceremonin varje morgon då munkar samlar in allmosor från lokalbefolkningen.",
+      "imageAssociation": "Ett vindkraftverk som blåser iväg allt och orsakar KAOS"
     },
     {
       "name": "Sri Lanka",
       "file": "countries/sri_lanka.webp",
+      "filename": "sri_lanka",
       "left": 1539,
       "top": 2732,
       "width": 69,
-      "height": 138
+      "height": 138,
+      "desc": "Sri Lanka är en droppformad ö söder om Indien som ibland kallas \"Indiska oceanens pärla\" tack vare sin naturskönhet. Landet är en av världens största exportörer av te, och dess gröna teplantager i höglandet är en fantastisk syn. Sri Lanka har också en rik historia med över 2 500 år av buddhistisk kultur och imponerande ruinstäder.",
+      "imageAssociation": "En tår som fälls för att struten tycker synd om rymdhunden Laika (SORRY LAIKA)"
     },
     {
       "name": "Indien",
       "file": "countries/indien.webp",
+      "filename": "indien",
       "left": 1219,
       "top": 1746,
       "width": 884,
-      "height": 1044
+      "height": 1044,
+      "desc": "Indien är världens folkrikaste land med över 1,4 miljarder invånare och är känt för sin otroliga mångfald av språk, kulturer och religioner. Taj Mahal i Agra, byggt av kejsaren Shah Jahan till minne av sin fru, anses vara ett av världens vackraste byggnadsverk. Indien är också hem för Bollywood, världens största filmindustri sett till antal producerade filmer per år.",
+      "imageAssociation": "Glasstrut med smak av CURRY"
     },
     {
       "name": "Bangladesh",
       "file": "countries/bangladesh.webp",
+      "filename": "bangladesh",
       "left": 1814,
       "top": 2084,
       "width": 144,
-      "height": 216
+      "height": 216,
+      "desc": "Bangladesh är ett tätbefolkat land i Sydasien som till stor del utgörs av Ganges-Brahmaputras enorma floddeltan. Landet drabbas ofta av översvämningar under monsunperioden, men det bördiga deltats jord ger fantastiska skördar av ris och jute. Sundarbans, världens största mangroveskog, ligger delvis i Bangladesh och är hem för den bengaliska tigern.",
+      "imageAssociation": "En trasig toalettstol, när den gick sönder lät det BANG men du bara LADE undan locket och sa ÄSCH"
     },
     {
       "name": "Bhutan",
       "file": "countries/bhutan.webp",
+      "filename": "bhutan",
       "left": 1841,
       "top": 2022,
       "width": 106,
-      "height": 66
+      "height": 66,
+      "desc": "Bhutan är ett litet kungadöme i Himalaya som mäter sin framgång i \"Bruttonationallycka\" istället för BNP. Landet är det enda i världen som är koldioxidnegativt – dess skogar absorberar mer koldioxid än landet släpper ut. Bhutan höll sig isolerat från omvärlden fram till 1960-talet och fick TV först 1999.",
+      "imageAssociation": "BYTTAN som hönan gör sina behov i"
     },
     {
       "name": "Nepal",
       "file": "countries/nepal.webp",
+      "filename": "nepal",
       "left": 1580,
       "top": 1940,
       "width": 252,
-      "height": 162
+      "height": 162,
+      "desc": "Nepal är hem för Mount Everest, världens högsta berg med sina 8 849 meter, och åtta av världens fjorton berg över 8 000 meter ligger helt eller delvis i landet. Nepal har en unik flagga som är den enda i världen som inte är rektangulär – den består av två trianglar. Landet är också födelseplats för Siddharta Gautama, mer känd som Buddha.",
+      "imageAssociation": "En check som inte tas emot eftersom de bara tar PayPal (NEJ – PAL)"
     },
     {
       "name": "Afghanistan",
       "file": "countries/afghanistan.webp",
+      "filename": "afghanistan",
       "left": 1014,
       "top": 1634,
       "width": 436,
-      "height": 345
+      "height": 345,
+      "desc": "Afghanistan är ett bergigt inlandsland i Centralasien med Hindukush-bergskedjan som dominerar landskapet. Landet ligger vid den historiska Sidenvägen och har i tusentals år varit en korsning för handel och kulturer mellan öst och väst. Afghanistan är känt för sina vackra blå moskéer och den läckra maten, som mantou-dumplings och kabuli palaw.",
+      "imageAssociation": "Person från Afghanistan"
     },
     {
       "name": "Pakistan",
       "file": "countries/pakistan.webp",
+      "filename": "pakistan",
       "left": 1013,
       "top": 1691,
       "width": 528,
-      "height": 508
+      "height": 508,
+      "desc": "Pakistan är ett land i Sydasien med en otrolig geografisk variation, från Karakorumbergen i norr till Arabiska havets kust i söder. K2, världens näst högsta berg, ligger vid Pakistans gräns mot Kina och anses vara svårare att bestiga än Mount Everest. Induskulturen, en av världens äldsta civilisationer, hade sin hemvist i det område som idag är Pakistan.",
+      "imageAssociation": "Resväska som är överPACKAD"
     },
     {
       "name": "Tadzjikistan",
       "file": "countries/tadzjikistan.webp",
+      "filename": "tadzjikistan",
       "left": 1250,
       "top": 1540,
       "width": 220,
-      "height": 164
+      "height": 164,
+      "desc": "Tadzjikistan är ett bergigt inlandsland i Centralasien där över 90 procent av ytan täcks av berg. Landet har Pamirbergen, ibland kallade \"världens tak\", med toppar på över 7 000 meter. Tadzjikistan har också en av världens högsta dammar, Nurekdammen, som förser landet med vattenkraft.",
+      "imageAssociation": "TED GÄRDESTAD som flyger iväg i ett flygplan som skjuter ut ett moln av rök"
     },
     {
       "name": "Kirgizistan",
       "file": "countries/kirgizistan.webp",
+      "filename": "kirgizistan",
       "left": 1306,
       "top": 1458,
       "width": 338,
-      "height": 152
+      "height": 152,
+      "desc": "Kirgizistan är ett bergigt land i Centralasien där nomadkulturen fortfarande lever stark med jurtor och hästuppfödning. Issyk-Kul, världens näst största bergssjö, ligger i landet och fryser aldrig trots att den omges av snöklädda berg. Kirgizistan har en stark tradition av örnjakt, där jägare tränar stora örnar att jaga rävar och harar.",
+      "imageAssociation": "Städare som sopar spåren av KRIG I STAN under mattan"
     },
     {
       "name": "Iran",
       "file": "countries/iran.webp",
+      "filename": "iran",
       "left": 586,
       "top": 1578,
       "width": 490,
-      "height": 561
+      "height": 561,
+      "desc": "Iran, fordom känt som Persien, har en av världens äldsta civilisationer med en historia som sträcker sig över 7 000 år. Landet är känt för sin poetiska tradition med diktare som Hafez och Rumi, vars verk fortfarande läses över hela världen. Irans arkitektur, med sina fantastiska moskéer och trädgårdar, är bland de mest imponerande i Mellanöstern.",
+      "imageAssociation": "En person från Iran"
     },
     {
       "name": "Japan",
       "file": "countries/japan.webp",
+      "filename": "japan",
       "left": 3042,
       "top": 1378,
       "width": 430,
-      "height": 660
+      "height": 660,
+      "desc": "Japan är en önation bestående av nästan 7 000 öar och är känt för sin unika blandning av urgamla traditioner och ultramodern teknologi. Fuji-berget, Japans högsta berg och en aktiv vulkan, är en av landets mest ikoniska symboler. Japan är också hem för bullet-tåg, anime, sushi och körsbärsblomning – sakura – som firar våren varje år.",
+      "imageAssociation": "En vattenslang som ropar JA när den träffar dig i PANnan"
     },
     {
       "name": "Ryssland",
       "file": "countries/ryssland.webp",
+      "filename": "ryssland",
       "left": 402,
       "top": 0,
       "width": 3563,
-      "height": 1530
+      "height": 1530,
+      "desc": "Ryssland är världens till ytan största land och sträcker sig över elva tidszoner, från Europa till Stilla havet. Landet är hem för Bajkalsjön, världens djupaste sjö som innehåller ungefär 20 procent av allt ofruset sötvatten på jorden. Ryssland är känt för sin rika kulturhistoria med berömda författare som Tolstoj och Dostojevskij.",
+      "imageAssociation": "Ryska flaggan, världens till ytan största land"
     },
     {
       "name": "Nordkorea",
       "file": "countries/nordkorea.webp",
+      "filename": "nordkorea",
       "left": 2864,
       "top": 1465,
       "width": 163,
-      "height": 200
+      "height": 200,
+      "desc": "Nordkorea är ett av världens mest slutna länder och styrs av Kim-dynastin sedan 1948. Landet har en av världens mest befästa gränser mot Sydkorea, den demilitariserade zonen (DMZ). Trots isoleringen har Nordkorea en bergig och naturskön terräng med Paektuberget som landets högsta punkt och en viktig symbol i nordkoreansk kultur.",
+      "imageAssociation": "En KO på REA NORR om Sydkorea"
     },
     {
       "name": "Sydkorea",
       "file": "countries/sydkorea.webp",
+      "filename": "sydkorea",
       "left": 2935,
       "top": 1640,
       "width": 100,
-      "height": 156
+      "height": 156,
+      "desc": "Sydkorea har gått från att vara ett av Asiens fattigaste länder till en av världens mest avancerade ekonomier på bara några decennier. Landet är känt för K-pop, Samsung, Hyundai och den koreanska matkulturen med rätter som kimchi och bibimbap. Sydkorea har också en av världens snabbaste internetuppkopplingar och är en stormakt inom e-sport.",
+      "imageAssociation": "En KO på REA SYD om Nordkorea"
     },
     {
       "name": "Mongoliet",
       "file": "countries/mongoliet.webp",
+      "filename": "mongoliet",
       "left": 1846,
       "top": 1094,
       "width": 870,
-      "height": 426
+      "height": 426,
+      "desc": "Mongoliet är ett vidsträckt land känt för sina ändlösa stäpper och Gobiöknen, och det är ett av världens mest glesbefolkade länder. Det var härifrån Djingis Khan på 1200-talet byggde upp det största sammanhängande landimperiet i världshistorien. Nomadkulturen lever fortfarande kvar och många mongoler bor i traditionella jurtor, kallade ger.",
+      "imageAssociation": "Kille som kräks efter att ha ätit dålig MANGO"
     },
     {
       "name": "Maldiverna",
       "file": "countries/maldiverna.webp",
+      "filename": "maldiverna",
       "left": 1314,
       "top": 2776,
       "width": 80,
-      "height": 236
+      "height": 236,
+      "desc": "Maldiverna är en önation i Indiska oceanen bestående av cirka 1 200 korallatholler, varav bara runt 200 är bebodda. Det är världens lägst belägna land med en genomsnittlig höjd på bara 1,5 meter över havet, vilket gör det extra hotat av stigande havsnivåer. Maldiverna är världsberömda för sitt kristallklara vatten och sina lyxiga övervattenbungalower.",
+      "imageAssociation": "En dykare (DIVER på engelska) som dyker efter fiskarten MAL"
     },
     {
       "name": "Brunei",
       "file": "countries/brunei.webp",
+      "filename": "brunei",
       "left": 2616,
       "top": 2900,
       "width": 65,
-      "height": 48
+      "height": 48,
+      "desc": "Brunei är en liten men extremt rik sultanstat på ön Borneo, där oljan gjort sultanen till en av världens rikaste personer. Landet har inga inkomstskatter och medborgarna får fri sjukvård och utbildning. Omar Ali Saifuddien-moskén i huvudstaden Bandar Seri Begawan anses vara en av Asiens vackraste moskéer.",
+      "imageAssociation": "Ett BRUNT plåster på ena vingen"
     },
     {
       "name": "Kazakstan",
       "file": "countries/kazakstan.webp",
+      "filename": "kazakstan",
       "left": 750,
       "top": 988,
       "width": 1080,
-      "height": 572
+      "height": 572,
+      "desc": "Kazakstan är Centralasiens största land och världens nionde största till ytan, med vidsträckta stäpper och öknar. Cosmodromen i Bajkonur, varifrån Jurij Gagarin blev den första människan i rymden 1961, ligger i Kazakstan. Landet är också känt för sina rika naturtillgångar, inklusive olja, gas och uran.",
+      "imageAssociation": "Mästertjuv som försöker bryta sig in i ett KASSAvalv"
     },
     {
       "name": "Uzbekistan",
       "file": "countries/uzbekistan.webp",
+      "filename": "uzbekistan",
       "left": 941,
       "top": 1362,
       "width": 485,
-      "height": 324
+      "height": 324,
+      "desc": "Uzbekistan är ett land i Centralasien med legendariska Sidenväg-städer som Samarkand, Buchara och Khiva fulla av fantastisk islamisk arkitektur. Registan-torget i Samarkand med sina tre magnifika madrassor anses vara ett av världens vackraste torg. Uzbekistan är också världens sjätte största bomullsproducent.",
+      "imageAssociation": "Grävmaskin som gräver en BÄCK I STAN"
     },
     {
       "name": "Turkmenistan",
       "file": "countries/turkmenistan.webp",
+      "filename": "turkmenistan",
       "left": 824,
       "top": 1466,
       "width": 404,
-      "height": 294
+      "height": 294,
+      "desc": "Turkmenistan är ett centralasiatiskt land som till stor del täcks av Karakumöknen, en av världens största sandöknar. Landet är känt för \"Helvetets port\" – en gaskrater som brunnit oavbrutet sedan 1971 och lyser upp öknen på natten. Turkmenistan har också de berömda Achal-Tekkéhästarna, en av världens äldsta och vackraste hästraser.",
+      "imageAssociation": "En turkisk sultan som tar med sina män in i stan (TURKMÄN I STAN)"
     },
     {
       "name": "Georgien",
       "file": "countries/georgien.webp",
+      "filename": "georgien",
       "left": 486,
       "top": 1432,
       "width": 208,
-      "height": 104
+      "height": 104,
+      "desc": "Georgien ligger i Kaukasus vid gränsen mellan Europa och Asien och är ett av de äldsta vinproducerande länderna i världen, med en tradition som sträcker sig över 8 000 år. Landets dramatiska berglandskap med Kaukasusbergen gör det till ett populärt mål för vandrare och skidåkare. Georgien har ett unikt alfabet som inte liknar något annat skriftsystem i världen.",
+      "imageAssociation": "Läppar som pussar på någon som heter GEORGE"
     },
     {
       "name": "Azerbajdzjan",
       "file": "countries/azerbajdzjan.webp",
+      "filename": "azerbajdzjan",
       "left": 617,
       "top": 1500,
       "width": 184,
-      "height": 136
+      "height": 136,
+      "desc": "Azerbajdzjan är känt som \"Eldlandet\" på grund av sina naturliga gaslågor som brinner ur marken och har gjort det i tusentals år. Huvudstaden Baku vid Kaspiska havet har en spännande blandning av gammal stadskärna och futuristisk arkitektur, som de berömda Flame Towers. Landet har rika olje- och gastillgångar som gjort det till en viktig energiproducent i regionen.",
+      "imageAssociation": "En höna som tjuter när den får syn på soldaten som kallas Bad Jan: AAH, SER BAD JAN!"
     },
     {
       "name": "Armenien",
       "file": "countries/armenien.webp",
+      "filename": "armenien",
       "left": 591,
       "top": 1518,
       "width": 77,
-      "height": 100
+      "height": 100,
+      "desc": "Armenien var år 301 det första landet i världen att anta kristendomen som statsreligion och har en rik religiös arkitektur med urgamla kyrkor och kloster. Landet ligger i södra Kaukasus och har berget Ararat, som enligt traditionen är platsen där Noaks ark landade, som sin nationalsymbol – trots att berget idag ligger i Turkiet. Armenien är också känt för sin unika skrift som skapades av munken Mesrop Mashtots år 405.",
+      "imageAssociation": "En soldat som är med i ARMÉN"
     },
     {
       "name": "Irak",
       "file": "countries/irak.webp",
+      "filename": "irak",
       "left": 384,
       "top": 1669,
       "width": 266,
-      "height": 318
+      "height": 318,
+      "desc": "Irak ligger i Mesopotamien, \"området mellan floderna\" Tigris och Eufrat, där några av mänsklighetens allra första civilisationer uppstod. Här uppfanns skrivkonsten, hjulet och de första lagarna för över 5 000 år sedan. Iraks rika kulturarv inkluderar den forntida staden Babylon och dess hängande trädgårdar, som räknades som ett av antikens sju underverk.",
+      "imageAssociation": "Ett hjärtformat paket med parfym att hälla I RAKapparaten"
     },
     {
       "name": "Saudiarabien",
       "file": "countries/saudiarabien.webp",
+      "filename": "saudiarabien",
       "left": 230,
       "top": 1864,
       "width": 595,
-      "height": 598
+      "height": 598,
+      "desc": "Saudiarabien är Mellanösterns största land och hem för islams två heligaste städer, Mecka och Medina, dit miljontals muslimer vallfärdar varje år. Landet har världens största sammanhängande sandöken, Rub al-Khali (den Tomma fjärdedelen), och är en av världens största oljeproducenter. Saudiarabien genomgår just nu stora förändringar genom Vision 2030-programmet för att modernisera och diversifiera ekonomin.",
+      "imageAssociation": "En pergamentrulle skriven på ARABISKA av Eric SAADE"
     },
     {
       "name": "Jordanien",
       "file": "countries/jordanien.webp",
+      "filename": "jordanien",
       "left": 245,
       "top": 1820,
       "width": 147,
-      "height": 160
+      "height": 160,
+      "desc": "Jordanien är hem för den fantastiska klippstaden Petra, huggen direkt ur rosa sandsten för över 2 000 år sedan och ett av världens nya sju underverk. Döda havet, vid Jordaniens gräns mot Israel, är den lägsta platsen på jordens yta och så salt att man flyter utan ansträngning. Trots att Jordanien till stor del är öken har landet en rik historia och är känt för sin gästfrihet.",
+      "imageAssociation": "En spade som gräver i JORDEN"
     },
     {
       "name": "Libanon",
       "file": "countries/libanon.webp",
+      "filename": "libanon",
       "left": 281,
       "top": 1769,
       "width": 52,
-      "height": 60
+      "height": 60,
+      "desc": "Libanon är ett litet land vid Medelhavets östra kust som är känt för sin rika matkultur med rätter som hummus, tabbouleh och falafel. Landets cederträd, som pryder den libanesiska flaggan, har varit berömda sedan biblisk tid och användes för att bygga Salomos tempel. Trots sin lilla yta har Libanon både stränder och skidanläggningar i bergen.",
+      "imageAssociation": "LIMA-bönor att ha i LIBA-bröd"
     },
     {
       "name": "Syrien",
       "file": "countries/syrien.webp",
+      "filename": "syrien",
       "left": 291,
       "top": 1666,
       "width": 250,
-      "height": 198
+      "height": 198,
+      "desc": "Syrien har en av världens äldsta kontinuerligt bebodda städer – Damaskus – som har varit bebodd i över 11 000 år. Landet var en gång en viktig del av Sidenvägen och hem för rika handelsstäder som Aleppo med sin berömda citadellfästning. Syriens kulturarv inkluderar de imponerande ruinerna av Palmyra, en antik ökenstad som var ett viktigt handelscentrum.",
+      "imageAssociation": "En behållare med SYRA"
     },
     {
       "name": "Palestina",
       "file": "countries/palestina.webp",
+      "filename": "palestina",
       "left": 256,
       "top": 1847,
       "width": 33,
-      "height": 50
+      "height": 50,
+      "desc": "Palestina omfattar Västbanken och Gazaremsan och är ett område med djup historisk och religiös betydelse för judendom, kristendom och islam. Betlehem, som enligt traditionen är Jesu födelsestad, ligger på Västbanken och besöks av pilgrimer från hela världen. Olivodling har varit en central del av palestinsk kultur i tusentals år.",
+      "imageAssociation": "En PALL"
     },
     {
       "name": "Israel",
       "file": "countries/israel.webp",
+      "filename": "israel",
       "left": 232,
       "top": 1820,
       "width": 64,
-      "height": 146
+      "height": 146,
+      "desc": "Israel är ett litet land vid östra Medelhavet som är heligt för tre av världens stora religioner – judendom, kristendom och islam. Jerusalem, landets huvudstad enligt Israel, har den historiska Gamla staden med Västra muren, Heliga gravens kyrka och Klippmoskén. Trots sin lilla storlek är Israel världsledande inom teknologi och innovation, ofta kallat \"Startup Nation\".",
+      "imageAssociation": "En IShacka"
     },
     {
       "name": "Kuwait",
       "file": "countries/kuwait.webp",
+      "filename": "kuwait",
       "left": 588,
       "top": 1945,
       "width": 48,
-      "height": 64
+      "height": 64,
+      "desc": "Kuwait är en liten men oljerik stat vid Persiska vikens nordvästra kust och har ett av världens högsta BNP per capita. Kuwaittornen, landets mest ikoniska byggnadsverk, syns vida omkring och symboliserar landets moderna utveckling. Kuwait var det första landet i Persiska viken som inrättade ett folkvalt parlament redan 1963.",
+      "imageAssociation": "En flugsvamp, när du ska plocka den ropar jag kuWAIT!"
     },
     {
       "name": "Qatar",
       "file": "countries/qatar.webp",
+      "filename": "qatar",
       "left": 690,
       "top": 2100,
       "width": 27,
-      "height": 58
+      "height": 58,
+      "desc": "Qatar är en liten halvö i Persiska viken som tack vare sina enorma naturgasreserver blivit ett av världens rikaste länder per capita. Landet var värd för FIFA:s fotbolls-VM 2022, det första VM:et i Mellanöstern. Qatars huvudstad Doha har vuxit explosionsartat och är känt för sina futuristiska skyskrapor och det imponerande Museum of Islamic Art.",
+      "imageAssociation": "En KATT"
     },
     {
       "name": "Förenade Arabemiraten",
       "file": "countries/forenade_arabemiraten.webp",
+      "filename": "forenade_arabemiraten",
       "left": 710,
       "top": 2100,
       "width": 154,
-      "height": 128
+      "height": 128,
+      "desc": "Förenade Arabemiraten (UAE) är en federation av sju emirat vid Persiska viken, med Dubai och Abu Dhabi som de mest kända. Dubai är hem för Burj Khalifa, världens högsta byggnad med sina 828 meter, och är känt för sina spektakulära konstgjorda öar. UAE har på bara 50 år förvandlats från en ökenregion med fiske och pärldykning till en av världens mest moderna platser.",
+      "imageAssociation": "En fågel som äter upp folk på arabiska halvön och vill förena dem på sin tallrik (FÖRENAR ARABER I MATEN)"
     },
     {
       "name": "Oman",
       "file": "countries/oman.webp",
+      "filename": "oman",
       "left": 700,
       "top": 2140,
       "width": 253,
-      "height": 319
+      "height": 319,
+      "desc": "Oman är ett sultanat på Arabiska halvöns sydöstra hörn med en lång historia som sjöfartsnation och handelscentrum i Indiska oceanen. Landet har en varierad natur med dramatiska berg, öknar och en vacker kustlinje med turkost vatten. Oman är känt för sin rökelse, särskilt den dyrbara frankincensen som handlats härifrån i tusentals år.",
+      "imageAssociation": "En Oscarsstatyett som håller på att bli uppäten av en fågel och därför säger OH, MAN!"
     },
     {
       "name": "Jemen",
       "file": "countries/jemen.webp",
+      "filename": "jemen",
       "left": 400,
       "top": 2368,
       "width": 328,
-      "height": 240
+      "height": 240,
+      "desc": "Jemen ligger på Arabiska halvöns sydspets och har en rik historia som sträcker sig tillbaka till det forntida Sabas rike, känt från berättelsen om drottningen av Saba. Gamla staden i Sana'a, en av världens äldsta kontinuerligt bebodda städer, är känd för sina unika torn- och lerhus som ser ut som pepparkakshus. Jemen är också kaffets ursprungsland – det var härifrån som kaffebönorna först exporterades till resten av världen via hamnstaden Mokka.",
+      "imageAssociation": "Två pyramider vars ägare alltid hälsar varandra med frasen YEAH MAN!"
     }
   ],
   "mapWidth": 3925,

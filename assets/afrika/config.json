@@ -2,446 +2,614 @@
   "name": "Afrika",
   "canvasWidth": 4000,
   "canvasHeight": 3345,
+  "slug": "afrika",
+  "hsKey": "afrika-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Algeriet",
       "file": "countries/algeriet.webp",
+      "filename": "algeriet",
       "left": 924,
       "top": 130,
       "width": 812,
-      "height": 770
+      "height": 770,
+      "desc": "Algeriet är Afrikas största land till ytan och ligger i norra Afrika vid Medelhavet. Landet är till stor del täckt av Saharaöknen och har en rik historia med influenser från berbisk, arabisk och fransk kultur. Algeriet är känt för sina vackra kustområden och imponerande ökenlandskap.",
+      "imageAssociation": "En groda som sitter på en sten täckt med ALGER"
     },
     {
       "name": "Sao Tome & Principe",
       "file": "countries/sao_tome__principe.webp",
+      "filename": "sao_tome__principe",
       "left": 1374,
       "top": 1610,
       "width": 240,
-      "height": 150
+      "height": 150,
+      "desc": "São Tomé och Príncipe är Afrikas minsta land och består av två vulkaniska öar i Guineabukten. Landet var en gång världens största producent av kakao och har fortfarande fantastiska regnskogar. Det är ett av få afrikanska länder som aldrig haft ett inbördeskrig sedan självständigheten.",
+      "imageAssociation": "THOMAS Ravelli som kastar sig mot markören och lägger den rätt eftersom han har som PRINCIP att allt ska ligga rätt"
     },
     {
       "name": "Marocko",
       "file": "countries/marocko.webp",
+      "filename": "marocko",
       "left": 751,
       "top": 180,
       "width": 498,
-      "height": 353
+      "height": 353,
+      "desc": "Marocko ligger i nordvästra Afrika och är känt för sina färgglada marknader, kallade souker, och den berömda staden Marrakech. Landet har både Atlasbergen och Saharaöknen, och dess kultur är en spännande blandning av arabiska, berbiska och europeiska influenser. Marocko är också berömt för sitt mynt-te och sin fantastiska matlagning.",
+      "imageAssociation": "En dammsugare som råkar suga i sig en MARACAS"
     },
     {
       "name": "Västsahara",
       "file": "countries/vastsahara.webp",
+      "filename": "vastsahara",
       "left": 562,
       "top": 523,
       "width": 367,
-      "height": 274
+      "height": 274,
+      "desc": "Västsahara är ett omstritt område i nordvästra Afrika vid Atlantkusten som till stor del kontrolleras av Marocko. Landet är mestadels öken och har en mycket liten befolkning. Det sahariska folket kämpar fortfarande för självständighet, vilket gör det till en av världens sista olösta kolonialfrågor.",
+      "imageAssociation": "SAND som dammsugaren suger i sig (från västra Sahara)"
     },
     {
       "name": "Mauretanien",
       "file": "countries/mauretanien.webp",
+      "filename": "mauretanien",
       "left": 566,
       "top": 535,
       "width": 497,
-      "height": 544
+      "height": 544,
+      "desc": "Mauretanien ligger i västra Afrika och är till största delen täckt av Saharaöknen. Landet fungerar som en bro mellan arabiska Nordafrika och Västafrika söder om Sahara. Huvudstaden Nouakchott är en av de snabbast växande städerna i Afrika.",
+      "imageAssociation": "MAO Zedong som sitter i en tron och blir RETAD av en fågel"
     },
     {
       "name": "Mali",
       "file": "countries/mali.webp",
+      "filename": "mali",
       "left": 727,
       "top": 626,
       "width": 691,
-      "height": 650
+      "height": 650,
+      "desc": "Mali var en gång centrum för det mäktiga Maliriket och den legendariska staden Timbuktu, känd som ett centrum för lärande och handel. Floden Niger flyter genom landet och ger liv åt annars torra landskap. Mali är också känt för sin fantastiska musikscen och traditionsrika textilkonst.",
+      "imageAssociation": "En MAL"
     },
     {
       "name": "Gambia",
       "file": "countries/gambia.webp",
+      "filename": "gambia",
       "left": 549,
       "top": 1118,
       "width": 119,
-      "height": 27
+      "height": 27,
+      "desc": "Gambia är Afrikas minsta land på fastlandet och är en smal remsa som sträcker sig längs Gambiafloden, helt omgivet av Senegal. Trots sin lilla storlek är landet rikt på fågelliv och lockar ornitologer från hela världen. Gambiafloden är landets livsnerv och används för transport, fiske och jordbruk.",
+      "imageAssociation": "En mask som har stoppats undan av en GAM som heter BIA"
     },
     {
       "name": "Senegal",
       "file": "countries/senegal.webp",
+      "filename": "senegal",
       "left": 530,
       "top": 994,
       "width": 234,
-      "height": 196
+      "height": 196,
+      "desc": "Senegal ligger vid Afrikas västligaste punkt och är känt för sin livliga huvudstad Dakar och det berömda Rallyt Dakar. Landet har en rik musiktradition och artister som Youssou N'Dour har blivit världskända. Senegal anses vara ett av Västafrikas mest stabila och demokratiska länder.",
+      "imageAssociation": "En SÄNG med två som sover och väcks när tuppen GAL"
     },
     {
       "name": "Guinea",
       "file": "countries/guinea.webp",
+      "filename": "guinea",
       "left": 608,
       "top": 1166,
       "width": 304,
-      "height": 242
+      "height": 242,
+      "desc": "Guinea i Västafrika kallas ibland för Afrikas vattentorn eftersom flera av regionens stora floder har sina källor i landets bergiga terräng. Landet har enorma fyndigheter av bauxit, som används för att tillverka aluminium. Guineas rika natur inkluderar allt från mangroveskog vid kusten till savann i inlandet.",
+      "imageAssociation": "Ett marsvin (GUINEA PIG på engelska)"
     },
     {
       "name": "Guinea-Bissau",
       "file": "countries/guinea_bissau.webp",
+      "filename": "guinea_bissau",
       "left": 562,
       "top": 1160,
       "width": 109,
-      "height": 68
+      "height": 68,
+      "desc": "Guinea-Bissau är ett litet land i Västafrika med en kust full av öar och mangroveträsk. Bijagósöarna utanför kusten är ett UNESCO-biosfärreservat med unik natur och kultur. Landet var en portugisisk koloni och portugisiska är fortfarande det officiella språket.",
+      "imageAssociation": "Pizzor som levereras av marsvinet (GUINEA-PIZZA)"
     },
     {
       "name": "Sierra Leone",
       "file": "countries/sierra_leone.webp",
+      "filename": "sierra_leone",
       "left": 677,
       "top": 1282,
       "width": 128,
-      "height": 129
+      "height": 129,
+      "desc": "Sierra Leone ligger vid Västafrikas kust och har några av de vackraste stränderna i hela Afrika. Landets namn betyder \"Lejonbergen\" på portugisiska och gavs av en utforskare som tyckte att åskan i bergen lät som lejonbröl. Sierra Leone är också känt för sina diamantfyndigheter.",
+      "imageAssociation": "Ett lejon som frågar: \"Seriöst?\" (SERR? + LEJON)"
     },
     {
       "name": "Burkina Faso",
       "file": "countries/burkina_faso.webp",
+      "filename": "burkina_faso",
       "left": 998,
       "top": 1067,
       "width": 330,
-      "height": 244
+      "height": 244,
+      "desc": "Burkina Faso betyder \"de rättrådiga människornas land\" och ligger i hjärtat av Västafrika. Landet är värd för FESPACO, Afrikas största filmfestival, som hålls vartannat år i huvudstaden Ouagadougou. Trots att det är ett av världens fattigare länder har det en rik kultur med fantastisk musik och konsthantverk.",
+      "imageAssociation": "En BURK som det kommer FASOR ur"
     },
     {
       "name": "Elfenbenskusten",
       "file": "countries/elfenbenskusten.webp",
+      "filename": "elfenbenskusten",
       "left": 868,
       "top": 1251,
       "width": 257,
-      "height": 262
+      "height": 262,
+      "desc": "Elfenbenskusten är världens största producent av kakao, så om du äter choklad har den troligen kopplingar hit. Landet fick sitt namn från den elfenbenshandel som en gång bedrevs längs kusten. Den tidigare huvudstaden Abidjan är en av de största städerna i Västafrika och kallas ibland \"Västafrikas Paris\".",
+      "imageAssociation": "En ELEFANT"
     },
     {
       "name": "Liberia",
       "file": "countries/liberia.webp",
+      "filename": "liberia",
       "left": 749,
       "top": 1346,
       "width": 170,
-      "height": 169
+      "height": 169,
+      "desc": "Liberia grundades på 1800-talet av frigivna amerikanska slavar och landets namn kommer från det latinska ordet för frihet. Huvudstaden Monrovia är uppkallad efter USA:s president James Monroe. Liberia är ett av bara två afrikanska länder som aldrig koloniserades av en europeisk makt.",
+      "imageAssociation": "En tjej i en amerikansk sovsäck som viftar med en frihetsflagga, för LIBERTY (frihet på engelska)"
     },
     {
       "name": "Benin",
       "file": "countries/benin.webp",
+      "filename": "benin",
       "left": 1261,
       "top": 1184,
       "width": 132,
-      "height": 259
+      "height": 259,
+      "desc": "Benin i Västafrika är känt som voodooreligionens ursprungsland och varje år firas en stor voodoo-festival den 10 januari. Det mäktiga kungariket Dahomey, känt för sina kvinnliga krigare, låg i det som idag är Benin. Landet är smalt och sträcker sig långt inåt land från den korta kusten vid Guineabukten.",
+      "imageAssociation": "En kycklingklubba med BEN INuti"
     },
     {
       "name": "Togo",
       "file": "countries/togo.webp",
+      "filename": "togo",
       "left": 1225,
       "top": 1234,
       "width": 81,
-      "height": 216
+      "height": 216,
+      "desc": "Togo är ett av Afrikas smalaste länder och sträcker sig som en tunn remsa från kusten vid Guineabukten norrut. Landet har en varierad natur med stränder, kullar och savanner trots sin lilla storlek. Togos huvudstad Lomé är känd för sina livliga marknader, särskilt den stora marknaden som drivs nästan helt av kvinnor.",
+      "imageAssociation": "En TÅGräls"
     },
     {
       "name": "Ghana",
       "file": "countries/ghana.webp",
+      "filename": "ghana",
       "left": 1090,
       "top": 1236,
       "width": 181,
-      "height": 266
+      "height": 266,
+      "desc": "Ghana var det första landet söder om Sahara som blev självständigt från kolonialstyre, år 1957. Landet är världens näst största kakaoexportör och har den stora konstgjorda sjön Volta, en av världens största dammar. Ghana är också känt för sina färgglada kentetyger och sin livliga musikscen.",
+      "imageAssociation": "En grytlapp av GARN"
     },
     {
       "name": "Tchad",
       "file": "countries/tchad.webp",
+      "filename": "tchad",
       "left": 1790,
       "top": 710,
       "width": 438,
-      "height": 687
+      "height": 687,
+      "desc": "Tchad ligger mitt i Afrika och har sitt namn från Tchadsjön, som en gång var en av Afrikas största sjöar men har krympt dramatiskt. Landet har enormt varierad natur, från Saharaöknen i norr till tropisk savann i söder. I Ennediplån i norra Tchad finns fantastiska klippformationer och urgamla grottmålningar.",
+      "imageAssociation": "Regissören till filmen som håller upp handen och säger: TJA!"
     },
     {
       "name": "Kamerun",
       "file": "countries/kamerun.webp",
+      "filename": "kamerun",
       "left": 1581,
       "top": 1150,
       "width": 321,
-      "height": 492
+      "height": 492,
+      "desc": "Kamerun kallas ibland \"Afrika i miniatyr\" eftersom landet har nästan alla typer av afrikanska landskap: stränder, öknar, berg, regnskog och savann. Landets namn kommer från det portugisiska ordet för räkor, eftersom tidiga utforskare hittade massor av räkor i floderna. Kameruns fotbollslandslag \"De otämjbara lejonen\" är ett av Afrikas mest framgångsrika.",
+      "imageAssociation": "Vi KAMMAR RU från Nalle Puh"
     },
     {
       "name": "Nigeria",
       "file": "countries/nigeria.webp",
+      "filename": "nigeria",
       "left": 1331,
       "top": 1118,
       "width": 511,
-      "height": 408
+      "height": 408,
+      "desc": "Nigeria är Afrikas folkrikaste land med över 200 miljoner invånare och kallas ofta \"Afrikas jätte\". Landet har den största ekonomin i Afrika och Nollywood, Nigerias filmindustri, producerar fler filmer per år än Hollywood. Nigeria har över 250 olika etniska grupper och mer än 500 språk talas i landet.",
+      "imageAssociation": "Ballerina som NIGER och utropar: IA!"
     },
     {
       "name": "Niger",
       "file": "countries/niger.webp",
+      "filename": "niger",
       "left": 1237,
       "top": 703,
       "width": 663,
-      "height": 504
+      "height": 504,
+      "desc": "Niger är ett stort ökenland i Västafrika som till stor del täcks av Saharaöknen. Landet har fått sitt namn från Nigerfloden som rinner genom den sydvästra delen. I Agadez i norra Niger finns en av de äldsta lerbyggda moskéerna i världen och Ténéréöknen kallas ibland \"öknens öken\".",
+      "imageAssociation": "Filmkamera som filmar någon som NIGER"
     },
     {
       "name": "Libyen",
       "file": "countries/libyen.webp",
+      "filename": "libyen",
       "left": 1638,
       "top": 307,
       "width": 630,
-      "height": 576
+      "height": 576,
+      "desc": "Libyen ligger i norra Afrika och är till 90 procent täckt av öken, vilket gör det till ett av världens mest ökenbelagda länder. Under marken finns dock enorma grundvattenreserver och landet har byggt \"Den stora konstgjorda floden\", ett jätteprojekt med underjordiska rör. Libyen har också imponerande romerska ruiner vid Leptis Magna vid kusten.",
+      "imageAssociation": "Den LILLE som går från BYN med ryggsäck"
     },
     {
       "name": "Tunisien",
       "file": "countries/tunisien.webp",
+      "filename": "tunisien",
       "left": 1584,
       "top": 122,
       "width": 160,
-      "height": 304
+      "height": 304,
+      "desc": "Tunisien är Afrikas nordligaste land och här låg en gång det mäktiga Kartago som utmanade Romarriket. Landet har vackra medeltida medina-stadsdelar, ruiner från romartiden och ökenlandskap där Star Wars-filmerna spelades in. Tunisien var det första arabiska landet där den arabiska våren startade 2011.",
+      "imageAssociation": "En iskniv som skär genom TUNN IS"
     },
     {
       "name": "Egypten",
       "file": "countries/egypten.webp",
+      "filename": "egypten",
       "left": 2246,
       "top": 365,
       "width": 485,
-      "height": 413
+      "height": 413,
+      "desc": "Egypten är hem för en av världens äldsta civilisationer och de berömda pyramiderna i Giza, det enda av antikens sju underverk som fortfarande står kvar. Nilen, världens längsta flod, rinner genom landet och ger liv åt den annars torra öknen. Egypten är också känt för Suezkanalen, en av världens viktigaste handelsrutter.",
+      "imageAssociation": "PYRAMID under uppbyggnad"
     },
     {
       "name": "Sudan",
       "file": "countries/sudan.webp",
+      "filename": "sudan",
       "left": 2138,
       "top": 769,
       "width": 686,
-      "height": 578
+      "height": 578,
+      "desc": "Sudan ligger i nordöstra Afrika och är ett land där Vita Nilen och Blå Nilen möts i huvudstaden Khartoum. Landet har faktiskt fler pyramider än Egypten, med över 200 antika pyramider i Meroë. Sudan har en lång historia som sträcker sig tillbaka till det forntida kungariket Kush.",
+      "imageAssociation": "En SUR kille som heter DAN och inte kom med i filmen"
     },
     {
       "name": "Demokratiska Republiken Kongo",
       "file": "countries/demokratiska_republiken_kongo.webp",
+      "filename": "demokratiska_republiken_kongo",
       "left": 1734,
       "top": 1489,
       "width": 797,
-      "height": 804
+      "height": 804,
+      "desc": "Demokratiska Republiken Kongo är Afrikas näst största land och hem för Kongofloden, världens djupaste flod. Landet har världens näst största regnskog efter Amazonas och är den enda platsen där du kan hitta vilda bonobo-apor. DR Kongo är extremt rikt på mineraler, inklusive coltan som används i mobiltelefoner.",
+      "imageAssociation": "En häxa som slåss mot Donkey KONG, efteråt behöver båda en doktor (DR)"
     },
     {
       "name": "Sydsudan",
       "file": "countries/sydsudan.webp",
+      "filename": "sydsudan",
       "left": 2227,
       "top": 1197,
       "width": 498,
-      "height": 371
+      "height": 371,
+      "desc": "Sydsudan blev självständigt år 2011 och är därmed världens yngsta nation. Landet har ett av Afrikas största våtmarksområden, Sudd, som sväller enormt under regnperioden. Trots svåra utmaningar sedan självständigheten har landet en otroligt rik biologisk mångfald med stora populationer av antiloper.",
+      "imageAssociation": "SUDANs hund som SYR en picknickduk"
     },
     {
       "name": "Centralafrikanska Republiken",
       "file": "countries/centralafrikanska_republiken.webp",
+      "filename": "centralafrikanska_republiken",
       "left": 1824,
       "top": 1238,
       "width": 542,
-      "height": 364
+      "height": 364,
+      "desc": "Centralafrikanska Republiken ligger mitt i Afrika och har täta regnskogar i söder som är hem åt skogsgorillor och skogelefanter. Landet har ett av de mest kända naturreservaten för skogselefanter i Dzanga-Sangha. Trots rika naturtillgångar som diamanter och guld är det ett av världens minst utvecklade länder.",
+      "imageAssociation": "Någon som försöker borra sig in till CENTRALA AFRIKAs hjärta"
     },
     {
       "name": "Kenya",
       "file": "countries/kenya.webp",
+      "filename": "kenya",
       "left": 2637,
       "top": 1514,
       "width": 338,
-      "height": 413
+      "height": 413,
+      "desc": "Kenya i Östafrika är världsberömt för sina safarier i Masai Mara, där den stora gnuvandringen sker varje år. Landet är också hem för fantastiska långdistanslöpare som dominerat OS och världsmästerskap i årtionden. Mount Kenya är Afrikas näst högsta berg och landets namngivare.",
+      "imageAssociation": "En fågel som är nöjd eftersom den har ätit upp Barbies pojkvän Ken och erkänner det: KEN, JA!"
     },
     {
       "name": "Uganda",
       "file": "countries/uganda.webp",
+      "filename": "uganda",
       "left": 2458,
       "top": 1546,
       "width": 233,
-      "height": 231
+      "height": 231,
+      "desc": "Uganda kallas \"Afrikas pärla\" tack vare sin fantastiska natur med sjöar, vulkaner och frodiga gröna landskap. Landet är en av de bästa platserna i världen att se bergsgorillor i deras naturliga miljö. Victoriasjön, som delvis ligger i Uganda, är Afrikas största sjö och världens näst största sötvattensjö.",
+      "imageAssociation": "En get som egentligen är GANDALF som förvandlat sig"
     },
     {
       "name": "Eritrea",
       "file": "countries/eritrea.webp",
+      "filename": "eritrea",
       "left": 2741,
       "top": 965,
       "width": 272,
-      "height": 230
+      "height": 230,
+      "desc": "Eritrea ligger vid Röda havets kust i Afrikas horn och har en av de hetaste platserna på jorden i Danakil-fördjupningen. Huvudstaden Asmara har fantastisk italiensk art deco-arkitektur från kolonialtiden och är ett UNESCO-världsarv. Eritrea har nio olika erkända etniska grupper med var sitt språk.",
+      "imageAssociation": "En tratt som en löpare springer runt i, han får alltid brons och är därför EVIG TREA"
     },
     {
       "name": "Somalia",
       "file": "countries/somalia.webp",
+      "filename": "somalia",
       "left": 2930,
       "top": 1216,
       "width": 428,
-      "height": 582
+      "height": 582,
+      "desc": "Somalia har Afrikas längsta kustlinje och ligger på den östligaste spetsen av Afrika, i det som kallas \"Afrikas horn\". Landet har en rik tradition av poesi och muntligt berättande, och somaliska anses vara ett av världens mest poetiska språk. Somalia är också känt för sin unika blandning av afrikansk och arabisk kultur.",
+      "imageAssociation": "En blomma som blommar på SOMMAREN"
     },
     {
       "name": "Etiopien",
       "file": "countries/etiopien.webp",
+      "filename": "etiopien",
       "left": 2597,
       "top": 1090,
       "width": 630,
-      "height": 486
+      "height": 486,
+      "desc": "Etiopien är ett av världens äldsta länder och det enda afrikanska landet som aldrig koloniserades av en europeisk makt. Landet anses vara kaffets ursprungsland och har en egen kalender som ligger ungefär sju år efter den västerländska. Etiopien har också sin egen unika skrift, ge'ez, och den etiopisk-ortodoxa kyrkan är en av världens äldsta kristna kyrkor.",
+      "imageAssociation": "Någon som bär ANTILOPEN på ryggen"
     },
     {
       "name": "Djibouti",
       "file": "countries/djibouti.webp",
+      "filename": "djibouti",
       "left": 2962,
       "top": 1185,
       "width": 67,
-      "height": 76
+      "height": 76,
+      "desc": "Djibouti är ett av Afrikas minsta länder och ligger strategiskt vid Bab el-Mandeb-sundet, en av världens mest trafikerade sjöfartsleder. Landet har Assalsjön, en av de saltaste sjöarna i världen och Afrikas lägsta punkt. Trots sin lilla storlek har flera länder, inklusive USA och Frankrike, militärbaser här.",
+      "imageAssociation": "En DJ i en BÅT"
     },
     {
       "name": "Tanzania",
       "file": "countries/tanzania.webp",
+      "filename": "tanzania",
       "left": 2444,
       "top": 1759,
       "width": 462,
-      "height": 466
+      "height": 466,
+      "desc": "Tanzania är hem för Afrikas högsta berg, Kilimanjaro, och den berömda Serengetislätten där miljoner gnuer vandrar varje år. Zanzibar, en ö som tillhör Tanzania, är känd som \"Kryddön\" och var en gång centrum för kryddhandeln. Tanzania har också Ngorongorokratern, världens största intakta vulkankrater, som vimlar av vilda djur.",
+      "imageAssociation": "En man som DANSAR och vill att man ska NIA honom"
     },
     {
       "name": "Rwanda",
       "file": "countries/rwanda.webp",
+      "filename": "rwanda",
       "left": 2430,
       "top": 1768,
       "width": 85,
-      "height": 76
+      "height": 76,
+      "desc": "Rwanda kallas \"De tusen kullarnas land\" tack vare sitt kuperade landskap i hjärtat av Afrika. Landet har gjort en fantastisk återhämtning efter folkmordet 1994 och är idag ett av Afrikas renaste och mest organiserade länder. Rwanda är också en av de bästa platserna i världen att se utrotningshotade bergsgorillor.",
+      "imageAssociation": "Någon som kommit ut ur buren och tänker VANDRA genom Afrika"
     },
     {
       "name": "Burundi",
       "file": "countries/burundi.webp",
+      "filename": "burundi",
       "left": 2432,
       "top": 1814,
       "width": 79,
-      "height": 94
+      "height": 94,
+      "desc": "Burundi är ett av Afrikas minsta och mest tättbefolkade länder, beläget vid nordöstra hörnet av Tanganyikasjön. Trumspel är en viktig del av landets kultur och de kungliga trummorna, karyenda, är en nationalsymbol. Landets huvudstad Gitega ligger i det bergiga inlandet och ersatte nyligen Bujumbura som officiell huvudstad.",
+      "imageAssociation": "En BUR UNDER Rwanda"
     },
     {
       "name": "Zambia",
       "file": "countries/zambia.webp",
+      "filename": "zambia",
       "left": 2137,
       "top": 2065,
       "width": 487,
-      "height": 434
+      "height": 434,
+      "desc": "Zambia är hem för Victoriafallen, ett av världens mest spektakulära vattenfall som lokalt kallas \"Mosi-oa-Tunya\" (\"röken som dundrar\"). Landet har enorma nationalparker med elefanter, lejon och flodhästar, och South Luangwa-dalen är en av Afrikas bästa safariplatser. Zambia fick sitt namn från Zambezifloden som rinner genom landet.",
+      "imageAssociation": "SAM och BIA som hånglar (eller dansar SAMBA)"
     },
     {
       "name": "Malawi",
       "file": "countries/malawi.webp",
+      "filename": "malawi",
       "left": 2580,
       "top": 2122,
       "width": 137,
-      "height": 330
+      "height": 330,
+      "desc": "Malawi kallas \"Det varma hjärtats land\" på grund av sina vänliga invånare. Malawisjön, som täcker nästan en tredjedel av landet, har fler fiskarter än någon annan sjö i världen. Landet är smalt och långsträckt och domineras av den stora Rift Valley-sjön som är perfekt för snorkling och dykning.",
+      "imageAssociation": "Någon som vill MALA något i Malawi-sjön"
     },
     {
       "name": "Mocambique",
       "file": "countries/mocambique.webp",
+      "filename": "mocambique",
       "left": 2474,
       "top": 2170,
       "width": 442,
-      "height": 705
+      "height": 705,
+      "desc": "Mocambique har en lång kustlinje vid Indiska oceanen med fantastiska korallrev och tropiska öar. Landet var en portugisisk koloni och portugisiska är fortfarande det officiella språket. Mocambiques flagga är unik i världen eftersom den visar ett AK-47-gevär, som symboliserar kampen för självständighet.",
+      "imageAssociation": "En varelse som MOSAR en BIC-penna mot Tanzania-dansarens fot"
     },
     {
       "name": "Madagaskar",
       "file": "countries/madagaskar.webp",
+      "filename": "madagaskar",
       "left": 2991,
       "top": 2242,
       "width": 330,
-      "height": 576
+      "height": 576,
+      "desc": "Madagaskar är världens fjärde största ö och hem för tusentals djur- och växtarter som inte finns någon annanstans på jorden, som lemurer och baobabträd. Ön bröt sig loss från Afrikas fastland för cirka 160 miljoner år sedan, vilket gav naturen chans att utvecklas helt unikt. Madagaskar har sex olika klimatzoner, från regnskog till halvöken.",
+      "imageAssociation": "En kille som DASKAR med sin MAGE"
     },
     {
       "name": "Angola",
       "file": "countries/angola.webp",
+      "filename": "angola",
       "left": 1718,
       "top": 1907,
       "width": 510,
-      "height": 582
+      "height": 582,
+      "desc": "Angola är ett av Afrikas oljerikaste länder och ligger vid sydvästra Afrikas kust. Landet har en otroligt varierad natur med regnskog, savanner och till och med en öken i söder. Angola är också känt för sin semba-musik som påverkade utvecklingen av brasiliansk samba, tack vare de historiska banden mellan länderna.",
+      "imageAssociation": "En ANGORA-katt"
     },
     {
       "name": "Kongo-Brazaville",
       "file": "countries/kongo_brazaville.webp",
+      "filename": "kongo_brazaville",
       "left": 1686,
       "top": 1555,
       "width": 318,
-      "height": 380
+      "height": 380,
+      "desc": "Kongo-Brazzaville, officiellt Republiken Kongo, är det mindre av de två Kongo-länderna och gränsar till sin större namne. Huvudstaden Brazzaville och Kinshasa (i DR Kongo) ligger mitt emot varandra vid Kongofloden och är världens närmaste huvudstäder. Stora delar av landet täcks av tät tropisk regnskog.",
+      "imageAssociation": "Någon som slår på BONGO-trummor men helst VILLE tända en BRASA"
     },
     {
       "name": "Gabon",
       "file": "countries/gabon.webp",
+      "filename": "gabon",
       "left": 1594,
       "top": 1616,
       "width": 238,
-      "height": 265
+      "height": 265,
+      "desc": "Gabon ligger vid ekvatorn i Centralafrika och nästan 90 procent av landet täcks av tropisk regnskog. Landet har 13 nationalparker och är hem för stora populationer av skogelefanter, gorillor och schimpanser. Gabon är ett av Afrikas rikare länder tack vare sina olje- och manganfyndigheter.",
+      "imageAssociation": "Ett spöke som GÅR på BEN"
     },
     {
       "name": "Ekvatorialguinea",
       "file": "countries/ekvatorialguinea.webp",
+      "filename": "ekvatorialguinea",
       "left": 1620,
       "top": 1615,
       "width": 79,
-      "height": 59
+      "height": 59,
+      "desc": "Ekvatorialguinea är det enda landet i Afrika där spanska är officiellt språk, ett arv från den spanska kolonialtiden. Landet består av en fastlandsdel och flera öar, och trots sin lilla storlek är det en av Afrikas största oljeproducenter. Ön Bioko har en unik natur med vulkaner och sällsynta primater.",
+      "imageAssociation": "En markör som GUINEA har satt ut nära EKVATORN"
     },
     {
       "name": "Namibia",
       "file": "countries/namibia.webp",
+      "filename": "namibia",
       "left": 1714,
       "top": 2440,
       "width": 556,
-      "height": 522
+      "height": 522,
+      "desc": "Namibia har några av världens mest spektakulära ökenlandskap, med de enorma sanddynerna i Sossusvlei som kan bli över 300 meter höga. Namiböknen anses vara världens äldsta öken, cirka 55 miljoner år gammal. Landet har också Etosha-nationalparken, en av Afrikas bästa platser för att se vilda djur.",
+      "imageAssociation": "En kameleont som balanserar på sin svans och fångar en fluga med tungan, NAM-NAM-NAM"
     },
     {
       "name": "Zimbabwe",
       "file": "countries/zimbabwe.webp",
+      "filename": "zimbabwe",
       "left": 2270,
       "top": 2386,
       "width": 323,
-      "height": 298
+      "height": 298,
+      "desc": "Zimbabwe fick sitt namn från Great Zimbabwe, imponerande stenruiner från en forntida civilisation som byggdes utan murbruk. Landet delar Victoriafallen med Zambia och har fantastiska nationalparker med \"de fem stora\" djuren. Zimbabwe är också känt för sina Balancing Rocks, naturliga stenformationer som ser ut att trotsa gravitationen.",
+      "imageAssociation": "Aladdin som är ledsen för att Lejonkungen blev en större succé: SIMBA, BUÄÄÄ!"
     },
     {
       "name": "Botswana",
       "file": "countries/botswana.webp",
+      "filename": "botswana",
       "left": 2053,
       "top": 2476,
       "width": 374,
-      "height": 396
+      "height": 396,
+      "desc": "Botswana är hem för Okavangodeltaat, ett unikt inlandsflodsdelta i Kalahariöknen som vimlar av vilda djur. Landet har en av Afrikas mest framgångsrika ekonomier och är världens största producent av diamanter. Botswana är också känt för sin fantastiska viltvård och stora populationer av elefanter.",
+      "imageAssociation": "En person som håller i två BOOTS"
     },
     {
       "name": "Sydafrika",
       "file": "countries/sydafrika.webp",
+      "filename": "sydafrika",
       "left": 1920,
       "top": 2668,
       "width": 650,
-      "height": 537
+      "height": 537,
+      "desc": "Sydafrika kallas \"Regnbågsnationen\" och är känt för sin mångfald med hela elva officiella språk. Landet har tre huvudstäder: Pretoria (administration), Kapstaden (lagstiftning) och Bloemfontein (rättsväsende). Nelson Mandela, som satt fängslad i 27 år, blev landets första demokratiskt valde president 1994 och är en symbol för frihet världen över.",
+      "imageAssociation": "En giraff och landet längst i SYD i AFRIKA"
     },
     {
       "name": "Swaziland",
       "file": "countries/swaziland.webp",
+      "filename": "swaziland",
       "left": 2489,
       "top": 2825,
       "width": 54,
-      "height": 67
+      "height": 67,
+      "desc": "Swaziland, numera officiellt kallat Eswatini, är en av Afrikas sista absoluta monarkier där kungen har stor makt. Landet är ett av världens minsta och är nästan helt omgivet av Sydafrika. Varje år hålls den spektakulära Reed Dance-festivalen där tusentals unga kvinnor dansar för kungen.",
+      "imageAssociation": "Den andra näsborren på giraffen, som det ÄR SVART INNE I"
     },
     {
       "name": "Seychellerna",
       "file": "countries/seychellerna.webp",
+      "filename": "seychellerna",
       "left": 3385,
       "top": 1889,
       "width": 215,
-      "height": 182
+      "height": 182,
+      "desc": "Seychellerna är en ögrupp i Indiska oceanen med 115 öar och har några av världens mest fotograferade stränder. Landet har den berömda coco de mer-palmen vars nötter är världens största frön och kan väga upp till 25 kilo. Seychellerna har Afrikas högsta BNP per capita och är känt som ett lyxigt resmål.",
+      "imageAssociation": "Ett halsband av havssnäckskal (SEA SHELLS) som magdaskaren har gjort och hängt ovanför"
     },
     {
       "name": "Komorerna",
       "file": "countries/komorerna.webp",
+      "filename": "komorerna",
       "left": 2863,
       "top": 2090,
       "width": 318,
-      "height": 282
+      "height": 282,
+      "desc": "Komorerna är en vulkanisk ögrupp mellan Madagaskar och Afrikas fastland i Indiska oceanen. Landet kallas \"Parfymöarna\" eftersom det är en stor producent av ylang-ylang, en blomma som används i lyxiga parfymer. Komorerna har en fascinerande blandning av afrikansk, arabisk, fransk och madagaskisk kultur.",
+      "imageAssociation": "KOR som lämnar fastlandet av längtan efter mer (MORE på engelska)"
     },
     {
       "name": "Mauritius",
       "file": "countries/mauritius.webp",
+      "filename": "mauritius",
       "left": 3522,
       "top": 2537,
       "width": 128,
-      "height": 93
+      "height": 93,
+      "desc": "Mauritius är en tropisk ö i Indiska oceanen känd för sina kristallklara vatten, korallrev och lyxiga stränder. Ön var hem för den utdöda dodo-fågeln, som blev ett symbol för utrotade arter världen över. Mauritius har en unik blandning av indisk, kinesisk, kreolsk och europeisk kultur som skapar ett fascinerande samhälle.",
+      "imageAssociation": "Mustiga MAURI som försöker intervjua magdaskaren"
     },
     {
       "name": "Kap Verde",
       "file": "countries/kap_verde.webp",
+      "filename": "kap_verde",
       "left": 138,
       "top": 898,
       "width": 198,
-      "height": 210
+      "height": 210,
+      "desc": "Kap Verde är en ögrupp i Atlanten utanför Västafrikas kust med tio vulkaniska öar, varav nio är bebodda. Öarna har en unik kreolsk kultur som blandar afrikanska och portugisiska traditioner, och musikstilen morna kallas ibland \"Atlantens blues\". Fler kapverdianer bor utomlands än i själva landet, och diasporans pengar är viktiga för ekonomin.",
+      "imageAssociation": "Ett skeppsvrak med stort KAP-VÄRDE"
     },
     {
       "name": "Lesotho",
       "file": "countries/lesotho.webp",
+      "filename": "lesotho",
       "left": 2333,
       "top": 2942,
       "width": 95,
-      "height": 91
+      "height": 91,
+      "desc": "Lesotho är unikt eftersom hela landet ligger på över 1000 meters höjd, vilket gör det till det land i världen med den högsta lägsta punkten. Det kallas \"Kungariket i himlen\" och är helt omringat av Sydafrika. Lesotho är ett av få ställen i Afrika där det snöar regelbundet, och landet har till och med en skidanläggning.",
+      "imageAssociation": "Min kusin Otto som läser en bok (LÄS-OTTO)"
     }
   ],
   "mapWidth": 3550,

@@ -2,6 +2,9 @@
   "name": "USA",
   "canvasWidth": 4000,
   "canvasHeight": 2571,
+  "slug": "usa",
+  "hsKey": "usa-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Kalifornien",
@@ -9,7 +12,10 @@
       "left": 81,
       "top": 671,
       "width": 596,
-      "height": 1013
+      "height": 1013,
+      "filename": "kalifornien",
+      "desc": "Kalifornien är USA:s mest folkrika delstat och ligger längs Stillahavskusten. Delstaten är känd för Hollywood, Silicon Valley och sina fantastiska nationalparker som Yosemite. Kalifornien har ett varmt medelhavsklimat och producerar en stor del av USA:s frukt och grönsaker.",
+      "imageAssociation": "Strand med KALLE Anka"
     },
     {
       "name": "Nevada",
@@ -17,7 +23,10 @@
       "left": 348,
       "top": 751,
       "width": 467,
-      "height": 725
+      "height": 725,
+      "filename": "nevada",
+      "desc": "Nevada ligger i västra USA och är mest känt för Las Vegas, världens underhållningshuvudstad. Delstaten är till stor del öken och är en av de torraste i hela landet. Nevadas namn kommer från spanska och betyder \"snötäckt\", efter Sierra Nevada-bergen.",
+      "imageAssociation": "Någon som vadar. \"Ska du bada?\" \"NÄ, VADA!\""
     },
     {
       "name": "Oregon",
@@ -25,7 +34,10 @@
       "left": 96,
       "top": 305,
       "width": 625,
-      "height": 499
+      "height": 499,
+      "filename": "oregon",
+      "desc": "Oregon ligger i nordvästra USA och är känt för sina gröna skogar, dramatiska kustlinje och vulkanen Mount Hood. Delstaten har en stark miljökultur och staden Portland är berömd för sin cykelkultur och sina food trucks. Oregon är en av få delstater utan moms.",
+      "imageAssociation": "En val som fått smak på OREGANO"
     },
     {
       "name": "Washington",
@@ -33,7 +45,10 @@
       "left": 228,
       "top": 79,
       "width": 527,
-      "height": 369
+      "height": 369,
+      "filename": "washington",
+      "desc": "Washington ligger längst upp i nordvästra USA och är hem för teknikjättar som Microsoft och Amazon. Delstaten är känd för sina regniga vintrar, städsegröna skogar och det ikoniska berget Mount Rainier. Seattle, delstatens största stad, är också känd för sin kaffekultur och Space Needle.",
+      "imageAssociation": "Någon som tvättar ett ton tvätt. (WASH A TON.)"
     },
     {
       "name": "Idaho",
@@ -41,7 +56,10 @@
       "left": 610,
       "top": 171,
       "width": 439,
-      "height": 711
+      "height": 711,
+      "filename": "idaho",
+      "desc": "Idaho ligger i nordvästra USA och kallas \"The Gem State\" på grund av sina rika mineralfyndigheter. Delstaten är mest känd för sina potatisar och producerar ungefär en tredjedel av alla potatisar i USA. Idaho har också fantastiska bergslandskap och populära skidorter som Sun Valley.",
+      "imageAssociation": "IDA som diskar i sin disk-HO"
     },
     {
       "name": "Montana",
@@ -49,7 +67,10 @@
       "left": 787,
       "top": 183,
       "width": 751,
-      "height": 479
+      "height": 479,
+      "filename": "montana",
+      "desc": "Montana är en stor delstat i nordvästra USA känd för sina vidsträckta prärier och majestätiska Klippiga bergen. Glacier National Park, med sina glaciärer och kristallklara sjöar, är en av delstatens största attraktioner. Montana kallas \"Big Sky Country\" på grund av sina enorma, öppna himlar.",
+      "imageAssociation": "Annas ansikte uthugget ur ett berg = MOUNT ANNA"
     },
     {
       "name": "Wyoming",
@@ -57,7 +78,10 @@
       "left": 997,
       "top": 602,
       "width": 515,
-      "height": 428
+      "height": 428,
+      "filename": "wyoming",
+      "desc": "Wyoming är USA:s minst befolkade delstat och hem för den berömda Yellowstone nationalpark, världens första nationalpark. Delstaten har dramatiska landskap med gejsrar, varma källor och vilda djur som bisonoxar och grizzlybjörnar. Wyoming var den första delstaten att ge kvinnor rösträtt 1869.",
+      "imageAssociation": "WHY? Frågar du dig när du går in i krukaffären, men sedan får du syn på en Ming-vas och säger \"OH! MING!\""
     },
     {
       "name": "Utah",
@@ -65,7 +89,10 @@
       "left": 724,
       "top": 841,
       "width": 414,
-      "height": 520
+      "height": 520,
+      "filename": "utah",
+      "desc": "Utah ligger i västra USA och är känt för sina spektakulära röda klippformationer och fem nationalparker. Salt Lake City, delstatens huvudstad, var värd för vinter-OS 2002 och ligger nära den berömda Stora Saltsjön. Utah är också centrum för Jesu Kristi Kyrka av Sista Dagars Heliga.",
+      "imageAssociation": "Kruka UTAN ett hörn"
     },
     {
       "name": "Colorado",
@@ -73,7 +100,10 @@
       "left": 1083,
       "top": 986,
       "width": 535,
-      "height": 427
+      "height": 427,
+      "filename": "colorado",
+      "desc": "Colorado ligger i Klippiga bergen och har mer än 50 bergstoppar över 4 000 meter. Delstaten är ett paradis för skidåkare med världsberömda orter som Aspen och Vail. Denver, huvudstaden, kallas \"Mile High City\" eftersom den ligger exakt en mile (1 609 meter) över havet.",
+      "imageAssociation": "Kruka med rader av färg, COLOR-RADER"
     },
     {
       "name": "Oklahoma",
@@ -81,7 +111,10 @@
       "left": 1516,
       "top": 1397,
       "width": 634,
-      "height": 332
+      "height": 332,
+      "filename": "oklahoma",
+      "desc": "Oklahoma ligger i södra centrala USA och är känt som ett centrum för ursprungsamerikansk kultur. Delstaten ligger i \"Tornado Alley\" och drabbas ofta av kraftiga tornados. Oklahoma har också en rik oljehistoria och blev delstat först 1907 som den 46:e delstaten.",
+      "imageAssociation": "Ankans ben och ankfötter med sandaler gjorde av ek och lama-hud, av märket OAK LLAMA"
     },
     {
       "name": "Kansas",
@@ -89,7 +122,10 @@
       "left": 1592,
       "top": 1126,
       "width": 541,
-      "height": 302
+      "height": 302,
+      "filename": "kansas",
+      "desc": "Kansas ligger mitt i USA och är en av landets plattaste delstater med oändliga vetefält. Delstaten kallas \"The Sunflower State\" och är USA:s största veteproducent. Kansas är också känt från filmen \"Trollkarlen från Oz\" där Dorothy drömmer sig bort från sitt hem i Kansas.",
+      "imageAssociation": "Svensk flygbiljett. Ankan flyger skandinaviskt för att han KAN SAS"
     },
     {
       "name": "Nebraska",
@@ -97,7 +133,10 @@
       "left": 1474,
       "top": 839,
       "width": 608,
-      "height": 307
+      "height": 307,
+      "filename": "nebraska",
+      "desc": "Nebraska ligger i centrala USA och är känt för sina vidsträckta slätter och jordbruk. Delstaten är en av USA:s största producenter av nötkött och majs. Chimney Rock, en berömd klippformation, var ett viktigt landmärke för pionjärerna på Oregon Trail.",
+      "imageAssociation": "Ankans ansikte med NÄBB som ber dig att RASKA på"
     },
     {
       "name": "South Dakota",
@@ -105,7 +144,10 @@
       "left": 1489,
       "top": 570,
       "width": 519,
-      "height": 333
+      "height": 333,
+      "filename": "south_dakota",
+      "desc": "South Dakota är berömt för Mount Rushmore, där fyra presidenters ansikten är uthuggna i berget. Delstaten har också Badlands National Park med sina dramatiska, eroderade klippformationer. Crazy Horse Memorial, ett enormt berg som håller på att huggas ut, hedrar ursprungsamerikanernas historia.",
+      "imageAssociation": "Södra delen av ankans hätta, SÖDRA DUCK-HÄTTAN"
     },
     {
       "name": "North Dakota",
@@ -113,7 +155,10 @@
       "left": 1505,
       "top": 293,
       "width": 491,
-      "height": 306
+      "height": 306,
+      "filename": "north_dakota",
+      "desc": "North Dakota ligger i norra centrala USA och har kalla vintrar med temperaturer långt under noll. Delstaten har blivit en stor oljeproducent tack vare Bakken-formationen och är också en av USA:s största veteproducenter. Theodore Roosevelt National Park visar upp de vackra badlandslandskapen.",
+      "imageAssociation": "Norra delen av ankans hätta, NORRA DUCK-HÄTTAN"
     },
     {
       "name": "Louisiana",
@@ -121,7 +166,10 @@
       "left": 2178,
       "top": 1772,
       "width": 416,
-      "height": 385
+      "height": 385,
+      "filename": "louisiana",
+      "desc": "Louisiana ligger i södra USA och är känt för sin unika kreolska och cajunska kultur. New Orleans, delstatens mest kända stad, är jazzmusikens födelseort och hem för den berömda Mardi Gras-festivalen. Louisianas träskmarker och bayous är hem för alligatorer och en rik ekologi.",
+      "imageAssociation": "Kockens fot där en lus med en liten LUS-HJÄRNA hoppar mellan tårna"
     },
     {
       "name": "Mississippi",
@@ -129,7 +177,10 @@
       "left": 2375,
       "top": 1574,
       "width": 266,
-      "height": 460
+      "height": 460,
+      "filename": "mississippi",
+      "desc": "Mississippi ligger i sydöstra USA och är uppkallad efter den mäktiga Mississippifloden som bildar delstatens västra gräns. Delstaten är bluesmusikens vagga och Mississippideltat är känt som \"The Birthplace of the Blues\". Mississippi har ett varmt och fuktigt subtropiskt klimat.",
+      "imageAssociation": "Fröken (MISS) PIPPI Långstrump som Simpsons-figur"
     },
     {
       "name": "Alabama",
@@ -137,7 +188,10 @@
       "left": 2610,
       "top": 1555,
       "width": 287,
-      "height": 463
+      "height": 463,
+      "filename": "alabama",
+      "desc": "Alabama ligger i sydöstra USA och spelade en central roll i den amerikanska medborgarrättsrörelsen. Montgomery, delstatens huvudstad, var där Rosa Parks vägrade ge upp sin bussplats 1955. Alabama är också känt för sitt rymdcenter i Huntsville där NASA utvecklade Saturn V-raketen.",
+      "imageAssociation": "Tidigare vicepresidenten AL Gore som pratar med OBAMA"
     },
     {
       "name": "Georgia",
@@ -145,7 +199,10 @@
       "left": 2800,
       "top": 1536,
       "width": 405,
-      "height": 417
+      "height": 417,
+      "filename": "georgia",
+      "desc": "Georgia ligger i sydöstra USA och dess huvudstad Atlanta är en av söderns största och viktigaste städer. Delstaten är känd som \"The Peach State\" för sin persikooproduktion och är födelseplatsen för Martin Luther King Jr. Coca-Cola grundades i Atlanta 1886.",
+      "imageAssociation": "En brittisk kung GEORGE på en tron"
     },
     {
       "name": "Florida",
@@ -153,7 +210,10 @@
       "left": 2681,
       "top": 1901,
       "width": 701,
-      "height": 581
+      "height": 581,
+      "filename": "florida",
+      "desc": "Florida är en halvö i sydöstra USA känd för sitt varma tropiska klimat och sina stränder. Delstaten är hem för Walt Disney World, Kennedy Space Center och Everglades nationalpark med sina unika våtmarker. Florida kallas \"The Sunshine State\" och är en av USA:s mest besökta delstater.",
+      "imageAssociation": "En krokodil som gömmer sig på golvet (on the FLOOR)"
     },
     {
       "name": "Alaska",
@@ -161,7 +221,10 @@
       "left": 53,
       "top": 1868,
       "width": 905,
-      "height": 703
+      "height": 703,
+      "filename": "alaska",
+      "desc": "Alaska är USA:s största delstat till ytan men en av de minst befolkade. Delstaten köptes från Ryssland 1867 och är hem för Nordamerikas högsta berg, Denali (6 190 meter). Alaska har midnattssol på sommaren, norrsken på vintern och en otrolig vildmark med björnar, valar och glaciärer.",
+      "imageAssociation": "Maffiabossen AL Capone som fimpar ASKA i en askkopp"
     },
     {
       "name": "Hawaii",
@@ -169,7 +232,10 @@
       "left": 1003,
       "top": 2191,
       "width": 501,
-      "height": 309
+      "height": 309,
+      "filename": "hawaii",
+      "desc": "Hawaii är en ögrupp mitt i Stilla havet och USA:s enda delstat som helt består av öar. Delstaten är känd för sina vulkaner, tropiska stränder och unika kultur med influenser från Polynesien. Hawaii blev USA:s 50:e och senaste delstat 1959.",
+      "imageAssociation": "En HAJ i Stilla havet"
     },
     {
       "name": "Arizona",
@@ -177,7 +243,10 @@
       "left": 593,
       "top": 1295,
       "width": 501,
-      "height": 585
+      "height": 585,
+      "filename": "arizona",
+      "desc": "Arizona ligger i sydvästra USA och är mest känt för Grand Canyon, en av världens mest spektakulära naturunder. Delstaten har ett torrt ökenklimat och är hem för Sonoraöknen med sina ikoniska saguarokaktusar. Arizona har också en rik ursprungsamerikansk historia med Navajonationen.",
+      "imageAssociation": "Noshörningen ÄR delvis I ZON A"
     },
     {
       "name": "New Mexico",
@@ -185,7 +254,10 @@
       "left": 1016,
       "top": 1347,
       "width": 515,
-      "height": 538
+      "height": 538,
+      "filename": "new_mexico",
+      "desc": "New Mexico ligger i sydvästra USA och kallas \"Land of Enchantment\" för sina magiska landskap. Delstaten har en unik blandning av ursprungsamerikansk, spansk och mexikansk kultur. Santa Fe, delstatens huvudstad, är USA:s äldsta huvudstad och känd för sin adobe-arkitektur.",
+      "imageAssociation": "Skatteindrivaren ska bilda en ny stat, NEW MEXICO, med skattepengarna och håller därför i en ny version av Mexikos flagga"
     },
     {
       "name": "Texas",
@@ -193,7 +265,10 @@
       "left": 1211,
       "top": 1446,
       "width": 1026,
-      "height": 1005
+      "height": 1005,
+      "filename": "texas",
+      "desc": "Texas är USA:s näst största delstat och känt för sina cowboys, rancher och oljeriggar. Delstaten var en självständig republik innan den gick med i USA 1845 och har en stolt egen identitet. Texas har allt från öknar till stränder och städer som Houston, Dallas och Austin.",
+      "imageAssociation": "En mustaschprydd man som samlar in skatter, TAXES"
     },
     {
       "name": "Maine",
@@ -201,7 +276,10 @@
       "left": 3619,
       "top": 202,
       "width": 281,
-      "height": 445
+      "height": 445,
+      "filename": "maine",
+      "desc": "Maine är den nordostligaste delstaten i USA och känd för sin dramatiska klippkust och sina hummer. Acadia National Park är en av de mest besökta nationalparkerna på östkusten. Maine kallas \"The Pine Tree State\" och har stora skogar som täcker nästan 90% av delstatens yta.",
+      "imageAssociation": "En man som gör en lustig MIN, alternativt är the MAIN gatekeeper när man kommer till USA"
     },
     {
       "name": "New Hampshire",
@@ -209,7 +287,10 @@
       "left": 3579,
       "top": 440,
       "width": 123,
-      "height": 256
+      "height": 256,
+      "filename": "new_hampshire",
+      "desc": "New Hampshire ligger i New England i nordöstra USA och är känt för sina berg och höstfärger. Delstaten har inga statliga inkomst- eller försäljningsskatter, vilket gör den unik bland delstaterna. Mount Washington i New Hampshire är känt för att ha notera det snabbaste vindbytte.",
+      "imageAssociation": "En NY-KÄR gris (HAM)"
     },
     {
       "name": "Vermont",
@@ -217,7 +298,10 @@
       "left": 3482,
       "top": 469,
       "width": 127,
-      "height": 238
+      "height": 238,
+      "filename": "vermont",
+      "desc": "Vermont ligger i New England och är USA:s största producent av lönnsirap. Delstaten är känd för sina gröna berg, pittoreska byar och spektakulära höstfärger. Vermont var den första delstaten att förbjuda slaveri i sin konstitution 1777.",
+      "imageAssociation": "Ett V uthugget ur ett berg (MOUNTain)"
     },
     {
       "name": "Massachusetts",
@@ -225,7 +309,10 @@
       "left": 3532,
       "top": 650,
       "width": 269,
-      "height": 137
+      "height": 137,
+      "filename": "massachusetts",
+      "desc": "Massachusetts ligger i New England och är en av USA:s mest historiska delstater. Boston, delstatens huvudstad, var centrum för den amerikanska revolutionen och är hem för prestigefyllda universitet som Harvard och MIT. Massachusetts var den första kolonin att förklara sig oberoende från Storbritannien.",
+      "imageAssociation": "Ett kassettband som det kommer en MASSA KASSETT ur"
     },
     {
       "name": "Rhode Island",
@@ -233,7 +320,10 @@
       "left": 3653,
       "top": 732,
       "width": 65,
-      "height": 79
+      "height": 79,
+      "filename": "rhode_island",
+      "desc": "Rhode Island är USA:s minsta delstat till ytan men har en rik historia. Delstaten grundades 1636 av Roger Williams som en fristad för religionsfrihet. Trots sin lilla storlek har Rhode Island en lång kustlinje och staden Newport är känd för sina lyxiga herrgårdar från den förgyllda eran.",
+      "imageAssociation": "En väg (ROAD) som huggs av och blir en ö (ISLAND)"
     },
     {
       "name": "Connecticut",
@@ -241,7 +331,10 @@
       "left": 3539,
       "top": 738,
       "width": 131,
-      "height": 125
+      "height": 125,
+      "filename": "connecticut",
+      "desc": "Connecticut ligger i New England och är en av USA:s äldsta och rikaste delstater. Delstaten är känd för sina charmiga kuststäder och är hem för Yale University i New Haven. Connecticut kallas \"The Constitution State\" eftersom det anses ha haft USA:s första skrivna konstitution.",
+      "imageAssociation": "En hackare som gör ett hack i vår connection, ett CONNECTION CUT"
     },
     {
       "name": "New York",
@@ -249,7 +342,10 @@
       "left": 3117,
       "top": 499,
       "width": 541,
-      "height": 410
+      "height": 410,
+      "filename": "new_york",
+      "desc": "New York är en av USA:s mest kända delstater, hem för New York City med Frihetsgudinnan och Times Square. Men delstaten har mycket mer än storstaden, med Niagarafallen och de vackra Adirondack-bergen i norr. New York kallas \"The Empire State\" och har varit ett centrum för invandring och kultur.",
+      "imageAssociation": "En kille som betraktar en modell av staden NEW YORK"
     },
     {
       "name": "Pennsylvania",
@@ -257,7 +353,10 @@
       "left": 3061,
       "top": 695,
       "width": 439,
-      "height": 383
+      "height": 383,
+      "filename": "pennsylvania",
+      "desc": "Pennsylvania ligger i nordöstra USA och är en av de ursprungliga 13 kolonierna. Philadelphia var USA:s första huvudstad och platsen där självständighetsförklaringen och konstitutionen undertecknades. Delstaten är också känd för sina amish-samhällen och stålstaden Pittsburgh.",
+      "imageAssociation": "Ett PENNskrin"
     },
     {
       "name": "New Jersey",
@@ -265,7 +364,10 @@
       "left": 3451,
       "top": 849,
       "width": 113,
-      "height": 231
+      "height": 231,
+      "filename": "new_jersey",
+      "desc": "New Jersey är en av USA:s mest tättbefolkade delstater och ligger mellan New York och Philadelphia. Delstaten är känd för sin långa Atlantkust med populära badstränder som Atlantic City. New Jersey kallas \"The Garden State\" och har en förvånansvärt stor jordbruksindustri.",
+      "imageAssociation": "JERRY från Tom & Jerry med en NY tröja (JERSEY)"
     },
     {
       "name": "Delaware",
@@ -273,7 +375,10 @@
       "left": 3436,
       "top": 1002,
       "width": 78,
-      "height": 127
+      "height": 127,
+      "filename": "delaware",
+      "desc": "Delaware är USA:s näst minsta delstat men har en stor betydelse som \"The First State\" - den första att ratificera konstitutionen 1787. Delstaten är känd för sina företagsvänliga lagar och över hälften av alla amerikanska börsföretag är registrerade här. Trots sin lilla storlek har Delaware fina stränder vid Atlantkusten.",
+      "imageAssociation": "En DEL AV ER slöja, Jungfru Maria"
     },
     {
       "name": "Maryland",
@@ -281,7 +386,10 @@
       "left": 3176,
       "top": 1011,
       "width": 339,
-      "height": 187
+      "height": 187,
+      "filename": "maryland",
+      "desc": "Maryland ligger vid Chesapeake Bay på USA:s östkust och är känt för sina blåkrabbor. Delstaten omger nästan helt Washington D.C. och många som arbetar i huvudstaden bor i Maryland. Baltimore, delstatens största stad, har en livlig hamnstad och är hem för den berömda Johns Hopkins University.",
+      "imageAssociation": "Jungfru Marias (MARYs) slöja"
     },
     {
       "name": "South Carolina",
@@ -289,7 +397,10 @@
       "left": 2979,
       "top": 1459,
       "width": 447,
-      "height": 329
+      "height": 329,
+      "filename": "south_carolina",
+      "desc": "South Carolina ligger i sydöstra USA och var en av de ursprungliga 13 kolonierna. Charleston är en av USA:s äldsta och mest charmiga städer med sin historiska arkitektur och kreolska kök. South Carolina har vackra stränder vid Atlantkusten och var den första delstaten att utträda ur unionen före inbördeskriget.",
+      "imageAssociation": "CAROLA som segelflyger"
     },
     {
       "name": "North Carolina",
@@ -297,7 +408,10 @@
       "left": 2900,
       "top": 1301,
       "width": 792,
-      "height": 293
+      "height": 293,
+      "filename": "north_carolina",
+      "desc": "North Carolina sträcker sig från Atlantkusten till Appalacherna i väster. Det var här bröderna Wright genomförde sin första motoriserade flygning vid Kitty Hawk 1903. Delstaten är också känd för Research Triangle Park, ett av världens största forskningscentrum, och de vackra Blue Ridge Mountains.",
+      "imageAssociation": "CAROLAS segelflygarvinge"
     },
     {
       "name": "Virginia",
@@ -305,7 +419,10 @@
       "left": 2953,
       "top": 1075,
       "width": 550,
-      "height": 319
+      "height": 319,
+      "filename": "virginia",
+      "desc": "Virginia är en av USA:s mest historiska delstater och var hem för åtta amerikanska presidenter. Jamestown i Virginia var den första permanenta engelska bosättningen i Amerika 1607. Delstaten har allt från Atlantkustens stränder till Blue Ridge Mountains och är hem för Pentagon och CIA:s högkvarter.",
+      "imageAssociation": "Jungfru Maria, eller som hon heter på engelska: VIRGIN Mary"
     },
     {
       "name": "West Virginia",
@@ -313,7 +430,10 @@
       "left": 2980,
       "top": 975,
       "width": 335,
-      "height": 351
+      "height": 351,
+      "filename": "west_virginia",
+      "desc": "West Virginia bröt sig loss från Virginia under inbördeskriget 1863 och blev en egen delstat. Delstaten ligger helt inom Appalacherna och kallas \"The Mountain State\" för sina bergiga landskap. West Virginia är känt för sina kolgruvor, white water rafting och den berömda New River Gorge Bridge.",
+      "imageAssociation": "Pikachu med en VÄST kramad av VIRGINIA"
     },
     {
       "name": "Ohio",
@@ -321,7 +441,10 @@
       "left": 2791,
       "top": 867,
       "width": 305,
-      "height": 353
+      "height": 353,
+      "filename": "ohio",
+      "desc": "Ohio ligger i mellanvästra USA och kallas \"The Buckeye State\" efter det inhemska buckeye-trädet. Delstaten har gett USA hela åtta presidenter och är känt som flygningens vagga - bröderna Wright kom härifrån. Ohio har stora städer som Columbus, Cleveland och Cincinnati.",
+      "imageAssociation": "En hand som hälsar och säger \"OH HI!\""
     },
     {
       "name": "Kentucky",
@@ -329,7 +452,10 @@
       "left": 2511,
       "top": 1173,
       "width": 535,
-      "height": 283
+      "height": 283,
+      "filename": "kentucky",
+      "desc": "Kentucky ligger i sydöstra USA och är mest känt för Kentucky Derby, världens mest berömda häststävling. Delstaten är också födelseplatsen för bourbon-whiskey och har Mammoth Cave, världens längsta grottssystem. Kentucky Fried Chicken (KFC) grundades här av Colonel Sanders.",
+      "imageAssociation": "Kyckling från KENTUCKY Fried Chicken (KFC)"
     },
     {
       "name": "Tennessee",
@@ -337,7 +463,10 @@
       "left": 2459,
       "top": 1371,
       "width": 643,
-      "height": 223
+      "height": 223,
+      "filename": "tennessee",
+      "desc": "Tennessee är känt som musikens hjärta i USA med Nashville som countrymusikens huvudstad och Memphis som bluesens och rock'n'rollens hem. Elvis Presley bodde på Graceland i Memphis, som idag är en av USA:s mest besökta attraktioner. Great Smoky Mountains på gränsen till North Carolina är USA:s mest besökta nationalpark.",
+      "imageAssociation": "En frityrbur, som lite liknar ett TENNIS-nät"
     },
     {
       "name": "Indiana",
@@ -345,7 +474,10 @@
       "left": 2600,
       "top": 929,
       "width": 225,
-      "height": 393
+      "height": 393,
+      "filename": "indiana",
+      "desc": "Indiana ligger i mellanvästra USA och kallas \"The Hoosier State\". Delstaten är mest känd för Indianapolis 500, ett av världens mest prestigefyllda bilrace som körs varje år sedan 1911. Indiana har också en stark basketballtradition och jordbruk, särskilt majs och sojabönor.",
+      "imageAssociation": "En kryddpåse som kryddar kycklingen med lite INDISK curry"
     },
     {
       "name": "Illinois",
@@ -353,7 +485,10 @@
       "left": 2340,
       "top": 884,
       "width": 298,
-      "height": 520
+      "height": 520,
+      "filename": "illinois",
+      "desc": "Illinois ligger i mellanvästra USA och är hem för Chicago, landets tredje största stad känd för sin skyskrapearkitektur och djuprätta pizza. Delstaten är också Abraham Lincolns hemstat och Springfield är delstatens huvudstad. Illinois är ett viktigt jordbruksområde med enorma majs- och sojafält.",
+      "imageAssociation": "En kökspojke som inte har öronproppar och därför blir sjuk (ILL) av allt oväsen (NOISE) i köket"
     },
     {
       "name": "Michigan",
@@ -361,7 +496,10 @@
       "left": 2371,
       "top": 365,
       "width": 565,
-      "height": 581
+      "height": 581,
+      "filename": "michigan",
+      "desc": "Michigan består av två halvöar omgivna av de Stora sjöarna och har den längsta sötvattenskustlinjen i USA. Detroit, delstatens största stad, är känt som bilindustrins huvudstad och hemmet för Motown-musiken. Michigan har också fantastisk natur med skogar, sanddyner och över 11 000 insjöar.",
+      "imageAssociation": "Ett par vantar som ägs av MICKAN från \"Solsidan\""
     },
     {
       "name": "Wisconsin",
@@ -369,7 +507,10 @@
       "left": 2226,
       "top": 482,
       "width": 385,
-      "height": 417
+      "height": 417,
+      "filename": "wisconsin",
+      "desc": "Wisconsin ligger i mellanvästra USA och kallas \"America's Dairyland\" för sin enorma mejeriproduktion. Delstaten är USA:s största ostproducent och invånarna kallas stolt \"cheeseheads\". Wisconsin är också känt för sina tusentals sjöar, Milwaukee's bryggerihistoria och det berömda Green Bay Packers-laget.",
+      "imageAssociation": "En brödrost som VI trycker SCONES IN i"
     },
     {
       "name": "Minnesota",
@@ -377,7 +518,10 @@
       "left": 1883,
       "top": 257,
       "width": 630,
-      "height": 567
+      "height": 567,
+      "filename": "minnesota",
+      "desc": "Minnesota kallas \"Land of 10,000 Lakes\" men har faktiskt över 11 000 sjöar. Delstaten ligger i norra mellanvästra USA och har extremt kalla vintrar med temperaturer som kan nå minus 40 grader. Minneapolis och St. Paul bildar \"Twin Cities\" och Minnesota har en stor skandinavisk kulturpåverkan.",
+      "imageAssociation": "Kockmössan som fylls av MINNES-SOT när han tänker"
     },
     {
       "name": "Iowa",
@@ -385,7 +529,10 @@
       "left": 1982,
       "top": 803,
       "width": 448,
-      "height": 299
+      "height": 299,
+      "filename": "iowa",
+      "desc": "Iowa ligger i hjärtat av mellanvästra USA och är en av landets viktigaste jordbruksdelstater. Delstaten producerar mer majs och sojabönor än nästan någon annan delstat. Iowa är också känt för att hålla det första primärvalet i USA:s presidentvalprocess, Iowa Caucus.",
+      "imageAssociation": "Kockens huvud, p g a köksljudet använder han Jupiters måne IO som öronpropp. Han hör inget och svarar bara \"VA?\" om man frågar något"
     },
     {
       "name": "Missouri",
@@ -393,7 +540,10 @@
       "left": 2046,
       "top": 1069,
       "width": 491,
-      "height": 437
+      "height": 437,
+      "filename": "missouri",
+      "desc": "Missouri ligger i centrala USA där Mississippifloden och Missourifloden möts. St. Louis Gateway Arch, en 192 meter hög båge, symboliserar delstatens roll som \"Gateway to the West\" för pionjärerna. Missouri är också känt för Kansas City BBQ och har en rik jazz- och blueshistoria.",
+      "imageAssociation": "Kockens skjorta, söndersliten av all MISÄR han gått igenom"
     },
     {
       "name": "Arkansas",
@@ -401,7 +551,10 @@
       "left": 2123,
       "top": 1447,
       "width": 377,
-      "height": 346
+      "height": 346,
+      "filename": "arkansas",
+      "desc": "Arkansas ligger i södra USA och kallas \"The Natural State\" för sina vackra skogar, berg och varma källor. Hot Springs National Park var en av USA:s första naturskyddade områden. Delstaten är också känd som hemstaten för president Bill Clinton och Walmart, världens största detaljhandelsföretag.",
+      "imageAssociation": "Shorts med några djur från ARKEN ZOO i fickan"
     }
   ],
   "mapWidth": 3889,

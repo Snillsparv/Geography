@@ -2,158 +2,108 @@
   "name": "Västindien",
   "canvasWidth": 4000,
   "canvasHeight": 2689,
+  "slug": "vastindien",
+  "hsKey": "vastindien-highscores",
+  "specialShapes": {},
   "countries": [
-    {
-      "name": "Barbados!",
-      "file": "countries/barbados.webp",
-      "left": 2679,
-      "top": 1868,
-      "width": 125,
-      "height": 106
-    },
-    {
-      "name": "Granada!",
-      "file": "countries/granada.webp",
-      "left": 2510,
-      "top": 1957,
-      "width": 120,
-      "height": 107
-    },
-    {
-      "name": "Bahamas!",
-      "file": "countries/bahamas.webp",
-      "left": 1044,
-      "top": 712,
-      "width": 761,
-      "height": 626
-    },
-    {
-      "name": "Saint Vincent & Grenadinerna!",
-      "file": "countries/saint_vincent__grenadinerna.webp",
-      "left": 2576,
-      "top": 1821,
-      "width": 82,
-      "height": 75
-    },
-    {
-      "name": "Trinidad & Tobago!",
-      "file": "countries/trinidad__tobago.webp",
-      "left": 2552,
-      "top": 2130,
-      "width": 86,
-      "height": 78
-    },
-    {
-      "name": "Saint Lucia!",
-      "file": "countries/saint_lucia.webp",
-      "left": 2553,
-      "top": 1886,
-      "width": 90,
-      "height": 79
-    },
-    {
-      "name": "Dominica!",
-      "file": "countries/dominica.webp",
-      "left": 2530,
-      "top": 1684,
-      "width": 120,
-      "height": 106
-    },
-    {
-      "name": "Saint Kitts & Nevis!",
-      "file": "countries/saint_kitts__nevis.webp",
-      "left": 2410,
-      "top": 1544,
-      "width": 107,
-      "height": 100
-    },
-    {
-      "name": "Antigua & Barbuda!",
-      "file": "countries/antigua__barbuda.webp",
-      "left": 2498,
-      "top": 1523,
-      "width": 102,
-      "height": 104
-    },
     {
       "name": "Antigua & Barbuda",
       "file": "countries/antigua__barbuda.webp",
+      "filename": "antigua__barbuda",
       "left": 2726,
       "top": 1324,
       "width": 170,
-      "height": 252
+      "height": 252,
+      "desc": "Antigua och Barbuda är en önation i Karibien som består av två större öar och flera mindre. Landet är känt för sina 365 stränder – en för varje dag på året! Det blev självständigt från Storbritannien 1981 och är ett populärt resmål för segling och dykning.",
+      "imageAssociation": "En man med BAR överkropp som BUDAR på en ANTIKVITET"
     },
     {
       "name": "Saint Kitts & Nevis",
       "file": "countries/saint_kitts__nevis.webp",
+      "filename": "saint_kitts__nevis",
       "left": 2489,
       "top": 1338,
       "width": 350,
-      "height": 298
+      "height": 298,
+      "desc": "Saint Kitts och Nevis är det minsta landet i Amerika, både till yta och befolkning. Landet består av två vulkaniska öar och var en av de första karibiska öarna att koloniseras av européer. Sockerrörsindustrin var länge landets viktigaste näring, men idag är turism den största inkomstkällan.",
+      "imageAssociation": "En kattunge (KITTEN på engelska) med NÄV-IS längst bak i tåget"
     },
     {
       "name": "Dominica",
       "file": "countries/dominica.webp",
+      "filename": "dominica",
       "left": 2846,
       "top": 1424,
       "width": 190,
-      "height": 382
+      "height": 382,
+      "desc": "Dominica kallas 'Karibiens naturö' tack vare sin fantastiska regnskog och dramatiska vulkanlandskap. Ön har världens näst största kokande sjö, Boiling Lake, som värms upp av vulkanisk aktivitet. Dominica är också hem för den sista kvarvarande befolkningen av karibiska urfolk.",
+      "imageAssociation": "DOMARE som går bakom Lucia i tåget"
     },
     {
       "name": "Saint Lucia",
       "file": "countries/saint_lucia.webp",
+      "filename": "saint_lucia",
       "left": 2815,
       "top": 1686,
       "width": 394,
-      "height": 394
+      "height": 394,
+      "desc": "Saint Lucia är känt för sina ikoniska Pitons – två dramatiska vulkantoppar som reser sig ur havet. Ön bytte kolonialherrar mellan Frankrike och Storbritannien hela 14 gånger! Saint Lucia är det enda land i världen som är uppkallat efter en kvinna – den heliga Lucia.",
+      "imageAssociation": "LUCIA"
     },
     {
       "name": "Trinidad & Tobago",
       "file": "countries/trinidad__tobago.webp",
+      "filename": "trinidad__tobago",
       "left": 2572,
       "top": 2064,
       "width": 68,
-      "height": 78
+      "height": 78,
+      "desc": "Trinidad och Tobago ligger längst söderut i Karibien, nära Venezuelas kust. Landet är världsberömt för sin karneval och är födelseplatsen för steelpan-trumman, Karibiens mest kända musikinstrument. Trinidad har också världens största naturliga asfaltsjö, Pitch Lake.",
+      "imageAssociation": "En pappa med tryne (TRYNE-DAD) som röker TOBAK"
     },
     {
       "name": "Saint Vincent & Grenadinerna",
       "file": "countries/saint_vincent__grenadinerna.webp",
+      "filename": "saint_vincent__grenadinerna",
       "left": 2892,
       "top": 1828,
       "width": 166,
-      "height": 164
+      "height": 164,
+      "desc": "Saint Vincent och Grenadinerna består av huvudön Saint Vincent och en kedja av 32 mindre öar och korallrev. Grenadinernaöarna har använts som filmkuliss i flera Pirater i Karibien-filmer. Vulkanen La Soufrière på huvudön hade ett stort utbrott så sent som 2021.",
+      "imageAssociation": "En VINCENT Van Gogh-tavla med polkagrisrandiga GRÄNNA-GARDINER"
     },
     {
       "name": "Barbados",
       "file": "countries/barbados.webp",
+      "filename": "barbados",
       "left": 3090,
       "top": 1716,
       "width": 119,
-      "height": 260
+      "height": 260,
+      "desc": "Barbados är den östligaste ön i Karibien och är känd för sin brittiska kolonialhistoria – man kör fortfarande på vänster sida! Ön är födelseplatsen för den världskända sångerskan Rihanna. Barbados blev republik 2021 efter att ha varit en konstitutionell monarki sedan självständigheten 1966.",
+      "imageAssociation": "Ett stop med öl som Lucia har beställt från en BAR"
     },
     {
       "name": "Grenada",
       "file": "countries/grenada.webp",
+      "filename": "grenada",
       "left": 2815,
       "top": 1890,
       "width": 142,
-      "height": 211
+      "height": 211,
+      "desc": "Grenada kallas 'Kryddön' eftersom landet är en av världens största producenter av muskotnöt – man kan till och med se en muskotnöt på landets flagga! Ön är också känd för sin chokladproduktion och sina vackra vattenfall. Grenada har ett unikt undervattensmuseum med skulpturer på havsbotten.",
+      "imageAssociation": "En polkagris från GRÄNNA"
     },
     {
       "name": "Bahamas",
       "file": "countries/bahamas.webp",
+      "filename": "bahamas",
       "left": 1114,
       "top": 756,
       "width": 510,
-      "height": 530
-    },
-    {
-      "name": "Trinidad & Tobago",
-      "file": "countries/trinidad__tobago.webp",
-      "left": 2551,
-      "top": 2128,
-      "width": 88,
-      "height": 80
+      "height": 530,
+      "desc": "Bahamas består av hela 700 öar och över 2 000 korallrev, men bara cirka 30 av öarna är bebodda. Det var här Columbus först landsteg i Amerika år 1492. Bahamas är känt för sina simmande grisar på ön Big Major Cay – en av världens mest ovanliga turistattraktioner!",
+      "imageAssociation": "BANANER i röken från Kuba-cigarren"
     }
   ],
   "mapWidth": 3313,

@@ -2,222 +2,306 @@
   "name": "Sverige",
   "canvasWidth": 2083,
   "canvasHeight": 4000,
+  "slug": "sverige",
+  "hsKey": "sverige-highscores",
+  "specialShapes": {},
   "countries": [
     {
       "name": "Skåne",
       "file": "countries/skane.webp",
+      "filename": "skane",
       "left": 487,
       "top": 3486,
       "width": 317,
-      "height": 335
+      "height": 335,
+      "desc": "Skåne är Sveriges sydligaste landskap och känt för sina böljande slätter och bördiga jordbruksmarker. Regionen har en rik historia med starka danska influenser och är hem åt städer som Malmö och Lund. Här hittar du allt från vita sandstränder till Ales stenar, Nordens Stonehenge!",
+      "imageAssociation": "En SKÅL"
     },
     {
       "name": "Småland",
       "file": "countries/smaland.webp",
+      "filename": "smaland",
       "left": 589,
       "top": 3034,
       "width": 542,
-      "height": 509
+      "height": 509,
+      "desc": "Småland är ett stort landskap i södra Sverige, känt för sina djupa skogar, tusentals sjöar och det berömda Glasriket. Det var härifrån många svenskar emigrerade till Amerika på 1800-talet. Småland är också hemland för IKEA-grundaren Ingvar Kamprad och Astrid Lindgrens Bullerbyn!",
+      "imageAssociation": "En rundare kusin till Janne Långben med många SMÅ LAND på sin nos"
     },
     {
       "name": "Vättern",
       "file": "countries/vattern.webp",
+      "filename": "vattern",
       "left": 737,
       "top": 2875,
       "width": 134,
-      "height": 293
+      "height": 293,
+      "desc": "Vättern är Sveriges näst största sjö och känd för sitt ovanligt klara vatten. Sjön är djup och smal och ligger mellan Västergötland och Östergötland. På ön Visingsö mitt i sjön odlades ekar på 1800-talet som nu används till renoveringar av historiska byggnader.",
+      "imageAssociation": ""
     },
     {
       "name": "Södermanland",
       "file": "countries/sodermanland.webp",
+      "filename": "sodermanland",
       "left": 946,
       "top": 2680,
       "width": 444,
-      "height": 266
+      "height": 266,
+      "desc": "Södermanland, ofta kallat Sörmland, ligger söder om Mälaren och är rikt på herrgårdar och slott. Landskapet har en lång historia med runstenar och vikingalämningar spridda över hela området. Nyköping, en av landskapets största städer, var platsen för det berömda Nyköpings gästabud år 1317.",
+      "imageAssociation": "En fågel som flyger SÖDERut för att hitta en MAN"
     },
     {
       "name": "Närke",
       "file": "countries/narke.webp",
+      "filename": "narke",
       "left": 768,
       "top": 2701,
       "width": 219,
-      "height": 218
+      "height": 218,
+      "desc": "Närke är ett av Sveriges minsta landskap och ligger inklämt mellan Vättern och Hjälmaren. Det omges av skogar och kallas ibland 'Svealands köksträdgård' tack vare sin bördiga Närkeslätt. Örebro, med sitt berömda slott mitt i Svartån, är landskapets största stad.",
+      "imageAssociation": "Ett skogsdjur som blir petat i NACKEN av Vättern"
     },
     {
       "name": "Vänern",
       "file": "countries/vanern.webp",
+      "filename": "vanern",
       "left": 464,
       "top": 2736,
       "width": 274,
-      "height": 283
+      "height": 283,
+      "desc": "Vänern är Sveriges största sjö och den tredje största i hela Europa. Sjön har en yta på nästan 5 700 kvadratkilometer och rymmer den stora ön Kållandsö samt skärgården Lurö. Vänern avvattnas genom Göta älv ner till Göteborg och havet.",
+      "imageAssociation": ""
     },
     {
       "name": "Dalsland",
       "file": "countries/dalsland.webp",
+      "filename": "dalsland",
       "left": 372,
       "top": 2776,
       "width": 173,
-      "height": 234
+      "height": 234,
+      "desc": "Dalsland är ett litet men naturskönt landskap väster om Vänern, ofta kallat 'Sverige i miniatyr' för sin varierade natur. Här finns Dalslands kanal från 1868 och den berömda akvedukten vid Håverud. Med sina djupa skogar och stilla sjöar är det ett paradis för kanotpaddlare.",
+      "imageAssociation": "En berg-och-DAL-bana"
     },
     {
       "name": "Bohuslän",
       "file": "countries/bohuslan.webp",
+      "filename": "bohuslan",
       "left": 301,
       "top": 2821,
       "width": 166,
-      "height": 362
+      "height": 362,
+      "desc": "Bohuslän är berömt för sin dramatiska klippkust med runda, slipade hällar och pittoreska fiskesamhällen. Landskapet har en av världens största samlingar av hällristningar från bronsåldern, bland annat vid Tanumshede. Skaldjur från Bohusläns kalla vatten, som räkor och ostron, räknas bland Sveriges finaste delikatesser.",
+      "imageAssociation": "En kanon som skjuter mot ett HUS där någon tänkt BO"
     },
     {
       "name": "Värmland",
       "file": "countries/varmland.webp",
+      "filename": "varmland",
       "left": 401,
       "top": 2292,
       "width": 428,
-      "height": 561
+      "height": 561,
+      "desc": "Värmland är ett stort landskap i västra Svealand känt för sina vidsträckta skogar, älvar och Frykensjöarna. Det var här Selma Lagerlöf växte upp och hämtade inspiration till sina berättelser om Gösta Berling. Värmland gränsar till Norge och har en lång tradition av järnbruk och skogsbruk.",
+      "imageAssociation": "Någon som spelar på ett piano med eldeffekter så att det blir VARMT"
     },
     {
       "name": "Västmanland",
       "file": "countries/vastmanland.webp",
+      "filename": "vastmanland",
       "left": 766,
       "top": 2511,
       "width": 376,
-      "height": 245
+      "height": 245,
+      "desc": "Västmanland ligger norr om Mälaren och har en lång historia av gruvdrift och bergsbruk. Västerås, landskapets största stad, var en viktig vikingatida handelsplats och har ett av Sveriges äldsta domkapitel. Sala silvergruva var en gång en av Europas rikaste silvergruvor.",
+      "imageAssociation": "En fladdermus som klär sig i VÄST för att visa att han är en MAN"
     },
     {
       "name": "Uppland",
       "file": "countries/uppland.webp",
+      "filename": "uppland",
       "left": 1092,
       "top": 2357,
       "width": 364,
-      "height": 403
+      "height": 403,
+      "desc": "Uppland är ett historiskt landskap norr om Stockholm och hem åt flest runstenar i hela Sverige. Gamla Uppsala var en gång vikingatidens religiösa och politiska centrum med mäktiga kungshögar. Uppsala universitet, grundat 1477, är Nordens äldsta universitet.",
+      "imageAssociation": "En sköldpadda som hamnat UPP-och-ner"
     },
     {
       "name": "Dalarna",
       "file": "countries/dalarna.webp",
+      "filename": "dalarna",
       "left": 467,
       "top": 1967,
       "width": 630,
-      "height": 636
+      "height": 636,
+      "desc": "Dalarna kallas ofta 'Sveriges hjärta' och är känt för sin starka folkkultur med midsommarfirande, folkmusik och Dalahästar. Här ligger Siljan, en sjö som bildades av ett meteoritnedslag för 377 miljoner år sedan. Vasaloppet, världens äldsta och längsta skidlopp, går mellan Sälen och Mora i Dalarna.",
+      "imageAssociation": "En astronaut (från Dalarna) som flyger till månen för att utforska mån-DALARNA"
     },
     {
       "name": "Gästrikland",
       "file": "countries/gastrikland.webp",
+      "filename": "gastrikland",
       "left": 1013,
       "top": 2285,
       "width": 206,
-      "height": 247
+      "height": 247,
+      "desc": "Gästrikland är det minsta landskapet i Norrland och fungerar som en port till norra Sverige. Gävle, landskapets huvudort, är känt för sin gigantiska julbock av halm som byggs varje år sedan 1966. Trots sin litenhet har landskapet en rik industritradition med järnbruk och papperstillverkning.",
+      "imageAssociation": "En fåtölj full med GÄSTER"
     },
     {
       "name": "Hälsingland",
       "file": "countries/halsingland.webp",
+      "filename": "halsingland",
       "left": 804,
       "top": 1941,
       "width": 414,
-      "height": 385
+      "height": 385,
+      "desc": "Hälsingland är känt för sina magnifika dekorerade bondgårdar som finns med på UNESCO:s världsarvslista. Landskapet har en stark folkmusiktradition och är hem åt den berömda Hälsingehambon, världens största folkdansevenemang. De djupa skogarna och de böljande kullarna gör Hälsingland till ett av Sveriges vackraste landskap.",
+      "imageAssociation": "En gumma som HÄLSAR på folk"
     },
     {
       "name": "Medelpad",
       "file": "countries/medelpad.webp",
+      "filename": "medelpad",
       "left": 815,
       "top": 1774,
       "width": 413,
-      "height": 218
+      "height": 218,
+      "desc": "Medelpad ligger vid Norrlandskusten och är känt som platsen där Sveriges geografiska mittpunkt finns, vid Ånge. Sundsvall, landskapets största stad, kallas 'Stenstaden' efter att den återuppbyggdes i sten efter en förödande brand 1888. Landskapet genomkorsas av Ljungan och Indalsälven.",
+      "imageAssociation": "En iPAD som björnbusen tvättar med diskMEDEL"
     },
     {
       "name": "Jämtland",
       "file": "countries/jamtland.webp",
+      "filename": "jamtland",
       "left": 448,
       "top": 1221,
       "width": 680,
-      "height": 754
+      "height": 754,
+      "desc": "Jämtland är ett stort fjällandskap i västra Norrland med en stolt historia som egen republik under vikingatiden. Storsjön, med sitt berömda Storsjöodjur, ligger i hjärtat av landskapet. Åre i Jämtland är en av Skandinaviens mest populära skidorter och har arrangerat alpina VM.",
+      "imageAssociation": "En gammal man som suttit där JÄMT"
     },
     {
       "name": "Blekinge",
       "file": "countries/blekinge.webp",
+      "filename": "blekinge",
       "left": 775,
       "top": 3498,
       "width": 258,
-      "height": 156
+      "height": 156,
+      "desc": "Blekinge är Sveriges näst minsta landskap och kallas ibland 'Sveriges trädgård' tack vare sitt milda klimat. Karlskrona, landskapets största stad, grundades som marinbas 1680 och är nu ett UNESCO-världsarv. Blekinge har en vacker skärgård med hundratals öar längs kusten.",
+      "imageAssociation": "En blek man som heter Inge, kallas förstås BLEK-INGE"
     },
     {
       "name": "Östergötland",
       "file": "countries/ostergotland.webp",
+      "filename": "ostergotland",
       "left": 804,
       "top": 2825,
       "width": 338,
-      "height": 359
+      "height": 359,
+      "desc": "Östergötland är ett bördigt landskap öster om Vättern med en rik medeltida historia. Linköping, med sin imponerande domkyrka, och Norrköping, den gamla textilindustristaden, är landskapets största städer. Göta kanal, 1800-talets stora ingenjörsprojekt, slingrar sig genom landskapet.",
+      "imageAssociation": "…Götas make GÖTE som sitter till ÖSTER och kör dem i bilen"
     },
     {
       "name": "Västergötland",
       "file": "countries/vastergotland.webp",
+      "filename": "vastergotland",
       "left": 390,
       "top": 2828,
       "width": 437,
-      "height": 505
+      "height": 505,
+      "desc": "Västergötland ligger mellan Vänern och Vättern och är ett av Sveriges mest historiska landskap. Här fanns tidiga kristna centra som Skara, Sveriges äldsta biskopssäte. Platåbergen Kinnekulle, Billingen och Halleberg ger landskapet en karaktäristisk profil och är rika på fossil.",
+      "imageAssociation": "En stickande dam som heter GÖTA och sitter till VÄSTER om…"
     },
     {
       "name": "Härjedalen",
       "file": "countries/harjedalen.webp",
+      "filename": "harjedalen",
       "left": 456,
       "top": 1786,
       "width": 388,
-      "height": 361
+      "height": 361,
+      "desc": "Härjedalen är Sveriges mest glesbefolkade landskap och hem åt landets sydligaste sameby. Här ligger Funäsdalen och flera populära fjälldestinationer med Sveriges högst belägna byar. Landskapet har en unik natur med fjällvärld, urskog och Ljusnan som rinner genom dalen.",
+      "imageAssociation": "En björnbuse som ska ut och HÄRJA"
     },
     {
       "name": "Halland",
       "file": "countries/halland.webp",
+      "filename": "halland",
       "left": 405,
       "top": 3203,
       "width": 239,
-      "height": 341
+      "height": 341,
+      "desc": "Halland är ett kustlandskap längs Kattegatt med milslånga sandstränder och ett milt klimat. Landskapet var danskt ända fram till freden i Brömsebro 1645 och har bevarat många danska drag. Tylösand utanför Halmstad är en av Sveriges mest kända badstränder.",
+      "imageAssociation": "En vattenrutschkana, vilket gör det till ett HALT LAND"
     },
     {
       "name": "Öland",
       "file": "countries/oland.webp",
+      "filename": "oland",
       "left": 1068,
       "top": 3255,
       "width": 109,
-      "height": 325
+      "height": 325,
+      "desc": "Öland är Sveriges näst största ö och förbinds med fastlandet via Ölandsbron. Södra Ölands odlingslandskap med sin unika Stora Alvaret är ett UNESCO-världsarv. Ön är känd för sina väderkvarnar, Borgholms slottsruin och kungafamiljens sommarslott Solliden.",
+      "imageAssociation": "En ÖDLA som simmar utanför östkusten"
     },
     {
       "name": "Lappland",
       "file": "countries/lappland.webp",
+      "filename": "lappland",
       "left": 751,
       "top": 153,
       "width": 1098,
-      "height": 1384
+      "height": 1384,
+      "desc": "Lappland är Sveriges största landskap och täcker nästan en fjärdedel av landets yta. Här bor samerna och deras renar, och landskapet rymmer Sveriges högsta fjäll Kebnekaise samt nationalparken Sarek. Under sommaren skiner midnattssolen dygnet runt, och under vintern dansar norrskenet över himlen.",
+      "imageAssociation": "LAPP-täcke"
     },
     {
       "name": "Västerbotten",
       "file": "countries/vasterbotten.webp",
+      "filename": "vasterbotten",
       "left": 1342,
       "top": 1122,
       "width": 348,
-      "height": 453
+      "height": 453,
+      "desc": "Västerbotten sträcker sig från Bottenvikens kust till fjällen i väster och är känt för sin berömda Västerbottensost. Umeå, landskapets största stad, utnämndes till Europas kulturhuvudstad 2014 och kallas 'Björkarnas stad'. Landskapet har en vild natur med stora älvar som Umeälven och Vindelälven.",
+      "imageAssociation": "En munk som äter en hel VÄSTERBOTTENSOST"
     },
     {
       "name": "Norrbotten",
       "file": "countries/norrbotten.webp",
+      "filename": "norrbotten",
       "left": 1414,
       "top": 381,
       "width": 579,
-      "height": 821
+      "height": 821,
+      "desc": "Norrbotten är Sveriges nordligaste kustlandskap med vidsträckta skogar och mäktiga älvar. Luleå, landskapets största stad, har en kyrkstad i Gammelstad som är ett UNESCO-världsarv. LKAB:s järnmalmsgruvor i Kiruna och Malmberget har gjort regionen till en av världens viktigaste gruvregioner.",
+      "imageAssociation": "Tomte i NORR som tar upp något från BOTTEN av säcken"
     },
     {
       "name": "Ångermanland",
       "file": "countries/angermanland.webp",
+      "filename": "angermanland",
       "left": 871,
       "top": 1377,
       "width": 648,
-      "height": 511
+      "height": 511,
+      "desc": "Ångermanland är känt för sin dramatiska Höga Kusten som är ett UNESCO-världsarv med landhöjning upp till 286 meter. Härnösand, en av Sveriges minsta städer, är landskapets residensstad. Ångermanälven flödar genom landskapet och skapar spektakulära vyer med branta dalar och höga broar.",
+      "imageAssociation": "En kvinna som ligger på ett brustet hjärta. Hon är förlovad med Jämtland och ÅNGRAR sitt val av MAN"
     },
     {
       "name": "Gotland",
       "file": "countries/gotland.webp",
+      "filename": "gotland",
       "left": 1323,
       "top": 3091,
       "width": 166,
-      "height": 296
+      "height": 296,
+      "desc": "Gotland är Sveriges största ö och ligger mitt i Östersjön, känt för sin medeltida historia och unika natur. Visby, med sin bevarade ringmur från 1200-talet, är ett UNESCO-världsarv och kallas 'Rosornas stad'. Varje sommar hålls Medeltidsveckan som lockar tiotusentals besökare att klä ut sig och resa tillbaka i tiden.",
+      "imageAssociation": "En glasstrut = ett GOTT LAND"
     }
   ],
   "mapWidth": 1684,
