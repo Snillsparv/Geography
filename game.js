@@ -150,12 +150,13 @@ function createOverlays() {
     hoverEls[c.filename] = hover;
   });
 
-  // Add overlay (black contour lines) on top of everything
+  // Add overlay (black contour lines) on top of everything, if available
   const overlayImg = document.createElement('img');
   overlayImg.className = 'map-overlay';
-  overlayImg.src = OVERLAY_FILE;
   overlayImg.draggable = false;
   overlayImg.id = 'map-overlay';
+  overlayImg.onerror = () => overlayImg.remove();
+  overlayImg.src = OVERLAY_FILE;
   mapWrapper.appendChild(overlayImg);
 
   // Pre-sort countries by area (smallest first) for hit testing
@@ -897,6 +898,7 @@ async function initGame(config) {
   document.querySelector('header').style.display = '';
   document.querySelector('.mode-toggle').style.display = '';
   document.getElementById('header-hint').style.display = '';
+  document.body.style.overflow = 'hidden';
 
   createOverlays();
   await loadHitData();
@@ -986,6 +988,7 @@ function showRegionSelector() {
   document.getElementById('back-btn').style.display = 'none';
   document.querySelector('header h1').textContent = 'Forma-spelet';
   document.title = 'Forma-spelet';
+  document.body.style.overflow = 'auto';
 }
 
 document.getElementById('back-btn').addEventListener('click', () => {
