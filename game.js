@@ -673,24 +673,63 @@ function endSeterra() {
 // ══════════════════════
 // High scores
 // ══════════════════════
-function getHighscores() {
+function getLocalHighscores() {
   try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
   catch { return []; }
 }
 
-function saveHighscore(name, score, time, wrong) {
-  const list = getHighscores();
+async function getHighscores() {
+  if (!firebaseDB) return getLocalHighscores();
+  try {
+    const snap = await firebaseDB.ref('highscores/' + HS_KEY)
+      .orderByChild('score').limitToLast(10).once('value');
+    const list = [];
+    snap.forEach(child => list.push(child.val()));
+    list.sort((a, b) => b.score - a.score || a.time - b.time);
+    return list;
+  } catch (e) {
+    console.warn('Firebase read failed, using local:', e);
+    return getLocalHighscores();
+  }
+}
+
+async function saveHighscore(name, score, time, wrong) {
   const entry = { name, score, time, wrong, date: Date.now() };
-  list.push(entry);
-  list.sort((a, b) => b.score - a.score || a.time - b.time);
-  if (list.length > 10) list.length = 10;
-  localStorage.setItem(HS_KEY, JSON.stringify(list));
+
+  // Always save locally as backup
+  const local = getLocalHighscores();
+  local.push(entry);
+  local.sort((a, b) => b.score - a.score || a.time - b.time);
+  if (local.length > 10) local.length = 10;
+  localStorage.setItem(HS_KEY, JSON.stringify(local));
+
+  // Save to Firebase
+  if (firebaseDB) {
+    try {
+      await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
+      // Trim to top 10: read all, delete excess
+      const snap = await firebaseDB.ref('highscores/' + HS_KEY)
+        .orderByChild('score').once('value');
+      const all = [];
+      snap.forEach(child => all.push({ key: child.key, ...child.val() }));
+      all.sort((a, b) => b.score - a.score || a.time - b.time);
+      if (all.length > 10) {
+        const removes = {};
+        for (let i = 10; i < all.length; i++) removes[all[i].key] = null;
+        await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
+      }
+    } catch (e) {
+      console.warn('Firebase write failed:', e);
+    }
+  }
   return entry;
 }
 
-function renderHighscores(highlightEntry) {
-  const list = getHighscores();
+async function renderHighscores(highlightEntry) {
   const container = document.getElementById('highscore-list');
+  container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
+
+  const list = await getHighscores();
 
   if (list.length === 0) {
     container.innerHTML = '<div class="hs-empty">Inga sparade resultat ännu.</div>';
@@ -917,15 +956,15 @@ async function initGame(config) {
 // ══════════════════════════════════
 // Static event listeners
 // ══════════════════════════════════
-document.getElementById('hs-save').addEventListener('click', () => {
+document.getElementById('hs-save').addEventListener('click', async () => {
   const name = document.getElementById('hs-name').value.trim();
   if (!name) return;
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  const entry = saveHighscore(name, score, seterraElapsed, seterraWrong);
+  const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = '';
-  renderHighscores(entry);
+  await renderHighscores(entry);
 });
 
 document.getElementById('hs-name').addEventListener('keydown', (e) => {
@@ -935,14 +974,14 @@ document.getElementById('hs-name').addEventListener('keydown', (e) => {
 document.getElementById('seterra-restart').addEventListener('click', startSeterra);
 document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
 
-document.getElementById('modal-save').addEventListener('click', () => {
+document.getElementById('modal-save').addEventListener('click', async () => {
   const name = modalNameInput.value.trim();
   if (!name) { modalNameInput.focus(); return; }
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  const entry = saveHighscore(name, score, seterraElapsed, seterraWrong);
+  const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   closeNameModal();
-  renderHighscores(entry);
+  await renderHighscores(entry);
 });
 
 modalNameInput.addEventListener('keydown', (e) => {
