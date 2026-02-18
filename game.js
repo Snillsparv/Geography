@@ -155,6 +155,8 @@ function createOverlays() {
   overlayImg.className = 'map-overlay';
   overlayImg.draggable = false;
   overlayImg.id = 'map-overlay';
+  overlayImg.style.display = 'none';
+  overlayImg.onload = () => { overlayImg.style.display = ''; };
   overlayImg.onerror = () => overlayImg.remove();
   overlayImg.src = OVERLAY_FILE;
   mapWrapper.appendChild(overlayImg);
@@ -592,7 +594,7 @@ function seterraClick(c) {
     revealCountry(c.filename);
     seterraFeedback.className = 'seterra-feedback correct-fb';
     const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Rätt! ${c.name}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
     nextSeterraTarget();
   } else {
@@ -602,7 +604,7 @@ function seterraClick(c) {
     flashWrong(c.filename);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
     const wrongAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-title">Fel \u2013 det var ${c.name}</div>${wrongAssoc ? `<div class="assoc-box">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${escHtml(c.name)}</div>${wrongAssoc ? `<div class="assoc-box">${escHtml(wrongAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     updateSeterraUI();
 
     if (seterraTargetMisses >= 3) {
@@ -879,7 +881,7 @@ async function initGame(config) {
   SPECIAL_SHAPES = config.specialShapes;
 
   // Update HTML elements
-  document.title = `${config.name} – Forma-spelet`;
+  document.title = `${config.name} – Jonas geografi`;
   document.querySelector('header h1').textContent = config.name;
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
@@ -986,8 +988,8 @@ function showRegionSelector() {
   document.querySelector('.mode-toggle').style.display = 'none';
   document.getElementById('header-hint').style.display = 'none';
   document.getElementById('back-btn').style.display = 'none';
-  document.querySelector('header h1').textContent = 'Forma-spelet';
-  document.title = 'Forma-spelet';
+  document.querySelector('header h1').textContent = 'Jonas geografi';
+  document.title = 'Jonas geografi';
   document.body.style.overflow = 'auto';
 }
 
