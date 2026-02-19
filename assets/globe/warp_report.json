@@ -19,7 +19,8 @@
       "edgeError": 6.2366,
       "edgeErrorGain": null,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Chile",
@@ -38,7 +39,8 @@
       "edgeError": 26.7669,
       "edgeErrorGain": 301.1473,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Guyana",
@@ -57,26 +59,28 @@
       "edgeError": 2.116,
       "edgeErrorGain": 28.2889,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kuba",
       "featureKey": "CUB",
       "accepted": true,
-      "warpIoU": 0.802,
+      "warpIoU": 0.8056,
       "warpIoUBaseline": 0.1227,
-      "warpIoUGain": 0.6793,
-      "triangleCount": 969,
+      "warpIoUGain": 0.6829,
+      "triangleCount": 495,
       "targetAreaPx": 5182,
-      "warpStrategy": "component-matched-v1[stage1-edge-snapx2]",
-      "warpIoUStage1": 0.8004,
-      "edgeSnapPasses": 3,
+      "warpStrategy": "stage1-edge-snap",
+      "warpIoUStage1": 0.7509,
+      "edgeSnapPasses": 1,
       "edgeErrorBaseline": 73.3863,
-      "edgeErrorStage1": 20.154,
-      "edgeError": 13.0381,
-      "edgeErrorGain": 60.3482,
+      "edgeErrorStage1": 14.1692,
+      "edgeError": 13.4051,
+      "edgeErrorGain": 59.9812,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Portugal",
@@ -95,7 +99,8 @@
       "edgeError": 3.2564,
       "edgeErrorGain": 36.037,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Jamaica",
@@ -114,7 +119,8 @@
       "edgeError": 1.2403,
       "edgeErrorGain": 5.8251,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Indoneien",
@@ -133,7 +139,8 @@
       "edgeError": 5.7656,
       "edgeErrorGain": 261.171,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Grenada",
@@ -152,7 +159,8 @@
       "edgeError": 0.4366,
       "edgeErrorGain": 0.6395,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mauritius",
@@ -171,7 +179,8 @@
       "edgeError": 0.2677,
       "edgeErrorGain": 4.0381,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Ecuador",
@@ -190,7 +199,8 @@
       "edgeError": 6.8359,
       "edgeErrorGain": 30.3556,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sydafrika",
@@ -209,7 +219,8 @@
       "edgeError": 7.3636,
       "edgeErrorGain": 64.0885,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Barbados",
@@ -228,7 +239,8 @@
       "edgeError": 0.3497,
       "edgeErrorGain": 1.8464,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sao Tome & Principe",
@@ -247,7 +259,8 @@
       "edgeError": 0.7033,
       "edgeErrorGain": 1.6105,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Cypern",
@@ -266,7 +279,8 @@
       "edgeError": 0.7501,
       "edgeErrorGain": 2.5877,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Saint Lucia",
@@ -285,7 +299,8 @@
       "edgeError": 0.3067,
       "edgeErrorGain": 0.7738,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Malaysia",
@@ -304,7 +319,8 @@
       "edgeError": 8.7006,
       "edgeErrorGain": 286.2308,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Andorra",
@@ -323,7 +339,8 @@
       "edgeError": 0.0514,
       "edgeErrorGain": 1.3002,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Samoa",
@@ -342,7 +359,8 @@
       "edgeError": 0.0,
       "edgeErrorGain": 3.5271,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Palau",
@@ -361,7 +379,8 @@
       "edgeError": 0.802,
       "edgeErrorGain": null,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Singapore",
@@ -380,7 +399,8 @@
       "edgeError": 0.0544,
       "edgeErrorGain": 0.9624,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Trinidad & Tobago",
@@ -399,7 +419,8 @@
       "edgeError": 0.6747,
       "edgeErrorGain": 1.6251,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Malta",
@@ -418,7 +439,28 @@
       "edgeError": 0.4123,
       "edgeErrorGain": 0.7468,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
+    },
+    {
+      "name": "Komorerna",
+      "featureKey": "COM",
+      "accepted": false,
+      "warpIoU": 0.3398,
+      "warpIoUBaseline": 0.0278,
+      "warpIoUGain": 0.312,
+      "triangleCount": 444,
+      "targetAreaPx": 101,
+      "warpStrategy": "stage1-edge-snap",
+      "warpIoUStage1": 0.1068,
+      "edgeSnapPasses": 2,
+      "edgeErrorBaseline": 22.8485,
+      "edgeErrorStage1": 5.5369,
+      "edgeError": 1.4625,
+      "edgeErrorGain": 21.386,
+      "acceptedByIoU": false,
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "USA",
@@ -437,7 +479,8 @@
       "edgeError": 80.6476,
       "edgeErrorGain": 49.737,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tuvalu",
@@ -456,7 +499,8 @@
       "edgeError": 0.6584,
       "edgeErrorGain": 0.335,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Spanien",
@@ -475,7 +519,8 @@
       "edgeError": 2.0006,
       "edgeErrorGain": 25.7489,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Japan",
@@ -494,7 +539,8 @@
       "edgeError": 28.9857,
       "edgeErrorGain": 52.1219,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Filippinerna",
@@ -513,7 +559,8 @@
       "edgeError": 5.856,
       "edgeErrorGain": 175.2622,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Israel",
@@ -532,7 +579,8 @@
       "edgeError": 1.7667,
       "edgeErrorGain": 1.0908,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Dominica",
@@ -551,7 +599,8 @@
       "edgeError": 0.9302,
       "edgeErrorGain": 0.7454,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bahrain",
@@ -570,26 +619,8 @@
       "edgeError": 0.2524,
       "edgeErrorGain": 0.8253,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
-    },
-    {
-      "name": "Komorerna",
-      "featureKey": "COM",
-      "accepted": false,
-      "warpIoU": 0.2233,
-      "warpIoUBaseline": 0.0278,
-      "warpIoUGain": 0.1955,
-      "triangleCount": 903,
-      "targetAreaPx": 101,
-      "warpStrategy": "component-matched-v1[stage1x1,stage1-edge-snapx1]",
-      "warpIoUStage1": 0.2233,
-      "edgeSnapPasses": 2,
-      "edgeErrorBaseline": 22.8485,
-      "edgeErrorStage1": 28.6646,
-      "edgeError": 27.1546,
-      "edgeErrorGain": -4.3061,
-      "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Saint Kitts & Nevis",
@@ -608,7 +639,8 @@
       "edgeError": 0.9301,
       "edgeErrorGain": 0.9858,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Maldiverna",
@@ -627,7 +659,8 @@
       "edgeError": 0.9343,
       "edgeErrorGain": 0.6953,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Fiji",
@@ -646,7 +679,8 @@
       "edgeError": 1.574,
       "edgeErrorGain": 2.6462,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bahamas",
@@ -665,7 +699,8 @@
       "edgeError": 3.2543,
       "edgeErrorGain": 0.4982,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mikronesien",
@@ -684,7 +719,8 @@
       "edgeError": 0.9793,
       "edgeErrorGain": 0.8204,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Papua Nya Guinea",
@@ -703,7 +739,8 @@
       "edgeError": 11.0982,
       "edgeErrorGain": -2.3542,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "England",
@@ -722,7 +759,8 @@
       "edgeError": 2.4394,
       "edgeErrorGain": 3.567,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Syrien",
@@ -741,7 +779,8 @@
       "edgeError": 3.0659,
       "edgeErrorGain": 6.9125,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kanada",
@@ -760,7 +799,8 @@
       "edgeError": 121.8595,
       "edgeErrorGain": -6.0467,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bolivia",
@@ -779,7 +819,8 @@
       "edgeError": 61.7888,
       "edgeErrorGain": -16.3219,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "El Salvador",
@@ -798,7 +839,8 @@
       "edgeError": 1.2135,
       "edgeErrorGain": 0.6202,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Luxembourg",
@@ -817,7 +859,8 @@
       "edgeError": 0.4337,
       "edgeErrorGain": 0.7407,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Antigua & Barbuda",
@@ -836,7 +879,8 @@
       "edgeError": 1.0273,
       "edgeErrorGain": 0.483,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Marocko",
@@ -855,7 +899,8 @@
       "edgeError": 24.8531,
       "edgeErrorGain": 24.2914,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Brunei",
@@ -874,7 +919,8 @@
       "edgeError": 1.4483,
       "edgeErrorGain": 0.874,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Jordanien",
@@ -893,7 +939,8 @@
       "edgeError": 2.4658,
       "edgeErrorGain": 1.438,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kap Verde",
@@ -912,7 +959,8 @@
       "edgeError": 1.1095,
       "edgeErrorGain": 0.9599,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Liechtenstein",
@@ -931,7 +979,8 @@
       "edgeError": 0.9087,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Madagaskar",
@@ -950,7 +999,8 @@
       "edgeError": 3.5595,
       "edgeErrorGain": 1.7,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Irland",
@@ -969,7 +1019,8 @@
       "edgeError": 3.8483,
       "edgeErrorGain": 4.0329,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Östtimor",
@@ -988,7 +1039,8 @@
       "edgeError": 2.9431,
       "edgeErrorGain": 0.7789,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tonga",
@@ -1007,7 +1059,8 @@
       "edgeError": 1.0283,
       "edgeErrorGain": 0.4801,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Finland",
@@ -1026,7 +1079,8 @@
       "edgeError": 18.7427,
       "edgeErrorGain": -3.3006,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Haiti",
@@ -1045,7 +1099,8 @@
       "edgeError": 5.5877,
       "edgeErrorGain": -2.7829,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Uganda",
@@ -1064,7 +1119,8 @@
       "edgeError": 1.9443,
       "edgeErrorGain": 3.0876,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Peru",
@@ -1083,7 +1139,8 @@
       "edgeError": 11.519,
       "edgeErrorGain": 2.3204,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Pakistan",
@@ -1102,7 +1159,8 @@
       "edgeError": 10.01,
       "edgeErrorGain": -1.5056,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Seychellerna",
@@ -1121,7 +1179,8 @@
       "edgeError": null,
       "edgeErrorGain": null,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Taiwan",
@@ -1140,7 +1199,8 @@
       "edgeError": 1.5925,
       "edgeErrorGain": 1.3451,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sydsudan",
@@ -1159,7 +1219,8 @@
       "edgeError": 8.5265,
       "edgeErrorGain": 7.5711,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Palestina",
@@ -1178,7 +1239,8 @@
       "edgeError": 1.1413,
       "edgeErrorGain": 0.6023,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kosovo",
@@ -1197,7 +1259,8 @@
       "edgeError": 0.806,
       "edgeErrorGain": 0.7266,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Qatar",
@@ -1216,7 +1279,8 @@
       "edgeError": 0.6244,
       "edgeErrorGain": 0.6895,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Costa Rica",
@@ -1235,7 +1299,8 @@
       "edgeError": 3.2445,
       "edgeErrorGain": 6.5332,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Ukraina",
@@ -1254,7 +1319,8 @@
       "edgeError": 8.0492,
       "edgeErrorGain": 2.762,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Swaziland",
@@ -1273,7 +1339,8 @@
       "edgeError": 0.586,
       "edgeErrorGain": 0.6537,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Surinam",
@@ -1292,7 +1359,8 @@
       "edgeError": 2.1697,
       "edgeErrorGain": 1.8821,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mongoliet",
@@ -1311,7 +1379,8 @@
       "edgeError": 17.249,
       "edgeErrorGain": -7.048,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Panama",
@@ -1330,7 +1399,8 @@
       "edgeError": 2.8327,
       "edgeErrorGain": 0.316,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Burundi",
@@ -1349,7 +1419,8 @@
       "edgeError": 1.1024,
       "edgeErrorGain": 0.6213,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Belize",
@@ -1368,7 +1439,8 @@
       "edgeError": 1.1766,
       "edgeErrorGain": 2.7672,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Paraguay",
@@ -1387,7 +1459,8 @@
       "edgeError": 6.4324,
       "edgeErrorGain": -0.7397,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Vanuatu",
@@ -1406,7 +1479,8 @@
       "edgeError": 15.8754,
       "edgeErrorGain": 0.9548,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Rwanda",
@@ -1425,7 +1499,8 @@
       "edgeError": 0.7394,
       "edgeErrorGain": 0.8345,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Oman",
@@ -1444,7 +1519,8 @@
       "edgeError": 5.2642,
       "edgeErrorGain": -1.179,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Australien",
@@ -1463,7 +1539,8 @@
       "edgeError": 75.0456,
       "edgeErrorGain": -32.148,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kiribati",
@@ -1482,7 +1559,8 @@
       "edgeError": 1.6699,
       "edgeErrorGain": 636.4812,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Irak",
@@ -1501,7 +1579,8 @@
       "edgeError": 7.0041,
       "edgeErrorGain": -2.1688,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Skottland",
@@ -1520,7 +1599,8 @@
       "edgeError": 5.8593,
       "edgeErrorGain": 3.1382,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Saint Vincent & Grenadinerna",
@@ -1539,7 +1619,8 @@
       "edgeError": 2.8113,
       "edgeErrorGain": 0.2016,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Moldavien",
@@ -1558,7 +1639,8 @@
       "edgeError": 1.5909,
       "edgeErrorGain": 0.7173,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Gambia",
@@ -1577,7 +1659,8 @@
       "edgeError": 5.5898,
       "edgeErrorGain": 1.3808,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Förenade Arabemiraten",
@@ -1596,7 +1679,8 @@
       "edgeError": 5.8774,
       "edgeErrorGain": 0.2047,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Dominikanska Republiken",
@@ -1615,7 +1699,8 @@
       "edgeError": 2.5942,
       "edgeErrorGain": 2.2196,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Colombia",
@@ -1634,7 +1719,8 @@
       "edgeError": 18.4536,
       "edgeErrorGain": 0.9386,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Argentina",
@@ -1653,7 +1739,8 @@
       "edgeError": 19.9524,
       "edgeErrorGain": 9.5877,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Montenegro",
@@ -1672,7 +1759,8 @@
       "edgeError": 2.093,
       "edgeErrorGain": -0.0173,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Västsahara",
@@ -1691,7 +1779,8 @@
       "edgeError": 1.4176,
       "edgeErrorGain": 0.5635,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Ekvatorialguinea",
@@ -1710,7 +1799,8 @@
       "edgeError": 2.6446,
       "edgeErrorGain": -1.3653,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mexiko",
@@ -1729,7 +1819,8 @@
       "edgeError": 15.0162,
       "edgeErrorGain": 12.2194,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Albanien",
@@ -1748,7 +1839,8 @@
       "edgeError": 1.5296,
       "edgeErrorGain": -0.0812,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Azerbajdzjan",
@@ -1767,7 +1859,8 @@
       "edgeError": 3.0097,
       "edgeErrorGain": 1.3136,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Centralafrikanska Republiken",
@@ -1786,7 +1879,8 @@
       "edgeError": 2.8095,
       "edgeErrorGain": 1.927,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Island",
@@ -1805,7 +1899,8 @@
       "edgeError": 5.6222,
       "edgeErrorGain": 4.1733,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Slovakien",
@@ -1824,7 +1919,8 @@
       "edgeError": 1.3071,
       "edgeErrorGain": 0.2243,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Grekland",
@@ -1843,7 +1939,8 @@
       "edgeError": 8.3317,
       "edgeErrorGain": 3.5732,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bangladesh",
@@ -1862,7 +1959,8 @@
       "edgeError": 5.2277,
       "edgeErrorGain": -1.4901,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Makedonien",
@@ -1881,7 +1979,8 @@
       "edgeError": 0.855,
       "edgeErrorGain": 0.407,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Polen",
@@ -1900,7 +1999,8 @@
       "edgeError": 3.9409,
       "edgeErrorGain": 2.3159,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Senegal",
@@ -1919,7 +2019,8 @@
       "edgeError": 1.7965,
       "edgeErrorGain": 1.178,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nordkorea",
@@ -1938,7 +2039,8 @@
       "edgeError": 2.0562,
       "edgeErrorGain": 2.5148,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Guatemala",
@@ -1957,7 +2059,8 @@
       "edgeError": 1.5269,
       "edgeErrorGain": 0.8096,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Franska Guyana",
@@ -1976,7 +2079,8 @@
       "edgeError": 2.6979,
       "edgeErrorGain": 1.0353,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Uzbekistan",
@@ -1995,7 +2099,8 @@
       "edgeError": 12.9288,
       "edgeErrorGain": -5.8351,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Litauen",
@@ -2014,7 +2119,8 @@
       "edgeError": 2.3657,
       "edgeErrorGain": 1.6526,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Lesotho",
@@ -2033,7 +2139,8 @@
       "edgeError": 0.8536,
       "edgeErrorGain": 0.4948,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Serbien",
@@ -2052,7 +2159,8 @@
       "edgeError": 2.7343,
       "edgeErrorGain": 0.7524,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kenya",
@@ -2071,7 +2179,8 @@
       "edgeError": 4.4952,
       "edgeErrorGain": 1.1857,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Lettland",
@@ -2090,7 +2199,8 @@
       "edgeError": 1.3077,
       "edgeErrorGain": 1.2293,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Honduras",
@@ -2109,7 +2219,8 @@
       "edgeError": 4.8968,
       "edgeErrorGain": 0.5717,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bosnien-Hercegovina",
@@ -2128,7 +2239,8 @@
       "edgeError": 1.6169,
       "edgeErrorGain": 0.2631,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mocambique",
@@ -2147,7 +2259,8 @@
       "edgeError": 3.7765,
       "edgeErrorGain": 0.1003,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Estland",
@@ -2166,7 +2279,8 @@
       "edgeError": 1.4694,
       "edgeErrorGain": 23.8028,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Turkiet",
@@ -2185,7 +2299,8 @@
       "edgeError": 10.6162,
       "edgeErrorGain": 17.951,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Afghanistan",
@@ -2204,7 +2319,8 @@
       "edgeError": 3.2403,
       "edgeErrorGain": 1.6206,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bulgarien",
@@ -2223,7 +2339,8 @@
       "edgeError": 1.8168,
       "edgeErrorGain": 0.44,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Wales",
@@ -2242,7 +2359,8 @@
       "edgeError": 2.4896,
       "edgeErrorGain": 0.0545,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Mali",
@@ -2261,7 +2379,8 @@
       "edgeError": 5.4343,
       "edgeErrorGain": 1.0798,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Ungern",
@@ -2280,7 +2399,8 @@
       "edgeError": 2.1349,
       "edgeErrorGain": 0.6023,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nordirland",
@@ -2299,7 +2419,8 @@
       "edgeError": 2.5562,
       "edgeErrorGain": -0.5295,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Schweiz",
@@ -2318,7 +2439,8 @@
       "edgeError": 1.6478,
       "edgeErrorGain": 1.5411,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Somalia",
@@ -2337,7 +2459,8 @@
       "edgeError": 2.2721,
       "edgeErrorGain": 1.9747,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tunisien",
@@ -2356,7 +2479,8 @@
       "edgeError": 4.7886,
       "edgeErrorGain": 1.0918,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Georgien",
@@ -2375,7 +2499,8 @@
       "edgeError": 1.9878,
       "edgeErrorGain": -0.0562,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kazakstan",
@@ -2394,7 +2519,8 @@
       "edgeError": 20.035,
       "edgeErrorGain": -6.1361,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Libanon",
@@ -2413,7 +2539,8 @@
       "edgeError": 2.163,
       "edgeErrorGain": -0.3915,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tjeckien",
@@ -2432,7 +2559,8 @@
       "edgeError": 2.0926,
       "edgeErrorGain": 0.1196,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Jemen",
@@ -2451,7 +2579,8 @@
       "edgeError": 5.1098,
       "edgeErrorGain": -2.2695,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kirgizistan",
@@ -2470,7 +2599,8 @@
       "edgeError": 5.848,
       "edgeErrorGain": 1.1967,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Uruguay",
@@ -2489,7 +2619,8 @@
       "edgeError": 3.8911,
       "edgeErrorGain": -0.0945,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kroatien",
@@ -2508,7 +2639,8 @@
       "edgeError": 10.2494,
       "edgeErrorGain": 2.6148,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Namibia",
@@ -2527,7 +2659,8 @@
       "edgeError": 3.0048,
       "edgeErrorGain": 0.6669,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nicaragua",
@@ -2546,7 +2679,8 @@
       "edgeError": 2.791,
       "edgeErrorGain": 1.0524,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sri Lanka",
@@ -2565,7 +2699,28 @@
       "edgeError": 4.4336,
       "edgeErrorGain": 4.0129,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
+    },
+    {
+      "name": "Malawi",
+      "featureKey": "MWI",
+      "accepted": true,
+      "warpIoU": 0.8268,
+      "warpIoUBaseline": 0.8137,
+      "warpIoUGain": 0.0131,
+      "triangleCount": 495,
+      "targetAreaPx": 5363,
+      "warpStrategy": "baseline-edge-snap",
+      "warpIoUStage1": 0.732,
+      "edgeSnapPasses": 1,
+      "edgeErrorBaseline": 7.7483,
+      "edgeErrorStage1": 11.177,
+      "edgeError": 6.8923,
+      "edgeErrorGain": 0.856,
+      "acceptedByIoU": true,
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sverige",
@@ -2584,7 +2739,8 @@
       "edgeError": 10.8952,
       "edgeErrorGain": 5.5118,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Algeriet",
@@ -2603,7 +2759,8 @@
       "edgeError": 3.5679,
       "edgeErrorGain": 1.3319,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Djibouti",
@@ -2622,7 +2779,8 @@
       "edgeError": 2.4094,
       "edgeErrorGain": -0.3703,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Benin",
@@ -2641,7 +2799,8 @@
       "edgeError": 1.928,
       "edgeErrorGain": -0.0352,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "VItryssland",
@@ -2660,7 +2819,8 @@
       "edgeError": 2.753,
       "edgeErrorGain": 0.0777,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Belgien",
@@ -2679,7 +2839,8 @@
       "edgeError": 1.7759,
       "edgeErrorGain": 0.1083,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tanzania",
@@ -2698,7 +2859,8 @@
       "edgeError": 5.7887,
       "edgeErrorGain": 3.3619,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Burma",
@@ -2717,7 +2879,8 @@
       "edgeError": 7.5072,
       "edgeErrorGain": 4.5715,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Mauretanien",
@@ -2736,7 +2899,8 @@
       "edgeError": 5.2564,
       "edgeErrorGain": 5.8182,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Niger",
@@ -2755,7 +2919,8 @@
       "edgeError": 4.7164,
       "edgeErrorGain": 2.1112,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Liberia",
@@ -2774,7 +2939,8 @@
       "edgeError": 1.8315,
       "edgeErrorGain": 0.1107,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Saudiarabien",
@@ -2793,7 +2959,8 @@
       "edgeError": 6.8351,
       "edgeErrorGain": 1.7851,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Slovenien",
@@ -2812,7 +2979,8 @@
       "edgeError": 1.5685,
       "edgeErrorGain": 0.5544,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kuwait",
@@ -2831,7 +2999,8 @@
       "edgeError": 2.2569,
       "edgeErrorGain": -0.3919,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Guinea-Bissau",
@@ -2850,7 +3019,8 @@
       "edgeError": 4.0755,
       "edgeErrorGain": 1.8542,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Rumänien",
@@ -2869,7 +3039,8 @@
       "edgeError": 3.3723,
       "edgeErrorGain": -0.6052,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Botswana",
@@ -2888,12 +3059,13 @@
       "edgeError": 4.5689,
       "edgeErrorGain": -0.2021,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Danmark",
       "featureKey": "DNK",
-      "accepted": false,
+      "accepted": true,
       "warpIoU": 0.8171,
       "warpIoUBaseline": 0.8147,
       "warpIoUGain": 0.0023,
@@ -2907,7 +3079,8 @@
       "edgeError": 4.2454,
       "edgeErrorGain": 30.3933,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Kina",
@@ -2926,7 +3099,8 @@
       "edgeError": 33.0377,
       "edgeErrorGain": 8.9878,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Ghana",
@@ -2945,7 +3119,8 @@
       "edgeError": 2.5841,
       "edgeErrorGain": 0.2949,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kamerun",
@@ -2964,7 +3139,8 @@
       "edgeError": 4.7959,
       "edgeErrorGain": 0.263,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tyskland",
@@ -2983,7 +3159,48 @@
       "edgeError": 3.6754,
       "edgeErrorGain": -0.0109,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
+    },
+    {
+      "name": "Italien",
+      "featureKey": "ITA",
+      "accepted": true,
+      "warpIoU": 0.8906,
+      "warpIoUBaseline": 0.8898,
+      "warpIoUGain": 0.0008,
+      "triangleCount": 500,
+      "targetAreaPx": 17665,
+      "warpStrategy": "baseline-edge-snap",
+      "warpIoUStage1": 0.7269,
+      "edgeSnapPasses": 1,
+      "edgeErrorBaseline": 8.1902,
+      "edgeErrorStage1": 25.4871,
+      "edgeError": 4.922,
+      "edgeErrorGain": 3.2681,
+      "acceptedByIoU": false,
+      "acceptedByEdge": true,
+      "forcedAccept": false
+    },
+    {
+      "name": "Norge",
+      "featureKey": "NOR",
+      "accepted": true,
+      "warpIoU": 0.8048,
+      "warpIoUBaseline": 0.8041,
+      "warpIoUGain": 0.0007,
+      "triangleCount": 495,
+      "targetAreaPx": 32538,
+      "warpStrategy": "baseline-edge-snap",
+      "warpIoUStage1": 0.7842,
+      "edgeSnapPasses": 1,
+      "edgeErrorBaseline": 25.0285,
+      "edgeErrorStage1": 13.0371,
+      "edgeError": 18.5222,
+      "edgeErrorGain": 6.5063,
+      "acceptedByIoU": false,
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Frankrike",
@@ -3002,7 +3219,8 @@
       "edgeError": 5.0497,
       "edgeErrorGain": 1.0508,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Guinea",
@@ -3021,7 +3239,8 @@
       "edgeError": 3.0024,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Burkina Faso",
@@ -3040,7 +3259,8 @@
       "edgeError": 2.3776,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Elfenbenskusten",
@@ -3059,7 +3279,8 @@
       "edgeError": 3.0407,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Togo",
@@ -3078,7 +3299,8 @@
       "edgeError": 1.7798,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tchad",
@@ -3097,7 +3319,8 @@
       "edgeError": 3.5025,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nigeria",
@@ -3116,7 +3339,8 @@
       "edgeError": 3.425,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Libyen",
@@ -3135,7 +3359,8 @@
       "edgeError": 5.6522,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Sudan",
@@ -3154,7 +3379,8 @@
       "edgeError": 2.509,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Demokratiska Republiken Kongo",
@@ -3173,7 +3399,8 @@
       "edgeError": 3.6187,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Eritrea",
@@ -3192,7 +3419,8 @@
       "edgeError": 2.9017,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Etiopien",
@@ -3211,7 +3439,8 @@
       "edgeError": 3.0659,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Zambia",
@@ -3230,7 +3459,8 @@
       "edgeError": 2.9372,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Angola",
@@ -3249,7 +3479,8 @@
       "edgeError": 5.1602,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kongo-Brazaville",
@@ -3268,7 +3499,8 @@
       "edgeError": 3.2958,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Gabon",
@@ -3287,7 +3519,8 @@
       "edgeError": 7.8362,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Zimbabwe",
@@ -3306,7 +3539,8 @@
       "edgeError": 2.2682,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Thailand",
@@ -3325,7 +3559,8 @@
       "edgeError": 5.7313,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Kambodja",
@@ -3344,7 +3579,8 @@
       "edgeError": 2.4003,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Vietnam",
@@ -3363,7 +3599,8 @@
       "edgeError": 8.6219,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Laos",
@@ -3382,7 +3619,8 @@
       "edgeError": 2.4909,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Bhutan",
@@ -3401,7 +3639,8 @@
       "edgeError": 1.2546,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nepal",
@@ -3420,7 +3659,8 @@
       "edgeError": 2.7456,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Tadzjikistan",
@@ -3439,7 +3679,8 @@
       "edgeError": 3.2062,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Iran",
@@ -3458,7 +3699,28 @@
       "edgeError": 5.9155,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
+    },
+    {
+      "name": "Ryssland",
+      "featureKey": "RUS",
+      "accepted": true,
+      "warpIoU": 0.8673,
+      "warpIoUBaseline": 0.8673,
+      "warpIoUGain": 0.0,
+      "triangleCount": 499,
+      "targetAreaPx": 1523263,
+      "warpStrategy": "baseline",
+      "warpIoUStage1": 0.8085,
+      "edgeSnapPasses": 0,
+      "edgeErrorBaseline": 94.8128,
+      "edgeErrorStage1": 140.3633,
+      "edgeError": 94.8128,
+      "edgeErrorGain": 0.0,
+      "acceptedByIoU": false,
+      "acceptedByEdge": false,
+      "forcedAccept": true
     },
     {
       "name": "Sydkorea",
@@ -3477,7 +3739,8 @@
       "edgeError": 7.9104,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Turkmenistan",
@@ -3496,7 +3759,8 @@
       "edgeError": 21.4883,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Armenien",
@@ -3515,7 +3779,8 @@
       "edgeError": 3.2784,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Österrike",
@@ -3534,7 +3799,8 @@
       "edgeError": 3.5743,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "San Marino",
@@ -3553,7 +3819,8 @@
       "edgeError": 0.8312,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nederländerna",
@@ -3572,7 +3839,8 @@
       "edgeError": 5.235,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Monaco",
@@ -3591,7 +3859,8 @@
       "edgeError": 0.9222,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Nauru",
@@ -3610,7 +3879,8 @@
       "edgeError": 0.8374,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Solomonöarna",
@@ -3629,7 +3899,8 @@
       "edgeError": 41.2633,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": true,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Marshalöarna",
@@ -3648,26 +3919,8 @@
       "edgeError": 1.4597,
       "edgeErrorGain": 0.0,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
-    },
-    {
-      "name": "Ryssland",
-      "featureKey": "RUS",
-      "accepted": false,
-      "warpIoU": 0.8658,
-      "warpIoUBaseline": 0.8673,
-      "warpIoUGain": -0.0015,
-      "triangleCount": 10086,
-      "targetAreaPx": 1523263,
-      "warpStrategy": "component-matched-v1[stage1-edge-snapx19,stage1x1]",
-      "warpIoUStage1": 0.8654,
-      "edgeSnapPasses": 37,
-      "edgeErrorBaseline": 94.8128,
-      "edgeErrorStage1": 151.5589,
-      "edgeError": 151.5589,
-      "edgeErrorGain": -56.7461,
-      "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Brasilien",
@@ -3686,7 +3939,8 @@
       "edgeError": 48.3776,
       "edgeErrorGain": 2.4467,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Sierra Leone",
@@ -3705,26 +3959,8 @@
       "edgeError": 2.0997,
       "edgeErrorGain": 2.3338,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
-    },
-    {
-      "name": "Norge",
-      "featureKey": "NOR",
-      "accepted": false,
-      "warpIoU": 0.8021,
-      "warpIoUBaseline": 0.8041,
-      "warpIoUGain": -0.002,
-      "triangleCount": 1907,
-      "targetAreaPx": 32538,
-      "warpStrategy": "component-matched-v1[stage1-edge-snapx3,baselinex1]",
-      "warpIoUStage1": 0.7759,
-      "edgeSnapPasses": 5,
-      "edgeErrorBaseline": 25.0285,
-      "edgeErrorStage1": 16.0022,
-      "edgeError": 169.1151,
-      "edgeErrorGain": -144.0866,
-      "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Egypten",
@@ -3743,7 +3979,8 @@
       "edgeError": 9.7689,
       "edgeErrorGain": 1.0684,
       "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": false,
+      "forcedAccept": false
     },
     {
       "name": "Venezuela",
@@ -3762,7 +3999,8 @@
       "edgeError": 12.4102,
       "edgeErrorGain": 9.8016,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
+      "acceptedByEdge": true,
+      "forcedAccept": false
     },
     {
       "name": "Indien",
@@ -3781,57 +4019,20 @@
       "edgeError": 30.7799,
       "edgeErrorGain": 109.9825,
       "acceptedByIoU": false,
-      "acceptedByEdge": true
-    },
-    {
-      "name": "Italien",
-      "featureKey": "ITA",
-      "accepted": false,
-      "warpIoU": 0.8704,
-      "warpIoUBaseline": 0.8898,
-      "warpIoUGain": -0.0195,
-      "triangleCount": 1454,
-      "targetAreaPx": 17665,
-      "warpStrategy": "component-matched-v1[stage1x1,baseline-edge-snapx1]",
-      "warpIoUStage1": 0.8689,
-      "edgeSnapPasses": 4,
-      "edgeErrorBaseline": 8.1902,
-      "edgeErrorStage1": 22.5,
-      "edgeError": 22.5,
-      "edgeErrorGain": -14.3099,
-      "acceptedByIoU": false,
-      "acceptedByEdge": false
-    },
-    {
-      "name": "Malawi",
-      "featureKey": "MWI",
-      "accepted": false,
-      "warpIoU": 0.7941,
-      "warpIoUBaseline": 0.8137,
-      "warpIoUGain": -0.0196,
-      "triangleCount": 911,
-      "targetAreaPx": 5363,
-      "warpStrategy": "component-matched-v1[stage1-edge-snapx1,baseline-edge-snapx1]",
-      "warpIoUStage1": 0.7796,
-      "edgeSnapPasses": 4,
-      "edgeErrorBaseline": 7.7483,
-      "edgeErrorStage1": 15.9003,
-      "edgeError": 14.7238,
-      "edgeErrorGain": -6.9756,
-      "acceptedByIoU": false,
-      "acceptedByEdge": false
+      "acceptedByEdge": true,
+      "forcedAccept": false
     }
   ],
   "summary": {
-    "warpedCountries": 115,
+    "warpedCountries": 120,
     "skippedCountries": 1,
-    "rejectedCountries": 86,
-    "acceptedByEdgeRule": 9,
-    "meanIoUGain": 0.1019,
+    "rejectedCountries": 81,
+    "acceptedByEdgeRule": 12,
+    "meanIoUGain": 0.0979,
     "maxIoUGain": 0.8946,
     "minIoUGain": -0.0076,
-    "edgeSnapCountries": 149,
-    "edgeSnapPasses": 552,
-    "meanEdgeGainPx": 12.8364
+    "edgeSnapCountries": 148,
+    "edgeSnapPasses": 503,
+    "meanEdgeGainPx": 14.6919
   }
 }

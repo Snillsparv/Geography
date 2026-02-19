@@ -40,7 +40,8 @@ EDGE_SNAP_MAX_IOU_DROP = 0.0025
 EDGE_SNAP_MAX_EDGE_LOSS = 0.15
 EDGE_ACCEPT_MIN_GAIN = 2.0
 EDGE_ACCEPT_MAX_IOU_DROP = 0.05
-EDGE_ACCEPT_MIN_IOU = 0.82
+EDGE_ACCEPT_MIN_IOU = 0.80
+FORCE_ACCEPT_FEATURE_KEYS = {"RUS"}
 CANDIDATE_IOU_EPS = 0.001
 CANDIDATE_EDGE_SOFT_GAIN = 0.8
 CANDIDATE_EDGE_HARD_GAIN = 2.5
@@ -833,6 +834,20 @@ def process_country(
 
     baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
     baseline = clip_rgba_to_mask(baseline, target_mask)
+    single_result = build_best_warp_for_target(source_rgba, target_mask)
+    if single_result is None:
+        return None
+
+    stage1: np.ndarray = single_result["stage1"]
+    warped: np.ndarray = single_result["warped"]
+    strategy = str(single_result["strategy"])
+    edge_snap_passes = int(single_result["edgeSnapPasses"])
+    triangle_count = int(single_result["triangleCount"])
+    best_candidate = {
+        "iou": shape_iou(warped[:, :, 3], target_mask),
+        "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+    }
+
     source_components = select_significant_components(
         extract_components((source_rgba[:, :, 3] > 10).astype(np.uint8) * 255),
         rel_min=COMPONENT_SOURCE_REL_MIN,
@@ -845,12 +860,6 @@ def process_country(
         keep_fraction=0.9995,
         min_pixels=12,
     )
-
-    stage1: Optional[np.ndarray] = None
-    warped: Optional[np.ndarray] = None
-    strategy = "single-shape"
-    edge_snap_passes = 0
-    triangle_count = 0
 
     use_component_mode = len(source_components) >= 2 and len(target_components) >= 2
     if use_component_mode:
@@ -865,6 +874,8 @@ def process_country(
             warped_canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
             matched_targets = set()
             strategy_hist: Dict[str, int] = {}
+            component_edge_snap_passes = 0
+            component_triangle_count = 0
 
             for src_idx, tgt_idx in matches:
                 src_comp = source_components[src_idx]
@@ -898,8 +909,8 @@ def process_country(
 
                 alpha_blit(stage1_canvas, local_stage1, tx, ty)
                 alpha_blit(warped_canvas, local_warped, tx, ty)
-                edge_snap_passes += local_passes
-                triangle_count += local_triangles
+                component_edge_snap_passes += local_passes
+                component_triangle_count += local_triangles
                 strategy_hist[local_strategy] = strategy_hist.get(local_strategy, 0) + 1
 
             for ti, tgt_comp in enumerate(target_components):
@@ -917,17 +928,23 @@ def process_country(
                 f"{k}x{v}"
                 for k, v in sorted(strategy_hist.items(), key=lambda kv: kv[1], reverse=True)[:2]
             )
-            strategy = f"component-matched-v1[{top_strategies}]"
-
-    if stage1 is None or warped is None:
-        single_result = build_best_warp_for_target(source_rgba, target_mask)
-        if single_result is None:
-            return None
-        stage1 = single_result["stage1"]
-        warped = single_result["warped"]
-        strategy = str(single_result["strategy"])
-        edge_snap_passes = int(single_result["edgeSnapPasses"])
-        triangle_count = int(single_result["triangleCount"])
+            component_strategy = (
+                f"component-matched-v1[{top_strategies}]"
+                if top_strategies
+                else "component-matched-v1"
+            )
+            component_candidate = {
+                "iou": shape_iou(warped[:, :, 3], target_mask),
+                "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+            }
+            if candidate_is_better(component_candidate, best_candidate):
+                strategy = component_strategy
+                edge_snap_passes = int(component_edge_snap_passes)
+                triangle_count = int(component_triangle_count)
+                best_candidate = component_candidate
+            else:
+                stage1 = single_result["stage1"]
+                warped = single_result["warped"]
 
     iou_baseline = shape_iou(baseline[:, :, 3], target_mask)
     stage1_iou = shape_iou(stage1[:, :, 3], target_mask)
@@ -1052,7 +1069,8 @@ def main() -> None:
             and iou_drop <= EDGE_ACCEPT_MAX_IOU_DROP
             and warped_iou >= EDGE_ACCEPT_MIN_IOU
         )
-        accept = accept_by_iou or accept_by_edge
+        force_accept = key in FORCE_ACCEPT_FEATURE_KEYS
+        accept = accept_by_iou or accept_by_edge or force_accept
 
         if accept:
             country.update(result)
@@ -1082,6 +1100,7 @@ def main() -> None:
                 "edgeErrorGain": result["edgeErrorGain"],
                 "acceptedByIoU": accept_by_iou,
                 "acceptedByEdge": accept_by_edge and not accept_by_iou,
+                "forcedAccept": force_accept,
             }
         )
 
