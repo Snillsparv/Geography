@@ -665,9 +665,9 @@ function endSeterra() {
 
   if (!seterraIsRetry) {
     showNameModal(score, m, s);
+  } else {
+    renderHighscores();
   }
-
-  renderHighscores();
 }
 
 // ══════════════════════
@@ -682,10 +682,12 @@ async function getHighscores() {
   if (!firebaseDB) return getLocalHighscores();
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY)
-      .orderByChild('score').limitToLast(30).once('value');
+      .once('value');
     const list = [];
     snap.forEach(child => list.push(child.val()));
     list.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (list.length > 30) list.length = 30;
+    if (list.length === 0) return getLocalHighscores();
     return list;
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
@@ -989,10 +991,16 @@ modalNameInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('modal-save').click();
 });
 
-document.getElementById('modal-skip').addEventListener('click', closeNameModal);
+document.getElementById('modal-skip').addEventListener('click', () => {
+  closeNameModal();
+  renderHighscores();
+});
 
 nameModalOverlay.addEventListener('click', (e) => {
-  if (e.target === nameModalOverlay) closeNameModal();
+  if (e.target === nameModalOverlay) {
+    closeNameModal();
+    renderHighscores();
+  }
 });
 
 document.querySelectorAll('.mode-btn').forEach(btn => {
