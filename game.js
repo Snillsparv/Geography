@@ -679,19 +679,29 @@ function getLocalHighscores() {
 }
 
 async function getHighscores() {
-  if (!firebaseDB) return getLocalHighscores();
+  const local = getLocalHighscores();
+  console.log('[HS] getHighscores, HS_KEY:', HS_KEY, 'local:', local.length, 'firebaseDB:', !!firebaseDB);
+  if (!firebaseDB) return local;
   try {
-    const snap = await firebaseDB.ref('highscores/' + HS_KEY)
-      .once('value');
-    const list = [];
-    snap.forEach(child => list.push(child.val()));
-    list.sort((a, b) => b.score - a.score || a.time - b.time);
-    if (list.length > 30) list.length = 30;
-    if (list.length === 0) return getLocalHighscores();
-    return list;
+    const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
+    const remote = [];
+    snap.forEach(child => remote.push(child.val()));
+    console.log('[HS] Firebase returned', remote.length, 'entries, snap exists:', snap.exists());
+
+    // Merge: start with remote, add any local entries not found in remote
+    const seen = new Set(remote.map(e => e.date));
+    const merged = [...remote];
+    for (const e of local) {
+      if (!seen.has(e.date)) merged.push(e);
+    }
+
+    merged.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (merged.length > 30) merged.length = 30;
+    console.log('[HS] Returning', merged.length, 'merged entries');
+    return merged;
   } catch (e) {
-    console.warn('Firebase read failed, using local:', e);
-    return getLocalHighscores();
+    console.warn('[HS] Firebase read FAILED:', e);
+    return local;
   }
 }
 
@@ -728,10 +738,12 @@ async function saveHighscore(name, score, time, wrong) {
 }
 
 async function renderHighscores(highlightEntry) {
+  console.log('[HS] renderHighscores called, highlightEntry:', highlightEntry);
   const container = document.getElementById('highscore-list');
   container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
 
   const list = await getHighscores();
+  console.log('[HS] renderHighscores got', list.length, 'entries:', list.map(e => e.name + ' ' + e.score + '%'));
 
   if (list.length === 0) {
     container.innerHTML = '<div class="hs-empty">Inga sparade resultat ännu.</div>';
