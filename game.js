@@ -709,6 +709,10 @@ async function getHighscores() {
 
     merged.sort((a, b) => b.score - a.score || a.time - b.time);
     if (merged.length > 30) merged.length = 30;
+
+    // Cache merged result so offline fallback shows all entries
+    localStorage.setItem(HS_KEY, JSON.stringify(merged));
+
     return merged;
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
