@@ -682,7 +682,7 @@ async function getHighscores() {
   if (!firebaseDB) return getLocalHighscores();
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY)
-      .orderByChild('score').limitToLast(10).once('value');
+      .orderByChild('score').limitToLast(30).once('value');
     const list = [];
     snap.forEach(child => list.push(child.val()));
     list.sort((a, b) => b.score - a.score || a.time - b.time);
@@ -700,22 +700,22 @@ async function saveHighscore(name, score, time, wrong) {
   const local = getLocalHighscores();
   local.push(entry);
   local.sort((a, b) => b.score - a.score || a.time - b.time);
-  if (local.length > 10) local.length = 10;
+  if (local.length > 30) local.length = 30;
   localStorage.setItem(HS_KEY, JSON.stringify(local));
 
   // Save to Firebase
   if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
-      // Trim to top 10: read all, delete excess
+      // Trim to top 30: read all, delete excess
       const snap = await firebaseDB.ref('highscores/' + HS_KEY)
         .orderByChild('score').once('value');
       const all = [];
       snap.forEach(child => all.push({ key: child.key, ...child.val() }));
       all.sort((a, b) => b.score - a.score || a.time - b.time);
-      if (all.length > 10) {
+      if (all.length > 30) {
         const removes = {};
-        for (let i = 10; i < all.length; i++) removes[all[i].key] = null;
+        for (let i = 30; i < all.length; i++) removes[all[i].key] = null;
         await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
       }
     } catch (e) {
@@ -736,7 +736,7 @@ async function renderHighscores(highlightEntry) {
     return;
   }
 
-  let html = '<h3>Topplista</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
+  let html = '<h3>Topp 30</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
   list.forEach((e, i) => {
     const m = Math.floor(e.time / 60);
     const s = e.time % 60;
