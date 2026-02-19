@@ -53,6 +53,9 @@ node_modules/
 # Optional eslint cache
 .eslintcache
 
+# Local Python virtual environments
+.venv/
+
 # Optional REPL history
 .node_repl_history
 

@@ -35,3 +35,19 @@ Detta skapar:
 
 - `assets/globe/config.json`
 - `assets/globe/world.geojson`
+
+## Förbättra globe-passning (auto-warp)
+
+För att auto-justera mnemonik-bilder mot landpolygoner:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install opencv-contrib-python-headless pillow numpy
+.venv/bin/python tools/build_globe_warps.py
+```
+
+Detta skapar:
+
+- `assets/globe/warped/*.webp`
+- `assets/globe/warp_report.json`
+- uppdaterar `assets/globe/config.json` med warp-metadata

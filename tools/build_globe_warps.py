@@ -1,0 +1,1126 @@
+#!/usr/bin/env python3
+"""
+Build warped per-country mnemonic overlays for the globe.
+
+This script morphs each country mnemonic image to better match the
+target globe polygon in equirectangular UV space.
+
+Outputs:
+  - assets/globe/warped/<feature_key>.webp
+  - Updated assets/globe/config.json with warp metadata
+  - assets/globe/warp_report.json with quality metrics
+
+Requires (use repo venv):
+  .venv/bin/pip install opencv-contrib-python-headless pillow numpy
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw
+
+MIN_TARGET_AREA_FOR_WARP = 700
+MIN_IOU_GAIN = 0.01
+LOW_BASELINE_ALLOW = 0.5
+LOW_BASELINE_TOLERANCE = -0.02
+EDGE_SNAP_PASSES = 2
+EDGE_SNAP_SAMPLES = 320
+EDGE_SNAP_MIN_EDGE_GAIN = 0.003
+EDGE_SNAP_MIN_IOU_GAIN = 0.0005
+EDGE_SNAP_MAX_IOU_DROP = 0.0025
+EDGE_SNAP_MAX_EDGE_LOSS = 0.15
+EDGE_ACCEPT_MIN_GAIN = 2.0
+EDGE_ACCEPT_MAX_IOU_DROP = 0.05
+EDGE_ACCEPT_MIN_IOU = 0.82
+CANDIDATE_IOU_EPS = 0.001
+CANDIDATE_EDGE_SOFT_GAIN = 0.8
+CANDIDATE_EDGE_HARD_GAIN = 2.5
+CANDIDATE_SOFT_MAX_IOU_DROP = 0.003
+CANDIDATE_HARD_MAX_IOU_DROP = 0.008
+CLIP_DILATE_PX = 1
+COMPONENT_MIN_PIXELS = 20
+COMPONENT_KEEP_FRACTION = 0.998
+COMPONENT_SOURCE_REL_MIN = 0.0025
+COMPONENT_TARGET_REL_MIN = 0.0005
+
+
+@dataclass
+class BBox:
+    left: int
+    top: int
+    width: int
+    height: int
+
+
+def project_lon_lat(lon: float, lat: float, atlas_w: int, atlas_h: int) -> Tuple[float, float]:
+    x = ((lon + 180.0) / 360.0) * atlas_w
+    y = ((90.0 - lat) / 180.0) * atlas_h
+    return x, y
+
+
+def project_ring_wrapped(
+    ring: Sequence[Sequence[float]], atlas_w: int, atlas_h: int
+) -> np.ndarray:
+    pts = np.array([project_lon_lat(p[0], p[1], atlas_w, atlas_h) for p in ring], dtype=np.float32)
+    if pts.size == 0:
+        return pts
+    min_x = float(np.min(pts[:, 0]))
+    max_x = float(np.max(pts[:, 0]))
+    if max_x - min_x > atlas_w * 0.5:
+        pts[:, 0] = np.where(pts[:, 0] < atlas_w * 0.5, pts[:, 0] + atlas_w, pts[:, 0])
+    return pts
+
+
+def geometry_polygons(geometry: Dict) -> List[List[np.ndarray]]:
+    if geometry["type"] == "Polygon":
+        return [[np.asarray(r, dtype=np.float32) for r in geometry["coordinates"]]]
+    if geometry["type"] == "MultiPolygon":
+        return [
+            [np.asarray(r, dtype=np.float32) for r in polygon]
+            for polygon in geometry["coordinates"]
+        ]
+    raise ValueError(f"Unsupported geometry type: {geometry['type']}")
+
+
+def ring_signed_area(ring: np.ndarray) -> float:
+    if ring.size == 0 or len(ring) < 3:
+        return 0.0
+    x = ring[:, 0]
+    y = ring[:, 1]
+    return 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+
+
+def polygon_outer_abs_area(polygon_rings: List[np.ndarray]) -> float:
+    if not polygon_rings:
+        return 0.0
+    return abs(ring_signed_area(polygon_rings[0]))
+
+
+def choose_polygon_branch_shifts(polygons_xy: List[List[np.ndarray]], atlas_w: int) -> List[float]:
+    if len(polygons_xy) <= 1:
+        return [0.0] * len(polygons_xy)
+
+    areas = [polygon_outer_abs_area(poly) for poly in polygons_xy]
+    centers = [float(np.mean(poly[0][:, 0])) if poly and poly[0].size > 0 else 0.0 for poly in polygons_xy]
+    anchor = int(np.argmax(areas))
+
+    shifts: List[Optional[float]] = [None] * len(polygons_xy)
+    shifts[anchor] = 0.0
+    chosen_centers = [centers[anchor]]
+
+    order = [i for i in np.argsort(-np.array(areas)) if i != anchor]
+    for idx in order:
+        best_shift = 0.0
+        best_score = float("inf")
+        for mul in (-1.0, 0.0, 1.0):
+            shift = mul * float(atlas_w)
+            c = centers[idx] + shift
+            cmin = min(chosen_centers + [c])
+            cmax = max(chosen_centers + [c])
+            span = cmax - cmin
+            anchor_dist = abs(c - centers[anchor])
+            score = span + 0.08 * anchor_dist
+            if score < best_score:
+                best_score = score
+                best_shift = shift
+        shifts[idx] = best_shift
+        chosen_centers.append(centers[idx] + best_shift)
+
+    return [float(s if s is not None else 0.0) for s in shifts]
+
+
+def target_mask_and_bbox(
+    feature_geometry: Dict, atlas_w: int, atlas_h: int
+) -> Optional[Tuple[np.ndarray, BBox, List[List[np.ndarray]]]]:
+    polygons_lonlat = geometry_polygons(feature_geometry)
+    polygons_xy: List[List[np.ndarray]] = []
+
+    for polygon in polygons_lonlat:
+        if not polygon:
+            continue
+        projected_outer = project_ring_wrapped(polygon[0], atlas_w, atlas_h)
+        if projected_outer.size == 0:
+            continue
+
+        # Keep hole rings in the same wrap branch as the outer ring.
+        rings = [projected_outer]
+        for hole in polygon[1:]:
+            h = project_ring_wrapped(hole, atlas_w, atlas_h)
+            rings.append(h)
+        polygons_xy.append(rings)
+
+    if not polygons_xy:
+        return None
+
+    branch_shifts = choose_polygon_branch_shifts(polygons_xy, atlas_w)
+    for i, poly in enumerate(polygons_xy):
+        shift_x = branch_shifts[i]
+        if shift_x == 0:
+            continue
+        for ring in poly:
+            ring[:, 0] += shift_x
+
+    all_outer = np.concatenate([p[0] for p in polygons_xy if len(p[0]) > 0], axis=0)
+    if all_outer.size == 0:
+        return None
+
+    mean_x = float(np.mean(all_outer[:, 0]))
+    global_shift_x = 0.0
+    if mean_x > atlas_w:
+        global_shift_x = -float(atlas_w)
+    elif mean_x < 0:
+        global_shift_x = float(atlas_w)
+    if global_shift_x != 0:
+        for poly in polygons_xy:
+            for ring in poly:
+                ring[:, 0] += global_shift_x
+
+    all_pts = np.concatenate([ring for poly in polygons_xy for ring in poly if ring.size > 0], axis=0)
+    min_x = float(np.min(all_pts[:, 0]))
+    max_x = float(np.max(all_pts[:, 0]))
+    min_y = float(np.min(all_pts[:, 1]))
+    max_y = float(np.max(all_pts[:, 1]))
+
+    # Keep a broad guard against pathological geometry while allowing dateline countries.
+    if max_x - min_x > atlas_w * 0.95:
+        return None
+
+    left = math.floor(min_x)
+    top = math.floor(min_y)
+    right = math.ceil(max_x)
+    bottom = math.ceil(max_y)
+    width = max(2, right - left + 2)
+    height = max(2, bottom - top + 2)
+
+    local_polygons: List[List[np.ndarray]] = []
+    for poly in polygons_xy:
+        local_rings = []
+        for ring in poly:
+            lr = ring.copy()
+            lr[:, 0] -= left
+            lr[:, 1] -= top
+            local_rings.append(lr)
+        local_polygons.append(local_rings)
+
+    mask_img = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask_img)
+    for poly in local_polygons:
+        if not poly:
+            continue
+        outer = [tuple(map(float, p)) for p in poly[0]]
+        if len(outer) >= 3:
+            draw.polygon(outer, fill=255)
+        for hole in poly[1:]:
+            hole_pts = [tuple(map(float, p)) for p in hole]
+            if len(hole_pts) >= 3:
+                draw.polygon(hole_pts, fill=0)
+
+    mask = np.array(mask_img, dtype=np.uint8)
+    bbox = BBox(left=left % atlas_w, top=top, width=width, height=height)
+    return mask, bbox, local_polygons
+
+
+def largest_contour(mask: np.ndarray) -> Optional[np.ndarray]:
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not contours:
+        return None
+    contour = max(contours, key=cv2.contourArea)
+    if len(contour) < 3:
+        return None
+    return contour[:, 0, :].astype(np.float32)
+
+
+def sample_closed_contour(contour: np.ndarray, n_samples: int) -> np.ndarray:
+    pts = np.vstack([contour, contour[0]])
+    seg = np.linalg.norm(pts[1:] - pts[:-1], axis=1)
+    total = float(np.sum(seg))
+    if total <= 1e-6:
+        return np.repeat(contour[:1], n_samples, axis=0)
+
+    cum = np.concatenate([[0.0], np.cumsum(seg)])
+    out = np.zeros((n_samples, 2), dtype=np.float32)
+    for i in range(n_samples):
+        t = (i * total) / n_samples
+        idx = int(np.searchsorted(cum, t, side="right") - 1)
+        idx = min(max(idx, 0), len(seg) - 1)
+        denom = max(seg[idx], 1e-6)
+        frac = (t - cum[idx]) / denom
+        out[i] = pts[idx] + frac * (pts[idx + 1] - pts[idx])
+    return out
+
+
+def normalized_shape(points: np.ndarray) -> np.ndarray:
+    c = np.mean(points, axis=0)
+    d = points - c
+    scale = float(np.sqrt(np.mean(np.sum(d * d, axis=1))))
+    if scale < 1e-6:
+        scale = 1.0
+    return d / scale
+
+
+def align_boundary_correspondence(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
+    src_n = normalized_shape(src)
+    dst_n = normalized_shape(dst)
+    n = len(src)
+    best_err = float("inf")
+    best = dst
+
+    for reverse in (False, True):
+        cand = dst_n[::-1] if reverse else dst_n
+        cand_raw = dst[::-1] if reverse else dst
+        for shift in range(n):
+            rolled = np.roll(cand, -shift, axis=0)
+            err = float(np.mean(np.sum((src_n - rolled) ** 2, axis=1)))
+            if err < best_err:
+                best_err = err
+                best = np.roll(cand_raw, -shift, axis=0)
+    return best
+
+
+def build_landmarks(src_boundary: np.ndarray, dst_boundary: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    src_c = np.mean(src_boundary, axis=0)
+    dst_c = np.mean(dst_boundary, axis=0)
+    src_pts = [*src_boundary, src_c]
+    dst_pts = [*dst_boundary, dst_c]
+
+    n = len(src_boundary)
+    step = max(1, n // 24)
+    for i in range(0, n, step):
+        sb = src_boundary[i]
+        db = dst_boundary[i]
+        for t in (0.72, 0.45, 0.22):
+            src_pts.append(src_c + t * (sb - src_c))
+            dst_pts.append(dst_c + t * (db - dst_c))
+
+    src_arr = np.array(src_pts, dtype=np.float32)
+    dst_arr = np.array(dst_pts, dtype=np.float32)
+    return dedupe_landmarks(src_arr, dst_arr)
+
+
+def dedupe_landmarks(src_pts: np.ndarray, dst_pts: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    kept_src = []
+    kept_dst = []
+    seen = set()
+    for s, d in zip(src_pts, dst_pts):
+        key = (round(float(d[0]), 2), round(float(d[1]), 2))
+        if key in seen:
+            continue
+        seen.add(key)
+        kept_src.append(s)
+        kept_dst.append(d)
+    return np.array(kept_src, dtype=np.float32), np.array(kept_dst, dtype=np.float32)
+
+
+def delaunay_triangles(points: np.ndarray, width: int, height: int) -> List[Tuple[int, int, int]]:
+    if len(points) < 3:
+        return []
+    pts = points.copy()
+    pts[:, 0] = np.clip(pts[:, 0], 0, max(0, width - 1))
+    pts[:, 1] = np.clip(pts[:, 1], 0, max(0, height - 1))
+
+    subdiv = cv2.Subdiv2D((0, 0, width, height))
+    for p in pts:
+        subdiv.insert((float(p[0]), float(p[1])))
+
+    tri_list = subdiv.getTriangleList()
+    if tri_list is None or len(tri_list) == 0:
+        return []
+
+    triangles: List[Tuple[int, int, int]] = []
+    seen = set()
+    for t in tri_list:
+        tri = np.array([[t[0], t[1]], [t[2], t[3]], [t[4], t[5]]], dtype=np.float32)
+        if (
+            np.any(tri[:, 0] < -1)
+            or np.any(tri[:, 1] < -1)
+            or np.any(tri[:, 0] > width + 1)
+            or np.any(tri[:, 1] > height + 1)
+        ):
+            continue
+
+        idx = []
+        ok = True
+        for p in tri:
+            d = np.sum((pts - p) ** 2, axis=1)
+            i = int(np.argmin(d))
+            if float(d[i]) > 4.0:
+                ok = False
+                break
+            idx.append(i)
+        if not ok or len(set(idx)) != 3:
+            continue
+
+        key = tuple(sorted(idx))
+        if key in seen:
+            continue
+        seen.add(key)
+        triangles.append((idx[0], idx[1], idx[2]))
+    return triangles
+
+
+def warp_piecewise_affine(
+    src_rgba: np.ndarray,
+    src_pts: np.ndarray,
+    dst_pts: np.ndarray,
+    out_w: int,
+    out_h: int,
+    triangles: Sequence[Tuple[int, int, int]],
+) -> np.ndarray:
+    src = src_rgba.astype(np.float32)
+    out = np.zeros((out_h, out_w, 4), dtype=np.float32)
+
+    for tri in triangles:
+        src_tri = np.float32([src_pts[tri[0]], src_pts[tri[1]], src_pts[tri[2]]])
+        dst_tri = np.float32([dst_pts[tri[0]], dst_pts[tri[1]], dst_pts[tri[2]]])
+
+        r1 = cv2.boundingRect(src_tri)
+        r2 = cv2.boundingRect(dst_tri)
+        if r1[2] <= 0 or r1[3] <= 0 or r2[2] <= 0 or r2[3] <= 0:
+            continue
+
+        x1, y1, w1, h1 = r1
+        x2, y2, w2, h2 = r2
+        if x1 < 0 or y1 < 0 or x1 + w1 > src.shape[1] or y1 + h1 > src.shape[0]:
+            continue
+        if x2 < 0 or y2 < 0 or x2 + w2 > out_w or y2 + h2 > out_h:
+            continue
+
+        src_crop = src[y1 : y1 + h1, x1 : x1 + w1]
+        src_rect = np.float32([[p[0] - x1, p[1] - y1] for p in src_tri])
+        dst_rect = np.float32([[p[0] - x2, p[1] - y2] for p in dst_tri])
+        matrix = cv2.getAffineTransform(src_rect, dst_rect)
+        warped = cv2.warpAffine(
+            src_crop,
+            matrix,
+            (w2, h2),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0, 0),
+        )
+
+        mask = np.zeros((h2, w2), dtype=np.float32)
+        cv2.fillConvexPoly(mask, np.int32(np.round(dst_rect)), 1.0, lineType=cv2.LINE_AA)
+        mask4 = mask[:, :, None]
+
+        patch = out[y2 : y2 + h2, x2 : x2 + w2]
+        patch[:] = patch * (1.0 - mask4) + warped * mask4
+
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def shape_iou(alpha_mask: np.ndarray, target_mask: np.ndarray) -> float:
+    a = alpha_mask > 10
+    b = target_mask > 0
+    inter = int(np.sum(a & b))
+    union = int(np.sum(a | b))
+    if union == 0:
+        return 0.0
+    return inter / union
+
+
+def clip_rgba_to_mask(rgba: np.ndarray, target_mask: np.ndarray) -> np.ndarray:
+    out = rgba.copy()
+    clip_mask = target_mask
+    if CLIP_DILATE_PX > 0:
+        kernel_size = CLIP_DILATE_PX * 2 + 1
+        kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
+        clip_mask = cv2.dilate(target_mask, kernel, iterations=1)
+    out[:, :, 3] = np.minimum(out[:, :, 3], clip_mask)
+    out[out[:, :, 3] == 0, :3] = 0
+    return out
+
+
+def boundary_mean_error(
+    alpha_mask: np.ndarray, target_mask: np.ndarray, samples: int = EDGE_SNAP_SAMPLES
+) -> Optional[float]:
+    src_contour = largest_contour(alpha_mask)
+    dst_contour = largest_contour(target_mask)
+    if src_contour is None or dst_contour is None:
+        return None
+
+    src_boundary = sample_closed_contour(src_contour, samples)
+    dst_boundary = sample_closed_contour(dst_contour, samples)
+    dst_boundary = align_boundary_correspondence(src_boundary, dst_boundary)
+    dist = np.linalg.norm(src_boundary - dst_boundary, axis=1)
+    return float(np.mean(dist))
+
+
+def gaussian_kernel_size(sigma: float) -> int:
+    k = max(3, int(math.ceil(sigma * 6.0)))
+    if k % 2 == 0:
+        k += 1
+    return k
+
+
+def edge_snap_refine_once(
+    src_rgba: np.ndarray, target_mask: np.ndarray, samples: int = EDGE_SNAP_SAMPLES
+) -> Optional[np.ndarray]:
+    src_alpha = src_rgba[:, :, 3]
+    src_contour = largest_contour(src_alpha)
+    dst_contour = largest_contour(target_mask)
+    if src_contour is None or dst_contour is None:
+        return None
+
+    src_boundary = sample_closed_contour(src_contour, samples)
+    dst_boundary = sample_closed_contour(dst_contour, samples)
+    dst_boundary = align_boundary_correspondence(src_boundary, dst_boundary)
+    displacement = dst_boundary - src_boundary
+
+    h, w = src_alpha.shape
+    min_dim = float(max(2, min(h, w)))
+    max_disp = float(np.clip(min_dim * 0.03, 2.0, 14.0))
+    blur_sigma = float(np.clip(min_dim * 0.045, 3.0, 28.0))
+    falloff_px = float(np.clip(min_dim * 0.05, 4.0, 30.0))
+
+    mag = np.linalg.norm(displacement, axis=1, keepdims=True)
+    scale = np.minimum(1.0, max_disp / np.maximum(mag, 1e-6))
+    displacement = displacement * scale
+
+    dx_seed = np.zeros((h, w), dtype=np.float32)
+    dy_seed = np.zeros((h, w), dtype=np.float32)
+    w_seed = np.zeros((h, w), dtype=np.float32)
+
+    coords = np.round(src_boundary).astype(np.int32)
+    for (x, y), vec in zip(coords, displacement):
+        if x < 0 or y < 0 or x >= w or y >= h:
+            continue
+        dx_seed[y, x] += float(vec[0])
+        dy_seed[y, x] += float(vec[1])
+        w_seed[y, x] += 1.0
+
+    if float(np.sum(w_seed)) <= 0.0:
+        return None
+
+    kernel_size = gaussian_kernel_size(blur_sigma)
+    dx_blur = cv2.GaussianBlur(dx_seed, (kernel_size, kernel_size), blur_sigma)
+    dy_blur = cv2.GaussianBlur(dy_seed, (kernel_size, kernel_size), blur_sigma)
+    w_blur = cv2.GaussianBlur(w_seed, (kernel_size, kernel_size), blur_sigma)
+
+    dx_field = dx_blur / np.maximum(w_blur, 1e-6)
+    dy_field = dy_blur / np.maximum(w_blur, 1e-6)
+
+    inside = (target_mask > 0).astype(np.uint8)
+    dist_to_edge = cv2.distanceTransform(inside, cv2.DIST_L2, 5)
+    edge_falloff = np.exp(
+        -(dist_to_edge * dist_to_edge) / max(1e-6, 2.0 * falloff_px * falloff_px)
+    ).astype(np.float32)
+    dx_field *= edge_falloff
+    dy_field *= edge_falloff
+    dx_field[inside == 0] = 0.0
+    dy_field[inside == 0] = 0.0
+
+    dmag = np.sqrt(dx_field * dx_field + dy_field * dy_field)
+    dscale = np.minimum(1.0, max_disp / np.maximum(dmag, 1e-6))
+    dx_field *= dscale
+    dy_field *= dscale
+
+    grid_x, grid_y = np.meshgrid(
+        np.arange(w, dtype=np.float32),
+        np.arange(h, dtype=np.float32),
+    )
+    map_x = grid_x - dx_field.astype(np.float32)
+    map_y = grid_y - dy_field.astype(np.float32)
+
+    refined = cv2.remap(
+        src_rgba,
+        map_x,
+        map_y,
+        interpolation=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0, 0, 0, 0),
+    )
+    return refined
+
+
+def edge_snap_refine(
+    stage1_rgba: np.ndarray, target_mask: np.ndarray
+) -> Tuple[np.ndarray, int, Optional[float], Optional[float]]:
+    current = stage1_rgba
+    current_iou = shape_iou(current[:, :, 3], target_mask)
+    current_edge = boundary_mean_error(current[:, :, 3], target_mask)
+    passes = 0
+
+    for _ in range(EDGE_SNAP_PASSES):
+        candidate = edge_snap_refine_once(current, target_mask)
+        if candidate is None:
+            break
+        candidate = clip_rgba_to_mask(candidate, target_mask)
+
+        candidate_iou = shape_iou(candidate[:, :, 3], target_mask)
+        candidate_edge = boundary_mean_error(candidate[:, :, 3], target_mask)
+        if candidate_edge is None or current_edge is None:
+            break
+
+        edge_gain = current_edge - candidate_edge
+        iou_gain = candidate_iou - current_iou
+        if candidate_iou + EDGE_SNAP_MAX_IOU_DROP < current_iou:
+            break
+        if edge_gain < -EDGE_SNAP_MAX_EDGE_LOSS:
+            break
+        if edge_gain < EDGE_SNAP_MIN_EDGE_GAIN and iou_gain < EDGE_SNAP_MIN_IOU_GAIN:
+            break
+
+        current = candidate
+        current_iou = candidate_iou
+        current_edge = candidate_edge
+        passes += 1
+
+    return current, passes, current_edge, current_iou
+
+
+def make_candidate(
+    name: str,
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    edge_snap_passes: int = 0,
+) -> Dict:
+    return {
+        "name": name,
+        "rgba": rgba,
+        "iou": shape_iou(rgba[:, :, 3], target_mask),
+        "edge": boundary_mean_error(rgba[:, :, 3], target_mask),
+        "edgeSnapPasses": int(edge_snap_passes),
+    }
+
+
+def candidate_is_better(candidate: Dict, current: Dict) -> bool:
+    c_iou = float(candidate["iou"])
+    b_iou = float(current["iou"])
+    d_iou = c_iou - b_iou
+    c_edge = candidate.get("edge")
+    b_edge = current.get("edge")
+
+    if d_iou >= CANDIDATE_IOU_EPS:
+        return True
+    if c_edge is None or b_edge is None:
+        return False
+
+    edge_gain = float(b_edge - c_edge)
+    if d_iou >= -CANDIDATE_SOFT_MAX_IOU_DROP and edge_gain >= CANDIDATE_EDGE_SOFT_GAIN:
+        return True
+    if d_iou >= -CANDIDATE_HARD_MAX_IOU_DROP and edge_gain >= CANDIDATE_EDGE_HARD_GAIN:
+        return True
+    return False
+
+
+def extract_components(binary_mask: np.ndarray, min_pixels: int = COMPONENT_MIN_PIXELS) -> List[Dict]:
+    if binary_mask.size == 0:
+        return []
+    mask = (binary_mask > 0).astype(np.uint8)
+    n_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    comps: List[Dict] = []
+    for idx in range(1, n_labels):
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area < min_pixels:
+            continue
+        x = int(stats[idx, cv2.CC_STAT_LEFT])
+        y = int(stats[idx, cv2.CC_STAT_TOP])
+        w = int(stats[idx, cv2.CC_STAT_WIDTH])
+        h = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        if w <= 0 or h <= 0:
+            continue
+        crop_labels = labels[y : y + h, x : x + w]
+        crop_mask = np.where(crop_labels == idx, 255, 0).astype(np.uint8)
+        comps.append(
+            {
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h,
+                "area": area,
+                "cx": float(centroids[idx][0]),
+                "cy": float(centroids[idx][1]),
+                "mask_crop": crop_mask,
+            }
+        )
+    comps.sort(key=lambda c: c["area"], reverse=True)
+    return comps
+
+
+def select_significant_components(
+    components: List[Dict],
+    rel_min: float,
+    keep_fraction: float = COMPONENT_KEEP_FRACTION,
+    min_pixels: int = COMPONENT_MIN_PIXELS,
+) -> List[Dict]:
+    if not components:
+        return []
+    total_area = int(sum(c["area"] for c in components))
+    largest = int(components[0]["area"])
+    abs_threshold = max(min_pixels, int(largest * rel_min))
+    keep: List[Dict] = []
+    cum_area = 0
+    for comp in components:
+        must_keep_for_coverage = total_area > 0 and (cum_area / total_area) < keep_fraction
+        if comp["area"] >= abs_threshold or must_keep_for_coverage:
+            keep.append(comp)
+            cum_area += int(comp["area"])
+    return keep if keep else [components[0]]
+
+
+def match_components_by_position(
+    source_components: List[Dict],
+    target_components: List[Dict],
+    src_shape: Tuple[int, int],
+    tgt_shape: Tuple[int, int],
+) -> List[Tuple[int, int]]:
+    if not source_components or not target_components:
+        return []
+
+    src_h, src_w = src_shape
+    tgt_h, tgt_w = tgt_shape
+    src_total = float(max(1, sum(c["area"] for c in source_components)))
+    tgt_total = float(max(1, sum(c["area"] for c in target_components)))
+
+    matches: List[Tuple[int, int]] = []
+    used_source = set()
+    target_order = sorted(range(len(target_components)), key=lambda i: target_components[i]["area"], reverse=True)
+
+    for ti in target_order:
+        t = target_components[ti]
+        tx = float(t["cx"]) / max(1.0, float(tgt_w))
+        ty = float(t["cy"]) / max(1.0, float(tgt_h))
+        t_area_rel = float(t["area"]) / tgt_total
+
+        best_si = None
+        best_cost = float("inf")
+        for si, s in enumerate(source_components):
+            if si in used_source:
+                continue
+            sx = float(s["cx"]) / max(1.0, float(src_w))
+            sy = float(s["cy"]) / max(1.0, float(src_h))
+            s_area_rel = float(s["area"]) / src_total
+
+            pos_dist = math.hypot(sx - tx, sy - ty)
+            area_pen = abs(math.log((s_area_rel + 1e-6) / (t_area_rel + 1e-6)))
+            cost = pos_dist + 0.35 * area_pen
+            if cost < best_cost:
+                best_cost = cost
+                best_si = si
+
+        if best_si is not None:
+            used_source.add(best_si)
+            matches.append((best_si, ti))
+        if len(used_source) >= len(source_components):
+            break
+
+    return matches
+
+
+def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
+    h, w = src.shape[:2]
+    if h <= 0 or w <= 0:
+        return
+    if x < 0 or y < 0 or x + w > dst.shape[1] or y + h > dst.shape[0]:
+        return
+    patch = dst[y : y + h, x : x + w].astype(np.float32)
+    srcf = src.astype(np.float32)
+    alpha = srcf[:, :, 3:4] / 255.0
+    patch[:] = patch * (1.0 - alpha) + srcf * alpha
+    dst[y : y + h, x : x + w] = np.clip(patch, 0, 255).astype(np.uint8)
+
+
+def build_best_warp_for_target(source_rgba: np.ndarray, target_mask: np.ndarray) -> Optional[Dict]:
+    out_h, out_w = target_mask.shape
+    source_alpha = source_rgba[:, :, 3]
+    src_contour = largest_contour(source_alpha)
+    dst_contour = largest_contour(target_mask)
+    if src_contour is None or dst_contour is None:
+        return None
+
+    samples = 180
+    src_boundary = sample_closed_contour(src_contour, samples)
+    dst_boundary = sample_closed_contour(dst_contour, samples)
+    dst_boundary = align_boundary_correspondence(src_boundary, dst_boundary)
+    src_pts, dst_pts = build_landmarks(src_boundary, dst_boundary)
+
+    triangles = delaunay_triangles(dst_pts, out_w, out_h)
+    if len(triangles) < 8:
+        return None
+
+    baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    baseline = clip_rgba_to_mask(baseline, target_mask)
+    baseline_candidate = make_candidate("baseline", baseline, target_mask, edge_snap_passes=0)
+
+    baseline_refined, baseline_snap_passes, baseline_refined_edge, baseline_refined_iou = edge_snap_refine(
+        baseline,
+        target_mask,
+    )
+    if baseline_refined_iou is None:
+        baseline_refined_iou = baseline_candidate["iou"]
+    if baseline_refined_edge is None:
+        baseline_refined_edge = baseline_candidate["edge"]
+    baseline_refined_candidate = {
+        "name": "baseline-edge-snap",
+        "rgba": baseline_refined,
+        "iou": float(baseline_refined_iou),
+        "edge": baseline_refined_edge,
+        "edgeSnapPasses": int(baseline_snap_passes),
+    }
+
+    stage1 = warp_piecewise_affine(source_rgba, src_pts, dst_pts, out_w, out_h, triangles)
+    stage1 = clip_rgba_to_mask(stage1, target_mask)
+    stage1_candidate = make_candidate("stage1", stage1, target_mask, edge_snap_passes=0)
+
+    stage1_refined, stage1_snap_passes, stage1_refined_edge, stage1_refined_iou = edge_snap_refine(
+        stage1,
+        target_mask,
+    )
+    if stage1_refined_iou is None:
+        stage1_refined_iou = stage1_candidate["iou"]
+    if stage1_refined_edge is None:
+        stage1_refined_edge = stage1_candidate["edge"]
+    stage1_refined_candidate = {
+        "name": "stage1-edge-snap",
+        "rgba": stage1_refined,
+        "iou": float(stage1_refined_iou),
+        "edge": stage1_refined_edge,
+        "edgeSnapPasses": int(stage1_snap_passes),
+    }
+
+    best = baseline_candidate
+    for candidate in (baseline_refined_candidate, stage1_candidate, stage1_refined_candidate):
+        if candidate_is_better(candidate, best):
+            best = candidate
+
+    return {
+        "baseline": baseline,
+        "stage1": stage1,
+        "warped": best["rgba"],
+        "strategy": str(best["name"]),
+        "iouBaseline": float(baseline_candidate["iou"]),
+        "iouStage1": float(stage1_candidate["iou"]),
+        "iouWarped": float(best["iou"]),
+        "edgeBaseline": baseline_candidate.get("edge"),
+        "edgeStage1": stage1_candidate.get("edge"),
+        "edgeWarped": best.get("edge"),
+        "edgeSnapPasses": int(best.get("edgeSnapPasses", 0)),
+        "triangleCount": int(len(triangles)),
+    }
+
+
+def safe_key(key: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_.-]+", "_", key)
+
+
+def process_country(
+    country: Dict,
+    feature: Dict,
+    atlas_w: int,
+    atlas_h: int,
+    output_dir: Path,
+) -> Optional[Dict]:
+    source_path = Path(country["imageFile"])
+    if not source_path.exists():
+        return None
+
+    target = target_mask_and_bbox(feature["geometry"], atlas_w, atlas_h)
+    if target is None:
+        return None
+    target_mask, bbox, _ = target
+    out_h, out_w = target_mask.shape
+
+    source_rgba = np.array(Image.open(source_path).convert("RGBA"), dtype=np.uint8)
+
+    baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    baseline = clip_rgba_to_mask(baseline, target_mask)
+    source_components = select_significant_components(
+        extract_components((source_rgba[:, :, 3] > 10).astype(np.uint8) * 255),
+        rel_min=COMPONENT_SOURCE_REL_MIN,
+        keep_fraction=COMPONENT_KEEP_FRACTION,
+        min_pixels=COMPONENT_MIN_PIXELS,
+    )
+    target_components = select_significant_components(
+        extract_components((target_mask > 0).astype(np.uint8) * 255, min_pixels=12),
+        rel_min=COMPONENT_TARGET_REL_MIN,
+        keep_fraction=0.9995,
+        min_pixels=12,
+    )
+
+    stage1: Optional[np.ndarray] = None
+    warped: Optional[np.ndarray] = None
+    strategy = "single-shape"
+    edge_snap_passes = 0
+    triangle_count = 0
+
+    use_component_mode = len(source_components) >= 2 and len(target_components) >= 2
+    if use_component_mode:
+        matches = match_components_by_position(
+            source_components,
+            target_components,
+            src_shape=source_rgba.shape[:2],
+            tgt_shape=target_mask.shape,
+        )
+        if matches:
+            stage1_canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+            warped_canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+            matched_targets = set()
+            strategy_hist: Dict[str, int] = {}
+
+            for src_idx, tgt_idx in matches:
+                src_comp = source_components[src_idx]
+                tgt_comp = target_components[tgt_idx]
+                matched_targets.add(tgt_idx)
+
+                sx, sy, sw, sh = src_comp["x"], src_comp["y"], src_comp["w"], src_comp["h"]
+                tx, ty, tw, th = tgt_comp["x"], tgt_comp["y"], tgt_comp["w"], tgt_comp["h"]
+                if sw <= 0 or sh <= 0 or tw <= 0 or th <= 0:
+                    continue
+
+                src_crop = source_rgba[sy : sy + sh, sx : sx + sw].copy()
+                src_crop[:, :, 3] = np.minimum(src_crop[:, :, 3], src_comp["mask_crop"])
+                src_crop[src_crop[:, :, 3] == 0, :3] = 0
+                tgt_crop_mask = tgt_comp["mask_crop"]
+
+                comp_result = build_best_warp_for_target(src_crop, tgt_crop_mask)
+                if comp_result is None:
+                    local_stage1 = cv2.resize(src_crop, (tw, th), interpolation=cv2.INTER_LINEAR)
+                    local_stage1 = clip_rgba_to_mask(local_stage1, tgt_crop_mask)
+                    local_warped = local_stage1
+                    local_strategy = "component-fallback-baseline"
+                    local_passes = 0
+                    local_triangles = 0
+                else:
+                    local_stage1 = comp_result["stage1"]
+                    local_warped = comp_result["warped"]
+                    local_strategy = str(comp_result["strategy"])
+                    local_passes = int(comp_result["edgeSnapPasses"])
+                    local_triangles = int(comp_result["triangleCount"])
+
+                alpha_blit(stage1_canvas, local_stage1, tx, ty)
+                alpha_blit(warped_canvas, local_warped, tx, ty)
+                edge_snap_passes += local_passes
+                triangle_count += local_triangles
+                strategy_hist[local_strategy] = strategy_hist.get(local_strategy, 0) + 1
+
+            for ti, tgt_comp in enumerate(target_components):
+                if ti in matched_targets:
+                    continue
+                tx, ty, tw, th = tgt_comp["x"], tgt_comp["y"], tgt_comp["w"], tgt_comp["h"]
+                fallback = baseline[ty : ty + th, tx : tx + tw].copy()
+                fallback = clip_rgba_to_mask(fallback, tgt_comp["mask_crop"])
+                alpha_blit(stage1_canvas, fallback, tx, ty)
+                alpha_blit(warped_canvas, fallback, tx, ty)
+
+            stage1 = clip_rgba_to_mask(stage1_canvas, target_mask)
+            warped = clip_rgba_to_mask(warped_canvas, target_mask)
+            top_strategies = ",".join(
+                f"{k}x{v}"
+                for k, v in sorted(strategy_hist.items(), key=lambda kv: kv[1], reverse=True)[:2]
+            )
+            strategy = f"component-matched-v1[{top_strategies}]"
+
+    if stage1 is None or warped is None:
+        single_result = build_best_warp_for_target(source_rgba, target_mask)
+        if single_result is None:
+            return None
+        stage1 = single_result["stage1"]
+        warped = single_result["warped"]
+        strategy = str(single_result["strategy"])
+        edge_snap_passes = int(single_result["edgeSnapPasses"])
+        triangle_count = int(single_result["triangleCount"])
+
+    iou_baseline = shape_iou(baseline[:, :, 3], target_mask)
+    stage1_iou = shape_iou(stage1[:, :, 3], target_mask)
+    iou_warped = shape_iou(warped[:, :, 3], target_mask)
+    baseline_edge = boundary_mean_error(baseline[:, :, 3], target_mask)
+    stage1_edge = boundary_mean_error(stage1[:, :, 3], target_mask)
+    final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
+    target_area = int(np.sum(target_mask > 0))
+
+    key = country.get("featureKey", country["filename"])
+    file_name = f"{safe_key(key)}.webp"
+    out_path = output_dir / file_name
+    Image.fromarray(warped, mode="RGBA").save(out_path, format="WEBP", quality=95)
+
+    return {
+        "warpFile": f"assets/globe/warped/{file_name}",
+        "warpLeft": int(bbox.left),
+        "warpTop": int(bbox.top),
+        "warpWidth": int(bbox.width),
+        "warpHeight": int(bbox.height),
+        "warpStrategy": strategy,
+        "warpIoUBaseline": round(float(iou_baseline), 4),
+        "warpIoUStage1": round(float(stage1_iou), 4),
+        "warpIoU": round(float(iou_warped), 4),
+        "warpIoUGain": round(float(iou_warped - iou_baseline), 4),
+        "triangleCount": int(triangle_count),
+        "targetAreaPx": target_area,
+        "edgeSnapPasses": int(edge_snap_passes),
+        "edgeErrorBaseline": round(float(baseline_edge), 4) if baseline_edge is not None else None,
+        "edgeErrorStage1": round(float(stage1_edge), 4) if stage1_edge is not None else None,
+        "edgeError": round(float(final_edge), 4) if final_edge is not None else None,
+        "edgeErrorGain": (
+            round(float(baseline_edge - final_edge), 4)
+            if baseline_edge is not None and final_edge is not None
+            else None
+        ),
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="assets/globe/config.json")
+    parser.add_argument("--geojson", default="assets/globe/world.geojson")
+    parser.add_argument("--atlas-width", type=int, default=8192)
+    parser.add_argument("--atlas-height", type=int, default=4096)
+    args = parser.parse_args()
+
+    project_dir = Path(__file__).resolve().parent.parent
+    config_path = project_dir / args.config
+    geo_path = project_dir / args.geojson
+    warped_dir = project_dir / "assets/globe/warped"
+    warped_dir.mkdir(parents=True, exist_ok=True)
+
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    geo = json.loads(geo_path.read_text(encoding="utf-8"))
+    features_by_key = {f["properties"]["key"]: f for f in geo["features"]}
+
+    report = {
+        "atlasWidth": args.atlas_width,
+        "atlasHeight": args.atlas_height,
+        "countries": [],
+        "summary": {},
+    }
+
+    ok = 0
+    skipped = 0
+    rejected = 0
+    accepted_by_edge = 0
+    gains = []
+
+    for country in config.get("countries", []):
+        # Clear previous warp metadata first; accepted warps are written below.
+        for k in [
+            "warpFile",
+            "warpLeft",
+            "warpTop",
+            "warpWidth",
+            "warpHeight",
+            "warpStrategy",
+            "warpIoUBaseline",
+            "warpIoUStage1",
+            "warpIoU",
+            "warpIoUGain",
+            "triangleCount",
+            "targetAreaPx",
+            "edgeSnapPasses",
+            "edgeErrorBaseline",
+            "edgeErrorStage1",
+            "edgeError",
+            "edgeErrorGain",
+        ]:
+            country.pop(k, None)
+
+        key = country.get("featureKey")
+        feature = features_by_key.get(key)
+        if feature is None:
+            skipped += 1
+            continue
+
+        result = process_country(country, feature, args.atlas_width, args.atlas_height, warped_dir)
+        if result is None:
+            skipped += 1
+            continue
+
+        gain = result["warpIoUGain"]
+        baseline = result["warpIoUBaseline"]
+        warped_iou = result["warpIoU"]
+        edge_gain = result["edgeErrorGain"]
+        target_area = result["targetAreaPx"]
+        accept_by_iou = (
+            target_area >= MIN_TARGET_AREA_FOR_WARP
+            and (
+                gain >= MIN_IOU_GAIN
+                or (baseline <= LOW_BASELINE_ALLOW and gain >= LOW_BASELINE_TOLERANCE)
+            )
+        )
+        iou_drop = baseline - warped_iou
+        accept_by_edge = (
+            target_area >= MIN_TARGET_AREA_FOR_WARP
+            and edge_gain is not None
+            and edge_gain >= EDGE_ACCEPT_MIN_GAIN
+            and iou_drop <= EDGE_ACCEPT_MAX_IOU_DROP
+            and warped_iou >= EDGE_ACCEPT_MIN_IOU
+        )
+        accept = accept_by_iou or accept_by_edge
+
+        if accept:
+            country.update(result)
+            ok += 1
+            gains.append(gain)
+            if accept_by_edge and not accept_by_iou:
+                accepted_by_edge += 1
+        else:
+            rejected += 1
+
+        report["countries"].append(
+            {
+                "name": country.get("name"),
+                "featureKey": key,
+                "accepted": accept,
+                "warpIoU": result["warpIoU"],
+                "warpIoUBaseline": result["warpIoUBaseline"],
+                "warpIoUGain": result["warpIoUGain"],
+                "triangleCount": result["triangleCount"],
+                "targetAreaPx": result["targetAreaPx"],
+                "warpStrategy": result["warpStrategy"],
+                "warpIoUStage1": result["warpIoUStage1"],
+                "edgeSnapPasses": result["edgeSnapPasses"],
+                "edgeErrorBaseline": result["edgeErrorBaseline"],
+                "edgeErrorStage1": result["edgeErrorStage1"],
+                "edgeError": result["edgeError"],
+                "edgeErrorGain": result["edgeErrorGain"],
+                "acceptedByIoU": accept_by_iou,
+                "acceptedByEdge": accept_by_edge and not accept_by_iou,
+            }
+        )
+
+    config["warpAtlasWidth"] = args.atlas_width
+    config["warpAtlasHeight"] = args.atlas_height
+    config["warpMethod"] = "piecewise-affine-boundary-v2-edge-snap"
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    report["countries"].sort(key=lambda x: x["warpIoUGain"], reverse=True)
+    mean_gain = float(np.mean(gains)) if gains else 0.0
+    edge_snap_countries = sum(1 for c in report["countries"] if c.get("edgeSnapPasses", 0) > 0)
+    edge_snap_passes = int(sum(c.get("edgeSnapPasses", 0) for c in report["countries"]))
+    edge_gains = [
+        float(c["edgeErrorGain"])
+        for c in report["countries"]
+        if c.get("edgeErrorGain") is not None and c.get("edgeSnapPasses", 0) > 0
+    ]
+    report["summary"] = {
+        "warpedCountries": ok,
+        "skippedCountries": skipped,
+        "rejectedCountries": rejected,
+        "acceptedByEdgeRule": accepted_by_edge,
+        "meanIoUGain": round(mean_gain, 4),
+        "maxIoUGain": round(max(gains), 4) if gains else 0.0,
+        "minIoUGain": round(min(gains), 4) if gains else 0.0,
+        "edgeSnapCountries": edge_snap_countries,
+        "edgeSnapPasses": edge_snap_passes,
+        "meanEdgeGainPx": round(float(np.mean(edge_gains)), 4) if edge_gains else 0.0,
+    }
+
+    report_path = project_dir / "assets/globe/warp_report.json"
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    print(f"Warped countries: {ok}")
+    print(f"Skipped countries: {skipped}")
+    print(f"Mean IoU gain: {report['summary']['meanIoUGain']}")
+    print(f"Updated: {config_path.relative_to(project_dir)}")
+    print(f"Report: {report_path.relative_to(project_dir)}")
+
+
+if __name__ == "__main__":
+    main()

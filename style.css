@@ -855,6 +855,12 @@
       box-shadow: 0 8px 24px rgba(30, 120, 190, 0.22);
     }
 
+    .region-card.globe-card img {
+      object-fit: contain;
+      padding: 8px 12px;
+      box-sizing: border-box;
+    }
+
     .region-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 28px rgba(91,191,255,0.15);

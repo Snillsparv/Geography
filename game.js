@@ -12,7 +12,24 @@ let OVERLAY_FILE = '';
 let SPECIAL_SHAPES = {};
 let IS_GLOBE_REGION = false;
 let GLOBE_GEO_FILE = '';
+let GLOBE_WARP_ATLAS_WIDTH = 8192;
+let GLOBE_WARP_ATLAS_HEIGHT = 4096;
 let COUNTRY_BY_FILENAME = {};
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const DEBUG_SHOW_ALL_GLOBE = URL_PARAMS.get('debug_all_globe') === '1';
+const DEBUG_DISABLE_GLOBE_CLIP = URL_PARAMS.get('debug_no_clip') === '1';
+const DEBUG_GLOBE_POV = {
+  lat: Number(URL_PARAMS.get('debug_pov_lat')),
+  lng: Number(URL_PARAMS.get('debug_pov_lng')),
+  altitude: Number(URL_PARAMS.get('debug_pov_alt'))
+};
+
+function debugPovOrDefault() {
+  const lat = Number.isFinite(DEBUG_GLOBE_POV.lat) ? DEBUG_GLOBE_POV.lat : 20;
+  const lng = Number.isFinite(DEBUG_GLOBE_POV.lng) ? DEBUG_GLOBE_POV.lng : 10;
+  const altitude = Number.isFinite(DEBUG_GLOBE_POV.altitude) ? DEBUG_GLOBE_POV.altitude : 1.9;
+  return { lat, lng, altitude };
+}
 
 // ══════════════════════════════════
 // DOM references
@@ -74,6 +91,11 @@ let globeWrongFlash = new Set();
 let globeHintBlink = new Set();
 let globeImageCache = new Map();
 const externalScriptPromises = new Map();
+const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
+const GLOBE_POLY_ALT_BASE = 0.002;
+const GLOBE_POLY_ALT_REVEALED = 0.00025;
+const GLOBE_POLY_ALT_ACTIVE = 0.003;
+let globeResizeObserver = null;
 
 // Seterra state
 let seterraQueue = [];
@@ -204,6 +226,13 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
     const drawW = Math.max(1, maxX - minX);
     const drawH = Math.max(1, maxY - minY);
 
+    if (DEBUG_DISABLE_GLOBE_CLIP) {
+      for (const shift of [-width, 0, width]) {
+        ctx.drawImage(image, minX + shift, minY, drawW, drawH);
+      }
+      continue;
+    }
+
     ctx.save();
     ctx.beginPath();
     for (const ring of rings) {
@@ -229,18 +258,17 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
   }
 }
 
-function loadGlobeCountryImage(country) {
-  if (!country) return Promise.resolve(null);
-  if (globeImageCache.has(country.filename)) return globeImageCache.get(country.filename);
-
+function loadGlobeImage(url) {
+  if (!url) return Promise.resolve(null);
+  if (globeImageCache.has(url)) return globeImageCache.get(url);
   const promise = new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = countryImgSrc(country.filename);
+    img.src = url;
   });
-  globeImageCache.set(country.filename, promise);
+  globeImageCache.set(url, promise);
   return promise;
 }
 
@@ -254,15 +282,39 @@ async function renderGlobeOverlayTexture() {
   const height = globeOverlayCanvas.height;
   ctx.clearRect(0, 0, width, height);
 
-  const visibleCountries = COUNTRIES.filter(c => revealed.has(c.filename));
-  const images = await Promise.all(visibleCountries.map(c => loadGlobeCountryImage(c)));
+  const visibleCountries = DEBUG_SHOW_ALL_GLOBE
+    ? COUNTRIES
+    : COUNTRIES.filter(c => revealed.has(c.filename));
+  const drawItems = visibleCountries.map(country => {
+    const hasWarp = !!(country.warpFile && country.warpWidth && country.warpHeight);
+    return {
+      country,
+      isWarp: hasWarp,
+      url: hasWarp ? country.warpFile : countryImgSrc(country.filename)
+    };
+  });
+  const images = await Promise.all(drawItems.map(item => loadGlobeImage(item.url)));
   if (token !== globeOverlayRenderToken) return;
 
-  visibleCountries.forEach((country, idx) => {
+  const sx = width / GLOBE_WARP_ATLAS_WIDTH;
+  const sy = height / GLOBE_WARP_ATLAS_HEIGHT;
+
+  drawItems.forEach((item, idx) => {
+    const country = item.country;
     const image = images[idx];
     if (!image) return;
-    const feature = globeFeatureByKey.get(country.featureKey);
-    drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+    if (item.isWarp) {
+      const dx = (country.warpLeft || 0) * sx;
+      const dy = (country.warpTop || 0) * sy;
+      const dw = (country.warpWidth || image.width) * sx;
+      const dh = (country.warpHeight || image.height) * sy;
+      for (const shift of [-width, 0, width]) {
+        ctx.drawImage(image, dx + shift, dy, dw, dh);
+      }
+    } else {
+      const feature = globeFeatureByKey.get(country.featureKey);
+      drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+    }
   });
 
   globeOverlayTexture.needsUpdate = true;
@@ -295,18 +347,18 @@ function findFirstSphereMesh(root) {
 
 function globePolygonAltitude(feature) {
   const key = globeFeatureKey(feature);
-  if (!key) return 0.01;
+  if (!key) return GLOBE_POLY_ALT_BASE;
   const country = globeCountryByFeatureKey.get(key);
   const isRevealed = country ? revealed.has(country.filename) : false;
   const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
   const isInteractiveHighlight =
     globeHintBlink.has(key) || globeWrongFlash.has(key) || globeHoverFeatureKey === key || isTarget;
 
-  // Keep interactive highlights high/visible, but keep revealed countries low
-  // so the mnemonic texture layer can be seen on top of the globe.
-  if (isInteractiveHighlight) return 0.012;
-  if (isRevealed) return 0.001;
-  return 0.01;
+  // Keep interactive highlights slightly above base, but close enough to the
+  // globe surface to avoid the "floating plates" effect.
+  if (isInteractiveHighlight) return GLOBE_POLY_ALT_ACTIVE;
+  if (isRevealed) return GLOBE_POLY_ALT_REVEALED;
+  return GLOBE_POLY_ALT_BASE;
 }
 
 function globeCapColor(feature) {
@@ -349,6 +401,16 @@ function onGlobeClick(feature, event) {
   handleClick(country, event);
 }
 
+function syncGlobeViewport() {
+  if (!isGlobeReady()) return;
+  const width = mapPanel.clientWidth;
+  const height = mapPanel.clientHeight;
+  if (width > 0 && height > 0) {
+    globe.width(width);
+    globe.height(height);
+  }
+}
+
 async function initGlobe() {
   const GlobeCtor = await ensureGlobeGlobal();
   if (!GlobeCtor) throw new Error('Globe.gl is not available');
@@ -372,8 +434,8 @@ async function initGlobe() {
     .atmosphereColor('#7ab5ff')
     .atmosphereAltitude(0.18)
     .polygonAltitude(globePolygonAltitude)
-    .polygonSideColor(() => 'rgba(90,120,150,0.22)')
-    .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.45)')
+    .polygonSideColor(() => 'rgba(90,120,150,0)')
+    .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.34)')
     .polygonsTransitionDuration(120)
     .polygonsData(globeFeatures)
     .polygonCapColor(globeCapColor)
@@ -389,16 +451,38 @@ async function initGlobe() {
   globe.controls().minDistance = 170;
   globe.controls().maxDistance = 340;
   globe.controls().autoRotate = false;
-  globe.pointOfView({ lat: 20, lng: 10, altitude: 1.9 }, 0);
+  globe.pointOfView(debugPovOrDefault(), 0);
+  syncGlobeViewport();
+
+  if (globeResizeObserver) globeResizeObserver.disconnect();
+  if (window.ResizeObserver) {
+    globeResizeObserver = new ResizeObserver(() => syncGlobeViewport());
+    globeResizeObserver.observe(mapPanel);
+  } else {
+    window.addEventListener('resize', syncGlobeViewport);
+  }
+  requestAnimationFrame(syncGlobeViewport);
 
   if (ThreeLib) {
+    const renderer = typeof globe.renderer === 'function' ? globe.renderer() : null;
+    const maxTextureSize =
+      renderer && renderer.capabilities && renderer.capabilities.maxTextureSize
+        ? renderer.capabilities.maxTextureSize
+        : GLOBE_OVERLAY_TARGET_WIDTH;
+    const overlayWidth = Math.min(GLOBE_OVERLAY_TARGET_WIDTH, maxTextureSize);
+    const overlayHeight = Math.floor(overlayWidth / 2);
+
     globeOverlayCanvas = document.createElement('canvas');
-    globeOverlayCanvas.width = 4096;
-    globeOverlayCanvas.height = 2048;
+    globeOverlayCanvas.width = overlayWidth;
+    globeOverlayCanvas.height = overlayHeight;
     globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayCanvas);
     if (ThreeLib.SRGBColorSpace) {
       globeOverlayTexture.colorSpace = ThreeLib.SRGBColorSpace;
     }
+    globeOverlayTexture.anisotropy =
+      renderer && renderer.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
+        ? Math.max(1, renderer.capabilities.getMaxAnisotropy())
+        : 1;
 
     const radiusCandidate = typeof globe.getGlobeRadius === 'function' ? globe.getGlobeRadius() : null;
     const radius =
@@ -1312,6 +1396,11 @@ async function loadRegionConfig(slug) {
         filename,
         featureKey: c.featureKey,
         imageFile: c.imageFile,
+        warpFile: c.warpFile || '',
+        warpLeft: c.warpLeft || 0,
+        warpTop: c.warpTop || 0,
+        warpWidth: c.warpWidth || 0,
+        warpHeight: c.warpHeight || 0,
         centerLon: c.centerLon || 0,
         centerLat: c.centerLat || 0,
         desc: c.desc || ''
@@ -1327,6 +1416,8 @@ async function loadRegionConfig(slug) {
       isGlobe: true,
       hsKey: raw.hsKey || 'globe-highscores',
       geoFile: `${assetBase}/world.geojson`,
+      warpAtlasWidth: raw.warpAtlasWidth || 8192,
+      warpAtlasHeight: raw.warpAtlasHeight || 4096,
       assetBase,
       imageExt: 'webp',
       mapFile: '',
@@ -1416,6 +1507,8 @@ async function initGame(config) {
   SPECIAL_SHAPES = config.specialShapes;
   IS_GLOBE_REGION = !!config.isGlobe;
   GLOBE_GEO_FILE = config.geoFile || '';
+  GLOBE_WARP_ATLAS_WIDTH = config.warpAtlasWidth || 8192;
+  GLOBE_WARP_ATLAS_HEIGHT = config.warpAtlasHeight || 4096;
   COUNTRY_BY_FILENAME = Object.fromEntries(COUNTRIES.map(c => [c.filename, c]));
 
   // Update HTML elements
