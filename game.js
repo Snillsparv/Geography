@@ -1001,21 +1001,35 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
 document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
 
-// Jonas high-five (region-independent)
+// Jonas high-five (global counter via Firebase)
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
 const highfiveAudio = new Audio('high_five.wav');
-let highfiveCount = parseInt(localStorage.getItem('highfive-count') || '0', 10);
-highfiveCountEl.textContent = highfiveCount;
+const highfiveRef = firebaseDB ? firebaseDB.ref('highfives') : null;
+
+// Load initial count
+if (highfiveRef) {
+  highfiveRef.on('value', snap => {
+    const val = snap.val() || 0;
+    highfiveCountEl.textContent = val;
+  });
+} else {
+  highfiveCountEl.textContent = localStorage.getItem('highfive-count') || '0';
+}
 
 jonasImg.addEventListener('click', () => {
-  highfiveCount++;
-  localStorage.setItem('highfive-count', highfiveCount);
-  highfiveCountEl.textContent = highfiveCount;
   highfiveAudio.currentTime = 0;
   highfiveAudio.play();
   jonasImg.src = 'Jonas_2.webp';
   setTimeout(() => { jonasImg.src = 'Jonas_1.webp'; }, 1000);
+
+  if (highfiveRef) {
+    highfiveRef.transaction(current => (current || 0) + 1);
+  } else {
+    const count = parseInt(localStorage.getItem('highfive-count') || '0', 10) + 1;
+    localStorage.setItem('highfive-count', count);
+    highfiveCountEl.textContent = count;
+  }
 });
 
 // ══════════════════════════════════
