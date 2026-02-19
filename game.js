@@ -684,9 +684,10 @@ async function getHighscores() {
   if (!firebaseDB) return local;
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
+    console.log('Firebase raw snapshot:', JSON.stringify(snap.val()).slice(0, 500));
     const remote = [];
     snap.forEach(child => remote.push(child.val()));
-    console.log('Firebase read:', remote.length, 'entries from', 'highscores/' + HS_KEY, '| local:', local.length);
+    console.log('Firebase parsed:', remote.length, 'entries from highscores/' + HS_KEY);
 
     // Merge: start with remote, add any local entries not found in remote
     const seen = new Set(remote.map(e => e.date));
