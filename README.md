@@ -1,15 +1,37 @@
-# Sydamerika – Forma-spelet
+# Jonas geografi
 
-Ett Seterra-liknande kartspel där du ska identifiera Sydamerikas länder utifrån deras form!
+Interaktivt geografi-spel med:
 
-## Hur man spelar
+- 2D-kartor per region (utforska + quiz)
+- 3D-världsglob (utforska + quiz)
 
-1. Öppna `index.html` i en webbläsare
-2. En landform (siluett) visas till höger
-3. Välj rätt land bland fyra alternativ
-4. Landet markeras på kartan när du svarat
-5. Spela igenom alla 13 länder och se ditt resultat!
+## Starta lokalt
 
-## Länder
+```bash
+python3 -m http.server 8000
+```
 
-Argentina, Bolivia, Brasilien, Chile, Colombia, Ecuador, Franska Guyana, Guyana, Paraguay, Peru, Surinam, Uruguay, Venezuela
+Öppna sedan `http://localhost:8000/`.
+
+## 3D-globen
+
+Välj kortet **Världen (3D)** på startsidan.
+
+Globen använder:
+
+- landpolygoner för klick/hit-test
+- samma landbeskrivningar och bildassociationer som regionkartorna
+- projicerad overlay på globen för avslöjade mnemoniska bilder
+
+## Bygg globe-data igen
+
+Om regiondata ändras kan globe-filer genereras om:
+
+```bash
+node tools/build_globe_assets.mjs
+```
+
+Detta skapar:
+
+- `assets/globe/config.json`
+- `assets/globe/world.geojson`

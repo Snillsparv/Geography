@@ -10,6 +10,9 @@ let IMAGE_EXT = 'png';
 let MAP_FILE = '';
 let OVERLAY_FILE = '';
 let SPECIAL_SHAPES = {};
+let IS_GLOBE_REGION = false;
+let GLOBE_GEO_FILE = '';
+let COUNTRY_BY_FILENAME = {};
 
 // ══════════════════════════════════
 // DOM references
@@ -17,6 +20,7 @@ let SPECIAL_SHAPES = {};
 const mapPanel = document.querySelector('.map-panel');
 const mapWrapper = document.getElementById('map-wrapper');
 const baseMap = document.getElementById('base-map');
+const globeContainer = document.getElementById('globe-container');
 const zoomLevelEl = document.getElementById('zoom-level');
 const cursorLabel = document.getElementById('cursor-label');
 const headerHint = document.getElementById('header-hint');
@@ -57,6 +61,20 @@ const MIN_ZOOM = 1, MAX_ZOOM = 5;
 let activeCountry = null;
 let exploreTooltipTimer = null;
 
+// Globe state (only used when region=globe)
+let globe = null;
+let globeFeatures = [];
+let globeFeatureByKey = new Map();
+let globeCountryByFeatureKey = new Map();
+let globeOverlayCanvas = null;
+let globeOverlayTexture = null;
+let globeOverlayMesh = null;
+let globeHoverFeatureKey = null;
+let globeWrongFlash = new Set();
+let globeHintBlink = new Set();
+let globeImageCache = new Map();
+const externalScriptPromises = new Map();
+
 // Seterra state
 let seterraQueue = [];
 let seterraTarget = null;
@@ -79,10 +97,350 @@ function shuffle(arr) {
   return arr;
 }
 
+function loadExternalScriptOnce(src) {
+  if (externalScriptPromises.has(src)) return externalScriptPromises.get(src);
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed loading script: ${src}`));
+    document.head.appendChild(script);
+  });
+  externalScriptPromises.set(src, promise);
+  return promise;
+}
+
+async function ensureThreeGlobal() {
+  if (window.THREE) return window.THREE;
+  const sources = [
+    'vendor/three/three.min.js',
+    '/vendor/three/three.min.js',
+    'https://unpkg.com/three@0.160.0/build/three.min.js',
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js'
+  ];
+  for (const src of sources) {
+    try {
+      await loadExternalScriptOnce(src);
+      if (window.THREE) return window.THREE;
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+  return null;
+}
+
+async function ensureGlobeGlobal() {
+  if (window.Globe) return window.Globe;
+  const sources = [
+    'vendor/globe.gl/globe.gl.min.js',
+    '/vendor/globe.gl/globe.gl.min.js',
+    'https://unpkg.com/globe.gl@2.34.4/dist/globe.gl.min.js',
+    'https://cdn.jsdelivr.net/npm/globe.gl@2.34.4/dist/globe.gl.min.js'
+  ];
+  for (const src of sources) {
+    try {
+      await loadExternalScriptOnce(src);
+      if (window.Globe) return window.Globe;
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+  return null;
+}
+
+function isGlobeReady() {
+  return IS_GLOBE_REGION && globe;
+}
+
+function globeOverlayXY(lon, lat, width, height) {
+  const x = ((lon + 180) / 360) * width;
+  const y = ((90 - lat) / 180) * height;
+  return [x, y];
+}
+
+function projectedRing(ring, width, height) {
+  const pts = ring.map(([lon, lat]) => globeOverlayXY(lon, lat, width, height));
+  if (pts.length === 0) return pts;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const [x] of pts) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+  }
+
+  // Avoid giant clip shapes when polygons cross the antimeridian.
+  if (maxX - minX > width * 0.5) {
+    for (const point of pts) {
+      if (point[0] < width * 0.5) point[0] += width;
+    }
+  }
+  return pts;
+}
+
+function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
+  if (!feature || !feature.geometry || !image) return;
+  const geometry = feature.geometry;
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  if (!polygons || polygons.length === 0) return;
+
+  for (const polygon of polygons) {
+    if (!polygon || polygon.length === 0) continue;
+    const rings = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    if (rings.length === 0) continue;
+
+    const outer = rings[0];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of outer) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const drawW = Math.max(1, maxX - minX);
+    const drawH = Math.max(1, maxY - minY);
+
+    ctx.save();
+    ctx.beginPath();
+    for (const ring of rings) {
+      for (let i = 0; i < ring.length; i++) {
+        const [x, y] = ring[i];
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+    try {
+      ctx.clip('evenodd');
+    } catch {
+      // Fallback for browsers that do not support clip fill-rule argument.
+      ctx.clip();
+    }
+
+    // Draw wrapped copies to cover polygons close to the antimeridian.
+    for (const shift of [-width, 0, width]) {
+      ctx.drawImage(image, minX + shift, minY, drawW, drawH);
+    }
+    ctx.restore();
+  }
+}
+
+function loadGlobeCountryImage(country) {
+  if (!country) return Promise.resolve(null);
+  if (globeImageCache.has(country.filename)) return globeImageCache.get(country.filename);
+
+  const promise = new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = countryImgSrc(country.filename);
+  });
+  globeImageCache.set(country.filename, promise);
+  return promise;
+}
+
+let globeOverlayRenderToken = 0;
+async function renderGlobeOverlayTexture() {
+  if (!isGlobeReady() || !globeOverlayCanvas || !globeOverlayTexture) return;
+
+  const token = ++globeOverlayRenderToken;
+  const ctx = globeOverlayCanvas.getContext('2d');
+  const width = globeOverlayCanvas.width;
+  const height = globeOverlayCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const visibleCountries = COUNTRIES.filter(c => revealed.has(c.filename));
+  const images = await Promise.all(visibleCountries.map(c => loadGlobeCountryImage(c)));
+  if (token !== globeOverlayRenderToken) return;
+
+  visibleCountries.forEach((country, idx) => {
+    const image = images[idx];
+    if (!image) return;
+    const feature = globeFeatureByKey.get(country.featureKey);
+    drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+  });
+
+  globeOverlayTexture.needsUpdate = true;
+}
+
+function globeFeatureKey(feature) {
+  return feature?.properties?.key || null;
+}
+
+function findFirstSphereMesh(root) {
+  if (!root) return null;
+  const stack = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (
+      node &&
+      node.isMesh &&
+      node.geometry &&
+      typeof node.geometry.type === 'string' &&
+      node.geometry.type.toLowerCase().includes('sphere')
+    ) {
+      return node;
+    }
+    if (node && node.children && node.children.length) {
+      for (let i = 0; i < node.children.length; i++) stack.push(node.children[i]);
+    }
+  }
+  return null;
+}
+
+function globePolygonAltitude(feature) {
+  const key = globeFeatureKey(feature);
+  if (!key) return 0.01;
+  const country = globeCountryByFeatureKey.get(key);
+  const isRevealed = country ? revealed.has(country.filename) : false;
+  const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
+  const isInteractiveHighlight =
+    globeHintBlink.has(key) || globeWrongFlash.has(key) || globeHoverFeatureKey === key || isTarget;
+
+  // Keep interactive highlights high/visible, but keep revealed countries low
+  // so the mnemonic texture layer can be seen on top of the globe.
+  if (isInteractiveHighlight) return 0.012;
+  if (isRevealed) return 0.001;
+  return 0.01;
+}
+
+function globeCapColor(feature) {
+  const key = globeFeatureKey(feature);
+  if (!key) return 'rgba(88,115,140,0.34)';
+  const country = globeCountryByFeatureKey.get(key);
+  const isRevealed = country ? revealed.has(country.filename) : false;
+  const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
+
+  if (globeHintBlink.has(key)) return 'rgba(255, 220, 70, 0.95)';
+  if (globeWrongFlash.has(key)) return 'rgba(255, 120, 120, 0.95)';
+  if (globeHoverFeatureKey === key) return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
+  if (isRevealed) return 'rgba(0, 0, 0, 0)';
+  if (isTarget) return 'rgba(91, 191, 255, 0.3)';
+  return 'rgba(88, 115, 140, 0.26)';
+}
+
+function refreshGlobeStyles() {
+  if (!isGlobeReady()) return;
+  globe.polygonCapColor(globeCapColor);
+  globe.polygonAltitude(globePolygonAltitude);
+}
+
+function onGlobeHover(feature) {
+  globeHoverFeatureKey = globeFeatureKey(feature);
+  refreshGlobeStyles();
+}
+
+function onGlobeClick(feature, event) {
+  const key = globeFeatureKey(feature);
+  if (!key) return;
+
+  let country = globeCountryByFeatureKey.get(key);
+  if (currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key) {
+    country = seterraTarget;
+  }
+  if (!country) return;
+  globeHoverFeatureKey = null;
+  refreshGlobeStyles();
+  handleClick(country, event);
+}
+
+async function initGlobe() {
+  const GlobeCtor = await ensureGlobeGlobal();
+  if (!GlobeCtor) throw new Error('Globe.gl is not available');
+  const ThreeLib = await ensureThreeGlobal();
+
+  mapWrapper.style.display = 'none';
+  globeContainer.style.display = '';
+  document.querySelector('.zoom-controls').style.display = 'none';
+
+  const geoResp = await fetch(GLOBE_GEO_FILE);
+  const geo = await geoResp.json();
+  globeFeatures = geo.features || [];
+  globeFeatureByKey = new Map(globeFeatures.map(f => [f.properties.key, f]));
+  globeCountryByFeatureKey = new Map(COUNTRIES.map(c => [c.featureKey, c]));
+
+  globe = GlobeCtor()(globeContainer)
+    .backgroundColor('rgba(0,0,0,0)')
+    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+    .showAtmosphere(true)
+    .atmosphereColor('#7ab5ff')
+    .atmosphereAltitude(0.18)
+    .polygonAltitude(globePolygonAltitude)
+    .polygonSideColor(() => 'rgba(90,120,150,0.22)')
+    .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.45)')
+    .polygonsTransitionDuration(120)
+    .polygonsData(globeFeatures)
+    .polygonCapColor(globeCapColor)
+    .onPolygonHover(onGlobeHover)
+    .onPolygonClick(onGlobeClick);
+
+  globeContainer.addEventListener('pointerleave', () => {
+    globeHoverFeatureKey = null;
+    refreshGlobeStyles();
+  });
+
+  globe.controls().enablePan = false;
+  globe.controls().minDistance = 170;
+  globe.controls().maxDistance = 340;
+  globe.controls().autoRotate = false;
+  globe.pointOfView({ lat: 20, lng: 10, altitude: 1.9 }, 0);
+
+  if (ThreeLib) {
+    globeOverlayCanvas = document.createElement('canvas');
+    globeOverlayCanvas.width = 4096;
+    globeOverlayCanvas.height = 2048;
+    globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayCanvas);
+    if (ThreeLib.SRGBColorSpace) {
+      globeOverlayTexture.colorSpace = ThreeLib.SRGBColorSpace;
+    }
+
+    const radiusCandidate = typeof globe.getGlobeRadius === 'function' ? globe.getGlobeRadius() : null;
+    const radius =
+      Number.isFinite(radiusCandidate) && radiusCandidate > 0 ? radiusCandidate : 100;
+    globeOverlayMesh = new ThreeLib.Mesh(
+      new ThreeLib.SphereGeometry(radius * 1.01, 96, 64),
+      new ThreeLib.MeshBasicMaterial({
+        map: globeOverlayTexture,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true
+      })
+    );
+    globeOverlayMesh.renderOrder = 3;
+    const sceneRoot = globe.scene();
+    const baseSphere = findFirstSphereMesh(sceneRoot);
+    if (baseSphere && baseSphere.parent) {
+      baseSphere.parent.add(globeOverlayMesh);
+      globeOverlayMesh.position.copy(baseSphere.position);
+      globeOverlayMesh.quaternion.copy(baseSphere.quaternion);
+      globeOverlayMesh.scale.copy(baseSphere.scale);
+    } else {
+      // Fallback alignment used by many globe libs: shift texture space by -90deg.
+      globeOverlayMesh.rotation.y = -Math.PI / 2;
+      sceneRoot.add(globeOverlayMesh);
+    }
+  } else {
+    console.warn('THREE global not available; mnemonic image overlay on globe is disabled.');
+  }
+
+  await renderGlobeOverlayTexture();
+  refreshGlobeStyles();
+}
+
 // ══════════════════════════════════
 // Hit detection & overlays
 // ══════════════════════════════════
 function countryImgSrc(filename) {
+  if (IS_GLOBE_REGION) {
+    const country = COUNTRY_BY_FILENAME[filename];
+    if (country && country.imageFile) return country.imageFile;
+  }
   return `${ASSET_BASE}/countries/${filename}.${IMAGE_EXT}`;
 }
 
@@ -343,6 +701,13 @@ function hitTest(clientX, clientY) {
 }
 
 function revealCountry(filename) {
+  if (IS_GLOBE_REGION) {
+    revealed.add(filename);
+    justRevealed.add(filename);
+    renderGlobeOverlayTexture();
+    refreshGlobeStyles();
+    return;
+  }
   const el = overlayEls[filename];
   if (el) { el.classList.remove('flash-wrong', 'hint-blink', 'hovered'); el.classList.add('visible'); }
   revealed.add(filename);
@@ -352,6 +717,18 @@ function revealCountry(filename) {
 }
 
 function flashWrong(filename) {
+  if (IS_GLOBE_REGION) {
+    const country = COUNTRY_BY_FILENAME[filename];
+    if (!country) return;
+    const key = country.featureKey;
+    globeWrongFlash.add(key);
+    refreshGlobeStyles();
+    setTimeout(() => {
+      globeWrongFlash.delete(key);
+      refreshGlobeStyles();
+    }, 700);
+    return;
+  }
   const el = overlayEls[filename];
   if (!el || revealed.has(filename)) return;
   const hoverEl = hoverEls[filename];
@@ -361,6 +738,18 @@ function flashWrong(filename) {
 }
 
 function blinkHint(filename) {
+  if (IS_GLOBE_REGION) {
+    const country = COUNTRY_BY_FILENAME[filename];
+    if (!country) return;
+    const key = country.featureKey;
+    globeHintBlink.add(key);
+    refreshGlobeStyles();
+    setTimeout(() => {
+      globeHintBlink.delete(key);
+      refreshGlobeStyles();
+    }, 1500);
+    return;
+  }
   const el = overlayEls[filename];
   if (!el || revealed.has(filename)) return;
   el.classList.remove('hint-blink');
@@ -370,6 +759,17 @@ function blinkHint(filename) {
 }
 
 function resetOverlays() {
+  if (IS_GLOBE_REGION) {
+    revealed.clear();
+    justRevealed.clear();
+    currentHover = null;
+    globeHoverFeatureKey = null;
+    globeWrongFlash.clear();
+    globeHintBlink.clear();
+    renderGlobeOverlayTexture();
+    refreshGlobeStyles();
+    return;
+  }
   document.querySelectorAll('.country-overlay').forEach(el => {
     el.classList.remove('visible', 'flash-wrong', 'hint-blink', 'hovered');
   });
@@ -489,10 +889,15 @@ function showInfoCard(c) {
 }
 
 function exploreClick(c, e) {
-  const overlay = overlayEls[c.filename];
   if (revealed.has(c.filename)) {
-    overlay.classList.remove('visible', 'hovered');
     revealed.delete(c.filename);
+    if (IS_GLOBE_REGION) {
+      renderGlobeOverlayTexture();
+      refreshGlobeStyles();
+    } else {
+      const overlay = overlayEls[c.filename];
+      overlay.classList.remove('visible', 'hovered');
+    }
   } else {
     revealCountry(c.filename);
   }
@@ -533,7 +938,7 @@ function startSeterra() {
 
   seterraGame.classList.add('active');
   seterraDone.classList.remove('active');
-  cursorLabel.style.display = 'block';
+  cursorLabel.style.display = IS_GLOBE_REGION ? 'none' : 'block';
 
   updateSeterraUI();
   nextSeterraTarget();
@@ -547,9 +952,20 @@ function startSeterraRetry() {
   if (missedList.length === 0) return;
 
   resetOverlays();
-  COUNTRIES.forEach(c => {
-    if (!seterraMissedCountries.has(c.filename)) revealCountry(c.filename);
-  });
+  if (IS_GLOBE_REGION) {
+    COUNTRIES.forEach(c => {
+      if (!seterraMissedCountries.has(c.filename)) {
+        revealed.add(c.filename);
+        justRevealed.add(c.filename);
+      }
+    });
+    renderGlobeOverlayTexture();
+    refreshGlobeStyles();
+  } else {
+    COUNTRIES.forEach(c => {
+      if (!seterraMissedCountries.has(c.filename)) revealCountry(c.filename);
+    });
+  }
 
   seterraQueue = shuffle([...missedList]);
   seterraCorrect = 0;
@@ -563,7 +979,7 @@ function startSeterraRetry() {
 
   seterraGame.classList.add('active');
   seterraDone.classList.remove('active');
-  cursorLabel.style.display = 'block';
+  cursorLabel.style.display = IS_GLOBE_REGION ? 'none' : 'block';
 
   updateSeterraUI();
   nextSeterraTarget();
@@ -580,7 +996,7 @@ function nextSeterraTarget() {
   seterraTarget = seterraQueue.pop();
   seterraTargetMisses = 0;
   seterraTargetName.textContent = seterraTarget.name;
-  cursorLabel.textContent = seterraTarget.name;
+  if (!IS_GLOBE_REGION) cursorLabel.textContent = seterraTarget.name;
   seterraFeedback.className = 'seterra-feedback';
   seterraFeedback.innerHTML = '';
 }
@@ -588,13 +1004,17 @@ function nextSeterraTarget() {
 function seterraClick(c) {
   if (!seterraTarget || seterraLocked) return;
 
-  if (c.filename === seterraTarget.filename) {
+  const isCorrect = IS_GLOBE_REGION
+    ? c.featureKey === seterraTarget.featureKey
+    : c.filename === seterraTarget.filename;
+
+  if (isCorrect) {
     seterraCorrect++;
     seterraTargetMisses = 0;
-    revealCountry(c.filename);
+    revealCountry(seterraTarget.filename);
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
-    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    const correctAssoc = IMAGE_ASSOCIATIONS[seterraTarget.filename];
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(seterraTarget.name)}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(seterraTarget.desc)}</div>`;
     updateSeterraUI();
     nextSeterraTarget();
   } else {
@@ -815,7 +1235,7 @@ function switchMode(mode) {
     hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
-    headerHint.textContent = 'Klicka på ett land';
+    headerHint.textContent = IS_GLOBE_REGION ? 'Klicka på ett land på jordgloben' : 'Klicka på ett land';
     resetOverlays();
     activeCountry = null;
     infoCard.classList.remove('active');
@@ -825,8 +1245,13 @@ function switchMode(mode) {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
     document.getElementById('explore-toggle-buttons').style.display = 'none';
-    headerHint.textContent = 'Klicka där du tror landet är!';
+    headerHint.textContent = IS_GLOBE_REGION ? 'Klicka på jordgloben där du tror landet är!' : 'Klicka där du tror landet är!';
     startSeterra();
+  }
+
+  if (IS_GLOBE_REGION) {
+    refreshGlobeStyles();
+    renderGlobeOverlayTexture();
   }
 }
 
@@ -876,9 +1301,50 @@ async function loadRegionConfig(slug) {
   const raw = await resp.json();
   const assetBase = `assets/${slug}`;
 
+  if (raw.isGlobe || slug === 'globe') {
+    const countries = [];
+    const imageAssociations = {};
+
+    for (const c of raw.countries || []) {
+      const filename = c.filename || c.featureKey || c.name;
+      countries.push({
+        name: c.name,
+        filename,
+        featureKey: c.featureKey,
+        imageFile: c.imageFile,
+        centerLon: c.centerLon || 0,
+        centerLat: c.centerLat || 0,
+        desc: c.desc || ''
+      });
+      if (c.imageAssociation) {
+        imageAssociations[filename] = c.imageAssociation;
+      }
+    }
+
+    return {
+      name: raw.name || 'Världen',
+      slug,
+      isGlobe: true,
+      hsKey: raw.hsKey || 'globe-highscores',
+      geoFile: `${assetBase}/world.geojson`,
+      assetBase,
+      imageExt: 'webp',
+      mapFile: '',
+      overlayFile: '',
+      mapLeft: 0,
+      mapTop: 0,
+      mapW: 0,
+      mapH: 0,
+      specialShapes: {},
+      countries,
+      imageAssociations
+    };
+  }
+
   const config = {
     name: raw.name,
     slug: slug,
+    isGlobe: false,
     assetBase: assetBase,
     imageExt: 'webp',
     mapFile: `${assetBase}/map.webp`,
@@ -948,6 +1414,9 @@ async function initGame(config) {
   MAP_FILE = config.mapFile;
   OVERLAY_FILE = config.overlayFile;
   SPECIAL_SHAPES = config.specialShapes;
+  IS_GLOBE_REGION = !!config.isGlobe;
+  GLOBE_GEO_FILE = config.geoFile || '';
+  COUNTRY_BY_FILENAME = Object.fromEntries(COUNTRIES.map(c => [c.filename, c]));
 
   // Update HTML elements
   document.title = `${config.name} – Jonas geografi`;
@@ -955,32 +1424,45 @@ async function initGame(config) {
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
 
-  // Set map image and wait for it to load
-  baseMap.src = MAP_FILE;
-  baseMap.alt = config.name + ' karta';
-  await new Promise(resolve => {
-    if (baseMap.complete && baseMap.naturalWidth > 0) resolve();
-    else baseMap.onload = resolve;
-  });
-
   // Show game container (hidden if region selector was showing)
   document.getElementById('region-selector').style.display = 'none';
   document.querySelector('.game-container').style.display = '';
   document.querySelector('header').style.display = '';
   document.querySelector('.mode-toggle').style.display = '';
   document.getElementById('header-hint').style.display = '';
+  headerHint.textContent = IS_GLOBE_REGION ? 'Klicka på ett land på jordgloben' : 'Klicka på ett land';
   document.body.style.overflow = 'hidden';
 
-  createOverlays();
-  await loadHitData();
-  processHoverImages();
+  if (IS_GLOBE_REGION) {
+    baseMap.removeAttribute('src');
+    mapWrapper.style.display = 'none';
+    globeContainer.style.display = '';
+    document.querySelector('.zoom-controls').style.display = 'none';
+    await initGlobe();
+  } else {
+    globeContainer.style.display = 'none';
+    mapWrapper.style.display = '';
+    document.querySelector('.zoom-controls').style.display = '';
 
-  // Attach event listeners
-  mapPanel.addEventListener('pointerdown', onPointerDown);
-  mapPanel.addEventListener('pointermove', onPointerMove);
-  mapPanel.addEventListener('pointerup', onPointerUp);
-  mapPanel.addEventListener('pointercancel', onPointerUp);
-  mapPanel.addEventListener('wheel', onWheel, { passive: false });
+    // Set map image and wait for it to load
+    baseMap.src = MAP_FILE;
+    baseMap.alt = config.name + ' karta';
+    await new Promise(resolve => {
+      if (baseMap.complete && baseMap.naturalWidth > 0) resolve();
+      else baseMap.onload = resolve;
+    });
+
+    createOverlays();
+    await loadHitData();
+    processHoverImages();
+
+    // Attach event listeners
+    mapPanel.addEventListener('pointerdown', onPointerDown);
+    mapPanel.addEventListener('pointermove', onPointerMove);
+    mapPanel.addEventListener('pointerup', onPointerUp);
+    mapPanel.addEventListener('pointercancel', onPointerUp);
+    mapPanel.addEventListener('wheel', onWheel, { passive: false });
+  }
 }
 
 // ══════════════════════════════════
