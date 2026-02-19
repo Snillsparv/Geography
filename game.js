@@ -686,6 +686,7 @@ async function getHighscores() {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
     snap.forEach(child => remote.push(child.val()));
+    console.log('Firebase read:', remote.length, 'entries from', 'highscores/' + HS_KEY, '| local:', local.length);
 
     // Merge: start with remote, add any local entries not found in remote
     const seen = new Set(remote.map(e => e.date));
@@ -716,7 +717,8 @@ async function saveHighscore(name, score, time, wrong) {
   // Save to Firebase
   if (firebaseDB) {
     try {
-      await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
+      const pushRef = await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
+      console.log('Firebase save OK, key:', pushRef.key, 'path:', 'highscores/' + HS_KEY);
       // Trim to top 30: read all, delete excess
       const snap = await firebaseDB.ref('highscores/' + HS_KEY)
         .orderByChild('score').once('value');
@@ -729,7 +731,7 @@ async function saveHighscore(name, score, time, wrong) {
         await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
       }
     } catch (e) {
-      console.warn('Firebase write failed:', e);
+      console.warn('Firebase write FAILED:', e.code, e.message);
     }
   }
   return entry;
