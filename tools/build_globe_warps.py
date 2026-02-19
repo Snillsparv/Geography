@@ -42,6 +42,12 @@ EDGE_ACCEPT_MIN_GAIN = 2.0
 EDGE_ACCEPT_MAX_IOU_DROP = 0.05
 EDGE_ACCEPT_MIN_IOU = 0.80
 FORCE_ACCEPT_FEATURE_KEYS = {"RUS"}
+POST_EDGE_REPAIR_MIN_AREA = 20000
+POST_EDGE_REPAIR_MIN_EDGE_EXCESS = 4.0
+POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
+POST_EDGE_REPAIR_MAX_PASSES = 3
+POST_EDGE_REPAIR_MIN_EDGE_GAIN = 2.0
+POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
 CANDIDATE_IOU_EPS = 0.001
 CANDIDATE_EDGE_SOFT_GAIN = 0.8
 CANDIDATE_EDGE_HARD_GAIN = 2.5
@@ -578,6 +584,46 @@ def edge_snap_refine(
     return current, passes, current_edge, current_iou
 
 
+def post_edge_repair(
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    max_passes: int = POST_EDGE_REPAIR_MAX_PASSES,
+    max_iou_drop: float = POST_EDGE_REPAIR_MAX_IOU_DROP,
+) -> Tuple[np.ndarray, int, Optional[float], Optional[float]]:
+    current_iou = shape_iou(rgba[:, :, 3], target_mask)
+    current_edge = boundary_mean_error(rgba[:, :, 3], target_mask)
+    if current_edge is None:
+        return rgba, 0, current_edge, current_iou
+
+    floor_iou = current_iou - max_iou_drop
+    best_rgba = rgba
+    best_iou = current_iou
+    best_edge = current_edge
+
+    probe = rgba
+    used_passes = 0
+    for idx in range(max_passes):
+        candidate = edge_snap_refine_once(probe, target_mask)
+        if candidate is None:
+            break
+        candidate = clip_rgba_to_mask(candidate, target_mask)
+        cand_iou = shape_iou(candidate[:, :, 3], target_mask)
+        cand_edge = boundary_mean_error(candidate[:, :, 3], target_mask)
+        if cand_edge is None:
+            break
+
+        probe = candidate
+        if cand_iou < floor_iou:
+            continue
+        if cand_edge + 1e-6 < best_edge:
+            best_rgba = candidate
+            best_iou = cand_iou
+            best_edge = cand_edge
+            used_passes = idx + 1
+
+    return best_rgba, used_passes, best_edge, best_iou
+
+
 def make_candidate(
     name: str,
     rgba: np.ndarray,
@@ -948,11 +994,38 @@ def process_country(
 
     iou_baseline = shape_iou(baseline[:, :, 3], target_mask)
     stage1_iou = shape_iou(stage1[:, :, 3], target_mask)
-    iou_warped = shape_iou(warped[:, :, 3], target_mask)
     baseline_edge = boundary_mean_error(baseline[:, :, 3], target_mask)
     stage1_edge = boundary_mean_error(stage1[:, :, 3], target_mask)
-    final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
     target_area = int(np.sum(target_mask > 0))
+
+    iou_warped = shape_iou(warped[:, :, 3], target_mask)
+    final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
+    if (
+        country.get("featureKey") in POST_EDGE_REPAIR_FEATURE_KEYS
+        and country.get("featureKey") not in FORCE_ACCEPT_FEATURE_KEYS
+        and
+        target_area >= POST_EDGE_REPAIR_MIN_AREA
+        and baseline_edge is not None
+        and final_edge is not None
+        and (final_edge - baseline_edge) >= POST_EDGE_REPAIR_MIN_EDGE_EXCESS
+    ):
+        repaired, repair_passes, repaired_edge, repaired_iou = post_edge_repair(
+            warped,
+            target_mask,
+            max_passes=POST_EDGE_REPAIR_MAX_PASSES,
+            max_iou_drop=POST_EDGE_REPAIR_MAX_IOU_DROP,
+        )
+        if (
+            repair_passes > 0
+            and repaired_edge is not None
+            and repaired_iou is not None
+            and final_edge - repaired_edge >= POST_EDGE_REPAIR_MIN_EDGE_GAIN
+        ):
+            warped = repaired
+            edge_snap_passes += int(repair_passes)
+            strategy = f"{strategy}+edge-repair"
+            iou_warped = float(repaired_iou)
+            final_edge = float(repaired_edge)
 
     key = country.get("featureKey", country["filename"])
     file_name = f"{safe_key(key)}.webp"
