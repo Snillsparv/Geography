@@ -35,13 +35,13 @@
 // ══════════════════════════════════════════════════════════
 
 const FIREBASE_CONFIG = {
-  apiKey: "PLACEHOLDER",
-  authDomain: "PLACEHOLDER.firebaseapp.com",
-  databaseURL: "https://PLACEHOLDER-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "PLACEHOLDER",
-  storageBucket: "PLACEHOLDER.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "0:000000000000:web:0000000000000000000000"
+  apiKey: "AIzaSyD2CiEcucG6uwotMkxHo_VTqtrDLKx0qlo",
+  authDomain: "geography-fa6a4.firebaseapp.com",
+  databaseURL: "https://geography-fa6a4-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "geography-fa6a4",
+  storageBucket: "geography-fa6a4.firebasestorage.app",
+  messagingSenderId: "166752282053",
+  appId: "1:166752282053:web:7406ec73f7f702210217ac"
 };
 
 // Initialize Firebase (only if configured)
