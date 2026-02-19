@@ -24,6 +24,11 @@
 //                            && newData.child('date').isNumber()"
 //            }
 //          }
+//        },
+//        "highfives": {
+//          ".read": true,
+//          ".write": true,
+//          ".validate": "newData.isNumber()"
 //        }
 //      }
 //    }
