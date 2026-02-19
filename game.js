@@ -685,7 +685,7 @@ async function getHighscores() {
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
-    snap.forEach(child => remote.push(child.val()));
+    snap.forEach(child => { remote.push(child.val()); });
 
     // Sync: push any local-only entries to Firebase
     const remoteDates = new Set(remote.map(e => e.date));
@@ -734,7 +734,7 @@ async function saveHighscore(name, score, time, wrong) {
       const snap = await firebaseDB.ref('highscores/' + HS_KEY)
         .orderByChild('score').once('value');
       const all = [];
-      snap.forEach(child => all.push({ key: child.key, ...child.val() }));
+      snap.forEach(child => { all.push({ key: child.key, ...child.val() }); });
       all.sort((a, b) => b.score - a.score || a.time - b.time);
       if (all.length > 30) {
         const removes = {};
