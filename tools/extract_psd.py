@@ -9,7 +9,14 @@ Layer naming conventions:
   - "Overlay"                → extracted as overlay.webp (contour lines)
   - "bg" / "Background"     → skipped (solid background fill)
   - "Karta" or largest layer → extracted as map.webp (base map)
+  - "!CountryName"           → invisible click shape (hit area) for CountryName
   - Everything else          → extracted as individual country/region images
+
+Layers prefixed with "!" are treated as invisible click targets (hit areas).
+They are exported as {name}_shape.webp and paired with the matching
+display layer (same name without "!"). This is used for regions like
+Västindien where tiny islands need a separate click area from the
+illustration shown on hover.
 
 The layer name becomes the display name in the game, so name
 your layers in Swedish (e.g. "Argentina", "Brasilien", "Skåne").
@@ -91,13 +98,16 @@ def safe_filename(name):
 
 
 def classify_layer(layer):
-    """Return one of: 'skip', 'overlay', 'map', 'country'."""
-    name = layer.name.strip().lower()
-    if name in SKIP_NAMES:
+    """Return one of: 'skip', 'overlay', 'map', 'shape', 'country'."""
+    name = layer.name.strip()
+    if name.startswith('!'):
+        return "shape"
+    name_lower = name.lower()
+    if name_lower in SKIP_NAMES:
         return "skip"
-    if name in OVERLAY_NAMES:
+    if name_lower in OVERLAY_NAMES:
         return "overlay"
-    if name in MAP_NAMES:
+    if name_lower in MAP_NAMES:
         return "map"
     return "country"
 
@@ -153,6 +163,7 @@ def extract_psd(psd_path, output_dir):
     map_layer = None
     overlay_layer = None
     country_layers = []
+    shape_layers = []
 
     def walk_layers(layers):
         """Recursively walk layer tree, yielding leaf layers."""
@@ -173,6 +184,8 @@ def extract_psd(psd_path, output_dir):
             overlay_layer = layer
         elif role == "map":
             map_layer = layer
+        elif role == "shape":
+            shape_layers.append(layer)
         else:
             country_layers.append(layer)
 
@@ -189,11 +202,23 @@ def extract_psd(psd_path, output_dir):
             print(f"\n  WARNING: Could not identify a base map layer!")
             print(f"           Name your base map layer 'Karta' and re-run.")
 
+    # --- Build shape lookup (! layers → click targets) ---
+    shape_lookup = {}
+    for layer in shape_layers:
+        base_name = layer.name.strip().lstrip('!')
+        key = safe_filename(base_name)
+        shape_lookup[key] = layer
+
+    if shape_lookup:
+        print(f"\n  Found {len(shape_lookup)} click-shape layer(s): "
+              + ", ".join(shape_lookup.keys()))
+
     # --- Extract map ---
     config = {
         "name": psd_path.stem,
         "canvasWidth": round(psd.width * scale),
         "canvasHeight": round(psd.height * scale),
+        "specialShapes": {},
         "countries": [],
     }
 
@@ -219,6 +244,7 @@ def extract_psd(psd_path, output_dir):
     # --- Extract countries/regions ---
     print(f"\n  Extracting {len(country_layers)} regions...")
     total_size = 0
+    matched_shapes = set()
 
     for layer in country_layers:
         fname = safe_filename(layer.name)
@@ -237,7 +263,35 @@ def extract_psd(psd_path, output_dir):
         })
         print(f"    {fname}.webp ({w}x{h}, {format_size(out_path)})")
 
+        # Check for matching click-shape layer
+        if fname in shape_lookup:
+            shape_layer = shape_lookup[fname]
+            shape_fname = f"{fname}_shape"
+            shape_out = countries_dir / f"{shape_fname}.webp"
+            sw, sh = export_layer(shape_layer, shape_out, scale)
+            config["specialShapes"][fname] = {
+                "file": f"countries/{shape_fname}.webp",
+                "left": round(shape_layer.left * scale),
+                "top": round(shape_layer.top * scale),
+                "width": sw,
+                "height": sh,
+                "hitOnly": True,
+            }
+            matched_shapes.add(fname)
+            print(f"      + {shape_fname}.webp ({sw}x{sh}, click shape)")
+
+    # Warn about unmatched shape layers
+    for key in shape_lookup:
+        if key not in matched_shapes:
+            layer = shape_lookup[key]
+            print(f"\n  WARNING: Shape layer '!{layer.name.strip().lstrip('!')}' "
+                  f"has no matching display layer '{layer.name.strip().lstrip('!')}'!")
+
     # --- Save config ---
+    # Omit empty specialShapes to keep config clean
+    if not config["specialShapes"]:
+        del config["specialShapes"]
+
     config_path = output_dir / "config.json"
     with open(str(config_path), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
@@ -246,8 +300,10 @@ def extract_psd(psd_path, output_dir):
     all_files = list(output_dir.rglob("*.webp"))
     total_all = sum(f.stat().st_size for f in all_files)
     print(f"\n  Summary for {psd_path.stem}:")
-    print(f"    Regions:    {len(config['countries'])}")
-    print(f"    Total size: {total_all / (1024 * 1024):.1f} MB")
+    print(f"    Regions:      {len(config['countries'])}")
+    if config.get("specialShapes"):
+        print(f"    Click shapes: {len(config['specialShapes'])}")
+    print(f"    Total size:   {total_all / (1024 * 1024):.1f} MB")
 
     return config
 

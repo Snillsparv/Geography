@@ -139,9 +139,9 @@ function createOverlays() {
     hover.className = 'hover-highlight';
     hover.dataset.country = c.filename;
     hover.draggable = false;
-    // Use special shape for hover if available
+    // Use special shape for hover if available (unless hitOnly)
     const shape = SPECIAL_SHAPES[c.filename];
-    if (shape) {
+    if (shape && !shape.hitOnly) {
       hover.src = shape.shapeFile;
     } else {
       hover.src = countryImgSrc(c.filename);
@@ -291,7 +291,7 @@ function positionOverlays() {
     const hEl = hoverEls[c.filename];
     if (hEl) {
       const shape = SPECIAL_SHAPES[c.filename];
-      if (shape) {
+      if (shape && !shape.hitOnly) {
         const bRelLeft = (shape.left - MAP_LEFT) * scale;
         const bRelTop = (shape.top - MAP_TOP) * scale;
         const bRelW = shape.width * scale;
@@ -872,7 +872,8 @@ async function loadRegionConfig(slug) {
         left: shape.left,
         top: shape.top,
         width: shape.width,
-        height: shape.height
+        height: shape.height,
+        hitOnly: shape.hitOnly || false
       };
     }
   }
