@@ -48,6 +48,20 @@ POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
 POST_EDGE_REPAIR_MAX_PASSES = 3
 POST_EDGE_REPAIR_MIN_EDGE_GAIN = 2.0
 POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
+GAP_STRETCH_BAND_PX = 14
+GAP_STRETCH_MIN_MISSING_PX = 80
+GAP_STRETCH_MAX_ITERS = 18
+GAP_STRETCH_ALPHA_THRESHOLD = 10
+GAP_STRETCH_MAX_EDGE_LOSS = 4.5
+GAP_STRETCH_MAX_IOU_DROP = 0.02
+GAP_STRETCH_BAND_OPTIONS = (14, 18, 22, 26, 30, 36, 44)
+GAP_STRETCH_MIN_HOLE_GAIN_FRACTION = 0.2
+BOUNDARY_PULL_ALPHA_THRESHOLD = 10
+BOUNDARY_PULL_MIN_MISSING_PX = 80
+BOUNDARY_PULL_MAX_PASSES = 4
+BOUNDARY_PULL_MAX_IOU_DROP = 0.025
+BOUNDARY_PULL_MAX_EDGE_LOSS = 3.5
+BOUNDARY_PULL_MIN_HOLE_GAIN_FRACTION = 0.15
 CANDIDATE_IOU_EPS = 0.001
 CANDIDATE_EDGE_SOFT_GAIN = 0.8
 CANDIDATE_EDGE_HARD_GAIN = 2.5
@@ -446,6 +460,232 @@ def clip_rgba_to_mask(rgba: np.ndarray, target_mask: np.ndarray) -> np.ndarray:
     return out
 
 
+def _shift_no_wrap_bool(mask: np.ndarray, dy: int, dx: int) -> np.ndarray:
+    shifted = np.roll(mask, shift=(dy, dx), axis=(0, 1))
+    if dy > 0:
+        shifted[:dy, :] = False
+    elif dy < 0:
+        shifted[dy:, :] = False
+    if dx > 0:
+        shifted[:, :dx] = False
+    elif dx < 0:
+        shifted[:, dx:] = False
+    return shifted
+
+
+def _shift_no_wrap_rgba(rgba: np.ndarray, dy: int, dx: int) -> np.ndarray:
+    shifted = np.roll(rgba, shift=(dy, dx), axis=(0, 1))
+    if dy > 0:
+        shifted[:dy, :, :] = 0
+    elif dy < 0:
+        shifted[dy:, :, :] = 0
+    if dx > 0:
+        shifted[:, :dx, :] = 0
+    elif dx < 0:
+        shifted[:, dx:, :] = 0
+    return shifted
+
+
+def stretch_alpha_gaps_to_edge(
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    band_px: int = GAP_STRETCH_BAND_PX,
+    alpha_threshold: int = GAP_STRETCH_ALPHA_THRESHOLD,
+    max_iters: int = GAP_STRETCH_MAX_ITERS,
+) -> Tuple[np.ndarray, Dict[str, int]]:
+    out = rgba.copy()
+    target = target_mask > 0
+    known = out[:, :, 3] > alpha_threshold
+    known_start = known.copy()
+    missing = target & (~known)
+    missing_count = int(np.sum(missing))
+    if missing_count <= 0:
+        return out, {"missingBefore": 0, "filled": 0, "remaining": 0, "passes": 0}
+
+    dist_to_target_edge = cv2.distanceTransform(target.astype(np.uint8), cv2.DIST_L2, 5)
+    work = missing & (dist_to_target_edge <= float(max(1, band_px)))
+    if not np.any(work):
+        return out, {
+            "missingBefore": missing_count,
+            "filled": 0,
+            "remaining": missing_count,
+            "passes": 0,
+        }
+
+    directions = [
+        (-1, 0),
+        (1, 0),
+        (0, -1),
+        (0, 1),
+        (-1, -1),
+        (-1, 1),
+        (1, -1),
+        (1, 1),
+    ]
+
+    passes = 0
+    filled_total = 0
+    filled_mask = np.zeros_like(target, dtype=bool)
+
+    def donor_score(rgba_val: np.ndarray) -> np.ndarray:
+        rgb = rgba_val[:, :, :3].astype(np.float32)
+        alpha_v = rgba_val[:, :, 3].astype(np.float32) / 255.0
+        lum = np.mean(rgb, axis=2)
+        ch = np.max(rgb, axis=2) - np.min(rgb, axis=2)
+        score = alpha_v * (0.30 + (lum / 255.0) * 0.85 + (ch / 255.0) * 0.25)
+        dark_neutral = (lum < 28.0) & (ch < 18.0)
+        score[dark_neutral] *= 0.25
+        return score
+
+    for _ in range(max_iters):
+        if not np.any(work):
+            break
+        dilated_known = cv2.dilate(known.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=1) > 0
+        frontier = work & dilated_known & (~known)
+        if not np.any(frontier):
+            break
+
+        best_score = np.full(frontier.shape, -1e9, dtype=np.float32)
+        best_rgba = np.zeros_like(out)
+        for dy, dx in directions:
+            has_1 = _shift_no_wrap_bool(known, dy, dx)
+            neigh_1 = _shift_no_wrap_rgba(out, dy, dx)
+            score_1 = donor_score(neigh_1)
+            valid_1 = frontier & has_1
+            better_1 = valid_1 & (score_1 > best_score)
+            if np.any(better_1):
+                best_score[better_1] = score_1[better_1]
+                best_rgba[better_1] = neigh_1[better_1]
+
+            has_2 = _shift_no_wrap_bool(known, 2 * dy, 2 * dx)
+            neigh_2 = _shift_no_wrap_rgba(out, 2 * dy, 2 * dx)
+            score_2 = donor_score(neigh_2) + 0.05
+            valid_2 = frontier & has_2
+            better_2 = valid_2 & (score_2 > best_score)
+            if np.any(better_2):
+                best_score[better_2] = score_2[better_2]
+                best_rgba[better_2] = neigh_2[better_2]
+
+        assigned = frontier & (best_score > -1e8)
+        if not np.any(assigned):
+            break
+
+        out[assigned] = best_rgba[assigned]
+        out_alpha = out[:, :, 3].copy()
+        out_alpha[assigned] = np.maximum(out_alpha[assigned], target_mask[assigned])
+        out[:, :, 3] = out_alpha
+        known |= assigned
+        filled_mask |= assigned
+        work &= ~assigned
+        filled_now = int(np.sum(assigned))
+        filled_total += filled_now
+        passes += 1
+
+    if np.any(filled_mask):
+        rgb = out[:, :, :3].astype(np.float32)
+        alpha = out[:, :, 3:4].astype(np.float32) / 255.0
+        rgb_pm = rgb * alpha
+        rgb_pm_blur = cv2.GaussianBlur(rgb_pm, (0, 0), 1.6)
+        alpha_blur = cv2.GaussianBlur(alpha, (0, 0), 1.6)
+        if alpha_blur.ndim == 2:
+            alpha_blur = alpha_blur[:, :, None]
+        rgb_blur = np.zeros_like(rgb_pm_blur)
+        np.divide(
+            rgb_pm_blur,
+            np.maximum(alpha_blur, 1e-6),
+            out=rgb_blur,
+            where=alpha_blur > 1e-6,
+        )
+
+        dist_from_known = cv2.distanceTransform((~known_start).astype(np.uint8), cv2.DIST_L2, 5)
+        blend = np.clip((dist_from_known - 1.0) / 7.0, 0.0, 0.68).astype(np.float32)
+        blend_mask = filled_mask & target
+        if np.any(blend_mask):
+            b = blend[blend_mask][:, None]
+            rgb_sel = rgb[blend_mask]
+            rgb_blur_sel = rgb_blur[blend_mask]
+            rgb[blend_mask] = rgb_sel * (1.0 - b) + rgb_blur_sel * b
+
+            lum = np.mean(rgb[blend_mask], axis=1)
+            dark_idx = lum < 24.0
+            if np.any(dark_idx):
+                idx = np.where(blend_mask)
+                rgb[idx[0][dark_idx], idx[1][dark_idx], :] = rgb_blur[
+                    idx[0][dark_idx], idx[1][dark_idx], :
+                ]
+            out[:, :, :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+
+    out = clip_rgba_to_mask(out, target_mask)
+    remaining = int(np.sum(target & (out[:, :, 3] <= alpha_threshold)))
+    return out, {
+        "missingBefore": missing_count,
+        "filled": filled_total,
+        "remaining": remaining,
+        "passes": passes,
+    }
+
+
+def best_gap_stretch_candidate(
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    base_iou: float,
+    base_edge: Optional[float],
+    min_missing_px: int,
+) -> Optional[Dict]:
+    missing_before = int(np.sum((target_mask > 0) & (rgba[:, :, 3] <= GAP_STRETCH_ALPHA_THRESHOLD)))
+    if missing_before < min_missing_px:
+        return None
+
+    min_hole_gain = max(32, int(missing_before * GAP_STRETCH_MIN_HOLE_GAIN_FRACTION))
+    best: Optional[Dict] = None
+
+    for band in GAP_STRETCH_BAND_OPTIONS:
+        stretched, stats = stretch_alpha_gaps_to_edge(
+            rgba,
+            target_mask,
+            band_px=int(band),
+            alpha_threshold=GAP_STRETCH_ALPHA_THRESHOLD,
+            max_iters=max(GAP_STRETCH_MAX_ITERS, int(band) + 4),
+        )
+        filled = int(stats.get("filled", 0))
+        remaining = int(stats.get("remaining", missing_before))
+        hole_gain = missing_before - remaining
+        if filled <= 0 or hole_gain < min_hole_gain:
+            continue
+
+        iou = shape_iou(stretched[:, :, 3], target_mask)
+        edge = boundary_mean_error(stretched[:, :, 3], target_mask)
+        iou_drop = float(base_iou - iou)
+        edge_loss = float(edge - base_edge) if edge is not None and base_edge is not None else 0.0
+        if iou_drop > GAP_STRETCH_MAX_IOU_DROP:
+            continue
+        if edge_loss > GAP_STRETCH_MAX_EDGE_LOSS:
+            continue
+
+        candidate = {
+            "rgba": stretched,
+            "iou": float(iou),
+            "edge": edge,
+            "stats": stats,
+            "band": int(band),
+        }
+        if best is None:
+            best = candidate
+            continue
+
+        if candidate_is_better(candidate, best):
+            best = candidate
+            continue
+
+        # Tie-break: when geometric quality is close, prefer bigger hole reduction.
+        best_remaining = int(best["stats"].get("remaining", missing_before))
+        if abs(float(candidate["iou"]) - float(best["iou"])) <= 0.0008 and edge is not None and best["edge"] is not None:
+            if abs(float(edge) - float(best["edge"])) <= 1.2 and remaining < best_remaining:
+                best = candidate
+
+    return best
+
+
 def boundary_mean_error(
     alpha_mask: np.ndarray, target_mask: np.ndarray, samples: int = EDGE_SNAP_SAMPLES
 ) -> Optional[float]:
@@ -622,6 +862,171 @@ def post_edge_repair(
             used_passes = idx + 1
 
     return best_rgba, used_passes, best_edge, best_iou
+
+
+def remap_premultiplied_rgba(src_rgba: np.ndarray, map_x: np.ndarray, map_y: np.ndarray) -> np.ndarray:
+    src = src_rgba.astype(np.float32) / 255.0
+    alpha = src[:, :, 3:4]
+    src_pm = np.concatenate([src[:, :, :3] * alpha, alpha], axis=2)
+    warped_pm = cv2.remap(
+        src_pm,
+        map_x,
+        map_y,
+        interpolation=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0.0, 0.0, 0.0, 0.0),
+    )
+
+    out_alpha = np.clip(warped_pm[:, :, 3:4], 0.0, 1.0)
+    out_rgb = np.zeros_like(warped_pm[:, :, :3], dtype=np.float32)
+    np.divide(
+        warped_pm[:, :, :3],
+        np.maximum(out_alpha, 1e-6),
+        out=out_rgb,
+        where=out_alpha > 1e-6,
+    )
+    out = np.concatenate([out_rgb, out_alpha], axis=2)
+    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+
+
+def boundary_pull_refine_once(
+    src_rgba: np.ndarray,
+    target_mask: np.ndarray,
+    alpha_threshold: int = BOUNDARY_PULL_ALPHA_THRESHOLD,
+    samples: int = EDGE_SNAP_SAMPLES + 120,
+    disp_scale: float = 1.0,
+    blur_scale: float = 1.0,
+) -> Optional[np.ndarray]:
+    src_alpha = src_rgba[:, :, 3]
+    src_mask = (src_alpha > alpha_threshold).astype(np.uint8)
+    dst_mask = (target_mask > 0).astype(np.uint8)
+    if int(np.sum(src_mask)) <= 0 or int(np.sum(dst_mask)) <= 0:
+        return None
+
+    src_contour = largest_contour(src_mask * 255)
+    dst_contour = largest_contour(dst_mask * 255)
+    if src_contour is None or dst_contour is None:
+        return None
+
+    src_boundary = sample_closed_contour(src_contour, samples)
+    dst_boundary = sample_closed_contour(dst_contour, samples)
+    dst_boundary = align_boundary_correspondence(src_boundary, dst_boundary)
+
+    displacement = dst_boundary - src_boundary
+    h, w = src_mask.shape
+    min_dim = float(max(2, min(h, w)))
+    max_disp = float(np.clip(min_dim * 0.055 * disp_scale, 2.0, 26.0))
+    blur_sigma = float(np.clip(min_dim * 0.055 * blur_scale, 3.0, 44.0))
+    falloff_src = float(np.clip(min_dim * 0.11, 10.0, 90.0))
+    falloff_target = float(np.clip(min_dim * 0.07, 6.0, 46.0))
+
+    mag = np.linalg.norm(displacement, axis=1, keepdims=True)
+    scale = np.minimum(1.0, max_disp / np.maximum(mag, 1e-6))
+    displacement = displacement * scale
+
+    dx_seed = np.zeros((h, w), dtype=np.float32)
+    dy_seed = np.zeros((h, w), dtype=np.float32)
+    w_seed = np.zeros((h, w), dtype=np.float32)
+    coords = np.round(src_boundary).astype(np.int32)
+    for (x, y), vec in zip(coords, displacement):
+        if x < 0 or y < 0 or x >= w or y >= h:
+            continue
+        dx_seed[y, x] += float(vec[0])
+        dy_seed[y, x] += float(vec[1])
+        w_seed[y, x] += 1.0
+
+    if float(np.sum(w_seed)) <= 0.0:
+        return None
+
+    kernel_size = gaussian_kernel_size(blur_sigma)
+    dx_blur = cv2.GaussianBlur(dx_seed, (kernel_size, kernel_size), blur_sigma)
+    dy_blur = cv2.GaussianBlur(dy_seed, (kernel_size, kernel_size), blur_sigma)
+    w_blur = cv2.GaussianBlur(w_seed, (kernel_size, kernel_size), blur_sigma)
+    dx_field = dx_blur / np.maximum(w_blur, 1e-6)
+    dy_field = dy_blur / np.maximum(w_blur, 1e-6)
+
+    dist_src = cv2.distanceTransform(src_mask, cv2.DIST_L2, 5)
+    dist_target = cv2.distanceTransform(dst_mask, cv2.DIST_L2, 5)
+    taper_src = np.exp(-(dist_src * dist_src) / max(1e-6, 2.0 * falloff_src * falloff_src)).astype(
+        np.float32
+    )
+    taper_target = np.exp(
+        -(dist_target * dist_target) / max(1e-6, 2.0 * falloff_target * falloff_target)
+    ).astype(np.float32)
+    influence = np.maximum(taper_target, taper_src * 0.85)
+    influence[dst_mask == 0] = 0.0
+    dx_field *= influence
+    dy_field *= influence
+
+    dmag = np.sqrt(dx_field * dx_field + dy_field * dy_field)
+    dscale = np.minimum(1.0, max_disp / np.maximum(dmag, 1e-6))
+    dx_field *= dscale
+    dy_field *= dscale
+
+    grid_x, grid_y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+    map_x = grid_x - dx_field.astype(np.float32)
+    map_y = grid_y - dy_field.astype(np.float32)
+
+    return remap_premultiplied_rgba(src_rgba, map_x, map_y)
+
+
+def boundary_pull_warp(
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    alpha_threshold: int = BOUNDARY_PULL_ALPHA_THRESHOLD,
+    max_passes: int = BOUNDARY_PULL_MAX_PASSES,
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    del max_passes
+    target = target_mask > 0
+    missing_before = int(np.sum(target & (rgba[:, :, 3] <= alpha_threshold)))
+    base_iou = shape_iou(rgba[:, :, 3], target_mask)
+    base_edge = boundary_mean_error(rgba[:, :, 3], target_mask)
+    if missing_before < BOUNDARY_PULL_MIN_MISSING_PX:
+        return rgba, {
+            "passes": 0,
+            "filled": 0,
+            "remaining": missing_before,
+            "iou": float(base_iou),
+            "edge": float(base_edge) if base_edge is not None else None,
+        }
+
+    gap_candidate = best_gap_stretch_candidate(
+        rgba,
+        target_mask,
+        base_iou=base_iou,
+        base_edge=base_edge,
+        min_missing_px=BOUNDARY_PULL_MIN_MISSING_PX,
+    )
+
+    if gap_candidate is None:
+        return rgba, {
+            "passes": 0,
+            "filled": 0,
+            "remaining": missing_before,
+            "iou": float(base_iou),
+            "edge": float(base_edge) if base_edge is not None else None,
+        }
+
+    gap_stats = dict(gap_candidate["stats"])
+    remaining = int(gap_stats.get("remaining", missing_before))
+    total_gain = max(0, missing_before - remaining)
+    min_total_gain = max(24, int(missing_before * BOUNDARY_PULL_MIN_HOLE_GAIN_FRACTION))
+    if total_gain < min_total_gain:
+        return rgba, {
+            "passes": 0,
+            "filled": 0,
+            "remaining": missing_before,
+            "iou": float(base_iou),
+            "edge": float(base_edge) if base_edge is not None else None,
+        }
+
+    return gap_candidate["rgba"], {
+        "passes": int(gap_stats.get("passes", 0)),
+        "filled": int(total_gain),
+        "remaining": int(remaining),
+        "iou": float(gap_candidate["iou"]),
+        "edge": float(gap_candidate["edge"]) if gap_candidate["edge"] is not None else None,
+    }
 
 
 def make_candidate(
@@ -1027,6 +1432,27 @@ def process_country(
             iou_warped = float(repaired_iou)
             final_edge = float(repaired_edge)
 
+    pull_passes = 0
+    pull_fill_px = 0
+    pull_remaining_px = int(np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD)))
+    min_pull_trigger = max(BOUNDARY_PULL_MIN_MISSING_PX, int(target_area * 0.01))
+    if pull_remaining_px >= min_pull_trigger:
+        pulled, pull_stats = boundary_pull_warp(
+            warped,
+            target_mask,
+            alpha_threshold=BOUNDARY_PULL_ALPHA_THRESHOLD,
+            max_passes=BOUNDARY_PULL_MAX_PASSES,
+        )
+        if int(pull_stats.get("filled", 0)) > 0:
+            warped = pulled
+            iou_warped = float(pull_stats.get("iou", iou_warped))
+            if pull_stats.get("edge") is not None:
+                final_edge = float(pull_stats["edge"])
+            strategy = f"{strategy}+boundary-pull"
+            pull_passes = int(pull_stats.get("passes", 0))
+            pull_fill_px = int(pull_stats.get("filled", 0))
+            pull_remaining_px = int(pull_stats.get("remaining", pull_remaining_px))
+
     key = country.get("featureKey", country["filename"])
     file_name = f"{safe_key(key)}.webp"
     out_path = output_dir / file_name
@@ -1054,6 +1480,9 @@ def process_country(
             if baseline_edge is not None and final_edge is not None
             else None
         ),
+        "gapStretchPasses": int(pull_passes),
+        "gapStretchFillPx": int(pull_fill_px),
+        "gapStretchRemainingPx": int(pull_remaining_px),
     }
 
 
@@ -1108,6 +1537,9 @@ def main() -> None:
             "edgeErrorStage1",
             "edgeError",
             "edgeErrorGain",
+            "gapStretchPasses",
+            "gapStretchFillPx",
+            "gapStretchRemainingPx",
         ]:
             country.pop(k, None)
 
@@ -1171,6 +1603,9 @@ def main() -> None:
                 "edgeErrorStage1": result["edgeErrorStage1"],
                 "edgeError": result["edgeError"],
                 "edgeErrorGain": result["edgeErrorGain"],
+                "gapStretchPasses": result["gapStretchPasses"],
+                "gapStretchFillPx": result["gapStretchFillPx"],
+                "gapStretchRemainingPx": result["gapStretchRemainingPx"],
                 "acceptedByIoU": accept_by_iou,
                 "acceptedByEdge": accept_by_edge and not accept_by_iou,
                 "forcedAccept": force_accept,

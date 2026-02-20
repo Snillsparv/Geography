@@ -18,6 +18,9 @@ let COUNTRY_BY_FILENAME = {};
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const DEBUG_SHOW_ALL_GLOBE = URL_PARAMS.get('debug_all_globe') === '1';
 const DEBUG_DISABLE_GLOBE_CLIP = URL_PARAMS.get('debug_no_clip') === '1';
+// `debug_raw_unclipped=1` lets us inspect the pre-warp globe overlay: no warp files, no polygon clipping.
+const DEBUG_RAW_UNCLIPPED = URL_PARAMS.get('debug_raw_unclipped') === '1';
+const DEBUG_DISABLE_GLOBE_WARP_PULL = DEBUG_RAW_UNCLIPPED || URL_PARAMS.get('debug_no_edge_pull') === '1';
 const DEBUG_GLOBE_POV = {
   lat: Number(URL_PARAMS.get('debug_pov_lat')),
   lng: Number(URL_PARAMS.get('debug_pov_lng')),
@@ -90,11 +93,14 @@ let globeHoverFeatureKey = null;
 let globeWrongFlash = new Set();
 let globeHintBlink = new Set();
 let globeImageCache = new Map();
+let globeCountryFillColorCache = new Map();
+let globeImageColorCache = new Map();
 const externalScriptPromises = new Map();
 const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
 const GLOBE_POLY_ALT_BASE = 0.002;
 const GLOBE_POLY_ALT_REVEALED = 0.00025;
 const GLOBE_POLY_ALT_ACTIVE = 0.003;
+const GLOBE_USE_UNDERFILL = false;
 let globeResizeObserver = null;
 
 // Seterra state
@@ -201,6 +207,145 @@ function projectedRing(ring, width, height) {
   return pts;
 }
 
+function hashString32(value) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function hslToRgb(h, s, l) {
+  if (s === 0) {
+    const gray = Math.round(l * 255);
+    return [gray, gray, gray];
+  }
+  const hueToRgb = (p, q, t) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const r = hueToRgb(p, q, h + 1 / 3);
+  const g = hueToRgb(p, q, h);
+  const b = hueToRgb(p, q, h - 1 / 3);
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function fallbackCountryFillColor(country) {
+  const key = country?.featureKey || country?.filename || 'country';
+  const hash = hashString32(key);
+  const hue = hash % 360;
+  const sat = 0.45 + ((hash >> 8) % 20) / 100;
+  const light = 0.40 + ((hash >> 16) % 14) / 100;
+  const [r, g, b] = hslToRgb(hue / 360, sat, light);
+  return `rgba(${r}, ${g}, ${b}, 0.96)`;
+}
+
+function dominantFillColorFromImage(image, cacheKey = '') {
+  if (!image) return null;
+  const key = cacheKey || `${image.src || ''}:${image.naturalWidth || image.width}x${image.naturalHeight || image.height}`;
+  if (globeImageColorCache.has(key)) return globeImageColorCache.get(key);
+
+  const sampleSize = 40;
+  const canvas = document.createElement('canvas');
+  canvas.width = sampleSize;
+  canvas.height = sampleSize;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, sampleSize, sampleSize);
+  ctx.drawImage(image, 0, 0, sampleSize, sampleSize);
+  const data = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+  const buckets = new Map();
+
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a < 70) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    const lum = (r + g + b) / 3;
+    // Ignore very dark line-art pixels so fill color reflects the interior.
+    if (lum < 28) continue;
+    if (sat < 0.10 && lum < 60) continue;
+
+    const qr = Math.round(r / 24) * 24;
+    const qg = Math.round(g / 24) * 24;
+    const qb = Math.round(b / 24) * 24;
+    const bucketKey = `${qr},${qg},${qb}`;
+    const weight = (a / 255) * (0.6 + sat);
+    buckets.set(bucketKey, (buckets.get(bucketKey) || 0) + weight);
+  }
+
+  if (buckets.size === 0) {
+    return null;
+  }
+
+  let bestKey = null;
+  let bestWeight = -Infinity;
+  for (const [k, w] of buckets.entries()) {
+    if (w > bestWeight) {
+      bestWeight = w;
+      bestKey = k;
+    }
+  }
+  if (!bestKey) return null;
+  const [r, g, b] = bestKey.split(',').map(v => Number(v));
+  const color = `rgba(${r}, ${g}, ${b}, 0.96)`;
+  globeImageColorCache.set(key, color);
+  return color;
+}
+
+function countryFillColor(country, image, imageKey) {
+  const key = country?.featureKey || country?.filename;
+  if (!key) return 'rgba(70, 110, 150, 0.96)';
+  if (globeCountryFillColorCache.has(key)) return globeCountryFillColorCache.get(key);
+  const fromImage = dominantFillColorFromImage(image, imageKey);
+  const color = fromImage || fallbackCountryFillColor(country);
+  globeCountryFillColorCache.set(key, color);
+  return color;
+}
+
+function fillCountryFeature(ctx, feature, width, height, fillStyle) {
+  if (!feature || !feature.geometry) return;
+  const geometry = feature.geometry;
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  if (!polygons || polygons.length === 0) return;
+
+  ctx.save();
+  ctx.fillStyle = fillStyle;
+  for (const polygon of polygons) {
+    if (!polygon || polygon.length === 0) continue;
+    const rings = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    if (rings.length === 0) continue;
+    ctx.beginPath();
+    for (const ring of rings) {
+      for (let i = 0; i < ring.length; i++) {
+        const [x, y] = ring[i];
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+    try {
+      ctx.fill('evenodd');
+    } catch {
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
   if (!feature || !feature.geometry || !image) return;
   const geometry = feature.geometry;
@@ -226,7 +371,7 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
     const drawW = Math.max(1, maxX - minX);
     const drawH = Math.max(1, maxY - minY);
 
-    if (DEBUG_DISABLE_GLOBE_CLIP) {
+    if (DEBUG_DISABLE_GLOBE_CLIP || DEBUG_RAW_UNCLIPPED) {
       for (const shift of [-width, 0, width]) {
         ctx.drawImage(image, minX + shift, minY, drawW, drawH);
       }
@@ -286,7 +431,7 @@ async function renderGlobeOverlayTexture() {
     ? COUNTRIES
     : COUNTRIES.filter(c => revealed.has(c.filename));
   const drawItems = visibleCountries.map(country => {
-    const hasWarp = !!(country.warpFile && country.warpWidth && country.warpHeight);
+    const hasWarp = !DEBUG_DISABLE_GLOBE_WARP_PULL && !!(country.warpFile && country.warpWidth && country.warpHeight);
     return {
       country,
       isWarp: hasWarp,
@@ -303,6 +448,11 @@ async function renderGlobeOverlayTexture() {
     const country = item.country;
     const image = images[idx];
     if (!image) return;
+    const feature = globeFeatureByKey.get(country.featureKey);
+    if (GLOBE_USE_UNDERFILL && feature) {
+      const fillColor = countryFillColor(country, image, item.url);
+      fillCountryFeature(ctx, feature, width, height, fillColor);
+    }
     if (item.isWarp) {
       const dx = (country.warpLeft || 0) * sx;
       const dy = (country.warpTop || 0) * sy;
@@ -312,7 +462,6 @@ async function renderGlobeOverlayTexture() {
         ctx.drawImage(image, dx + shift, dy, dw, dh);
       }
     } else {
-      const feature = globeFeatureByKey.get(country.featureKey);
       drawCountryImageClippedToFeature(ctx, image, feature, width, height);
     }
   });
