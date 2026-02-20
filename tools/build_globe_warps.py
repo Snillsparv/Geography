@@ -41,7 +41,7 @@ EDGE_SNAP_MAX_EDGE_LOSS = 0.15
 EDGE_ACCEPT_MIN_GAIN = 2.0
 EDGE_ACCEPT_MAX_IOU_DROP = 0.05
 EDGE_ACCEPT_MIN_IOU = 0.80
-FORCE_ACCEPT_FEATURE_KEYS = {"RUS"}
+FORCE_ACCEPT_FEATURE_KEYS = {"RUS", "BOL", "GRC", "NOR"}
 POST_EDGE_REPAIR_MIN_AREA = 20000
 POST_EDGE_REPAIR_MIN_EDGE_EXCESS = 4.0
 POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
@@ -49,6 +49,59 @@ POST_EDGE_REPAIR_MAX_PASSES = 3
 POST_EDGE_REPAIR_MIN_EDGE_GAIN = 2.0
 POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
 USE_BOUNDARY_PULL = False
+USE_MASK_CLIP = False
+SKIP_EDGE_REPAIR_FEATURE_KEYS = {"BOL"}
+FORCE_BASELINE_FEATURE_KEYS = {"BOL"}
+COUNTRY_COMPONENT_OVERRIDES = {
+    # Archipelago-heavy countries: prioritize the main intended drawing mass,
+    # not every tiny island polygon.
+    "SLB": {"target_rel_min": 0.85, "target_keep_fraction": 1.0, "source_rel_min": 0.01},
+    "FJI": {"target_rel_min": 0.50, "target_keep_fraction": 1.0, "source_rel_min": 0.01},
+    "BHS": {"target_rel_min": 0.25, "target_keep_fraction": 1.0, "source_rel_min": 0.005},
+    "GRC": {"target_rel_min": 0.07, "target_keep_fraction": 0.995, "source_rel_min": 0.004},
+    "CHL": {"target_rel_min": 0.015, "target_keep_fraction": 0.995, "source_rel_min": 0.005},
+    "JPN": {"target_rel_min": 0.08, "target_keep_fraction": 0.998, "source_rel_min": 0.01},
+    "PHL": {"target_rel_min": 0.03, "target_keep_fraction": 0.997, "source_rel_min": 0.01},
+    "NOR": {"target_rel_min": 0.02, "target_keep_fraction": 1.0, "source_rel_min": 0.003},
+    "CUB": {"target_rel_min": 0.03, "target_keep_fraction": 1.0, "source_rel_min": 0.004},
+    "BOL": {"target_rel_min": 0.015, "target_keep_fraction": 0.995, "source_rel_min": 0.012},
+}
+COUNTRY_EDGE_SNAP_PASSES = {
+    # Without clipping, these countries look cleaner with gentler transforms.
+    "BOL": 0,
+    "CUB": 0,
+    "SLB": 0,
+    "FJI": 0,
+    "BHS": 0,
+    "GRC": 0,
+    "CHL": 0,
+    "JPN": 0,
+    "PHL": 0,
+    "NOR": 0,
+}
+DISABLE_COMPONENT_MODE_KEYS = {
+    "SLB",
+    "FJI",
+    "BHS",
+    "GRC",
+    "CHL",
+    "BOL",
+    "PHL",
+    "NOR",
+    "CUB",
+}
+FINAL_CLIP_DILATE_BY_KEY = {
+    "SLB": 8,
+    "FJI": 8,
+    "BHS": 6,
+    "GRC": 3,
+    "CHL": 2,
+    "JPN": 3,
+    "BOL": 2,
+    "PHL": 3,
+    "NOR": 2,
+    "CUB": 2,
+}
 GAP_STRETCH_BAND_PX = 14
 GAP_STRETCH_MIN_MISSING_PX = 80
 GAP_STRETCH_MAX_ITERS = 18
@@ -449,11 +502,17 @@ def shape_iou(alpha_mask: np.ndarray, target_mask: np.ndarray) -> float:
     return inter / union
 
 
-def clip_rgba_to_mask(rgba: np.ndarray, target_mask: np.ndarray) -> np.ndarray:
+def clip_rgba_to_mask(
+    rgba: np.ndarray,
+    target_mask: np.ndarray,
+    dilate_px: int = CLIP_DILATE_PX,
+) -> np.ndarray:
+    if not USE_MASK_CLIP:
+        return rgba.copy()
     out = rgba.copy()
     clip_mask = target_mask
-    if CLIP_DILATE_PX > 0:
-        kernel_size = CLIP_DILATE_PX * 2 + 1
+    if dilate_px > 0:
+        kernel_size = dilate_px * 2 + 1
         kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
         clip_mask = cv2.dilate(target_mask, kernel, iterations=1)
     out[:, :, 3] = np.minimum(out[:, :, 3], clip_mask)
@@ -1283,11 +1342,17 @@ def process_country(
     out_h, out_w = target_mask.shape
 
     source_rgba = np.array(Image.open(source_path).convert("RGBA"), dtype=np.uint8)
+    feature_key = country.get("featureKey")
+    edge_snap_override = COUNTRY_EDGE_SNAP_PASSES.get(feature_key)
+    original_edge_snap_passes = EDGE_SNAP_PASSES
+    if edge_snap_override is not None:
+        globals()["EDGE_SNAP_PASSES"] = int(max(0, edge_snap_override))
 
     baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
     baseline = clip_rgba_to_mask(baseline, target_mask)
     single_result = build_best_warp_for_target(source_rgba, target_mask)
     if single_result is None:
+        globals()["EDGE_SNAP_PASSES"] = original_edge_snap_passes
         return None
 
     stage1: np.ndarray = single_result["stage1"]
@@ -1299,21 +1364,42 @@ def process_country(
         "iou": shape_iou(warped[:, :, 3], target_mask),
         "edge": boundary_mean_error(warped[:, :, 3], target_mask),
     }
+    force_baseline = feature_key in FORCE_BASELINE_FEATURE_KEYS
+    if force_baseline:
+        stage1 = baseline
+        warped = baseline
+        strategy = "baseline-forced"
+        edge_snap_passes = 0
+        triangle_count = 0
+        best_candidate = {
+            "iou": shape_iou(warped[:, :, 3], target_mask),
+            "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+        }
+
+    comp_override = COUNTRY_COMPONENT_OVERRIDES.get(feature_key, {})
+    source_rel_min = float(comp_override.get("source_rel_min", COMPONENT_SOURCE_REL_MIN))
+    target_rel_min = float(comp_override.get("target_rel_min", COMPONENT_TARGET_REL_MIN))
+    target_keep_fraction = float(comp_override.get("target_keep_fraction", 0.9995))
 
     source_components = select_significant_components(
         extract_components((source_rgba[:, :, 3] > 10).astype(np.uint8) * 255),
-        rel_min=COMPONENT_SOURCE_REL_MIN,
+        rel_min=source_rel_min,
         keep_fraction=COMPONENT_KEEP_FRACTION,
         min_pixels=COMPONENT_MIN_PIXELS,
     )
     target_components = select_significant_components(
         extract_components((target_mask > 0).astype(np.uint8) * 255, min_pixels=12),
-        rel_min=COMPONENT_TARGET_REL_MIN,
-        keep_fraction=0.9995,
+        rel_min=target_rel_min,
+        keep_fraction=target_keep_fraction,
         min_pixels=12,
     )
 
-    use_component_mode = len(source_components) >= 2 and len(target_components) >= 2
+    use_component_mode = (
+        (not force_baseline)
+        and feature_key not in DISABLE_COMPONENT_MODE_KEYS
+        and len(source_components) >= 2
+        and len(target_components) >= 2
+    )
     if use_component_mode:
         matches = match_components_by_position(
             source_components,
@@ -1409,6 +1495,7 @@ def process_country(
     if (
         country.get("featureKey") in POST_EDGE_REPAIR_FEATURE_KEYS
         and country.get("featureKey") not in FORCE_ACCEPT_FEATURE_KEYS
+        and country.get("featureKey") not in SKIP_EDGE_REPAIR_FEATURE_KEYS
         and
         target_area >= POST_EDGE_REPAIR_MIN_AREA
         and baseline_edge is not None
@@ -1454,12 +1541,19 @@ def process_country(
             pull_fill_px = int(pull_stats.get("filled", 0))
             pull_remaining_px = int(pull_stats.get("remaining", pull_remaining_px))
 
+    # Final per-country soft clip: keep hand-drawn borders from being cut too harshly.
+    final_clip_dilate = int(FINAL_CLIP_DILATE_BY_KEY.get(country.get("featureKey"), CLIP_DILATE_PX))
+    warped = clip_rgba_to_mask(warped, target_mask, dilate_px=final_clip_dilate)
+    iou_warped = shape_iou(warped[:, :, 3], target_mask)
+    final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
+    pull_remaining_px = int(np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD)))
+
     key = country.get("featureKey", country["filename"])
     file_name = f"{safe_key(key)}.webp"
     out_path = output_dir / file_name
     Image.fromarray(warped, mode="RGBA").save(out_path, format="WEBP", quality=95)
 
-    return {
+    result = {
         "warpFile": f"assets/globe/warped/{file_name}",
         "warpLeft": int(bbox.left),
         "warpTop": int(bbox.top),
@@ -1485,6 +1579,8 @@ def process_country(
         "gapStretchFillPx": int(pull_fill_px),
         "gapStretchRemainingPx": int(pull_remaining_px),
     }
+    globals()["EDGE_SNAP_PASSES"] = original_edge_snap_passes
+    return result
 
 
 def main() -> None:
