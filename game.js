@@ -109,7 +109,7 @@ const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
 const GLOBE_POLY_ALT_BASE = 0.002;
 const GLOBE_POLY_ALT_REVEALED = 0.00025;
 const GLOBE_POLY_ALT_ACTIVE = 0.003;
-const GLOBE_USE_UNDERFILL = true;
+const GLOBE_USE_UNDERFILL = URL_PARAMS.get('debug_underfill') === '1';
 const GLOBE_IGNORE_HOLES_FEATURE_KEYS = new Set(['SOM', 'RUS']);
 let globeResizeObserver = null;
 const globeMissingImageWarned = new Set();
