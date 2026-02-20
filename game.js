@@ -17,15 +17,23 @@ let GLOBE_WARP_ATLAS_HEIGHT = 4096;
 let COUNTRY_BY_FILENAME = {};
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const DEBUG_SHOW_ALL_GLOBE = URL_PARAMS.get('debug_all_globe') === '1';
-const DEBUG_DISABLE_GLOBE_CLIP = URL_PARAMS.get('debug_no_clip') === '1';
+const DEBUG_DISABLE_GLOBE_CLIP = URL_PARAMS.get('debug_clip') !== '1';
 // `debug_raw_unclipped=1` lets us inspect the pre-warp globe overlay: no warp files, no polygon clipping.
 const DEBUG_RAW_UNCLIPPED = URL_PARAMS.get('debug_raw_unclipped') === '1';
-const DEBUG_DISABLE_GLOBE_WARP_PULL = DEBUG_RAW_UNCLIPPED || URL_PARAMS.get('debug_no_edge_pull') === '1';
+// Keep legacy param for compatibility, but do not disable warps with it anymore.
+const DEBUG_NO_EDGE_PULL_PARAM = URL_PARAMS.get('debug_no_edge_pull') === '1';
+const DEBUG_DISABLE_GLOBE_WARP = DEBUG_RAW_UNCLIPPED || URL_PARAMS.get('debug_no_warp') === '1';
+// `globe_hover_legacy=1` keeps previous polygon-hover behavior.
+const GLOBE_HOVER_LEGACY = URL_PARAMS.get('globe_hover_legacy') === '1';
 const DEBUG_GLOBE_POV = {
   lat: Number(URL_PARAMS.get('debug_pov_lat')),
   lng: Number(URL_PARAMS.get('debug_pov_lng')),
   altitude: Number(URL_PARAMS.get('debug_pov_alt'))
 };
+
+if (DEBUG_NO_EDGE_PULL_PARAM) {
+  console.info('debug_no_edge_pull is deprecated in renderer; use debug_no_warp=1 for raw image preview.');
+}
 
 function debugPovOrDefault() {
   const lat = Number.isFinite(DEBUG_GLOBE_POV.lat) ? DEBUG_GLOBE_POV.lat : 20;
@@ -93,6 +101,7 @@ let globeHoverFeatureKey = null;
 let globeWrongFlash = new Set();
 let globeHintBlink = new Set();
 let globeImageCache = new Map();
+let globeImageAlphaBoundsCache = new Map();
 let globeCountryFillColorCache = new Map();
 let globeImageColorCache = new Map();
 const externalScriptPromises = new Map();
@@ -100,8 +109,10 @@ const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
 const GLOBE_POLY_ALT_BASE = 0.002;
 const GLOBE_POLY_ALT_REVEALED = 0.00025;
 const GLOBE_POLY_ALT_ACTIVE = 0.003;
-const GLOBE_USE_UNDERFILL = false;
+const GLOBE_USE_UNDERFILL = true;
+const GLOBE_IGNORE_HOLES_FEATURE_KEYS = new Set(['SOM', 'RUS']);
 let globeResizeObserver = null;
+const globeMissingImageWarned = new Set();
 
 // Seterra state
 let seterraQueue = [];
@@ -321,12 +332,14 @@ function fillCountryFeature(ctx, feature, width, height, fillStyle) {
   const geometry = feature.geometry;
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
   if (!polygons || polygons.length === 0) return;
+  const ignoreHoles = GLOBE_IGNORE_HOLES_FEATURE_KEYS.has(feature?.properties?.key);
 
   ctx.save();
   ctx.fillStyle = fillStyle;
   for (const polygon of polygons) {
     if (!polygon || polygon.length === 0) continue;
-    const rings = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    const projected = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    const rings = ignoreHoles ? projected.slice(0, 1) : projected;
     if (rings.length === 0) continue;
     ctx.beginPath();
     for (const ring of rings) {
@@ -351,10 +364,12 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
   const geometry = feature.geometry;
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
   if (!polygons || polygons.length === 0) return;
+  const ignoreHoles = GLOBE_IGNORE_HOLES_FEATURE_KEYS.has(feature?.properties?.key);
 
   for (const polygon of polygons) {
     if (!polygon || polygon.length === 0) continue;
-    const rings = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    const projected = polygon.map(ring => projectedRing(ring, width, height)).filter(ring => ring.length >= 3);
+    const rings = ignoreHoles ? projected.slice(0, 1) : projected;
     if (rings.length === 0) continue;
 
     const outer = rings[0];
@@ -371,9 +386,55 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
     const drawW = Math.max(1, maxX - minX);
     const drawH = Math.max(1, maxY - minY);
 
+    const imgW = image.naturalWidth || image.width;
+    const imgH = image.naturalHeight || image.height;
+    const cacheKey = `${image.src || ''}:${imgW}x${imgH}`;
+    let alphaBounds = globeImageAlphaBoundsCache.get(cacheKey);
+    if (!alphaBounds) {
+      alphaBounds = { sx: 0, sy: 0, sw: imgW, sh: imgH };
+      try {
+        const scanCanvas = document.createElement('canvas');
+        scanCanvas.width = imgW;
+        scanCanvas.height = imgH;
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        scanCtx.drawImage(image, 0, 0, imgW, imgH);
+        const data = scanCtx.getImageData(0, 0, imgW, imgH).data;
+        let minX = imgW;
+        let minY = imgH;
+        let maxX = -1;
+        let maxY = -1;
+        for (let y = 0; y < imgH; y++) {
+          for (let x = 0; x < imgW; x++) {
+            const a = data[(y * imgW + x) * 4 + 3];
+            if (a > 10) {
+              if (x < minX) minX = x;
+              if (y < minY) minY = y;
+              if (x > maxX) maxX = x;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+        if (maxX >= minX && maxY >= minY) {
+          alphaBounds = {
+            sx: minX,
+            sy: minY,
+            sw: Math.max(1, maxX - minX + 1),
+            sh: Math.max(1, maxY - minY + 1)
+          };
+        }
+      } catch {
+        alphaBounds = { sx: 0, sy: 0, sw: imgW, sh: imgH };
+      }
+      globeImageAlphaBoundsCache.set(cacheKey, alphaBounds);
+    }
+
     if (DEBUG_DISABLE_GLOBE_CLIP || DEBUG_RAW_UNCLIPPED) {
       for (const shift of [-width, 0, width]) {
-        ctx.drawImage(image, minX + shift, minY, drawW, drawH);
+        ctx.drawImage(
+          image,
+          alphaBounds.sx, alphaBounds.sy, alphaBounds.sw, alphaBounds.sh,
+          minX + shift, minY, drawW, drawH
+        );
       }
       continue;
     }
@@ -397,7 +458,11 @@ function drawCountryImageClippedToFeature(ctx, image, feature, width, height) {
 
     // Draw wrapped copies to cover polygons close to the antimeridian.
     for (const shift of [-width, 0, width]) {
-      ctx.drawImage(image, minX + shift, minY, drawW, drawH);
+      ctx.drawImage(
+        image,
+        alphaBounds.sx, alphaBounds.sy, alphaBounds.sw, alphaBounds.sh,
+        minX + shift, minY, drawW, drawH
+      );
     }
     ctx.restore();
   }
@@ -431,7 +496,7 @@ async function renderGlobeOverlayTexture() {
     ? COUNTRIES
     : COUNTRIES.filter(c => revealed.has(c.filename));
   const drawItems = visibleCountries.map(country => {
-    const hasWarp = !DEBUG_DISABLE_GLOBE_WARP_PULL && !!(country.warpFile && country.warpWidth && country.warpHeight);
+    const hasWarp = !DEBUG_DISABLE_GLOBE_WARP && !!(country.warpFile && country.warpWidth && country.warpHeight);
     return {
       country,
       isWarp: hasWarp,
@@ -447,26 +512,84 @@ async function renderGlobeOverlayTexture() {
   drawItems.forEach((item, idx) => {
     const country = item.country;
     const image = images[idx];
-    if (!image) return;
     const feature = globeFeatureByKey.get(country.featureKey);
+    if (!feature) return;
+
+    if (!image) {
+      // Never leave countries visually empty in debug/all-world overlays.
+      const missKey = country.featureKey || country.filename || `idx-${idx}`;
+      if (!globeMissingImageWarned.has(missKey)) {
+        globeMissingImageWarned.add(missKey);
+        console.warn('Missing globe image for country:', missKey, item.url);
+      }
+      fillCountryFeature(ctx, feature, width, height, fallbackCountryFillColor(country));
+      return;
+    }
+    const mnemonicVisible = DEBUG_SHOW_ALL_GLOBE || revealed.has(country.filename);
+    const hoverOnMnemonic =
+      !GLOBE_HOVER_LEGACY &&
+      mnemonicVisible &&
+      globeHoverFeatureKey &&
+      globeHoverFeatureKey === country.featureKey;
+
+    const drawCountry = () => {
+      if (item.isWarp) {
+        const dx = (country.warpLeft || 0) * sx;
+        const dy = (country.warpTop || 0) * sy;
+        const dw = (country.warpWidth || image.width) * sx;
+        const dh = (country.warpHeight || image.height) * sy;
+        for (const shift of [-width, 0, width]) {
+          ctx.drawImage(image, dx + shift, dy, dw, dh);
+        }
+      } else {
+        drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+      }
+    };
+
     if (GLOBE_USE_UNDERFILL && feature) {
       const fillColor = countryFillColor(country, image, item.url);
       fillCountryFeature(ctx, feature, width, height, fillColor);
     }
-    if (item.isWarp) {
-      const dx = (country.warpLeft || 0) * sx;
-      const dy = (country.warpTop || 0) * sy;
-      const dw = (country.warpWidth || image.width) * sx;
-      const dh = (country.warpHeight || image.height) * sy;
-      for (const shift of [-width, 0, width]) {
-        ctx.drawImage(image, dx + shift, dy, dw, dh);
-      }
-    } else {
-      drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+    drawCountry();
+
+    if (hoverOnMnemonic) {
+      ctx.save();
+      ctx.globalAlpha = 0.58;
+      ctx.filter = 'brightness(1.35) saturate(1.25)';
+      drawCountry();
+      ctx.restore();
     }
   });
 
   globeOverlayTexture.needsUpdate = true;
+}
+
+function sanitizeGlobeGeometry(feature) {
+  if (!feature || !feature.geometry) return feature;
+  const key = feature?.properties?.key;
+  if (!GLOBE_IGNORE_HOLES_FEATURE_KEYS.has(key)) return feature;
+  const geometry = feature.geometry;
+  if (geometry.type === 'Polygon' && Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0) {
+    return {
+      ...feature,
+      geometry: {
+        ...geometry,
+        coordinates: [geometry.coordinates[0]]
+      }
+    };
+  }
+  if (geometry.type === 'MultiPolygon' && Array.isArray(geometry.coordinates)) {
+    return {
+      ...feature,
+      geometry: {
+        ...geometry,
+        coordinates: geometry.coordinates.map(poly =>
+          Array.isArray(poly) && poly.length > 0 ? [poly[0]] : poly
+        )
+      }
+    };
+  }
+  return feature;
 }
 
 function globeFeatureKey(feature) {
@@ -515,11 +638,18 @@ function globeCapColor(feature) {
   if (!key) return 'rgba(88,115,140,0.34)';
   const country = globeCountryByFeatureKey.get(key);
   const isRevealed = country ? revealed.has(country.filename) : false;
+  const mnemonicVisible = country ? (DEBUG_SHOW_ALL_GLOBE || revealed.has(country.filename)) : false;
   const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
 
   if (globeHintBlink.has(key)) return 'rgba(255, 220, 70, 0.95)';
   if (globeWrongFlash.has(key)) return 'rgba(255, 120, 120, 0.95)';
-  if (globeHoverFeatureKey === key) return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
+  if (globeHoverFeatureKey === key) {
+    if (!GLOBE_HOVER_LEGACY && mnemonicVisible) {
+      // Hover emphasis is rendered on the mnemonic image itself.
+      return isRevealed ? 'rgba(255, 220, 50, 0.08)' : 'rgba(255, 220, 50, 0.18)';
+    }
+    return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
+  }
   if (isRevealed) return 'rgba(0, 0, 0, 0)';
   if (isTarget) return 'rgba(91, 191, 255, 0.3)';
   return 'rgba(88, 115, 140, 0.26)';
@@ -532,8 +662,11 @@ function refreshGlobeStyles() {
 }
 
 function onGlobeHover(feature) {
-  globeHoverFeatureKey = globeFeatureKey(feature);
+  const nextKey = globeFeatureKey(feature);
+  if (nextKey === globeHoverFeatureKey) return;
+  globeHoverFeatureKey = nextKey;
   refreshGlobeStyles();
+  renderGlobeOverlayTexture();
 }
 
 function onGlobeClick(feature, event) {
@@ -547,6 +680,7 @@ function onGlobeClick(feature, event) {
   if (!country) return;
   globeHoverFeatureKey = null;
   refreshGlobeStyles();
+  renderGlobeOverlayTexture();
   handleClick(country, event);
 }
 
@@ -571,7 +705,7 @@ async function initGlobe() {
 
   const geoResp = await fetch(GLOBE_GEO_FILE);
   const geo = await geoResp.json();
-  globeFeatures = geo.features || [];
+  globeFeatures = (geo.features || []).map(sanitizeGlobeGeometry);
   globeFeatureByKey = new Map(globeFeatures.map(f => [f.properties.key, f]));
   globeCountryByFeatureKey = new Map(COUNTRIES.map(c => [c.featureKey, c]));
 
@@ -583,6 +717,7 @@ async function initGlobe() {
     .atmosphereColor('#7ab5ff')
     .atmosphereAltitude(0.18)
     .polygonAltitude(globePolygonAltitude)
+    .polygonCapCurvatureResolution(1)
     .polygonSideColor(() => 'rgba(90,120,150,0)')
     .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.34)')
     .polygonsTransitionDuration(120)
@@ -594,6 +729,7 @@ async function initGlobe() {
   globeContainer.addEventListener('pointerleave', () => {
     globeHoverFeatureKey = null;
     refreshGlobeStyles();
+    renderGlobeOverlayTexture();
   });
 
   globe.controls().enablePan = false;

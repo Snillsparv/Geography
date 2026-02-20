@@ -41,7 +41,7 @@ EDGE_SNAP_MAX_EDGE_LOSS = 0.15
 EDGE_ACCEPT_MIN_GAIN = 2.0
 EDGE_ACCEPT_MAX_IOU_DROP = 0.05
 EDGE_ACCEPT_MIN_IOU = 0.80
-FORCE_ACCEPT_FEATURE_KEYS = {"RUS", "BOL", "GRC", "NOR"}
+FORCE_ACCEPT_FEATURE_KEYS = {"RUS", "BOL", "GRC", "NOR", "CAN"}
 POST_EDGE_REPAIR_MIN_AREA = 20000
 POST_EDGE_REPAIR_MIN_EDGE_EXCESS = 4.0
 POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
@@ -50,7 +50,7 @@ POST_EDGE_REPAIR_MIN_EDGE_GAIN = 2.0
 POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
 USE_BOUNDARY_PULL = False
 USE_MASK_CLIP = False
-SKIP_EDGE_REPAIR_FEATURE_KEYS = {"BOL"}
+SKIP_EDGE_REPAIR_FEATURE_KEYS = {"BOL", "CAN"}
 FORCE_BASELINE_FEATURE_KEYS = {"BOL"}
 COUNTRY_COMPONENT_OVERRIDES = {
     # Archipelago-heavy countries: prioritize the main intended drawing mass,
@@ -68,6 +68,8 @@ COUNTRY_COMPONENT_OVERRIDES = {
 }
 COUNTRY_EDGE_SNAP_PASSES = {
     # Without clipping, these countries look cleaner with gentler transforms.
+    "RUS": 0,
+    "SOM": 0,
     "BOL": 0,
     "CUB": 0,
     "SLB": 0,
@@ -78,17 +80,16 @@ COUNTRY_EDGE_SNAP_PASSES = {
     "JPN": 0,
     "PHL": 0,
     "NOR": 0,
+    "CAN": 0,
 }
 DISABLE_COMPONENT_MODE_KEYS = {
-    "SLB",
-    "FJI",
-    "BHS",
     "GRC",
     "CHL",
     "BOL",
     "PHL",
     "NOR",
     "CUB",
+    "CAN",
 }
 FINAL_CLIP_DILATE_BY_KEY = {
     "SLB": 8,
