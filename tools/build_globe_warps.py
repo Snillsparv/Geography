@@ -48,6 +48,7 @@ POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
 POST_EDGE_REPAIR_MAX_PASSES = 3
 POST_EDGE_REPAIR_MIN_EDGE_GAIN = 2.0
 POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
+USE_BOUNDARY_PULL = False
 GAP_STRETCH_BAND_PX = 14
 GAP_STRETCH_MIN_MISSING_PX = 80
 GAP_STRETCH_MAX_ITERS = 18
@@ -1436,7 +1437,7 @@ def process_country(
     pull_fill_px = 0
     pull_remaining_px = int(np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD)))
     min_pull_trigger = max(BOUNDARY_PULL_MIN_MISSING_PX, int(target_area * 0.01))
-    if pull_remaining_px >= min_pull_trigger:
+    if USE_BOUNDARY_PULL and pull_remaining_px >= min_pull_trigger:
         pulled, pull_stats = boundary_pull_warp(
             warped,
             target_mask,
@@ -1492,6 +1493,11 @@ def main() -> None:
     parser.add_argument("--geojson", default="assets/globe/world.geojson")
     parser.add_argument("--atlas-width", type=int, default=8192)
     parser.add_argument("--atlas-height", type=int, default=4096)
+    parser.add_argument(
+        "--feature-keys",
+        default="",
+        help="Comma-separated feature keys to process (empty = all countries).",
+    )
     args = parser.parse_args()
 
     project_dir = Path(__file__).resolve().parent.parent
@@ -1516,8 +1522,17 @@ def main() -> None:
     rejected = 0
     accepted_by_edge = 0
     gains = []
+    selected_keys = {
+        k.strip()
+        for k in str(args.feature_keys).split(",")
+        if k.strip()
+    }
 
     for country in config.get("countries", []):
+        key = country.get("featureKey")
+        if selected_keys and key not in selected_keys:
+            continue
+
         # Clear previous warp metadata first; accepted warps are written below.
         for k in [
             "warpFile",
@@ -1543,7 +1558,6 @@ def main() -> None:
         ]:
             country.pop(k, None)
 
-        key = country.get("featureKey")
         feature = features_by_key.get(key)
         if feature is None:
             skipped += 1
