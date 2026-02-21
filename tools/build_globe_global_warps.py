@@ -43,6 +43,15 @@ DEFAULT_TPS_REG = 0.0010
 DEFAULT_MAX_CTRL = 420
 DEFAULT_DIRECTIONS = 12
 
+# Region-specific tuning where one global default is not sufficient.
+REGION_PARAM_OVERRIDES = {
+    "oceanien": {
+        "tps_reg": 0.0002,
+        "max_control_points": 700,
+        "directions": 16,
+    }
+}
+
 
 @dataclass
 class BBox:
@@ -538,8 +547,7 @@ def directional_landmarks(mask: np.ndarray, n_dirs: int) -> Optional[np.ndarray]
     out.extend([left, right, top, bottom])
 
     arr = np.array(out, dtype=np.float64)
-    uniq = np.unique(np.round(arr, 3), axis=0)
-    return uniq
+    return arr
 
 
 def build_country_anchors(
@@ -557,25 +565,17 @@ def build_country_anchors(
     if src_pts_local is None or tgt_pts_local is None:
         return None
 
-    # Match by ordering around centroid for stable pairing.
-    def order_around_center(p: np.ndarray) -> np.ndarray:
-        center = np.mean(p, axis=0)
-        ang = np.arctan2(p[:, 1] - center[1], p[:, 0] - center[0])
-        dist = np.linalg.norm(p - center, axis=1)
-        order = np.lexsort((-dist, ang))
-        return p[order]
-
-    src_o = order_around_center(src_pts_local)
-    tgt_o = order_around_center(tgt_pts_local)
-    n = min(len(src_o), len(tgt_o))
+    # Landmarks are emitted in a consistent semantic order:
+    # centroid, directional rays, then axis extrema.
+    n = min(len(src_pts_local), len(tgt_pts_local))
     if n < 6:
         return None
 
-    src_global = src_o[:n].copy()
+    src_global = src_pts_local[:n].copy()
     src_global[:, 0] += float(src_left)
     src_global[:, 1] += float(src_top)
 
-    tgt_global = tgt_o[:n].copy()
+    tgt_global = tgt_pts_local[:n].copy()
     tgt_global[:, 0] += float(target_shape.bbox.left)
     tgt_global[:, 1] += float(target_shape.bbox.top)
 
@@ -726,8 +726,10 @@ def main() -> None:
     if not countries:
         raise RuntimeError("No countries in globe config")
 
+    selected_regions: Optional[set] = None
     if args.region:
         wanted = {r.strip().lower() for r in args.region if r.strip()}
+        selected_regions = wanted
         countries = [c for c in countries if str(c.get("sourceRegion", "")).lower() in wanted]
         if not countries:
             raise RuntimeError("No countries matched --region filter")
@@ -745,6 +747,11 @@ def main() -> None:
     report_countries: List[Dict] = []
 
     for region, region_countries in sorted(countries_by_region.items()):
+        region_params = REGION_PARAM_OVERRIDES.get(region.lower(), {})
+        region_tps_reg = float(region_params.get("tps_reg", args.tps_reg))
+        region_max_ctrl = int(region_params.get("max_control_points", args.max_control_points))
+        region_dirs = int(region_params.get("directions", args.directions))
+
         region_cfg_path = project_dir / "assets" / region / "config.json"
         if not region_cfg_path.exists():
             raise FileNotFoundError(f"Missing region config: {region_cfg_path}")
@@ -830,7 +837,7 @@ def main() -> None:
                 src_left=job.source_left,
                 src_top=job.source_top,
                 target_shape=job.target_shape,
-                n_dirs=args.directions,
+                n_dirs=region_dirs,
             )
             if anchors is None:
                 continue
@@ -839,7 +846,10 @@ def main() -> None:
             if len(src_pts) < 6:
                 continue
 
-            area_w = max(1.0, math.sqrt(float(job.target_area) + 1.0))
+            # Keep smaller countries influential so the regional warp does not
+            # get dominated by a handful of very large polygons.
+            raw_w = float((float(job.target_area) + 1.0) ** 0.22)
+            area_w = float(min(8.0, max(2.0, raw_w)))
             anchor_src.append(src_pts)
             anchor_dst.append(dst_pts)
             anchor_w.append(np.full(len(src_pts), area_w, dtype=np.float64))
@@ -902,8 +912,8 @@ def main() -> None:
             src_pts=src_all,
             dst_pts_mod=dst_all,
             weights=w_all,
-            tps_reg=args.tps_reg,
-            max_ctrl=args.max_control_points,
+            tps_reg=region_tps_reg,
+            max_ctrl=region_max_ctrl,
         )
 
         region_iou_vals = []
@@ -989,6 +999,9 @@ def main() -> None:
                 "meanIoU": round(region_mean_iou, 4),
                 "p10IoU": round(region_p10_iou, 4),
                 "unwrapCenterX": round(float(unwrap_center), 4),
+                "tpsReg": region_tps_reg,
+                "maxControlPoints": region_max_ctrl,
+                "directionCount": region_dirs,
                 **fit_stats,
             }
         )
@@ -1024,6 +1037,9 @@ def main() -> None:
 
     updated = 0
     for c in config.get("countries", []):
+        source_region = str(c.get("sourceRegion", "")).lower()
+        if selected_regions is not None and source_region not in selected_regions:
+            continue
         for key in stale_keys:
             c.pop(key, None)
         feature_key = str(c.get("featureKey", ""))
