@@ -1035,6 +1035,20 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
 document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
 
+document.getElementById('show-all-btn').addEventListener('click', () => {
+  COUNTRIES.forEach(c => revealCountry(c.filename));
+  exploredCountEl.textContent = revealed.size;
+  if (COUNTRIES.length) showInfoCard(COUNTRIES[0]);
+});
+
+document.getElementById('hide-all-btn').addEventListener('click', () => {
+  resetOverlays();
+  exploredCountEl.textContent = '0';
+  activeCountry = null;
+  infoCard.classList.remove('active');
+  infoDefault.style.display = '';
+});
+
 // Jonas high-five (global counter via Firebase)
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
