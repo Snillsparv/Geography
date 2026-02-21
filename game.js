@@ -25,6 +25,9 @@ const DEBUG_NO_EDGE_PULL_PARAM = URL_PARAMS.get('debug_no_edge_pull') === '1';
 const DEBUG_DISABLE_GLOBE_WARP = DEBUG_RAW_UNCLIPPED || URL_PARAMS.get('debug_no_warp') === '1';
 // `globe_hover_legacy=1` keeps previous polygon-hover behavior.
 const GLOBE_HOVER_LEGACY = URL_PARAMS.get('globe_hover_legacy') === '1';
+const GLOBE_WHITE_UNCLICKED_MODE =
+  URL_PARAMS.get('globe_white_unclicked') === '1' ||
+  URL_PARAMS.get('globe_white_fill') === '1';
 const DEBUG_GLOBE_POV = {
   lat: Number(URL_PARAMS.get('debug_pov_lat')),
   lng: Number(URL_PARAMS.get('debug_pov_lng')),
@@ -800,7 +803,7 @@ function globeCapColor(feature) {
     return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
   }
   if (isRevealed) return 'rgba(0, 0, 0, 0)';
-  return 'rgba(88, 115, 140, 0.26)';
+  return GLOBE_WHITE_UNCLICKED_MODE ? 'rgba(255, 255, 255, 0.92)' : 'rgba(88, 115, 140, 0.26)';
 }
 
 function refreshGlobeStyles() {
