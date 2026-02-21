@@ -1884,13 +1884,14 @@ function closeNameModal() {
 function switchMode(mode) {
   if (mode === currentMode) return;
   currentMode = mode;
+  const exploreToggleButtons = document.getElementById('explore-toggle-buttons');
 
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
 
   if (mode === 'explore') {
     document.getElementById('explore-ui').style.display = '';
     document.getElementById('seterra-ui').style.display = 'none';
-    document.getElementById('explore-toggle-buttons').style.display = '';
+    if (exploreToggleButtons) exploreToggleButtons.style.display = '';
     hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
@@ -1903,7 +1904,7 @@ function switchMode(mode) {
   } else {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
-    document.getElementById('explore-toggle-buttons').style.display = 'none';
+    if (exploreToggleButtons) exploreToggleButtons.style.display = 'none';
     headerHint.textContent = IS_GLOBE_REGION ? 'Klicka på jordgloben där du tror landet är!' : 'Klicka där du tror landet är!';
     startSeterra();
   }
@@ -2191,19 +2192,25 @@ document.querySelectorAll('.explore-toggle-btn').forEach(btn => {
   btn.addEventListener('pointerdown', e => e.stopPropagation());
 });
 
-document.getElementById('show-all-btn').addEventListener('click', () => {
-  COUNTRIES.forEach(c => revealCountry(c.filename));
-  exploredCountEl.textContent = revealed.size;
-  if (COUNTRIES.length) showInfoCard(COUNTRIES[0]);
-});
+const showAllBtn = document.getElementById('show-all-btn');
+if (showAllBtn) {
+  showAllBtn.addEventListener('click', () => {
+    COUNTRIES.forEach(c => revealCountry(c.filename));
+    exploredCountEl.textContent = revealed.size;
+    if (COUNTRIES.length) showInfoCard(COUNTRIES[0]);
+  });
+}
 
-document.getElementById('hide-all-btn').addEventListener('click', () => {
-  resetOverlays();
-  exploredCountEl.textContent = '0';
-  activeCountry = null;
-  infoCard.classList.remove('active');
-  infoDefault.style.display = '';
-});
+const hideAllBtn = document.getElementById('hide-all-btn');
+if (hideAllBtn) {
+  hideAllBtn.addEventListener('click', () => {
+    resetOverlays();
+    exploredCountEl.textContent = '0';
+    activeCountry = null;
+    infoCard.classList.remove('active');
+    infoDefault.style.display = '';
+  });
+}
 
 // Jonas high-five (global counter via Firebase)
 const jonasImg = document.getElementById('jonas-img');
