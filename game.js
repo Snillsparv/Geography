@@ -613,17 +613,30 @@ function pushHoverRect(rects, x, y, w, h, width, height) {
   rects.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
 }
 
-function hoverOverlayRectsForWarpItem(item, image, width, height, sx, sy) {
-  const country = item.country;
-  const dx = (country.warpLeft || 0) * sx;
-  const dy = (country.warpTop || 0) * sy;
-  const dw = (country.warpWidth || image.width) * sx;
-  const dh = (country.warpHeight || image.height) * sy;
+function hoverOverlayRectsForFeature(feature, width, height) {
+  if (!feature || !feature.geometry) return [{ x: 0, y: 0, w: width, h: height }];
+  const geometry = feature.geometry;
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  if (!polygons || polygons.length === 0) return [{ x: 0, y: 0, w: width, h: height }];
+
   const rects = [];
-  for (const shift of [-width, 0, width]) {
-    pushHoverRect(rects, dx + shift, dy, dw, dh, width, height);
+  for (const polygon of polygons) {
+    if (!polygon || polygon.length === 0) continue;
+    const outer = projectedRing(polygon[0], width, height);
+    if (!outer || outer.length < 3) continue;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of outer) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    pushHoverRect(rects, minX, minY, maxX - minX, maxY - minY, width, height);
   }
-  return rects;
+  return rects.length > 0 ? rects : [{ x: 0, y: 0, w: width, h: height }];
 }
 
 async function renderGlobeHoverOverlayTexture() {
@@ -643,27 +656,12 @@ async function renderGlobeHoverOverlayTexture() {
   const hoverKey = !GLOBE_HOVER_LEGACY ? globeHoverMnemonicFeatureKey : null;
   if (!hoverKey) return;
 
-  const country = globeCountryByFeatureKey.get(hoverKey);
   const feature = globeFeatureByKey.get(hoverKey);
-  if (!country || !feature) return;
-
-  const item = buildGlobeOverlayDrawItem(country);
-  const image = await loadGlobeImage(item.url);
+  if (!feature) return;
   if (token !== globeHoverOverlayRenderToken) return;
 
-  if (!image) {
-    fillCountryFeature(ctx, feature, width, height, fallbackCountryFillColor(country));
-    globeHoverOverlayLastRects = [{ x: 0, y: 0, w: width, h: height }];
-    globeHoverOverlayTexture.needsUpdate = true;
-    return;
-  }
-
-  const sx = width / GLOBE_WARP_ATLAS_WIDTH;
-  const sy = height / GLOBE_WARP_ATLAS_HEIGHT;
-  drawGlobeCountryItem(ctx, item, image, feature, width, height, sx, sy);
-  globeHoverOverlayLastRects = item.isWarp
-    ? hoverOverlayRectsForWarpItem(item, image, width, height, sx, sy)
-    : [{ x: 0, y: 0, w: width, h: height }];
+  fillCountryFeature(ctx, feature, width, height, 'rgba(255, 220, 50, 1)');
+  globeHoverOverlayLastRects = hoverOverlayRectsForFeature(feature, width, height);
   globeHoverOverlayTexture.needsUpdate = true;
 }
 
@@ -798,7 +796,7 @@ function globeCapColor(feature) {
 
   if (globeHintBlink.has(key)) return 'rgba(255, 220, 70, 0.95)';
   if (globeWrongFlash.has(key)) return 'rgba(255, 120, 120, 0.95)';
-  if (globeHoverFeatureKey === key) {
+  if (GLOBE_HOVER_LEGACY && globeHoverFeatureKey === key) {
     return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
   }
   if (isRevealed) return 'rgba(0, 0, 0, 0)';
@@ -876,21 +874,29 @@ function setGlobeHoverFeature(nextKey) {
   if (normalizedKey === globeHoverFeatureKey) return false;
   globeHoverFeatureKey = normalizedKey;
 
-  if (globeHoverMnemonicRaf !== null) {
-    cancelAnimationFrame(globeHoverMnemonicRaf);
-    globeHoverMnemonicRaf = null;
+  if (GLOBE_HOVER_LEGACY) {
+    globeHoverMnemonicFeatureKey = null;
+    globeHoverMnemonicAlpha = 0;
+    globeHoverMnemonicTargetAlpha = 0;
+    setGlobeHoverOverlayOpacity(0);
+    queueGlobeHoverOverlayRender();
+    return true;
   }
-  globeHoverMnemonicFeatureKey = null;
-  globeHoverMnemonicAlpha = 0;
-  globeHoverMnemonicTargetAlpha = 0;
-  setGlobeHoverOverlayOpacity(0);
+
+  if (normalizedKey) {
+    globeHoverMnemonicFeatureKey = normalizedKey;
+    queueGlobeHoverOverlayRender();
+    setGlobeHoverMnemonicTarget(GLOBE_HOVER_TARGET_ALPHA);
+  } else {
+    setGlobeHoverMnemonicTarget(0);
+  }
   return true;
 }
 
 function onGlobeHover(feature) {
   const nextKey = globeFeatureKey(feature);
   if (!setGlobeHoverFeature(nextKey)) return;
-  refreshGlobeHoverStyles();
+  if (GLOBE_HOVER_LEGACY) refreshGlobeHoverStyles();
 }
 
 function onGlobeClick(feature, event) {
@@ -903,7 +909,7 @@ function onGlobeClick(feature, event) {
   }
   if (!country) return;
   setGlobeHoverFeature(null);
-  refreshGlobeHoverStyles();
+  if (GLOBE_HOVER_LEGACY) refreshGlobeHoverStyles();
   handleClick(country, event);
 }
 
@@ -965,7 +971,7 @@ async function initGlobe() {
     .polygonCapCurvatureResolution(1)
     .polygonSideColor(() => 'rgba(90,120,150,0)')
     .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.34)')
-    .polygonsTransitionDuration(80)
+    .polygonsTransitionDuration(0)
     .polygonsData(globeFeatures)
     .polygonCapColor(globeCapColor)
     .onPolygonHover(onGlobeHover)
@@ -973,7 +979,7 @@ async function initGlobe() {
 
   globeContainer.addEventListener('pointerleave', () => {
     setGlobeHoverFeature(null);
-    refreshGlobeHoverStyles();
+    if (GLOBE_HOVER_LEGACY) refreshGlobeHoverStyles();
   });
 
   globe.controls().enablePan = false;
@@ -1000,9 +1006,15 @@ async function initGlobe() {
         : GLOBE_OVERLAY_MAX_WIDTH;
     const overlayWidth = computeGlobeOverlayWidth(maxTextureSize);
     const overlayHeight = Math.floor(overlayWidth / 2);
+    const hoverOverlayWidth = Math.min(overlayWidth, GLOBE_HOVER_OVERLAY_MAX_WIDTH);
+    const hoverOverlayHeight = Math.floor(hoverOverlayWidth / 2);
     globeOverlayBaseCanvas = document.createElement('canvas');
     globeOverlayBaseCanvas.width = overlayWidth;
     globeOverlayBaseCanvas.height = overlayHeight;
+    globeHoverOverlayCanvas = document.createElement('canvas');
+    globeHoverOverlayCanvas.width = hoverOverlayWidth;
+    globeHoverOverlayCanvas.height = hoverOverlayHeight;
+    globeHoverOverlayLastRects = [];
     globeOverlayBaseDirty = true;
 
     globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayBaseCanvas);
@@ -1017,6 +1029,16 @@ async function initGlobe() {
       renderer && renderer.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
         ? Math.max(1, renderer.capabilities.getMaxAnisotropy())
         : 1;
+
+    globeHoverOverlayTexture = new ThreeLib.CanvasTexture(globeHoverOverlayCanvas);
+    globeHoverOverlayTexture.premultiplyAlpha = true;
+    globeHoverOverlayTexture.generateMipmaps = false;
+    globeHoverOverlayTexture.minFilter = ThreeLib.LinearFilter;
+    globeHoverOverlayTexture.magFilter = ThreeLib.LinearFilter;
+    if (ThreeLib.SRGBColorSpace) {
+      globeHoverOverlayTexture.colorSpace = ThreeLib.SRGBColorSpace;
+    }
+    globeHoverOverlayTexture.anisotropy = globeOverlayTexture.anisotropy;
 
     const radiusCandidate = typeof globe.getGlobeRadius === 'function' ? globe.getGlobeRadius() : null;
     const radius =
@@ -1039,9 +1061,23 @@ async function initGlobe() {
     );
     globeOverlayMesh.renderOrder = 3;
 
+    globeHoverOverlayMaterial = new ThreeLib.MeshBasicMaterial({
+      map: globeHoverOverlayTexture,
+      transparent: true,
+      premultipliedAlpha: true,
+      depthWrite: false,
+      depthTest: true,
+      opacity: 0
+    });
+    globeHoverOverlayMesh = new ThreeLib.Mesh(overlayGeometry.clone(), globeHoverOverlayMaterial);
+    globeHoverOverlayMesh.renderOrder = 4;
+
     const sceneRoot = globe.scene();
     const baseSphere = findFirstSphereMesh(sceneRoot);
     attachGlobeOverlayMesh(globeOverlayMesh, sceneRoot, baseSphere);
+    attachGlobeOverlayMesh(globeHoverOverlayMesh, sceneRoot, baseSphere);
+    setGlobeHoverOverlayOpacity(0);
+    queueGlobeHoverOverlayRender();
   } else {
     console.warn('THREE global not available; mnemonic image overlay on globe is disabled.');
   }
