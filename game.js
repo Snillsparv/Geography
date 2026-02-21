@@ -1037,6 +1037,10 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.3));
 document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom / 1.3));
 
+document.querySelectorAll('.explore-toggle-btn').forEach(btn => {
+  btn.addEventListener('pointerdown', e => e.stopPropagation());
+});
+
 document.getElementById('show-all-btn').addEventListener('click', () => {
   COUNTRIES.forEach(c => revealCountry(c.filename));
   exploredCountEl.textContent = revealed.size;
