@@ -94,10 +94,24 @@ let globe = null;
 let globeFeatures = [];
 let globeFeatureByKey = new Map();
 let globeCountryByFeatureKey = new Map();
-let globeOverlayCanvas = null;
 let globeOverlayTexture = null;
 let globeOverlayMesh = null;
+let globeOverlayBaseCanvas = null;
+let globeHoverOverlayCanvas = null;
+let globeHoverOverlayTexture = null;
+let globeHoverOverlayMesh = null;
+let globeHoverOverlayMaterial = null;
+let globeOverlayBaseDirty = true;
+let globeOverlayRenderQueued = false;
+let globeOverlayRenderRaf = null;
+let globeOverlayRenderInProgress = false;
+let globeOverlayBaseRenderToken = 0;
+let globeHoverOverlayRenderToken = 0;
+let globeHoverOverlayRenderQueued = false;
+let globeHoverOverlayRenderRaf = null;
+let globeHoverOverlayLastRects = [];
 let globeHoverFeatureKey = null;
+let globeHoverMnemonicFeatureKey = null;
 let globeWrongFlash = new Set();
 let globeHintBlink = new Set();
 let globeImageCache = new Map();
@@ -105,7 +119,19 @@ let globeImageAlphaBoundsCache = new Map();
 let globeCountryFillColorCache = new Map();
 let globeImageColorCache = new Map();
 const externalScriptPromises = new Map();
-const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
+const GLOBE_OVERLAY_MAX_WIDTH = 8192;
+const GLOBE_OVERLAY_MIN_WIDTH = 8192;
+const GLOBE_OVERLAY_VIEWPORT_SCALE = 3;
+const GLOBE_HOVER_OVERLAY_MAX_WIDTH = 4096;
+const GLOBE_OVERLAY_SPHERE_WIDTH_SEGMENTS = 96;
+const GLOBE_OVERLAY_SPHERE_HEIGHT_SEGMENTS = 64;
+const GLOBE_HOVER_FADE_MS = 200;
+const GLOBE_HOVER_TARGET_ALPHA = 0.42;
+let globeHoverMnemonicAlpha = 0;
+let globeHoverMnemonicTargetAlpha = 0;
+let globeHoverMnemonicFadeFrom = 0;
+let globeHoverMnemonicFadeStart = 0;
+let globeHoverMnemonicRaf = null;
 const GLOBE_POLY_ALT_BASE = 0.002;
 const GLOBE_POLY_ALT_REVEALED = 0.00025;
 const GLOBE_POLY_ALT_ACTIVE = 0.003;
@@ -485,34 +511,51 @@ function loadGlobeImage(url) {
   return promise;
 }
 
-let globeOverlayRenderToken = 0;
-async function renderGlobeOverlayTexture() {
-  if (!isGlobeReady() || !globeOverlayCanvas || !globeOverlayTexture) return;
+function buildGlobeOverlayDrawItem(country) {
+  const hasWarp = !DEBUG_DISABLE_GLOBE_WARP && !!(country.warpFile && country.warpWidth && country.warpHeight);
+  return {
+    country,
+    isWarp: hasWarp,
+    url: hasWarp ? country.warpFile : countryImgSrc(country.filename)
+  };
+}
 
-  const token = ++globeOverlayRenderToken;
-  const ctx = globeOverlayCanvas.getContext('2d');
-  if (ctx) {
-    ctx.imageSmoothingEnabled = true;
-    // Keep hand-drawn edges stable when warped sprites are minified on globe.
-    ctx.imageSmoothingQuality = 'high';
+function drawGlobeCountryItem(ctx, item, image, feature, width, height, sx, sy) {
+  if (!item || !item.country || !image || !feature) return;
+  const country = item.country;
+  if (item.isWarp) {
+    const dx = (country.warpLeft || 0) * sx;
+    const dy = (country.warpTop || 0) * sy;
+    const dw = (country.warpWidth || image.width) * sx;
+    const dh = (country.warpHeight || image.height) * sy;
+    for (const shift of [-width, 0, width]) {
+      ctx.drawImage(image, dx + shift, dy, dw, dh);
+    }
+    return;
   }
-  const width = globeOverlayCanvas.width;
-  const height = globeOverlayCanvas.height;
+  drawCountryImageClippedToFeature(ctx, image, feature, width, height);
+}
+
+async function rebuildGlobeOverlayBase() {
+  if (!isGlobeReady() || !globeOverlayBaseCanvas) return false;
+  const token = ++globeOverlayBaseRenderToken;
+  const ctx = globeOverlayBaseCanvas.getContext('2d');
+  if (!ctx) return false;
+
+  ctx.imageSmoothingEnabled = true;
+  // Keep hand-drawn edges stable when warped sprites are minified on globe.
+  ctx.imageSmoothingQuality = 'high';
+
+  const width = globeOverlayBaseCanvas.width;
+  const height = globeOverlayBaseCanvas.height;
   ctx.clearRect(0, 0, width, height);
 
   const visibleCountries = DEBUG_SHOW_ALL_GLOBE
     ? COUNTRIES
     : COUNTRIES.filter(c => revealed.has(c.filename));
-  const drawItems = visibleCountries.map(country => {
-    const hasWarp = !DEBUG_DISABLE_GLOBE_WARP && !!(country.warpFile && country.warpWidth && country.warpHeight);
-    return {
-      country,
-      isWarp: hasWarp,
-      url: hasWarp ? country.warpFile : countryImgSrc(country.filename)
-    };
-  });
+  const drawItems = visibleCountries.map(buildGlobeOverlayDrawItem);
   const images = await Promise.all(drawItems.map(item => loadGlobeImage(item.url)));
-  if (token !== globeOverlayRenderToken) return;
+  if (token !== globeOverlayBaseRenderToken) return false;
 
   const sx = width / GLOBE_WARP_ATLAS_WIDTH;
   const sy = height / GLOBE_WARP_ATLAS_HEIGHT;
@@ -533,43 +576,142 @@ async function renderGlobeOverlayTexture() {
       fillCountryFeature(ctx, feature, width, height, fallbackCountryFillColor(country));
       return;
     }
-    const mnemonicVisible = DEBUG_SHOW_ALL_GLOBE || revealed.has(country.filename);
-    const hoverOnMnemonic =
-      !GLOBE_HOVER_LEGACY &&
-      mnemonicVisible &&
-      globeHoverFeatureKey &&
-      globeHoverFeatureKey === country.featureKey;
 
-    const drawCountry = () => {
-      if (item.isWarp) {
-        const dx = (country.warpLeft || 0) * sx;
-        const dy = (country.warpTop || 0) * sy;
-        const dw = (country.warpWidth || image.width) * sx;
-        const dh = (country.warpHeight || image.height) * sy;
-        for (const shift of [-width, 0, width]) {
-          ctx.drawImage(image, dx + shift, dy, dw, dh);
-        }
-      } else {
-        drawCountryImageClippedToFeature(ctx, image, feature, width, height);
-      }
-    };
-
-    if (feature && shouldUseGlobeUnderfill(country, item)) {
+    if (shouldUseGlobeUnderfill(country, item)) {
       const fillColor = countryFillColor(country, image, item.url);
       fillCountryFeature(ctx, feature, width, height, fillColor);
     }
-    drawCountry();
-
-    if (hoverOnMnemonic) {
-      ctx.save();
-      ctx.globalAlpha = 0.58;
-      ctx.filter = 'brightness(1.35) saturate(1.25)';
-      drawCountry();
-      ctx.restore();
-    }
+    drawGlobeCountryItem(ctx, item, image, feature, width, height, sx, sy);
   });
 
+  return token === globeOverlayBaseRenderToken;
+}
+
+function composeGlobeOverlayTexture() {
+  if (!isGlobeReady() || !globeOverlayTexture) return;
   globeOverlayTexture.needsUpdate = true;
+}
+
+function setGlobeHoverOverlayOpacity(alpha) {
+  if (!globeHoverOverlayMaterial) return;
+  globeHoverOverlayMaterial.opacity = Math.max(0, Math.min(GLOBE_HOVER_TARGET_ALPHA, alpha));
+}
+
+function clearGlobeHoverOverlayRects(ctx, rects) {
+  for (const rect of rects) {
+    if (!rect) continue;
+    ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+  }
+}
+
+function pushHoverRect(rects, x, y, w, h, width, height) {
+  const x0 = Math.max(0, Math.floor(x) - 2);
+  const y0 = Math.max(0, Math.floor(y) - 2);
+  const x1 = Math.min(width, Math.ceil(x + w) + 2);
+  const y1 = Math.min(height, Math.ceil(y + h) + 2);
+  if (x1 <= x0 || y1 <= y0) return;
+  rects.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+}
+
+function hoverOverlayRectsForWarpItem(item, image, width, height, sx, sy) {
+  const country = item.country;
+  const dx = (country.warpLeft || 0) * sx;
+  const dy = (country.warpTop || 0) * sy;
+  const dw = (country.warpWidth || image.width) * sx;
+  const dh = (country.warpHeight || image.height) * sy;
+  const rects = [];
+  for (const shift of [-width, 0, width]) {
+    pushHoverRect(rects, dx + shift, dy, dw, dh, width, height);
+  }
+  return rects;
+}
+
+async function renderGlobeHoverOverlayTexture() {
+  if (!isGlobeReady() || !globeHoverOverlayCanvas || !globeHoverOverlayTexture) return;
+  const token = ++globeHoverOverlayRenderToken;
+  const ctx = globeHoverOverlayCanvas.getContext('2d');
+  if (!ctx) return;
+
+  const width = globeHoverOverlayCanvas.width;
+  const height = globeHoverOverlayCanvas.height;
+  if (globeHoverOverlayLastRects.length > 0) {
+    clearGlobeHoverOverlayRects(ctx, globeHoverOverlayLastRects);
+    globeHoverOverlayLastRects = [];
+    globeHoverOverlayTexture.needsUpdate = true;
+  }
+
+  const hoverKey = !GLOBE_HOVER_LEGACY ? globeHoverMnemonicFeatureKey : null;
+  if (!hoverKey) return;
+
+  const country = globeCountryByFeatureKey.get(hoverKey);
+  const feature = globeFeatureByKey.get(hoverKey);
+  if (!country || !feature) return;
+
+  const item = buildGlobeOverlayDrawItem(country);
+  const image = await loadGlobeImage(item.url);
+  if (token !== globeHoverOverlayRenderToken) return;
+
+  if (!image) {
+    fillCountryFeature(ctx, feature, width, height, fallbackCountryFillColor(country));
+    globeHoverOverlayLastRects = [{ x: 0, y: 0, w: width, h: height }];
+    globeHoverOverlayTexture.needsUpdate = true;
+    return;
+  }
+
+  const sx = width / GLOBE_WARP_ATLAS_WIDTH;
+  const sy = height / GLOBE_WARP_ATLAS_HEIGHT;
+  drawGlobeCountryItem(ctx, item, image, feature, width, height, sx, sy);
+  globeHoverOverlayLastRects = item.isWarp
+    ? hoverOverlayRectsForWarpItem(item, image, width, height, sx, sy)
+    : [{ x: 0, y: 0, w: width, h: height }];
+  globeHoverOverlayTexture.needsUpdate = true;
+}
+
+function queueGlobeHoverOverlayRender() {
+  globeHoverOverlayRenderQueued = true;
+  if (globeHoverOverlayRenderRaf !== null) return;
+  globeHoverOverlayRenderRaf = requestAnimationFrame(() => {
+    globeHoverOverlayRenderRaf = null;
+    if (!globeHoverOverlayRenderQueued) return;
+    globeHoverOverlayRenderQueued = false;
+    renderGlobeHoverOverlayTexture();
+  });
+}
+
+async function processGlobeOverlayRenderQueue() {
+  globeOverlayRenderRaf = null;
+  if (globeOverlayRenderInProgress) return;
+  globeOverlayRenderInProgress = true;
+
+  try {
+    while (globeOverlayRenderQueued) {
+      globeOverlayRenderQueued = false;
+      if (!isGlobeReady() || !globeOverlayTexture || !globeOverlayBaseCanvas) continue;
+      if (!globeOverlayBaseDirty) continue;
+
+      globeOverlayBaseDirty = false;
+      const rebuilt = await rebuildGlobeOverlayBase();
+      if (!rebuilt) globeOverlayBaseDirty = true;
+      if (globeOverlayBaseDirty) {
+        globeOverlayRenderQueued = true;
+        continue;
+      }
+
+      composeGlobeOverlayTexture();
+    }
+  } finally {
+    globeOverlayRenderInProgress = false;
+    if (globeOverlayRenderQueued && globeOverlayRenderRaf === null) {
+      globeOverlayRenderRaf = requestAnimationFrame(processGlobeOverlayRenderQueue);
+    }
+  }
+}
+
+function renderGlobeOverlayTexture(options = {}) {
+  if (options.baseDirty) globeOverlayBaseDirty = true;
+  globeOverlayRenderQueued = true;
+  if (globeOverlayRenderRaf !== null || globeOverlayRenderInProgress) return;
+  globeOverlayRenderRaf = requestAnimationFrame(processGlobeOverlayRenderQueue);
 }
 
 function sanitizeGlobeGeometry(feature) {
@@ -638,9 +780,8 @@ function globePolygonAltitude(feature) {
   if (!key) return GLOBE_POLY_ALT_BASE;
   const country = globeCountryByFeatureKey.get(key);
   const isRevealed = country ? revealed.has(country.filename) : false;
-  const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
   const isInteractiveHighlight =
-    globeHintBlink.has(key) || globeWrongFlash.has(key) || globeHoverFeatureKey === key || isTarget;
+    globeHintBlink.has(key) || globeWrongFlash.has(key);
 
   // Keep interactive highlights slightly above base, but close enough to the
   // globe surface to avoid the "floating plates" effect.
@@ -654,20 +795,13 @@ function globeCapColor(feature) {
   if (!key) return 'rgba(88,115,140,0.34)';
   const country = globeCountryByFeatureKey.get(key);
   const isRevealed = country ? revealed.has(country.filename) : false;
-  const mnemonicVisible = country ? (DEBUG_SHOW_ALL_GLOBE || revealed.has(country.filename)) : false;
-  const isTarget = currentMode === 'seterra' && seterraTarget && seterraTarget.featureKey === key;
 
   if (globeHintBlink.has(key)) return 'rgba(255, 220, 70, 0.95)';
   if (globeWrongFlash.has(key)) return 'rgba(255, 120, 120, 0.95)';
   if (globeHoverFeatureKey === key) {
-    if (!GLOBE_HOVER_LEGACY && mnemonicVisible) {
-      // Hover emphasis is rendered on the mnemonic image itself.
-      return isRevealed ? 'rgba(255, 220, 50, 0.08)' : 'rgba(255, 220, 50, 0.18)';
-    }
     return isRevealed ? 'rgba(255, 220, 50, 0.24)' : 'rgba(255, 220, 50, 0.85)';
   }
   if (isRevealed) return 'rgba(0, 0, 0, 0)';
-  if (isTarget) return 'rgba(91, 191, 255, 0.3)';
   return 'rgba(88, 115, 140, 0.26)';
 }
 
@@ -677,12 +811,86 @@ function refreshGlobeStyles() {
   globe.polygonAltitude(globePolygonAltitude);
 }
 
+function refreshGlobeHoverStyles() {
+  if (!isGlobeReady()) return;
+  globe.polygonCapColor(globeCapColor);
+}
+
+function setGlobeHoverMnemonicTarget(targetAlpha) {
+  const clampedTarget = Math.max(0, Math.min(GLOBE_HOVER_TARGET_ALPHA, targetAlpha));
+  const targetUnchanged = Math.abs(clampedTarget - globeHoverMnemonicTargetAlpha) < 0.001;
+  const alphaAtTarget = Math.abs(globeHoverMnemonicAlpha - clampedTarget) < 0.001;
+  if (targetUnchanged && (globeHoverMnemonicRaf !== null || alphaAtTarget)) {
+    if (clampedTarget <= 0.001 && alphaAtTarget && !globeHoverFeatureKey) {
+      globeHoverMnemonicFeatureKey = null;
+      queueGlobeHoverOverlayRender();
+    }
+    return;
+  }
+
+  globeHoverMnemonicFadeFrom = globeHoverMnemonicAlpha;
+  globeHoverMnemonicTargetAlpha = clampedTarget;
+  globeHoverMnemonicFadeStart = 0;
+
+  if (Math.abs(globeHoverMnemonicFadeFrom - globeHoverMnemonicTargetAlpha) < 0.001) {
+    globeHoverMnemonicAlpha = globeHoverMnemonicTargetAlpha;
+    setGlobeHoverOverlayOpacity(globeHoverMnemonicAlpha);
+    if (globeHoverMnemonicTargetAlpha <= 0.001 && !globeHoverFeatureKey) {
+      globeHoverMnemonicFeatureKey = null;
+      queueGlobeHoverOverlayRender();
+    }
+    return;
+  }
+
+  if (globeHoverMnemonicRaf !== null) return;
+
+  const tick = now => {
+    if (!globeHoverMnemonicFadeStart) globeHoverMnemonicFadeStart = now;
+    const elapsed = now - globeHoverMnemonicFadeStart;
+    const t = Math.min(1, elapsed / GLOBE_HOVER_FADE_MS);
+    const eased = t * (2 - t);
+    globeHoverMnemonicAlpha =
+      globeHoverMnemonicFadeFrom +
+      (globeHoverMnemonicTargetAlpha - globeHoverMnemonicFadeFrom) * eased;
+    setGlobeHoverOverlayOpacity(globeHoverMnemonicAlpha);
+
+    if (t >= 1 || Math.abs(globeHoverMnemonicTargetAlpha - globeHoverMnemonicAlpha) < 0.001) {
+      globeHoverMnemonicAlpha = globeHoverMnemonicTargetAlpha;
+      setGlobeHoverOverlayOpacity(globeHoverMnemonicAlpha);
+      if (globeHoverMnemonicTargetAlpha <= 0.001 && !globeHoverFeatureKey) {
+        globeHoverMnemonicFeatureKey = null;
+        queueGlobeHoverOverlayRender();
+      }
+      globeHoverMnemonicRaf = null;
+      return;
+    }
+
+    globeHoverMnemonicRaf = requestAnimationFrame(tick);
+  };
+
+  globeHoverMnemonicRaf = requestAnimationFrame(tick);
+}
+
+function setGlobeHoverFeature(nextKey) {
+  const normalizedKey = nextKey || null;
+  if (normalizedKey === globeHoverFeatureKey) return false;
+  globeHoverFeatureKey = normalizedKey;
+
+  if (globeHoverMnemonicRaf !== null) {
+    cancelAnimationFrame(globeHoverMnemonicRaf);
+    globeHoverMnemonicRaf = null;
+  }
+  globeHoverMnemonicFeatureKey = null;
+  globeHoverMnemonicAlpha = 0;
+  globeHoverMnemonicTargetAlpha = 0;
+  setGlobeHoverOverlayOpacity(0);
+  return true;
+}
+
 function onGlobeHover(feature) {
   const nextKey = globeFeatureKey(feature);
-  if (nextKey === globeHoverFeatureKey) return;
-  globeHoverFeatureKey = nextKey;
-  refreshGlobeStyles();
-  renderGlobeOverlayTexture();
+  if (!setGlobeHoverFeature(nextKey)) return;
+  refreshGlobeHoverStyles();
 }
 
 function onGlobeClick(feature, event) {
@@ -694,9 +902,8 @@ function onGlobeClick(feature, event) {
     country = seterraTarget;
   }
   if (!country) return;
-  globeHoverFeatureKey = null;
-  refreshGlobeStyles();
-  renderGlobeOverlayTexture();
+  setGlobeHoverFeature(null);
+  refreshGlobeHoverStyles();
   handleClick(country, event);
 }
 
@@ -708,6 +915,28 @@ function syncGlobeViewport() {
     globe.width(width);
     globe.height(height);
   }
+}
+
+function computeGlobeOverlayWidth(maxTextureSize) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const viewportWidth = Math.max(mapPanel.clientWidth || 0, globeContainer.clientWidth || 0, 1024);
+  const desiredWidth = Math.round(viewportWidth * dpr * GLOBE_OVERLAY_VIEWPORT_SCALE);
+  const hardMax = Math.max(1024, Math.min(GLOBE_OVERLAY_MAX_WIDTH, maxTextureSize || GLOBE_OVERLAY_MAX_WIDTH));
+  return Math.max(1024, Math.min(hardMax, Math.max(GLOBE_OVERLAY_MIN_WIDTH, desiredWidth)));
+}
+
+function attachGlobeOverlayMesh(mesh, sceneRoot, baseSphere) {
+  if (!mesh || !sceneRoot) return;
+  if (baseSphere && baseSphere.parent) {
+    baseSphere.parent.add(mesh);
+    mesh.position.copy(baseSphere.position);
+    mesh.quaternion.copy(baseSphere.quaternion);
+    mesh.scale.copy(baseSphere.scale);
+    return;
+  }
+  // Fallback alignment used by many globe libs: shift texture space by -90deg.
+  mesh.rotation.y = -Math.PI / 2;
+  sceneRoot.add(mesh);
 }
 
 async function initGlobe() {
@@ -736,16 +965,15 @@ async function initGlobe() {
     .polygonCapCurvatureResolution(1)
     .polygonSideColor(() => 'rgba(90,120,150,0)')
     .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.34)')
-    .polygonsTransitionDuration(120)
+    .polygonsTransitionDuration(80)
     .polygonsData(globeFeatures)
     .polygonCapColor(globeCapColor)
     .onPolygonHover(onGlobeHover)
     .onPolygonClick(onGlobeClick);
 
   globeContainer.addEventListener('pointerleave', () => {
-    globeHoverFeatureKey = null;
-    refreshGlobeStyles();
-    renderGlobeOverlayTexture();
+    setGlobeHoverFeature(null);
+    refreshGlobeHoverStyles();
   });
 
   globe.controls().enablePan = false;
@@ -769,14 +997,15 @@ async function initGlobe() {
     const maxTextureSize =
       renderer && renderer.capabilities && renderer.capabilities.maxTextureSize
         ? renderer.capabilities.maxTextureSize
-        : GLOBE_OVERLAY_TARGET_WIDTH;
-    const overlayWidth = Math.min(GLOBE_OVERLAY_TARGET_WIDTH, maxTextureSize);
+        : GLOBE_OVERLAY_MAX_WIDTH;
+    const overlayWidth = computeGlobeOverlayWidth(maxTextureSize);
     const overlayHeight = Math.floor(overlayWidth / 2);
+    globeOverlayBaseCanvas = document.createElement('canvas');
+    globeOverlayBaseCanvas.width = overlayWidth;
+    globeOverlayBaseCanvas.height = overlayHeight;
+    globeOverlayBaseDirty = true;
 
-    globeOverlayCanvas = document.createElement('canvas');
-    globeOverlayCanvas.width = overlayWidth;
-    globeOverlayCanvas.height = overlayHeight;
-    globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayCanvas);
+    globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayBaseCanvas);
     globeOverlayTexture.premultiplyAlpha = true;
     globeOverlayTexture.generateMipmaps = false;
     globeOverlayTexture.minFilter = ThreeLib.LinearFilter;
@@ -792,8 +1021,14 @@ async function initGlobe() {
     const radiusCandidate = typeof globe.getGlobeRadius === 'function' ? globe.getGlobeRadius() : null;
     const radius =
       Number.isFinite(radiusCandidate) && radiusCandidate > 0 ? radiusCandidate : 100;
+
+    const overlayGeometry = new ThreeLib.SphereGeometry(
+      radius * 1.01,
+      GLOBE_OVERLAY_SPHERE_WIDTH_SEGMENTS,
+      GLOBE_OVERLAY_SPHERE_HEIGHT_SEGMENTS
+    );
     globeOverlayMesh = new ThreeLib.Mesh(
-      new ThreeLib.SphereGeometry(radius * 1.01, 96, 64),
+      overlayGeometry,
       new ThreeLib.MeshBasicMaterial({
         map: globeOverlayTexture,
         transparent: true,
@@ -803,23 +1038,15 @@ async function initGlobe() {
       })
     );
     globeOverlayMesh.renderOrder = 3;
+
     const sceneRoot = globe.scene();
     const baseSphere = findFirstSphereMesh(sceneRoot);
-    if (baseSphere && baseSphere.parent) {
-      baseSphere.parent.add(globeOverlayMesh);
-      globeOverlayMesh.position.copy(baseSphere.position);
-      globeOverlayMesh.quaternion.copy(baseSphere.quaternion);
-      globeOverlayMesh.scale.copy(baseSphere.scale);
-    } else {
-      // Fallback alignment used by many globe libs: shift texture space by -90deg.
-      globeOverlayMesh.rotation.y = -Math.PI / 2;
-      sceneRoot.add(globeOverlayMesh);
-    }
+    attachGlobeOverlayMesh(globeOverlayMesh, sceneRoot, baseSphere);
   } else {
     console.warn('THREE global not available; mnemonic image overlay on globe is disabled.');
   }
 
-  await renderGlobeOverlayTexture();
+  renderGlobeOverlayTexture({ baseDirty: true });
   refreshGlobeStyles();
 }
 
@@ -1094,7 +1321,7 @@ function revealCountry(filename) {
   if (IS_GLOBE_REGION) {
     revealed.add(filename);
     justRevealed.add(filename);
-    renderGlobeOverlayTexture();
+    renderGlobeOverlayTexture({ baseDirty: true });
     refreshGlobeStyles();
     return;
   }
@@ -1153,10 +1380,10 @@ function resetOverlays() {
     revealed.clear();
     justRevealed.clear();
     currentHover = null;
-    globeHoverFeatureKey = null;
+    setGlobeHoverFeature(null);
     globeWrongFlash.clear();
     globeHintBlink.clear();
-    renderGlobeOverlayTexture();
+    renderGlobeOverlayTexture({ baseDirty: true });
     refreshGlobeStyles();
     return;
   }
@@ -1282,7 +1509,7 @@ function exploreClick(c, e) {
   if (revealed.has(c.filename)) {
     revealed.delete(c.filename);
     if (IS_GLOBE_REGION) {
-      renderGlobeOverlayTexture();
+      renderGlobeOverlayTexture({ baseDirty: true });
       refreshGlobeStyles();
     } else {
       const overlay = overlayEls[c.filename];
@@ -1349,7 +1576,7 @@ function startSeterraRetry() {
         justRevealed.add(c.filename);
       }
     });
-    renderGlobeOverlayTexture();
+    renderGlobeOverlayTexture({ baseDirty: true });
     refreshGlobeStyles();
   } else {
     COUNTRIES.forEach(c => {
