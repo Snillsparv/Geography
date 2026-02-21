@@ -28,6 +28,9 @@ const GLOBE_HOVER_LEGACY = URL_PARAMS.get('globe_hover_legacy') === '1';
 const GLOBE_WHITE_UNCLICKED_MODE =
   URL_PARAMS.get('globe_white_unclicked') === '1' ||
   URL_PARAMS.get('globe_white_fill') === '1';
+const GLOBE_BLACK_BORDERS =
+  URL_PARAMS.get('globe_black_borders') === '1' ||
+  URL_PARAMS.get('globe_border_black') === '1';
 const DEBUG_GLOBE_POV = {
   lat: Number(URL_PARAMS.get('debug_pov_lat')),
   lng: Number(URL_PARAMS.get('debug_pov_lng')),
@@ -973,7 +976,7 @@ async function initGlobe() {
     .polygonAltitude(globePolygonAltitude)
     .polygonCapCurvatureResolution(1)
     .polygonSideColor(() => 'rgba(90,120,150,0)')
-    .polygonStrokeColor(() => 'rgba(140, 180, 220, 0.34)')
+    .polygonStrokeColor(() => (GLOBE_BLACK_BORDERS ? 'rgba(0, 0, 0, 0.9)' : 'rgba(140, 180, 220, 0.34)'))
     .polygonsTransitionDuration(0)
     .polygonsData(globeFeatures)
     .polygonCapColor(globeCapColor)
