@@ -354,6 +354,10 @@
       user-select: none;
     }
 
+    .explore-toggle-btn svg {
+      pointer-events: none;
+    }
+
     .explore-toggle-btn:hover {
       background: rgba(42, 64, 96, 0.95);
       border-color: rgba(91,191,255,0.5);
