@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-MIN_TARGET_AREA_FOR_WARP = 700
+MIN_TARGET_AREA_FOR_WARP = 1
 MIN_IOU_GAIN = 0.01
 LOW_BASELINE_ALLOW = 0.5
 LOW_BASELINE_TOLERANCE = -0.02
@@ -41,7 +41,9 @@ EDGE_SNAP_MAX_EDGE_LOSS = 0.15
 EDGE_ACCEPT_MIN_GAIN = 2.0
 EDGE_ACCEPT_MAX_IOU_DROP = 0.05
 EDGE_ACCEPT_MIN_IOU = 0.80
-FORCE_ACCEPT_FEATURE_KEYS = {"RUS", "BOL", "GRC", "NOR", "CAN", "SOM"}
+ABS_IOU_ACCEPT = 0.78
+ABS_IOU_MAX_DROP = 0.01
+FORCE_ACCEPT_FEATURE_KEYS = {"RUS", "BOL", "GRC", "NOR", "CAN", "SOM", "DNK"}
 POST_EDGE_REPAIR_MIN_AREA = 20000
 POST_EDGE_REPAIR_MIN_EDGE_EXCESS = 4.0
 POST_EDGE_REPAIR_MAX_IOU_DROP = 0.02
@@ -51,7 +53,21 @@ POST_EDGE_REPAIR_FEATURE_KEYS = {"AUS", "BOL", "CAN"}
 USE_BOUNDARY_PULL = False
 USE_MASK_CLIP = False
 SKIP_EDGE_REPAIR_FEATURE_KEYS = {"BOL", "CAN"}
-FORCE_BASELINE_FEATURE_KEYS = {"BOL", "RUS"}
+# Preserve hand-drawn integrity for countries where geometric warps repeatedly
+# shred or miniaturize the motif more than they help.
+FORCE_BASELINE_FEATURE_KEYS = {
+    "BOL",
+    "RUS",
+    "SSD",
+    "SAU",
+    "FJI",
+    "SLB",
+    "CHL",
+    "KAZ",
+    "SOM",
+    "KOR",
+    "PRK",
+}
 COUNTRY_COMPONENT_OVERRIDES = {
     # Archipelago-heavy countries: prioritize the main intended drawing mass,
     # not every tiny island polygon.
@@ -84,12 +100,17 @@ COUNTRY_EDGE_SNAP_PASSES = {
 }
 DISABLE_COMPONENT_MODE_KEYS = {
     "GRC",
-    "CHL",
     "BOL",
-    "PHL",
     "NOR",
     "CUB",
+}
+COMPONENT_PREFER_BASELINE_KEYS = {
+    # For these, per-component stage warps tend to create jagged shredding.
+    "PHL",
+    "JPN",
     "CAN",
+    "KAZ",
+    "CHL",
 }
 FINAL_CLIP_DILATE_BY_KEY = {
     "SLB": 8,
@@ -117,7 +138,7 @@ BOUNDARY_PULL_MAX_PASSES = 4
 BOUNDARY_PULL_MAX_IOU_DROP = 0.025
 BOUNDARY_PULL_MAX_EDGE_LOSS = 3.5
 BOUNDARY_PULL_MIN_HOLE_GAIN_FRACTION = 0.15
-CANDIDATE_IOU_EPS = 0.001
+CANDIDATE_IOU_EPS = 0.015
 CANDIDATE_EDGE_SOFT_GAIN = 0.8
 CANDIDATE_EDGE_HARD_GAIN = 2.5
 CANDIDATE_SOFT_MAX_IOU_DROP = 0.003
@@ -127,6 +148,31 @@ COMPONENT_MIN_PIXELS = 20
 COMPONENT_KEEP_FRACTION = 0.998
 COMPONENT_SOURCE_REL_MIN = 0.0025
 COMPONENT_TARGET_REL_MIN = 0.0005
+WARP_WEBP_LOSSLESS = True
+WARP_WEBP_QUALITY = 100
+WARP_WEBP_METHOD = 6
+UNPREMULTIPLY_MIN_ALPHA = 4.0 / 255.0
+SOURCE_ALPHA_HARD_ZERO = 2
+SOURCE_LOW_ALPHA_NOISE_MAX = 8
+SOURCE_STRONG_ALPHA_MIN = 24
+OUTPUT_LOW_ALPHA_NOISE_MAX = 8
+OUTPUT_STRONG_ALPHA_MIN = 32
+SOURCE_PRUNE_SATELLITES_FEATURE_KEYS = {"CHL"}
+OUTPUT_PRUNE_SATELLITES_FEATURE_KEYS = {"CHL"}
+COMPONENT_PRUNE_ALPHA_THRESHOLD = 10
+COMPONENT_PRUNE_DOMINANT_RATIO_MIN = 0.96
+COMPONENT_PRUNE_SECOND_MAX_RATIO = 0.02
+FRAGMENT_ALPHA_THRESHOLD = 10
+FRAGMENT_MIN_AREA = 24
+FRAGMENT_GUARD_MAX_MULTIPLIER = 2.5
+FRAGMENT_GUARD_MAX_INCREASE = 12
+FRAGMENT_GUARD_MIN_IOU_GAIN = 0.04
+STYLE_PRESERVE_MIN_GAIN = 0.035
+STYLE_PRESERVE_BLACK_RATIO_MAX = 1.45
+STYLE_PRESERVE_BLACK_RATIO_MAX_LOOSE = 1.8
+STYLE_PRESERVE_NOISE_RATIO_MAX = 1.3
+STYLE_PRESERVE_NOISE_RATIO_MAX_LOOSE = 1.55
+STYLE_PRESERVE_HIGH_GAIN = 0.12
 
 
 @dataclass
@@ -301,6 +347,63 @@ def target_mask_and_bbox(
                 draw.polygon(hole_pts, fill=0)
 
     mask = np.array(mask_img, dtype=np.uint8)
+    if not np.any(mask):
+        # Extremely tiny polygons (e.g. microstates) may collapse at raster resolution.
+        # Seed a tiny centroid block so downstream contour-based warp logic can still run.
+        cx = int(round(float(np.mean(all_pts[:, 0])) - left))
+        cy = int(round(float(np.mean(all_pts[:, 1])) - top))
+        cx = max(0, min(width - 1, cx))
+        cy = max(0, min(height - 1, cy))
+        x0 = max(0, cx - 1)
+        y0 = max(0, cy - 1)
+        x1 = min(width, cx + 1)
+        y1 = min(height, cy + 1)
+        mask[y0:y1, x0:x1] = 255
+
+    # Remove only ultra-tiny isolated raster specks before bbox trim. These
+    # can otherwise create massive transparent padding from wrap artifacts.
+    cc_count, cc_labels, cc_stats, _ = cv2.connectedComponentsWithStats(
+        (mask > 0).astype(np.uint8), connectivity=8
+    )
+    if cc_count > 2:
+        areas = [int(cc_stats[i, cv2.CC_STAT_AREA]) for i in range(1, cc_count)]
+        total_area = int(sum(areas))
+        largest_area = int(max(areas)) if areas else 0
+        min_keep_area = max(16, int(largest_area * 0.0005))
+        keep_fraction = 0.999
+        order = sorted(
+            range(1, cc_count),
+            key=lambda i: int(cc_stats[i, cv2.CC_STAT_AREA]),
+            reverse=True,
+        )
+        kept = np.zeros(mask.shape, dtype=np.uint8)
+        covered = 0
+        for idx in order:
+            area = int(cc_stats[idx, cv2.CC_STAT_AREA])
+            must_keep_for_coverage = total_area > 0 and (covered / total_area) < keep_fraction
+            if area >= min_keep_area or must_keep_for_coverage:
+                kept[cc_labels == idx] = 255
+                covered += area
+        if np.any(kept):
+            mask = kept
+
+    # Trim empty mask margins to avoid accidental huge transparent padding
+    # (can happen for some multipolygons / wrap branches), which otherwise
+    # shrinks the mnemonic unnecessarily.
+    ys, xs = np.where(mask > 0)
+    if len(xs) > 0 and len(ys) > 0:
+        trim_pad = 1
+        x0 = max(0, int(xs.min()) - trim_pad)
+        y0 = max(0, int(ys.min()) - trim_pad)
+        x1 = min(mask.shape[1] - 1, int(xs.max()) + trim_pad)
+        y1 = min(mask.shape[0] - 1, int(ys.max()) + trim_pad)
+        if x0 > 0 or y0 > 0 or x1 < mask.shape[1] - 1 or y1 < mask.shape[0] - 1:
+            mask = mask[y0 : y1 + 1, x0 : x1 + 1]
+            left += x0
+            top += y0
+            width = mask.shape[1]
+            height = mask.shape[0]
+
     bbox = BBox(left=left % atlas_w, top=top, width=width, height=height)
     return mask, bbox, local_polygons
 
@@ -451,8 +554,12 @@ def warp_piecewise_affine(
     out_h: int,
     triangles: Sequence[Tuple[int, int, int]],
 ) -> np.ndarray:
-    src = src_rgba.astype(np.float32)
-    out = np.zeros((out_h, out_w, 4), dtype=np.float32)
+    # Warp in premultiplied-alpha space to avoid dark/black interpolation
+    # artifacts along hand-drawn edges.
+    src = src_rgba.astype(np.float32) / 255.0
+    src_alpha = src[:, :, 3:4]
+    src_pm = np.concatenate([src[:, :, :3] * src_alpha, src_alpha], axis=2)
+    out_pm = np.zeros((out_h, out_w, 4), dtype=np.float32)
 
     for tri in triangles:
         src_tri = np.float32([src_pts[tri[0]], src_pts[tri[1]], src_pts[tri[2]]])
@@ -470,7 +577,7 @@ def warp_piecewise_affine(
         if x2 < 0 or y2 < 0 or x2 + w2 > out_w or y2 + h2 > out_h:
             continue
 
-        src_crop = src[y1 : y1 + h1, x1 : x1 + w1]
+        src_crop = src_pm[y1 : y1 + h1, x1 : x1 + w1]
         src_rect = np.float32([[p[0] - x1, p[1] - y1] for p in src_tri])
         dst_rect = np.float32([[p[0] - x2, p[1] - y2] for p in dst_tri])
         matrix = cv2.getAffineTransform(src_rect, dst_rect)
@@ -480,17 +587,18 @@ def warp_piecewise_affine(
             (w2, h2),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0, 0, 0, 0),
+            borderValue=(0.0, 0.0, 0.0, 0.0),
         )
 
         mask = np.zeros((h2, w2), dtype=np.float32)
         cv2.fillConvexPoly(mask, np.int32(np.round(dst_rect)), 1.0, lineType=cv2.LINE_AA)
         mask4 = mask[:, :, None]
 
-        patch = out[y2 : y2 + h2, x2 : x2 + w2]
+        patch = out_pm[y2 : y2 + h2, x2 : x2 + w2]
         patch[:] = patch * (1.0 - mask4) + warped * mask4
 
-    return np.clip(out, 0, 255).astype(np.uint8)
+    out = unpremultiply_rgba(out_pm)
+    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
 
 
 def shape_iou(alpha_mask: np.ndarray, target_mask: np.ndarray) -> float:
@@ -838,14 +946,7 @@ def edge_snap_refine_once(
     map_x = grid_x - dx_field.astype(np.float32)
     map_y = grid_y - dy_field.astype(np.float32)
 
-    refined = cv2.remap(
-        src_rgba,
-        map_x,
-        map_y,
-        interpolation=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=(0, 0, 0, 0),
-    )
+    refined = remap_premultiplied_rgba(src_rgba, map_x, map_y)
     return refined
 
 
@@ -938,16 +1039,122 @@ def remap_premultiplied_rgba(src_rgba: np.ndarray, map_x: np.ndarray, map_y: np.
         borderValue=(0.0, 0.0, 0.0, 0.0),
     )
 
-    out_alpha = np.clip(warped_pm[:, :, 3:4], 0.0, 1.0)
-    out_rgb = np.zeros_like(warped_pm[:, :, :3], dtype=np.float32)
+    out = unpremultiply_rgba(warped_pm)
+    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+
+
+def resize_premultiplied_rgba(src_rgba: np.ndarray, out_w: int, out_h: int) -> np.ndarray:
+    src = src_rgba.astype(np.float32) / 255.0
+    alpha = src[:, :, 3:4]
+    src_pm = np.concatenate([src[:, :, :3] * alpha, alpha], axis=2)
+
+    src_h, src_w = src_rgba.shape[:2]
+    if out_w <= src_w and out_h <= src_h:
+        interp = cv2.INTER_AREA
+    elif out_w > src_w or out_h > src_h:
+        interp = cv2.INTER_CUBIC
+    else:
+        interp = cv2.INTER_LINEAR
+
+    resized_pm = cv2.resize(src_pm, (out_w, out_h), interpolation=interp)
+    out = unpremultiply_rgba(resized_pm)
+    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+
+
+def unpremultiply_rgba(pm_rgba: np.ndarray) -> np.ndarray:
+    out_alpha = np.clip(pm_rgba[:, :, 3:4], 0.0, 1.0)
+    out_rgb = np.zeros_like(pm_rgba[:, :, :3], dtype=np.float32)
+    valid = out_alpha > UNPREMULTIPLY_MIN_ALPHA
     np.divide(
-        warped_pm[:, :, :3],
+        pm_rgba[:, :, :3],
         np.maximum(out_alpha, 1e-6),
         out=out_rgb,
-        where=out_alpha > 1e-6,
+        where=valid,
     )
-    out = np.concatenate([out_rgb, out_alpha], axis=2)
-    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+    out_alpha = np.where(valid, out_alpha, 0.0)
+    return np.concatenate([out_rgb, out_alpha], axis=2)
+
+
+def prune_satellite_components(
+    rgba: np.ndarray,
+    alpha_threshold: int = COMPONENT_PRUNE_ALPHA_THRESHOLD,
+    dominant_ratio_min: float = COMPONENT_PRUNE_DOMINANT_RATIO_MIN,
+    second_max_ratio: float = COMPONENT_PRUNE_SECOND_MAX_RATIO,
+) -> np.ndarray:
+    out = rgba.copy()
+    alpha = out[:, :, 3]
+    mask = (alpha > alpha_threshold).astype(np.uint8)
+    cc_count, cc_labels, cc_stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    if cc_count <= 2:
+        return out
+
+    areas = [int(cc_stats[i, cv2.CC_STAT_AREA]) for i in range(1, cc_count)]
+    if not areas:
+        return out
+
+    largest_idx = int(np.argmax(areas)) + 1
+    largest_area = int(areas[largest_idx - 1])
+    total_area = int(sum(areas))
+    second_area = int(sorted(areas, reverse=True)[1]) if len(areas) >= 2 else 0
+    if total_area <= 0 or largest_area <= 0:
+        return out
+
+    dominant_ratio = float(largest_area / total_area)
+    if dominant_ratio < dominant_ratio_min:
+        return out
+    if second_area > int(largest_area * second_max_ratio):
+        return out
+
+    keep = cc_labels == largest_idx
+    remove = (~keep) & (alpha > 0)
+    if np.any(remove):
+        out[remove, :] = 0
+    out[out[:, :, 3] == 0, :3] = 0
+    return out
+
+
+def preprocess_source_rgba(src_rgba: np.ndarray, feature_key: Optional[str] = None) -> np.ndarray:
+    out = src_rgba.copy()
+    alpha = out[:, :, 3]
+
+    # Drop extremely faint alpha from encoded sources to avoid bringing
+    # compression ghosts into warp/resize computations.
+    hard_zero = alpha <= SOURCE_ALPHA_HARD_ZERO
+    if np.any(hard_zero):
+        out[hard_zero, :] = 0
+        alpha = out[:, :, 3]
+
+    strong = (alpha >= SOURCE_STRONG_ALPHA_MIN).astype(np.uint8)
+    near_strong = cv2.dilate(strong, np.ones((3, 3), np.uint8), iterations=1) > 0
+    weak_noise = (alpha > 0) & (alpha <= SOURCE_LOW_ALPHA_NOISE_MAX) & (~near_strong)
+    if np.any(weak_noise):
+        out[weak_noise, :] = 0
+
+    # Keep fully transparent RGB black to avoid halo bleeding in later passes.
+    alpha = out[:, :, 3]
+    out[alpha == 0, :3] = 0
+
+    if feature_key in SOURCE_PRUNE_SATELLITES_FEATURE_KEYS:
+        out = prune_satellite_components(out)
+    return out
+
+
+def cleanup_output_rgba(out_rgba: np.ndarray, feature_key: Optional[str] = None) -> np.ndarray:
+    out = out_rgba.copy()
+    alpha = out[:, :, 3]
+    strong = (alpha >= OUTPUT_STRONG_ALPHA_MIN).astype(np.uint8)
+    near_strong = cv2.dilate(strong, np.ones((3, 3), np.uint8), iterations=1) > 0
+
+    # Remove low-alpha fragments that are detached from the visible motif.
+    weak_noise = (alpha > 0) & (alpha <= OUTPUT_LOW_ALPHA_NOISE_MAX) & (~near_strong)
+    if np.any(weak_noise):
+        out[weak_noise, :] = 0
+
+    alpha = out[:, :, 3]
+    out[alpha == 0, :3] = 0
+    if feature_key in OUTPUT_PRUNE_SATELLITES_FEATURE_KEYS:
+        out = prune_satellite_components(out)
+    return out
 
 
 def boundary_pull_refine_once(
@@ -1096,13 +1303,80 @@ def make_candidate(
     target_mask: np.ndarray,
     edge_snap_passes: int = 0,
 ) -> Dict:
+    alpha_mask = rgba[:, :, 3]
     return {
         "name": name,
         "rgba": rgba,
-        "iou": shape_iou(rgba[:, :, 3], target_mask),
-        "edge": boundary_mean_error(rgba[:, :, 3], target_mask),
+        "iou": shape_iou(alpha_mask, target_mask),
+        "edge": boundary_mean_error(alpha_mask, target_mask),
+        "fragCount": count_significant_fragments(alpha_mask),
         "edgeSnapPasses": int(edge_snap_passes),
     }
+
+
+def count_significant_fragments(alpha_mask: np.ndarray) -> int:
+    mask = (alpha_mask > FRAGMENT_ALPHA_THRESHOLD).astype(np.uint8)
+    if int(np.sum(mask)) <= 0:
+        return 0
+    cc_count, _, cc_stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    count = 0
+    for idx in range(1, cc_count):
+        area = int(cc_stats[idx, cv2.CC_STAT_AREA])
+        if area >= FRAGMENT_MIN_AREA:
+            count += 1
+    return int(count)
+
+
+def black_ink_ratio(rgba: np.ndarray) -> float:
+    alpha = rgba[:, :, 3]
+    solid = alpha >= 48
+    solid_count = int(np.sum(solid))
+    if solid_count <= 0:
+        return 0.0
+    rgb = rgba[:, :, :3]
+    blackish = solid & (np.max(rgb, axis=2) <= 42)
+    return float(np.sum(blackish) / solid_count)
+
+
+def visual_noise_score(rgba: np.ndarray) -> float:
+    alpha = rgba[:, :, 3]
+    solid = alpha >= 40
+    if int(np.sum(solid)) <= 24:
+        return 0.0
+    gray = cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2GRAY)
+    lap = cv2.Laplacian(gray, cv2.CV_32F, ksize=3)
+    return float(np.mean(np.abs(lap[solid])))
+
+
+def style_preserve_fallback_reason(
+    baseline_rgba: np.ndarray,
+    warped_rgba: np.ndarray,
+    iou_baseline: float,
+    iou_warped: float,
+) -> Optional[str]:
+    gain = float(iou_warped - iou_baseline)
+    if gain >= STYLE_PRESERVE_HIGH_GAIN:
+        return None
+
+    if gain < STYLE_PRESERVE_MIN_GAIN:
+        return "low-gain"
+
+    b_black = black_ink_ratio(baseline_rgba)
+    w_black = black_ink_ratio(warped_rgba)
+    b_noise = visual_noise_score(baseline_rgba)
+    w_noise = visual_noise_score(warped_rgba)
+
+    black_ratio = float(w_black / max(b_black, 1e-6))
+    noise_ratio = float(w_noise / max(b_noise, 1e-6))
+
+    if gain < 0.08 and black_ratio > STYLE_PRESERVE_BLACK_RATIO_MAX:
+        return "ink-noise"
+    if gain < 0.10 and noise_ratio > STYLE_PRESERVE_NOISE_RATIO_MAX:
+        return "texture-noise"
+
+    if black_ratio > STYLE_PRESERVE_BLACK_RATIO_MAX_LOOSE and noise_ratio > STYLE_PRESERVE_NOISE_RATIO_MAX_LOOSE:
+        return "severe-noise"
+    return None
 
 
 def candidate_is_better(candidate: Dict, current: Dict) -> bool:
@@ -1111,6 +1385,15 @@ def candidate_is_better(candidate: Dict, current: Dict) -> bool:
     d_iou = c_iou - b_iou
     c_edge = candidate.get("edge")
     b_edge = current.get("edge")
+    c_frag = int(candidate.get("fragCount", 0))
+    b_frag = int(current.get("fragCount", 0))
+    if b_frag > 0:
+        allowed_frag = max(
+            int(math.ceil(b_frag * FRAGMENT_GUARD_MAX_MULTIPLIER)),
+            int(b_frag + FRAGMENT_GUARD_MAX_INCREASE),
+        )
+        if c_frag > allowed_frag and d_iou < FRAGMENT_GUARD_MIN_IOU_GAIN:
+            return False
 
     if d_iou >= CANDIDATE_IOU_EPS:
         return True
@@ -1235,11 +1518,25 @@ def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
         return
     if x < 0 or y < 0 or x + w > dst.shape[1] or y + h > dst.shape[0]:
         return
-    patch = dst[y : y + h, x : x + w].astype(np.float32)
-    srcf = src.astype(np.float32)
-    alpha = srcf[:, :, 3:4] / 255.0
-    patch[:] = patch * (1.0 - alpha) + srcf * alpha
-    dst[y : y + h, x : x + w] = np.clip(patch, 0, 255).astype(np.uint8)
+    patch = dst[y : y + h, x : x + w].astype(np.float32) / 255.0
+    srcf = src.astype(np.float32) / 255.0
+    src_a = srcf[:, :, 3:4]
+    dst_a = patch[:, :, 3:4]
+
+    # Porter-Duff "source over" in premultiplied space, then unpremultiply.
+    src_pm = srcf[:, :, :3] * src_a
+    dst_pm = patch[:, :, :3] * dst_a
+    out_a = src_a + dst_a * (1.0 - src_a)
+    out_pm = src_pm + dst_pm * (1.0 - src_a)
+    out_rgb = np.zeros_like(out_pm)
+    np.divide(
+        out_pm,
+        np.maximum(out_a, 1e-6),
+        out=out_rgb,
+        where=out_a > 1e-6,
+    )
+    out = np.concatenate([out_rgb, out_a], axis=2)
+    dst[y : y + h, x : x + w] = np.clip(out * 255.0, 0, 255).astype(np.uint8)
 
 
 def build_best_warp_for_target(source_rgba: np.ndarray, target_mask: np.ndarray) -> Optional[Dict]:
@@ -1250,7 +1547,8 @@ def build_best_warp_for_target(source_rgba: np.ndarray, target_mask: np.ndarray)
     if src_contour is None or dst_contour is None:
         return None
 
-    samples = 180
+    # Fewer boundary landmarks yields smoother, less aggressive local warps.
+    samples = 120
     src_boundary = sample_closed_contour(src_contour, samples)
     dst_boundary = sample_closed_contour(dst_contour, samples)
     dst_boundary = align_boundary_correspondence(src_boundary, dst_boundary)
@@ -1260,7 +1558,7 @@ def build_best_warp_for_target(source_rgba: np.ndarray, target_mask: np.ndarray)
     if len(triangles) < 8:
         return None
 
-    baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    baseline = resize_premultiplied_rgba(source_rgba, out_w, out_h)
     baseline = clip_rgba_to_mask(baseline, target_mask)
     baseline_candidate = make_candidate("baseline", baseline, target_mask, edge_snap_passes=0)
 
@@ -1341,20 +1639,40 @@ def process_country(
         return None
     target_mask, bbox, _ = target
     out_h, out_w = target_mask.shape
+    target_area = int(np.sum(target_mask > 0))
 
-    source_rgba = np.array(Image.open(source_path).convert("RGBA"), dtype=np.uint8)
     feature_key = country.get("featureKey")
+    source_rgba = np.array(Image.open(source_path).convert("RGBA"), dtype=np.uint8)
+    source_rgba = preprocess_source_rgba(source_rgba, feature_key=feature_key)
     edge_snap_override = COUNTRY_EDGE_SNAP_PASSES.get(feature_key)
     original_edge_snap_passes = EDGE_SNAP_PASSES
     if edge_snap_override is not None:
         globals()["EDGE_SNAP_PASSES"] = int(max(0, edge_snap_override))
 
-    baseline = cv2.resize(source_rgba, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    baseline = resize_premultiplied_rgba(source_rgba, out_w, out_h)
     baseline = clip_rgba_to_mask(baseline, target_mask)
     single_result = build_best_warp_for_target(source_rgba, target_mask)
     if single_result is None:
-        globals()["EDGE_SNAP_PASSES"] = original_edge_snap_passes
-        return None
+        if target_area <= 12:
+            baseline_iou = shape_iou(baseline[:, :, 3], target_mask)
+            baseline_edge = boundary_mean_error(baseline[:, :, 3], target_mask)
+            single_result = {
+                "baseline": baseline,
+                "stage1": baseline,
+                "warped": baseline,
+                "strategy": "baseline-fallback-tiny",
+                "edgeSnapPasses": 0,
+                "triangleCount": 0,
+                "iouBaseline": baseline_iou,
+                "iouStage1": baseline_iou,
+                "iouWarped": baseline_iou,
+                "edgeBaseline": baseline_edge,
+                "edgeStage1": baseline_edge,
+                "edgeWarped": baseline_edge,
+            }
+        else:
+            globals()["EDGE_SNAP_PASSES"] = original_edge_snap_passes
+            return None
 
     stage1: np.ndarray = single_result["stage1"]
     warped: np.ndarray = single_result["warped"]
@@ -1364,6 +1682,7 @@ def process_country(
     best_candidate = {
         "iou": shape_iou(warped[:, :, 3], target_mask),
         "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+        "fragCount": count_significant_fragments(warped[:, :, 3]),
     }
     force_baseline = feature_key in FORCE_BASELINE_FEATURE_KEYS
     if force_baseline:
@@ -1375,6 +1694,7 @@ def process_country(
         best_candidate = {
             "iou": shape_iou(warped[:, :, 3], target_mask),
             "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+            "fragCount": count_significant_fragments(warped[:, :, 3]),
         }
 
     comp_override = COUNTRY_COMPONENT_OVERRIDES.get(feature_key, {})
@@ -1433,7 +1753,7 @@ def process_country(
 
                 comp_result = build_best_warp_for_target(src_crop, tgt_crop_mask)
                 if comp_result is None:
-                    local_stage1 = cv2.resize(src_crop, (tw, th), interpolation=cv2.INTER_LINEAR)
+                    local_stage1 = resize_premultiplied_rgba(src_crop, tw, th)
                     local_stage1 = clip_rgba_to_mask(local_stage1, tgt_crop_mask)
                     local_warped = local_stage1
                     local_strategy = "component-fallback-baseline"
@@ -1441,10 +1761,16 @@ def process_country(
                     local_triangles = 0
                 else:
                     local_stage1 = comp_result["stage1"]
-                    local_warped = comp_result["warped"]
-                    local_strategy = str(comp_result["strategy"])
-                    local_passes = int(comp_result["edgeSnapPasses"])
-                    local_triangles = int(comp_result["triangleCount"])
+                    if feature_key in COMPONENT_PREFER_BASELINE_KEYS:
+                        local_warped = comp_result["baseline"]
+                        local_strategy = "component-baseline-preferred"
+                        local_passes = 0
+                        local_triangles = int(comp_result["triangleCount"])
+                    else:
+                        local_warped = comp_result["warped"]
+                        local_strategy = str(comp_result["strategy"])
+                        local_passes = int(comp_result["edgeSnapPasses"])
+                        local_triangles = int(comp_result["triangleCount"])
 
                 alpha_blit(stage1_canvas, local_stage1, tx, ty)
                 alpha_blit(warped_canvas, local_warped, tx, ty)
@@ -1475,6 +1801,7 @@ def process_country(
             component_candidate = {
                 "iou": shape_iou(warped[:, :, 3], target_mask),
                 "edge": boundary_mean_error(warped[:, :, 3], target_mask),
+                "fragCount": count_significant_fragments(warped[:, :, 3]),
             }
             if candidate_is_better(component_candidate, best_candidate):
                 strategy = component_strategy
@@ -1489,7 +1816,6 @@ def process_country(
     stage1_iou = shape_iou(stage1[:, :, 3], target_mask)
     baseline_edge = boundary_mean_error(baseline[:, :, 3], target_mask)
     stage1_edge = boundary_mean_error(stage1[:, :, 3], target_mask)
-    target_area = int(np.sum(target_mask > 0))
 
     iou_warped = shape_iou(warped[:, :, 3], target_mask)
     final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
@@ -1542,17 +1868,46 @@ def process_country(
             pull_fill_px = int(pull_stats.get("filled", 0))
             pull_remaining_px = int(pull_stats.get("remaining", pull_remaining_px))
 
-    # Final per-country soft clip: keep hand-drawn borders from being cut too harshly.
-    final_clip_dilate = int(FINAL_CLIP_DILATE_BY_KEY.get(country.get("featureKey"), CLIP_DILATE_PX))
-    warped = clip_rgba_to_mask(warped, target_mask, dilate_px=final_clip_dilate)
+    # Optional final clip. For style-preserving mode, keep unclipped output.
+    if USE_MASK_CLIP:
+        final_clip_dilate = int(FINAL_CLIP_DILATE_BY_KEY.get(country.get("featureKey"), CLIP_DILATE_PX))
+        warped = clip_rgba_to_mask(warped, target_mask, dilate_px=final_clip_dilate)
+        iou_warped = shape_iou(warped[:, :, 3], target_mask)
+        final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
+        pull_remaining_px = int(np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD)))
+
+    warped = cleanup_output_rgba(warped, feature_key=feature_key)
     iou_warped = shape_iou(warped[:, :, 3], target_mask)
     final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
     pull_remaining_px = int(np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD)))
+    if not force_baseline:
+        fallback_reason = style_preserve_fallback_reason(
+            baseline_rgba=baseline,
+            warped_rgba=warped,
+            iou_baseline=iou_baseline,
+            iou_warped=iou_warped,
+        )
+        if fallback_reason is not None:
+            warped = baseline.copy()
+            strategy = f"baseline-style-preserve[{fallback_reason}]"
+            edge_snap_passes = 0
+            triangle_count = 0
+            iou_warped = shape_iou(warped[:, :, 3], target_mask)
+            final_edge = boundary_mean_error(warped[:, :, 3], target_mask)
+            pull_remaining_px = int(
+                np.sum((target_mask > 0) & (warped[:, :, 3] <= BOUNDARY_PULL_ALPHA_THRESHOLD))
+            )
 
     key = country.get("featureKey", country["filename"])
     file_name = f"{safe_key(key)}.webp"
     out_path = output_dir / file_name
-    Image.fromarray(warped, mode="RGBA").save(out_path, format="WEBP", quality=95)
+    Image.fromarray(warped, mode="RGBA").save(
+        out_path,
+        format="WEBP",
+        lossless=WARP_WEBP_LOSSLESS,
+        quality=WARP_WEBP_QUALITY,
+        method=WARP_WEBP_METHOD,
+    )
 
     result = {
         "warpFile": f"assets/globe/warped/{file_name}",
@@ -1670,14 +2025,15 @@ def main() -> None:
         warped_iou = result["warpIoU"]
         edge_gain = result["edgeErrorGain"]
         target_area = result["targetAreaPx"]
+        iou_drop = baseline - warped_iou
         accept_by_iou = (
             target_area >= MIN_TARGET_AREA_FOR_WARP
             and (
                 gain >= MIN_IOU_GAIN
                 or (baseline <= LOW_BASELINE_ALLOW and gain >= LOW_BASELINE_TOLERANCE)
+                or (warped_iou >= ABS_IOU_ACCEPT and iou_drop <= ABS_IOU_MAX_DROP)
             )
         )
-        iou_drop = baseline - warped_iou
         accept_by_edge = (
             target_area >= MIN_TARGET_AREA_FOR_WARP
             and edge_gain is not None

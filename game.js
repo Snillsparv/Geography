@@ -109,7 +109,10 @@ const GLOBE_OVERLAY_TARGET_WIDTH = 8192;
 const GLOBE_POLY_ALT_BASE = 0.002;
 const GLOBE_POLY_ALT_REVEALED = 0.00025;
 const GLOBE_POLY_ALT_ACTIVE = 0.003;
-const GLOBE_USE_UNDERFILL = URL_PARAMS.get('debug_underfill') === '1';
+const GLOBE_UNDERFILL_PARAM = URL_PARAMS.get('debug_underfill');
+const GLOBE_UNDERFILL_FORCE_ON = GLOBE_UNDERFILL_PARAM === '1';
+const GLOBE_UNDERFILL_FORCE_OFF = GLOBE_UNDERFILL_PARAM === '0';
+const GLOBE_UNDERFILL_AUTO_KEYS = new Set(['RUS', 'CAN', 'KAZ', 'CHL', 'SOM']);
 const GLOBE_IGNORE_HOLES_FEATURE_KEYS = new Set(['SOM', 'RUS']);
 let globeResizeObserver = null;
 const globeMissingImageWarned = new Set();
@@ -488,6 +491,11 @@ async function renderGlobeOverlayTexture() {
 
   const token = ++globeOverlayRenderToken;
   const ctx = globeOverlayCanvas.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    // Keep hand-drawn edges stable when warped sprites are minified on globe.
+    ctx.imageSmoothingQuality = 'high';
+  }
   const width = globeOverlayCanvas.width;
   const height = globeOverlayCanvas.height;
   ctx.clearRect(0, 0, width, height);
@@ -546,7 +554,7 @@ async function renderGlobeOverlayTexture() {
       }
     };
 
-    if (GLOBE_USE_UNDERFILL && feature) {
+    if (feature && shouldUseGlobeUnderfill(country, item)) {
       const fillColor = countryFillColor(country, image, item.url);
       fillCountryFeature(ctx, feature, width, height, fillColor);
     }
@@ -615,6 +623,14 @@ function findFirstSphereMesh(root) {
     }
   }
   return null;
+}
+
+function shouldUseGlobeUnderfill(country, item) {
+  if (GLOBE_UNDERFILL_FORCE_ON) return true;
+  if (GLOBE_UNDERFILL_FORCE_OFF) return false;
+  if (!item || !item.isWarp) return false;
+  const key = country?.featureKey;
+  return !!key && GLOBE_UNDERFILL_AUTO_KEYS.has(key);
 }
 
 function globePolygonAltitude(feature) {
@@ -761,6 +777,10 @@ async function initGlobe() {
     globeOverlayCanvas.width = overlayWidth;
     globeOverlayCanvas.height = overlayHeight;
     globeOverlayTexture = new ThreeLib.CanvasTexture(globeOverlayCanvas);
+    globeOverlayTexture.premultiplyAlpha = true;
+    globeOverlayTexture.generateMipmaps = false;
+    globeOverlayTexture.minFilter = ThreeLib.LinearFilter;
+    globeOverlayTexture.magFilter = ThreeLib.LinearFilter;
     if (ThreeLib.SRGBColorSpace) {
       globeOverlayTexture.colorSpace = ThreeLib.SRGBColorSpace;
     }
@@ -777,6 +797,7 @@ async function initGlobe() {
       new ThreeLib.MeshBasicMaterial({
         map: globeOverlayTexture,
         transparent: true,
+        premultipliedAlpha: true,
         depthWrite: false,
         depthTest: true
       })
