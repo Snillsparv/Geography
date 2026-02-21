@@ -324,13 +324,36 @@
       text-align: center;
     }
 
+    .explore-toggle-buttons {
+      display: flex;
+      gap: 10px;
+      padding: 12px 24px 0;
+      margin-top: auto;
+    }
+
+    .explore-toggle-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid rgba(91,191,255,0.25);
+      border-radius: 8px;
+      background: rgba(91,191,255,0.08);
+      color: #5bbfff;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .explore-toggle-btn:hover {
+      background: rgba(91,191,255,0.18);
+      border-color: rgba(91,191,255,0.5);
+    }
+
     .counter {
-      padding: 16px 24px;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 12px 24px 16px;
+      border-top: none;
       color: #5a8aaa;
       font-size: 0.85rem;
       text-align: center;
-      margin-top: auto;
     }
 
     .counter strong {
