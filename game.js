@@ -811,6 +811,7 @@ function switchMode(mode) {
   if (mode === 'explore') {
     document.getElementById('explore-ui').style.display = '';
     document.getElementById('seterra-ui').style.display = 'none';
+    document.getElementById('explore-toggle-buttons').style.display = '';
     hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
@@ -823,6 +824,7 @@ function switchMode(mode) {
   } else {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
+    document.getElementById('explore-toggle-buttons').style.display = 'none';
     headerHint.textContent = 'Klicka där du tror landet är!';
     startSeterra();
   }
