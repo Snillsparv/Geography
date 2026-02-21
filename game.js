@@ -423,7 +423,7 @@ let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
-  if (e.target.closest('.zoom-controls')) return;
+  if (e.target.closest('.zoom-controls') || e.target.closest('.explore-toggle-buttons')) return;
   e.preventDefault();
   mapPanel.setPointerCapture(e.pointerId);
   isDragging = true;
