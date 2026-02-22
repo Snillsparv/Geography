@@ -22,7 +22,7 @@
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.9909,
+      "meanIoU": 0.991,
       "p10IoU": 0.9803,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
@@ -48,8 +48,8 @@
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.9719,
-      "p10IoU": 0.9108,
+      "meanIoU": 0.9727,
+      "p10IoU": 0.9161,
       "unwrapCenterX": 2101.1971,
       "tpsReg": 0.00035,
       "maxControlPoints": 1200,
@@ -831,7 +831,7 @@
       "name": "Ryssland",
       "featureKey": "RUS",
       "sourceRegion": "asien",
-      "warpIoU": 0.8577,
+      "warpIoU": 0.8611,
       "targetAreaPx": 1523263,
       "warpFile": "assets/globe/warped/RUS.webp"
     },
@@ -1391,7 +1391,7 @@
       "name": "Kanada",
       "featureKey": "CAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9067,
+      "warpIoU": 0.9125,
       "targetAreaPx": 884137,
       "warpFile": "assets/globe/warped/CAN.webp"
     },
@@ -1431,7 +1431,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9203,
+      "warpIoU": 0.9247,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1718,7 +1718,7 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9883,
+    "meanIoU": 0.9884,
     "p10IoU": 0.9738,
     "minIoU": 0.7418
   }

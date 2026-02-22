@@ -809,7 +809,7 @@ def render_country_with_inverse_map(
     if target_area >= 150000:
         pre_pad_radius = 4
     if target_area >= 500000:
-        pre_pad_radius = 6
+        pre_pad_radius = 8
     if pre_pad_radius > 0:
         src_for_warp = edge_pad_rgba(src_for_warp, radius=pre_pad_radius)
 
