@@ -45,10 +45,15 @@ DEFAULT_DIRECTIONS = 12
 DEFAULT_SOURCE_UNDERLAY = "none"
 EDGE_PAD_RADIUS = 1
 BOUNDARY_HOLE_FILL_PX = 8
-BOUNDARY_HOLE_FILL_ALPHA = 220
-BOUNDARY_HOLE_MIN_ALPHA = 196
+BOUNDARY_HOLE_FILL_ALPHA = 255
+BOUNDARY_HOLE_MIN_ALPHA = 255
 DEHALO_ALPHA_MAX = 224
 DEHALO_INPAINT_RADIUS = 2
+NEAREST_REGION_SPLIT_AREA_PX = 1800
+OWNER_CANDIDATE_DILATE_PX = 0
+TINY_ISLAND_MAX_TARGET_AREA_PX = 280
+TINY_ISLAND_MIN_COVERAGE = 0.72
+TINY_ISLAND_REGIONS = {"oceanien", "vastindien"}
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
@@ -776,6 +781,157 @@ def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
     dst[y0:y1, x0:x1] = (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
+def shift_int_with_fill(arr: np.ndarray, dy: int, dx: int, fill: int = -1) -> np.ndarray:
+    out = np.full_like(arr, fill)
+    h, w = arr.shape
+    if h <= 0 or w <= 0:
+        return out
+
+    sy0 = max(0, -dy)
+    sy1 = min(h, h - dy) if dy >= 0 else h
+    sx0 = max(0, -dx)
+    sx1 = min(w, w - dx) if dx >= 0 else w
+    if sy0 >= sy1 or sx0 >= sx1:
+        return out
+
+    dy0 = sy0 + dy
+    dy1 = sy1 + dy
+    dx0 = sx0 + dx
+    dx1 = sx1 + dx
+    out[dy0:dy1, dx0:dx1] = arr[sy0:sy1, sx0:sx1]
+    return out
+
+
+def fill_owner_gaps(owner: np.ndarray, candidate_mask: np.ndarray, max_passes: int) -> np.ndarray:
+    if max_passes <= 0 or not np.any(candidate_mask):
+        return owner
+
+    out = owner.copy()
+    neighbors = [
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+        (0, -1),
+        (0, 1),
+        (1, -1),
+        (1, 0),
+        (1, 1),
+    ]
+    for _ in range(max_passes):
+        pending = candidate_mask & (out < 0)
+        if not np.any(pending):
+            break
+
+        assigned = np.full_like(out, -1)
+        for dy, dx in neighbors:
+            shifted = shift_int_with_fill(out, dy=dy, dx=dx, fill=-1)
+            take = (assigned < 0) & (shifted >= 0)
+            assigned[take] = shifted[take]
+
+        write = pending & (assigned >= 0)
+        if not np.any(write):
+            break
+        out[write] = assigned[write]
+    return out
+
+
+def repair_boundary_holes(
+    warped_rgba: np.ndarray,
+    mask_u8: np.ndarray,
+    *,
+    fill_px: int = BOUNDARY_HOLE_FILL_PX,
+    min_alpha: int = BOUNDARY_HOLE_MIN_ALPHA,
+    fill_alpha: int = BOUNDARY_HOLE_FILL_ALPHA,
+) -> np.ndarray:
+    if fill_px <= 0:
+        return warped_rgba
+
+    mask_u8 = (mask_u8 > 0).astype(np.uint8) * 255
+    if not np.any(mask_u8):
+        return warped_rgba
+
+    k = 2 * fill_px + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+    inner = cv2.erode(mask_u8, kernel, iterations=1)
+    boundary_band = (mask_u8 > 0) & (inner == 0)
+    warped_alpha_u8 = warped_rgba[:, :, 3]
+    hole_band = boundary_band & (warped_alpha_u8 < min_alpha)
+    if not np.any(hole_band):
+        return warped_rgba
+
+    # Extend nearby edge colors into sparse boundary pixels to remove
+    # visible seams between neighboring country sprites.
+    padded = edge_pad_rgba(warped_rgba, radius=max(1, fill_px))
+    boosted_alpha = np.maximum(
+        padded[:, :, 3].astype(np.uint16),
+        ((mask_u8.astype(np.uint16) * fill_alpha) // 255),
+    ).astype(np.uint8)
+    warped_rgba[hole_band, :3] = padded[hole_band, :3]
+    warped_rgba[:, :, 3][hole_band] = boosted_alpha[hole_band]
+    return warped_rgba
+
+
+def stabilize_tiny_island_rgba(
+    warped_rgba: np.ndarray,
+    mask_u8: np.ndarray,
+    *,
+    target_area: int,
+    source_region: str,
+    feature_key: str,
+) -> np.ndarray:
+    region = str(source_region).lower()
+    if region not in TINY_ISLAND_REGIONS:
+        return warped_rgba
+    if target_area <= 0 or target_area > TINY_ISLAND_MAX_TARGET_AREA_PX:
+        return warped_rgba
+
+    mask = (mask_u8 > 0).astype(np.uint8) * 255
+    if not np.any(mask):
+        return warped_rgba
+
+    alpha = warped_rgba[:, :, 3].astype(np.uint8)
+    covered_px = int(np.sum(alpha > OUTPUT_ALPHA_THRESHOLD))
+    coverage = float(covered_px) / float(max(1, target_area))
+
+    allow_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    allowed = cv2.dilate(mask, allow_kernel, iterations=1)
+    if target_area <= 90 or feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS:
+        allowed = cv2.dilate(allowed, allow_kernel, iterations=1)
+
+    if coverage < TINY_ISLAND_MIN_COVERAGE:
+        # For tiny islands, sparse alpha can break the mnemonic into speckles.
+        # Grow from nearby painted pixels, but only inside a tight allowed mask.
+        padded = edge_pad_rgba(warped_rgba, radius=2)
+        fill = (allowed > 0) & (alpha < 230)
+        if np.any(fill):
+            warped_rgba[fill, :3] = padded[fill, :3]
+            boosted_alpha = np.maximum(alpha, ((allowed.astype(np.uint16) * 236) // 255).astype(np.uint8))
+            warped_rgba[:, :, 3][fill] = boosted_alpha[fill]
+            alpha = warped_rgba[:, :, 3].astype(np.uint8)
+
+    close_size = 3 if target_area >= 100 else 5
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
+    alpha_bin = (alpha > OUTPUT_ALPHA_THRESHOLD).astype(np.uint8) * 255
+    closed = cv2.morphologyEx(alpha_bin, cv2.MORPH_CLOSE, close_kernel, iterations=1)
+    closed = cv2.bitwise_and(closed, allowed)
+    add = (closed > 0) & (alpha < 220)
+    if np.any(add):
+        padded = edge_pad_rgba(warped_rgba, radius=1)
+        warped_rgba[add, :3] = padded[add, :3]
+        warped_rgba[:, :, 3][add] = np.maximum(alpha, closed.astype(np.uint8))[add]
+
+    return warped_rgba
+
+
+def use_nearest_region_split(job: RegionCountryJob) -> bool:
+    feature_key = str(job.country.get("featureKey", ""))
+    if job.target_area < NEAREST_REGION_SPLIT_AREA_PX:
+        return True
+    if feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS and job.target_area < 4000:
+        return True
+    return False
+
+
 def render_country_with_inverse_map(
     job: RegionCountryJob,
     model: RegionWarpModel,
@@ -912,23 +1068,7 @@ def render_country_with_inverse_map(
 
     warped[:, :, 3] = final_alpha.astype(np.uint8)
     if BOUNDARY_HOLE_FILL_PX > 0:
-        mask_u8 = (mask > 0).astype(np.uint8) * 255
-        k = 2 * BOUNDARY_HOLE_FILL_PX + 1
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
-        inner = cv2.erode(mask_u8, kernel, iterations=1)
-        boundary_band = (mask_u8 > 0) & (inner == 0)
-        warped_alpha_u8 = warped[:, :, 3]
-        hole_band = boundary_band & (warped_alpha_u8 < BOUNDARY_HOLE_MIN_ALPHA)
-        if np.any(hole_band):
-            # Extend nearby edge colors into sparse boundary pixels to remove
-            # visible seams between neighboring country sprites.
-            padded = edge_pad_rgba(warped, radius=max(1, BOUNDARY_HOLE_FILL_PX))
-            fill_alpha = np.maximum(
-                padded[:, :, 3].astype(np.uint16),
-                ((mask_u8.astype(np.uint16) * BOUNDARY_HOLE_FILL_ALPHA) // 255),
-            ).astype(np.uint8)
-            warped[hole_band, :3] = padded[hole_band, :3]
-            warped[:, :, 3][hole_band] = fill_alpha[hole_band]
+        warped = repair_boundary_holes(warped, mask.astype(np.uint8))
     warped[warped[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return warped
 
@@ -1228,11 +1368,177 @@ def main() -> None:
             max_ctrl=region_max_ctrl,
         )
 
+        # Render one continuous warped sheet for the whole region, then split by
+        # a shared region ownership map so neighboring countries stay edge-aligned.
+        src_left = min(int(job.source_left) for job in jobs)
+        src_top = min(int(job.source_top) for job in jobs)
+        src_right = max(int(job.source_left + job.render_rgba.shape[1]) for job in jobs)
+        src_bottom = max(int(job.source_top + job.render_rgba.shape[0]) for job in jobs)
+        src_w = max(1, src_right - src_left)
+        src_h = max(1, src_bottom - src_top)
+
+        source_sheet = np.zeros((src_h, src_w, 4), dtype=np.uint8)
+        for job in jobs:
+            alpha_blit(
+                source_sheet,
+                job.render_rgba,
+                x=int(job.source_left - src_left),
+                y=int(job.source_top - src_top),
+            )
+
+        job_left_u: List[float] = []
+        job_right_u: List[float] = []
+        left_vals: List[float] = []
+        right_vals: List[float] = []
+        region_top = min(int(job.target_shape.bbox.top) for job in jobs)
+        region_bottom = max(int(job.target_shape.bbox.top + job.target_shape.bbox.height) for job in jobs)
+        for job in jobs:
+            left = float(job.target_shape.bbox.left)
+            right = float(job.target_shape.bbox.left + job.target_shape.bbox.width)
+            lr = np.array([left, right], dtype=np.float64)
+            lr_u = model.unwrap_x(lr)
+            left_u = float(lr_u[0])
+            right_u = float(lr_u[1])
+            if right_u < left_u:
+                right_u += float(args.atlas_width)
+            job_left_u.append(left_u)
+            job_right_u.append(right_u)
+            left_vals.append(left_u)
+            right_vals.append(right_u)
+
+        region_left_u = int(math.floor(min(left_vals)))
+        region_right_u = int(math.ceil(max(right_vals)))
+        region_w = max(1, region_right_u - region_left_u)
+        region_h = max(1, region_bottom - region_top)
+
+        x = np.arange(region_w, dtype=np.float64)
+        y = np.arange(region_h, dtype=np.float64)
+        grid_x, grid_y = np.meshgrid(x, y)
+        target_x = grid_x + float(region_left_u)
+        target_y = grid_y + float(region_top)
+
+        query = np.column_stack([target_x.reshape(-1), target_y.reshape(-1)])
+        src_global = model.inverse(query)
+        map_x = (src_global[:, 0] - float(src_left)).reshape(region_h, region_w).astype(np.float32)
+        map_y = (src_global[:, 1] - float(src_top)).reshape(region_h, region_w).astype(np.float32)
+
+        region_src_for_warp = source_sheet
+        region_area = int(region_w * region_h)
+        pre_pad_radius = 0
+        if region_area >= 250000:
+            pre_pad_radius = 2
+        if region_area >= 900000:
+            pre_pad_radius = 4
+        if pre_pad_radius > 0:
+            region_src_for_warp = edge_pad_rgba(region_src_for_warp, radius=pre_pad_radius)
+
+        src_pm = premultiply_rgba(region_src_for_warp)
+        warped_region_linear_pm = cv2.remap(
+            src_pm,
+            map_x,
+            map_y,
+            interpolation=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0.0, 0.0, 0.0, 0.0),
+        )
+        warped_region_linear = unpremultiply_rgba(warped_region_linear_pm)
+
+        has_nearest_sheet = any(use_nearest_region_split(job) for job in jobs)
+        warped_region_nearest = warped_region_linear
+        if has_nearest_sheet:
+            warped_region_nearest_pm = cv2.remap(
+                src_pm,
+                map_x,
+                map_y,
+                interpolation=cv2.INTER_NEAREST,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0.0, 0.0, 0.0, 0.0),
+            )
+            warped_region_nearest = unpremultiply_rgba(warped_region_nearest_pm)
+
+        owner = np.full((region_h, region_w), -1, dtype=np.int32)
+        for idx, job in enumerate(jobs):
+            mask = job.target_shape.mask > 0
+            h, w = mask.shape
+            x0 = int(math.floor(job_left_u[idx])) - region_left_u
+            y0 = int(job.target_shape.bbox.top - region_top)
+            x1 = x0 + w
+            y1 = y0 + h
+            if x1 <= 0 or y1 <= 0 or x0 >= region_w or y0 >= region_h:
+                continue
+            rx0 = max(0, x0)
+            ry0 = max(0, y0)
+            rx1 = min(region_w, x1)
+            ry1 = min(region_h, y1)
+            mx0 = rx0 - x0
+            my0 = ry0 - y0
+            mx1 = mx0 + (rx1 - rx0)
+            my1 = my0 + (ry1 - ry0)
+            owner_patch = owner[ry0:ry1, rx0:rx1]
+            mask_patch = mask[my0:my1, mx0:mx1]
+            write = mask_patch & (owner_patch < 0)
+            owner_patch[write] = idx
+
+        if BOUNDARY_HOLE_FILL_PX > 0:
+            union_u8 = (owner >= 0).astype(np.uint8) * 255
+            k = 2 * BOUNDARY_HOLE_FILL_PX + 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+            dilated_union = cv2.dilate(union_u8, kernel, iterations=1) > 0
+            owner_presence = warped_region_linear[:, :, 3] > OUTPUT_ALPHA_THRESHOLD
+            if OWNER_CANDIDATE_DILATE_PX > 0:
+                kd = 2 * OWNER_CANDIDATE_DILATE_PX + 1
+                kd_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kd, kd))
+                owner_presence = cv2.dilate(owner_presence.astype(np.uint8), kd_kernel, iterations=1) > 0
+            candidate = (
+                (owner < 0)
+                & owner_presence
+                & dilated_union
+            )
+            owner = fill_owner_gaps(owner, candidate, max_passes=max(1, BOUNDARY_HOLE_FILL_PX))
+
         region_iou_vals = []
         rendered_by_job: List[Tuple[RegionCountryJob, np.ndarray]] = []
 
-        for job in jobs:
-            warped_rgba = render_country_with_inverse_map(job, model)
+        for idx, job in enumerate(jobs):
+            h = int(job.target_shape.bbox.height)
+            w = int(job.target_shape.bbox.width)
+            x0 = int(math.floor(job_left_u[idx])) - region_left_u
+            y0 = int(job.target_shape.bbox.top - region_top)
+            x1 = x0 + w
+            y1 = y0 + h
+
+            warped_rgba = np.zeros((h, w, 4), dtype=np.uint8)
+            if not (x1 <= 0 or y1 <= 0 or x0 >= region_w or y0 >= region_h):
+                rx0 = max(0, x0)
+                ry0 = max(0, y0)
+                rx1 = min(region_w, x1)
+                ry1 = min(region_h, y1)
+                mx0 = rx0 - x0
+                my0 = ry0 - y0
+                mx1 = mx0 + (rx1 - rx0)
+                my1 = my0 + (ry1 - ry0)
+
+                source_patch = warped_region_linear[ry0:ry1, rx0:rx1]
+                if has_nearest_sheet and use_nearest_region_split(job):
+                    source_patch = warped_region_nearest[ry0:ry1, rx0:rx1]
+                owner_patch = owner[ry0:ry1, rx0:rx1]
+                dst_patch = warped_rgba[my0:my1, mx0:mx1]
+                keep = owner_patch == idx
+                dst_patch[keep] = source_patch[keep]
+
+            if BOUNDARY_HOLE_FILL_PX > 0:
+                warped_rgba = repair_boundary_holes(
+                    warped_rgba,
+                    (job.target_shape.mask > 0).astype(np.uint8),
+                )
+            warped_rgba = stabilize_tiny_island_rgba(
+                warped_rgba,
+                (job.target_shape.mask > 0).astype(np.uint8),
+                target_area=int(job.target_area),
+                source_region=job.source_region,
+                feature_key=str(job.country.get("featureKey", "")),
+            )
+            warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
             iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
             region_iou_vals.append(iou)
 
@@ -1254,7 +1560,7 @@ def main() -> None:
                 "warpWidth": int(job.target_shape.bbox.width),
                 "warpHeight": int(job.target_shape.bbox.height),
                 "warpIoU": round(float(iou), 4),
-                "warpStrategy": "region-global-affine+tps",
+                "warpStrategy": "region-global-sheet+labels",
                 "warpSourceRegion": region,
             }
 
