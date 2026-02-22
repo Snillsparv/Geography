@@ -799,7 +799,21 @@ def render_country_with_inverse_map(
     map_x = (src_global[:, 0] - float(job.source_left)).reshape(out_h, out_w).astype(np.float32)
     map_y = (src_global[:, 1] - float(job.source_top)).reshape(out_h, out_w).astype(np.float32)
 
-    src_pm = premultiply_rgba(job.render_rgba)
+    src_for_warp = job.render_rgba
+    # For very large targets, the inverse map can sample slightly outside the
+    # original sprite support. Pre-padding reduces interior transparency streaks
+    # without changing the final clip mask.
+    pre_pad_radius = 0
+    if target_area >= 40000:
+        pre_pad_radius = 2
+    if target_area >= 150000:
+        pre_pad_radius = 4
+    if target_area >= 500000:
+        pre_pad_radius = 6
+    if pre_pad_radius > 0:
+        src_for_warp = edge_pad_rgba(src_for_warp, radius=pre_pad_radius)
+
+    src_pm = premultiply_rgba(src_for_warp)
     warped_pm = cv2.remap(
         src_pm,
         map_x,
