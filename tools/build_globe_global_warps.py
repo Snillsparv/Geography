@@ -31,7 +31,7 @@ from PIL import Image, ImageDraw
 
 # Raster/alpha handling
 ALPHA_THRESHOLD = 8
-OUTPUT_ALPHA_THRESHOLD = 10
+OUTPUT_ALPHA_THRESHOLD = 4
 
 # Export settings
 WARP_WEBP_LOSSLESS = True
