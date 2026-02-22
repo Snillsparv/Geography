@@ -105,6 +105,23 @@ class RegionCountryJob:
     target_area: int
 
 
+RELAXED_CLIP_FEATURE_KEYS = {
+    # Archipelagos / elongated island shapes where strict clipping can
+    # erase too much mnemonic content after global warp.
+    "BHS",
+    "CUB",
+    "FJI",
+    "SLB",
+    "KIR",
+    "COM",
+    "MUS",
+    "MHL",
+    "TON",
+    "TUV",
+    "NRU",
+}
+
+
 class AffineMap:
     def __init__(self, matrix: np.ndarray):
         self.matrix = matrix.astype(np.float64)
@@ -695,9 +712,55 @@ def render_country_with_inverse_map(
     warped = unpremultiply_rgba(warped_pm)
 
     warped_alpha = warped[:, :, 3].astype(np.uint16)
-    clipped_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
-    warped[:, :, 3] = clipped_alpha.astype(np.uint8)
-    warped[warped[:, :, 3] == 0, :3] = 0
+    strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
+
+    # Adaptive clipping: retain mnemonic integrity for tiny/fragmented targets
+    # where strict mask clipping often leaves only tiny scraps.
+    cc_count, _, _, _ = cv2.connectedComponentsWithStats((mask > 0).astype(np.uint8), connectivity=8)
+    comp_count = max(0, cc_count - 1)
+    target_area = int(job.target_area)
+    feature_key = str(job.country.get("featureKey", ""))
+
+    strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
+    warped_px = int(np.sum(warped_alpha > OUTPUT_ALPHA_THRESHOLD))
+    retention = float(strict_px) / max(float(warped_px), 1.0)
+
+    use_relaxed = (
+        target_area >= 20
+        and (
+            feature_key in RELAXED_CLIP_FEATURE_KEYS
+            or (retention < 0.45 and (comp_count >= 2 or target_area < 2500))
+        )
+    )
+
+    final_alpha = strict_alpha
+    if use_relaxed:
+        radius = 0
+        if comp_count >= 3:
+            radius = max(radius, 2)
+        if comp_count >= 8:
+            radius = max(radius, 4)
+        if target_area < 2500:
+            radius = max(radius, 3)
+        if target_area < 1200:
+            radius = max(radius, 5)
+        if target_area < 500:
+            radius = max(radius, 7)
+        if feature_key in RELAXED_CLIP_FEATURE_KEYS:
+            radius = max(radius, 5 if target_area >= 500 else 7)
+        radius = min(radius, 12)
+
+        if radius > 0:
+            k = 2 * radius + 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+            relaxed_mask = cv2.dilate(mask, kernel, iterations=1)
+            relaxed_alpha = (warped_alpha * relaxed_mask.astype(np.uint16)) // 255
+            relaxed_px = int(np.sum(relaxed_alpha > OUTPUT_ALPHA_THRESHOLD))
+            if relaxed_px > int(strict_px * 1.25):
+                final_alpha = relaxed_alpha
+
+    warped[:, :, 3] = final_alpha.astype(np.uint8)
+    warped[warped[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return warped
 
 
