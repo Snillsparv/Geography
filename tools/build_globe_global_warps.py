@@ -814,11 +814,17 @@ def render_country_with_inverse_map(
         src_for_warp = edge_pad_rgba(src_for_warp, radius=pre_pad_radius)
 
     src_pm = premultiply_rgba(src_for_warp)
+    # Preserve hard mnemonic details for very small targets (tiny islands),
+    # where linear filtering can collapse interior strokes into edge-only color.
+    interpolation = cv2.INTER_LINEAR
+    if target_area < 1800:
+        interpolation = cv2.INTER_NEAREST
+
     warped_pm = cv2.remap(
         src_pm,
         map_x,
         map_y,
-        interpolation=cv2.INTER_LINEAR,
+        interpolation=interpolation,
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=(0.0, 0.0, 0.0, 0.0),
     )
