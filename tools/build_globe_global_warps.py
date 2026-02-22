@@ -653,6 +653,27 @@ def unpremultiply_rgba(rgba_pm: np.ndarray) -> np.ndarray:
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
+def composite_over_under(under_rgba: np.ndarray, over_rgba: np.ndarray) -> np.ndarray:
+    """Alpha-composite `over` onto `under` (both uint8 RGBA, same shape)."""
+    if under_rgba.shape != over_rgba.shape:
+        raise ValueError("under/over shape mismatch")
+    under = under_rgba.astype(np.float32) / 255.0
+    over = over_rgba.astype(np.float32) / 255.0
+
+    oa = over[:, :, 3:4]
+    ua = under[:, :, 3:4]
+    out_a = oa + ua * (1.0 - oa)
+
+    over_pm = over[:, :, :3] * oa
+    under_pm = under[:, :, :3] * ua
+    out_pm = over_pm + under_pm * (1.0 - oa)
+
+    out_rgb = np.zeros_like(out_pm)
+    np.divide(out_pm, np.maximum(out_a, 1e-6), out=out_rgb, where=out_a > 1e-6)
+    out = np.concatenate([out_rgb, out_a], axis=2)
+    return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
 def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
     h, w = src.shape[:2]
     if h <= 0 or w <= 0:
@@ -874,6 +895,46 @@ def main() -> None:
             raise FileNotFoundError(f"Missing region config: {region_cfg_path}")
 
         region_cfg = load_json(region_cfg_path)
+        region_canvas_underlay = None
+
+        try:
+            canvas_w = int(region_cfg.get("canvasWidth", 0))
+            canvas_h = int(region_cfg.get("canvasHeight", 0))
+            map_w = int(region_cfg.get("mapWidth", 0))
+            map_h = int(region_cfg.get("mapHeight", 0))
+            map_off = region_cfg.get("mapOffset", {}) or {}
+            map_left = int(map_off.get("left", 0))
+            map_top = int(map_off.get("top", 0))
+            map_path = project_dir / "assets" / region / "map.webp"
+            if (
+                canvas_w > 0
+                and canvas_h > 0
+                and map_w > 0
+                and map_h > 0
+                and map_path.exists()
+            ):
+                map_rgba = np.array(Image.open(map_path).convert("RGBA"), dtype=np.uint8)
+                if map_rgba.shape[1] != map_w or map_rgba.shape[0] != map_h:
+                    map_rgba = np.array(
+                        Image.fromarray(map_rgba, mode="RGBA").resize(
+                            (map_w, map_h), resample=Image.Resampling.LANCZOS
+                        ),
+                        dtype=np.uint8,
+                    )
+                canvas = np.zeros((canvas_h, canvas_w, 4), dtype=np.uint8)
+                y0 = max(0, map_top)
+                x0 = max(0, map_left)
+                y1 = min(canvas_h, map_top + map_rgba.shape[0])
+                x1 = min(canvas_w, map_left + map_rgba.shape[1])
+                if y0 < y1 and x0 < x1:
+                    sy0 = y0 - map_top
+                    sx0 = x0 - map_left
+                    sy1 = sy0 + (y1 - y0)
+                    sx1 = sx0 + (x1 - x0)
+                    canvas[y0:y1, x0:x1] = map_rgba[sy0:sy1, sx0:sx1]
+                    region_canvas_underlay = canvas
+        except Exception:
+            region_canvas_underlay = None
         region_map = {}
         for rc in region_cfg.get("countries", []):
             fname = derive_filename(rc)
@@ -917,6 +978,15 @@ def main() -> None:
 
             src_left = int(src_meta.get("left", 0))
             src_top = int(src_meta.get("top", 0))
+
+            if region_canvas_underlay is not None:
+                y0 = max(0, src_top)
+                x0 = max(0, src_left)
+                y1 = min(region_canvas_underlay.shape[0], src_top + src_h)
+                x1 = min(region_canvas_underlay.shape[1], src_left + src_w)
+                if (y1 - y0) == src_h and (x1 - x0) == src_w:
+                    under_crop = region_canvas_underlay[y0:y1, x0:x1]
+                    src_img = composite_over_under(under_crop, src_img)
 
             area = int(np.sum(target_shape.mask > 0))
             jobs.append(
