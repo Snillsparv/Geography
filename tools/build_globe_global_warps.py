@@ -56,6 +56,9 @@ TINY_ISLAND_MIN_COVERAGE = 0.72
 TINY_ISLAND_REGIONS = {"oceanien", "vastindien"}
 TINY_FALLBACK_MAX_TARGET_AREA_PX = 2600
 GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX = 260
+SELECTIVE_ISLAND_FALLBACK_MAX_TARGET_AREA_PX = 26000
+COMPONENT_FALLBACK_MAX_TARGET_AREA_PX = 22000
+COMPONENT_FALLBACK_MIN_COMPONENTS = 4
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -145,6 +148,15 @@ RELAXED_CLIP_FEATURE_KEYS = {
     "NRU",
     "VCT",
     "WSM",
+}
+
+# Medium-size island countries where per-country inverse rendering often
+# preserves hand-drawn structure better than a pure shared-sheet split.
+SELECTIVE_ISLAND_FALLBACK_FEATURE_KEYS = {
+    "CUB",
+    "CYP",
+    "JPN",
+    "PHL",
 }
 
 AGGRESSIVE_RELAX_FEATURE_KEYS = {
@@ -942,14 +954,30 @@ def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
     return float(iou + 0.10 * cov)
 
 
+def mask_component_count(mask_u8: np.ndarray) -> int:
+    bin_u8 = (mask_u8 > 0).astype(np.uint8)
+    n_labels, _ = cv2.connectedComponents(bin_u8, connectivity=8)
+    return max(0, int(n_labels) - 1)
+
+
 def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
     region = str(job.source_region).lower()
+    feature_key = str(job.country.get("featureKey", ""))
     area = int(job.target_area)
     if area <= GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX:
         return True
+    if (
+        feature_key in SELECTIVE_ISLAND_FALLBACK_FEATURE_KEYS
+        and area <= SELECTIVE_ISLAND_FALLBACK_MAX_TARGET_AREA_PX
+    ):
+        return True
+    if area <= COMPONENT_FALLBACK_MAX_TARGET_AREA_PX:
+        comp_count = mask_component_count((job.target_shape.mask > 0).astype(np.uint8))
+        if comp_count >= COMPONENT_FALLBACK_MIN_COMPONENTS:
+            return True
     if region in TINY_ISLAND_REGIONS and area <= TINY_FALLBACK_MAX_TARGET_AREA_PX:
         return True
-    if str(job.country.get("featureKey", "")) in RELAXED_CLIP_FEATURE_KEYS and area <= 3200:
+    if feature_key in RELAXED_CLIP_FEATURE_KEYS and area <= 3200:
         return True
     return False
 
