@@ -45,11 +45,37 @@ DEFAULT_DIRECTIONS = 12
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
+    "afrika": {
+        "tps_reg": 0.0010,
+        "max_control_points": 650,
+        "directions": 16,
+    },
+    "europa": {
+        "tps_reg": 0.0010,
+        "max_control_points": 650,
+        "directions": 16,
+    },
+    "nordamerika": {
+        "tps_reg": 0.00025,
+        "max_control_points": 1200,
+        "directions": 24,
+    },
     "oceanien": {
         "tps_reg": 0.0002,
         "max_control_points": 700,
         "directions": 16,
     }
+    ,
+    "sydamerika": {
+        "tps_reg": 0.0010,
+        "max_control_points": 900,
+        "directions": 20,
+    },
+    "vastindien": {
+        "tps_reg": 0.0010,
+        "max_control_points": 650,
+        "directions": 16,
+    },
 }
 
 
