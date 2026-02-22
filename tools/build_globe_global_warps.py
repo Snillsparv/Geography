@@ -56,9 +56,12 @@ TINY_ISLAND_MIN_COVERAGE = 0.72
 TINY_ISLAND_REGIONS = {"oceanien", "vastindien"}
 TINY_FALLBACK_MAX_TARGET_AREA_PX = 2600
 GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX = 260
+SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX = 2600
 SELECTIVE_ISLAND_FALLBACK_MAX_TARGET_AREA_PX = 26000
 COMPONENT_FALLBACK_MAX_TARGET_AREA_PX = 22000
 COMPONENT_FALLBACK_MIN_COMPONENTS = 4
+LOW_IOU_RESCUE_THRESHOLD = 0.72
+LOW_IOU_RESCUE_MAX_TARGET_AREA_PX = 7000
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -966,6 +969,8 @@ def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
     area = int(job.target_area)
     if area <= GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX:
         return True
+    if area <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
+        return True
     if (
         feature_key in SELECTIVE_ISLAND_FALLBACK_FEATURE_KEYS
         and area <= SELECTIVE_ISLAND_FALLBACK_MAX_TARGET_AREA_PX
@@ -1603,6 +1608,7 @@ def main() -> None:
             if should_try_tiny_fallback(job):
                 mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 sheet_score = tiny_quality_score(warped_rgba[:, :, 3], mask_u8)
+                sheet_iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
                 fallback_rgba = render_country_with_inverse_map(job, model)
                 fallback_rgba = stabilize_tiny_island_rgba(
                     fallback_rgba,
@@ -1612,12 +1618,25 @@ def main() -> None:
                     feature_key=str(job.country.get("featureKey", "")),
                 )
                 fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
+                fallback_iou = iou_from_alpha(fallback_rgba[:, :, 3], job.target_shape.mask)
                 min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
                 if int(job.target_area) <= 260:
                     min_gain = 0.0015
                 elif int(job.target_area) <= 800:
                     min_gain = 0.004
-                if fallback_score > sheet_score + min_gain:
+                elif int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
+                    min_gain = 0.003
+                use_fallback = fallback_score > sheet_score + min_gain
+                if (
+                    not use_fallback
+                    and int(job.target_area) <= LOW_IOU_RESCUE_MAX_TARGET_AREA_PX
+                    and sheet_iou < LOW_IOU_RESCUE_THRESHOLD
+                    and fallback_iou > sheet_iou + 0.0005
+                ):
+                    # Rescue low-IoU small countries when inverse rendering
+                    # yields any real overlap improvement.
+                    use_fallback = True
+                if use_fallback:
                     warped_rgba = fallback_rgba
                     used_tiny_fallback = True
                     tiny_fallback_count += 1
