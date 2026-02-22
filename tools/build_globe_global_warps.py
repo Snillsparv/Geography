@@ -98,7 +98,10 @@ class RegionCountryJob:
     country: Dict
     source_region: str
     source_path: Path
+    # Anchor extraction uses original country sprite alpha.
     source_rgba: np.ndarray
+    # Rendering samples from this source (optionally composited with region map).
+    render_rgba: np.ndarray
     source_left: int
     source_top: int
     target_shape: TargetShape
@@ -729,7 +732,7 @@ def render_country_with_inverse_map(
     map_x = (src_global[:, 0] - float(job.source_left)).reshape(out_h, out_w).astype(np.float32)
     map_y = (src_global[:, 1] - float(job.source_top)).reshape(out_h, out_w).astype(np.float32)
 
-    src_pm = premultiply_rgba(job.source_rgba)
+    src_pm = premultiply_rgba(job.render_rgba)
     warped_pm = cv2.remap(
         src_pm,
         map_x,
@@ -975,6 +978,8 @@ def main() -> None:
                     Image.fromarray(src_img, mode="RGBA").resize((src_w, src_h), resample=Image.Resampling.LANCZOS),
                     dtype=np.uint8,
                 )
+            anchor_src_img = src_img.copy()
+            render_src_img = src_img.copy()
 
             src_left = int(src_meta.get("left", 0))
             src_top = int(src_meta.get("top", 0))
@@ -986,7 +991,7 @@ def main() -> None:
                 x1 = min(region_canvas_underlay.shape[1], src_left + src_w)
                 if (y1 - y0) == src_h and (x1 - x0) == src_w:
                     under_crop = region_canvas_underlay[y0:y1, x0:x1]
-                    src_img = composite_over_under(under_crop, src_img)
+                    render_src_img = composite_over_under(under_crop, render_src_img)
 
             area = int(np.sum(target_shape.mask > 0))
             jobs.append(
@@ -994,7 +999,8 @@ def main() -> None:
                     country=country,
                     source_region=region,
                     source_path=source_path,
-                    source_rgba=src_img,
+                    source_rgba=anchor_src_img,
+                    render_rgba=render_src_img,
                     source_left=src_left,
                     source_top=src_top,
                     target_shape=target_shape,
