@@ -55,6 +55,7 @@ TINY_ISLAND_MAX_TARGET_AREA_PX = 280
 TINY_ISLAND_MIN_COVERAGE = 0.72
 TINY_ISLAND_REGIONS = {"oceanien", "vastindien"}
 TINY_FALLBACK_MAX_TARGET_AREA_PX = 2600
+GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX = 260
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -943,11 +944,14 @@ def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
 
 def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
     region = str(job.source_region).lower()
-    if region not in TINY_ISLAND_REGIONS:
-        return False
-    if int(job.target_area) > TINY_FALLBACK_MAX_TARGET_AREA_PX:
-        return False
-    return True
+    area = int(job.target_area)
+    if area <= GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX:
+        return True
+    if region in TINY_ISLAND_REGIONS and area <= TINY_FALLBACK_MAX_TARGET_AREA_PX:
+        return True
+    if str(job.country.get("featureKey", "")) in RELAXED_CLIP_FEATURE_KEYS and area <= 3200:
+        return True
+    return False
 
 
 def use_nearest_region_split(job: RegionCountryJob) -> bool:
@@ -1580,7 +1584,12 @@ def main() -> None:
                     feature_key=str(job.country.get("featureKey", "")),
                 )
                 fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
-                if fallback_score > sheet_score + TINY_FALLBACK_MIN_SCORE_GAIN:
+                min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
+                if int(job.target_area) <= 260:
+                    min_gain = 0.0015
+                elif int(job.target_area) <= 800:
+                    min_gain = 0.004
+                if fallback_score > sheet_score + min_gain:
                     warped_rgba = fallback_rgba
                     used_tiny_fallback = True
                     tiny_fallback_count += 1

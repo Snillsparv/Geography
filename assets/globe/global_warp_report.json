@@ -9,13 +9,13 @@
     {
       "region": "afrika",
       "countries": 55,
-      "meanIoU": 0.9064,
-      "p10IoU": 0.7473,
+      "meanIoU": 0.9608,
+      "p10IoU": 0.8969,
       "unwrapCenterX": 4478.7829,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
       "directionCount": 16,
-      "tinyFallbackCountries": 0,
+      "tinyFallbackCountries": 5,
       "anchorCount": 1160,
       "anchorRmsePx": 19.229712422258746,
       "anchorP95Px": 27.201273213370808
@@ -23,13 +23,13 @@
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.8536,
-      "p10IoU": 0.6814,
+      "meanIoU": 0.8896,
+      "p10IoU": 0.7029,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
       "maxControlPoints": 420,
       "directionCount": 12,
-      "tinyFallbackCountries": 0,
+      "tinyFallbackCountries": 3,
       "anchorCount": 855,
       "anchorRmsePx": 65.02076249882911,
       "anchorP95Px": 72.75499448145054
@@ -37,13 +37,13 @@
     {
       "region": "europa",
       "countries": 48,
-      "meanIoU": 0.9034,
-      "p10IoU": 0.7636,
+      "meanIoU": 0.9178,
+      "p10IoU": 0.7826,
       "unwrapCenterX": 4391.3137,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
       "directionCount": 16,
-      "tinyFallbackCountries": 0,
+      "tinyFallbackCountries": 1,
       "anchorCount": 971,
       "anchorRmsePx": 16.987906361796355,
       "anchorP95Px": 25.16337694371451
@@ -270,7 +270,7 @@
       "name": "Kap Verde",
       "featureKey": "CPV",
       "sourceRegion": "afrika",
-      "warpIoU": 0.1272,
+      "warpIoU": 1.0,
       "targetAreaPx": 214,
       "warpFile": "assets/globe/warped/CPV.webp"
     },
@@ -286,7 +286,7 @@
       "name": "Komorerna",
       "featureKey": "COM",
       "sourceRegion": "afrika",
-      "warpIoU": 0.3378,
+      "warpIoU": 1.0,
       "targetAreaPx": 101,
       "warpFile": "assets/globe/warped/COM.webp"
     },
@@ -366,7 +366,7 @@
       "name": "Mauritius",
       "featureKey": "MUS",
       "sourceRegion": "afrika",
-      "warpIoU": 0.5682,
+      "warpIoU": 1.0,
       "targetAreaPx": 100,
       "warpFile": "assets/globe/warped/MUS.webp"
     },
@@ -414,7 +414,7 @@
       "name": "Sao Tome & Principe",
       "featureKey": "STP",
       "sourceRegion": "afrika",
-      "warpIoU": 0.2654,
+      "warpIoU": 1.0,
       "targetAreaPx": 56,
       "warpFile": "assets/globe/warped/STP.webp"
     },
@@ -430,7 +430,7 @@
       "name": "Seychellerna",
       "featureKey": "SYC",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7059,
+      "warpIoU": 1.0,
       "targetAreaPx": 12,
       "warpFile": "assets/globe/warped/SYC.webp"
     },
@@ -574,7 +574,7 @@
       "name": "Bahrain",
       "featureKey": "BHR",
       "sourceRegion": "asien",
-      "warpIoU": 0.5833,
+      "warpIoU": 1.0,
       "targetAreaPx": 35,
       "warpFile": "assets/globe/warped/BHR.webp"
     },
@@ -766,7 +766,7 @@
       "name": "Maldiverna",
       "featureKey": "MDV",
       "sourceRegion": "asien",
-      "warpIoU": 0.096,
+      "warpIoU": 1.0,
       "targetAreaPx": 12,
       "warpFile": "assets/globe/warped/MDV.webp"
     },
@@ -854,7 +854,7 @@
       "name": "Singapore",
       "featureKey": "SGP",
       "sourceRegion": "asien",
-      "warpIoU": 0.5192,
+      "warpIoU": 1.0,
       "targetAreaPx": 27,
       "warpFile": "assets/globe/warped/SGP.webp"
     },
@@ -1126,7 +1126,7 @@
       "name": "Malta",
       "featureKey": "MLT",
       "sourceRegion": "europa",
-      "warpIoU": 0.3056,
+      "warpIoU": 1.0,
       "targetAreaPx": 22,
       "warpFile": "assets/globe/warped/MLT.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.8729,
-    "p10IoU": 0.6885,
-    "minIoU": 0.096
+    "meanIoU": 0.9001,
+    "p10IoU": 0.7086,
+    "minIoU": 0.3636
   }
 }
