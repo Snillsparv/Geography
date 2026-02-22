@@ -42,6 +42,8 @@ WARP_WEBP_METHOD = 6
 DEFAULT_TPS_REG = 0.0010
 DEFAULT_MAX_CTRL = 420
 DEFAULT_DIRECTIONS = 12
+DEFAULT_SOURCE_UNDERLAY = "none"
+EDGE_PAD_RADIUS = 1
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
@@ -677,6 +679,37 @@ def composite_over_under(under_rgba: np.ndarray, over_rgba: np.ndarray) -> np.nd
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
+def edge_pad_rgba(rgba_u8: np.ndarray, radius: int) -> np.ndarray:
+    if radius <= 0:
+        return rgba_u8
+    alpha = rgba_u8[:, :, 3]
+    if int(np.max(alpha)) <= 0:
+        return rgba_u8
+
+    k = 2 * radius + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+    dil_alpha = cv2.dilate(alpha, kernel)
+
+    # Dilate premultiplied channels to bleed edge colors into nearby transparent px.
+    rgb = rgba_u8[:, :, :3].astype(np.uint16)
+    a16 = alpha.astype(np.uint16)
+    pm = rgb * a16[:, :, None]  # 0..65025
+    dil_pm = np.empty_like(pm)
+    for c in range(3):
+        dil_pm[:, :, c] = cv2.dilate(pm[:, :, c], kernel)
+
+    out = np.zeros_like(rgba_u8)
+    out[:, :, 3] = dil_alpha
+    denom = np.maximum(dil_alpha.astype(np.uint16), 1)
+    for c in range(3):
+        out[:, :, c] = np.clip((dil_pm[:, :, c] + denom // 2) // denom, 0, 255).astype(np.uint8)
+
+    # Keep original pixels unchanged where source alpha already exists.
+    keep = alpha > 0
+    out[keep] = rgba_u8[keep]
+    return out
+
+
 def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
     h, w = src.shape[:2]
     if h <= 0 or w <= 0:
@@ -742,6 +775,8 @@ def render_country_with_inverse_map(
         borderValue=(0.0, 0.0, 0.0, 0.0),
     )
     warped = unpremultiply_rgba(warped_pm)
+    if int(job.target_area) >= 80 and EDGE_PAD_RADIUS > 0:
+        warped = edge_pad_rgba(warped, radius=EDGE_PAD_RADIUS)
 
     warped_alpha = warped[:, :, 3].astype(np.uint16)
     strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
@@ -835,6 +870,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tps-reg", type=float, default=DEFAULT_TPS_REG)
     parser.add_argument("--max-control-points", type=int, default=DEFAULT_MAX_CTRL)
     parser.add_argument("--directions", type=int, default=DEFAULT_DIRECTIONS)
+    parser.add_argument("--source-underlay", choices=["none", "map"], default=DEFAULT_SOURCE_UNDERLAY)
     parser.add_argument("--preview-dir", default="artifacts/global_warp_previews")
     parser.add_argument("--no-previews", action="store_true")
     parser.add_argument("--region", action="append", default=[])
@@ -900,44 +936,45 @@ def main() -> None:
         region_cfg = load_json(region_cfg_path)
         region_canvas_underlay = None
 
-        try:
-            canvas_w = int(region_cfg.get("canvasWidth", 0))
-            canvas_h = int(region_cfg.get("canvasHeight", 0))
-            map_w = int(region_cfg.get("mapWidth", 0))
-            map_h = int(region_cfg.get("mapHeight", 0))
-            map_off = region_cfg.get("mapOffset", {}) or {}
-            map_left = int(map_off.get("left", 0))
-            map_top = int(map_off.get("top", 0))
-            map_path = project_dir / "assets" / region / "map.webp"
-            if (
-                canvas_w > 0
-                and canvas_h > 0
-                and map_w > 0
-                and map_h > 0
-                and map_path.exists()
-            ):
-                map_rgba = np.array(Image.open(map_path).convert("RGBA"), dtype=np.uint8)
-                if map_rgba.shape[1] != map_w or map_rgba.shape[0] != map_h:
-                    map_rgba = np.array(
-                        Image.fromarray(map_rgba, mode="RGBA").resize(
-                            (map_w, map_h), resample=Image.Resampling.LANCZOS
-                        ),
-                        dtype=np.uint8,
-                    )
-                canvas = np.zeros((canvas_h, canvas_w, 4), dtype=np.uint8)
-                y0 = max(0, map_top)
-                x0 = max(0, map_left)
-                y1 = min(canvas_h, map_top + map_rgba.shape[0])
-                x1 = min(canvas_w, map_left + map_rgba.shape[1])
-                if y0 < y1 and x0 < x1:
-                    sy0 = y0 - map_top
-                    sx0 = x0 - map_left
-                    sy1 = sy0 + (y1 - y0)
-                    sx1 = sx0 + (x1 - x0)
-                    canvas[y0:y1, x0:x1] = map_rgba[sy0:sy1, sx0:sx1]
-                    region_canvas_underlay = canvas
-        except Exception:
-            region_canvas_underlay = None
+        if args.source_underlay == "map":
+            try:
+                canvas_w = int(region_cfg.get("canvasWidth", 0))
+                canvas_h = int(region_cfg.get("canvasHeight", 0))
+                map_w = int(region_cfg.get("mapWidth", 0))
+                map_h = int(region_cfg.get("mapHeight", 0))
+                map_off = region_cfg.get("mapOffset", {}) or {}
+                map_left = int(map_off.get("left", 0))
+                map_top = int(map_off.get("top", 0))
+                map_path = project_dir / "assets" / region / "map.webp"
+                if (
+                    canvas_w > 0
+                    and canvas_h > 0
+                    and map_w > 0
+                    and map_h > 0
+                    and map_path.exists()
+                ):
+                    map_rgba = np.array(Image.open(map_path).convert("RGBA"), dtype=np.uint8)
+                    if map_rgba.shape[1] != map_w or map_rgba.shape[0] != map_h:
+                        map_rgba = np.array(
+                            Image.fromarray(map_rgba, mode="RGBA").resize(
+                                (map_w, map_h), resample=Image.Resampling.LANCZOS
+                            ),
+                            dtype=np.uint8,
+                        )
+                    canvas = np.zeros((canvas_h, canvas_w, 4), dtype=np.uint8)
+                    y0 = max(0, map_top)
+                    x0 = max(0, map_left)
+                    y1 = min(canvas_h, map_top + map_rgba.shape[0])
+                    x1 = min(canvas_w, map_left + map_rgba.shape[1])
+                    if y0 < y1 and x0 < x1:
+                        sy0 = y0 - map_top
+                        sx0 = x0 - map_left
+                        sy1 = sy0 + (y1 - y0)
+                        sx1 = sx0 + (x1 - x0)
+                        canvas[y0:y1, x0:x1] = map_rgba[sy0:sy1, sx0:sx1]
+                        region_canvas_underlay = canvas
+            except Exception:
+                region_canvas_underlay = None
         region_map = {}
         for rc in region_cfg.get("countries", []):
             fname = derive_filename(rc)
