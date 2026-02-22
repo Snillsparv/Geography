@@ -108,17 +108,25 @@ class RegionCountryJob:
 RELAXED_CLIP_FEATURE_KEYS = {
     # Archipelagos / elongated island shapes where strict clipping can
     # erase too much mnemonic content after global warp.
+    "ADM0:ATG",
     "BHS",
-    "CUB",
-    "FJI",
-    "SLB",
-    "KIR",
     "COM",
-    "MUS",
+    "CUB",
+    "DMA",
+    "FJI",
+    "FSM",
+    "KIR",
+    "KNA",
+    "LCA",
     "MHL",
+    "MUS",
+    "PLW",
+    "SLB",
     "TON",
     "TUV",
     "NRU",
+    "VCT",
+    "WSM",
 }
 
 
@@ -714,50 +722,70 @@ def render_country_with_inverse_map(
     warped_alpha = warped[:, :, 3].astype(np.uint16)
     strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
 
-    # Adaptive clipping: retain mnemonic integrity for tiny/fragmented targets
-    # where strict mask clipping often leaves only tiny scraps.
-    cc_count, _, _, _ = cv2.connectedComponentsWithStats((mask > 0).astype(np.uint8), connectivity=8)
-    comp_count = max(0, cc_count - 1)
+    final_alpha = strict_alpha
     target_area = int(job.target_area)
     feature_key = str(job.country.get("featureKey", ""))
-
-    strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
     warped_px = int(np.sum(warped_alpha > OUTPUT_ALPHA_THRESHOLD))
-    retention = float(strict_px) / max(float(warped_px), 1.0)
+    strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
 
-    use_relaxed = (
-        target_area >= 20
-        and (
-            feature_key in RELAXED_CLIP_FEATURE_KEYS
-            or (retention < 0.45 and (comp_count >= 2 or target_area < 2500))
-        )
-    )
+    if (
+        feature_key in RELAXED_CLIP_FEATURE_KEYS
+        and target_area >= 20
+        and warped_px > 0
+        and strict_px > 0
+    ):
+        def alpha_iou(alpha_u16: np.ndarray) -> float:
+            pred = alpha_u16 > OUTPUT_ALPHA_THRESHOLD
+            tgt = mask > 0
+            union = int(np.sum(pred | tgt))
+            if union <= 0:
+                return 0.0
+            inter = int(np.sum(pred & tgt))
+            return float(inter / union)
 
-    final_alpha = strict_alpha
-    if use_relaxed:
-        radius = 0
-        if comp_count >= 3:
-            radius = max(radius, 2)
-        if comp_count >= 8:
-            radius = max(radius, 4)
-        if target_area < 2500:
-            radius = max(radius, 3)
-        if target_area < 1200:
-            radius = max(radius, 5)
-        if target_area < 500:
-            radius = max(radius, 7)
-        if feature_key in RELAXED_CLIP_FEATURE_KEYS:
-            radius = max(radius, 5 if target_area >= 500 else 7)
-        radius = min(radius, 12)
+        strict_iou = alpha_iou(strict_alpha)
+        strict_ret = float(strict_px) / float(warped_px)
+        best_alpha = strict_alpha
+        best_iou = strict_iou
+        best_ret = strict_ret
+        best_score = best_iou + 0.06 * best_ret
 
-        if radius > 0:
+        # Small candidate radii; choose only if it improves retention with
+        # limited IoU loss versus strict clip.
+        radii = [2, 3, 4]
+        if target_area < 1500:
+            radii.append(5)
+        if target_area < 800:
+            radii.append(6)
+        if target_area < 300:
+            radii.append(7)
+        if feature_key == "CUB":
+            radii.extend([5, 7])
+        radii = sorted(set(r for r in radii if r > 0))
+
+        max_iou_drop = 0.03
+        for radius in radii:
             k = 2 * radius + 1
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
             relaxed_mask = cv2.dilate(mask, kernel, iterations=1)
-            relaxed_alpha = (warped_alpha * relaxed_mask.astype(np.uint16)) // 255
-            relaxed_px = int(np.sum(relaxed_alpha > OUTPUT_ALPHA_THRESHOLD))
-            if relaxed_px > int(strict_px * 1.25):
-                final_alpha = relaxed_alpha
+            cand_alpha = (warped_alpha * relaxed_mask.astype(np.uint16)) // 255
+            cand_px = int(np.sum(cand_alpha > OUTPUT_ALPHA_THRESHOLD))
+            if cand_px <= strict_px:
+                continue
+            cand_ret = float(cand_px) / float(warped_px)
+            cand_iou = alpha_iou(cand_alpha)
+            if cand_iou < strict_iou - max_iou_drop:
+                continue
+            if cand_ret < best_ret * 1.12:
+                continue
+            cand_score = cand_iou + 0.06 * cand_ret
+            if cand_score > best_score:
+                best_alpha = cand_alpha
+                best_iou = cand_iou
+                best_ret = cand_ret
+                best_score = cand_score
+
+        final_alpha = best_alpha
 
     warped[:, :, 3] = final_alpha.astype(np.uint8)
     warped[warped[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
