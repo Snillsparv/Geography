@@ -44,9 +44,11 @@ DEFAULT_MAX_CTRL = 420
 DEFAULT_DIRECTIONS = 12
 DEFAULT_SOURCE_UNDERLAY = "none"
 EDGE_PAD_RADIUS = 1
-BOUNDARY_HOLE_FILL_PX = 2
+BOUNDARY_HOLE_FILL_PX = 3
 BOUNDARY_HOLE_FILL_ALPHA = 220
 BOUNDARY_HOLE_MIN_ALPHA = 196
+DEHALO_ALPHA_MAX = 224
+DEHALO_INPAINT_RADIUS = 2
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
@@ -682,6 +684,27 @@ def composite_over_under(under_rgba: np.ndarray, over_rgba: np.ndarray) -> np.nd
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
+def dehalo_rgba_edges(
+    rgba_u8: np.ndarray,
+    alpha_max: int = DEHALO_ALPHA_MAX,
+    radius: int = DEHALO_INPAINT_RADIUS,
+) -> np.ndarray:
+    """Replace fringe RGB in semi-transparent edge pixels with nearby interior color."""
+    if radius <= 0:
+        return rgba_u8
+    alpha = rgba_u8[:, :, 3]
+    fringe = (alpha > 0) & (alpha < alpha_max)
+    if not np.any(fringe):
+        return rgba_u8
+
+    rgb = rgba_u8[:, :, :3]
+    mask = (fringe.astype(np.uint8) * 255)
+    rgb_fixed = cv2.inpaint(rgb, mask, float(radius), cv2.INPAINT_TELEA)
+    out = rgba_u8.copy()
+    out[fringe, :3] = rgb_fixed[fringe]
+    return out
+
+
 def edge_pad_rgba(rgba_u8: np.ndarray, radius: int) -> np.ndarray:
     if radius <= 0:
         return rgba_u8
@@ -1037,7 +1060,7 @@ def main() -> None:
                     dtype=np.uint8,
                 )
             anchor_src_img = src_img.copy()
-            render_src_img = src_img.copy()
+            render_src_img = dehalo_rgba_edges(src_img.copy())
 
             src_left = int(src_meta.get("left", 0))
             src_top = int(src_meta.get("top", 0))
