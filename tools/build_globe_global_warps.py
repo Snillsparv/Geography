@@ -62,6 +62,8 @@ COMPONENT_FALLBACK_MAX_TARGET_AREA_PX = 22000
 COMPONENT_FALLBACK_MIN_COMPONENTS = 4
 LOW_IOU_RESCUE_THRESHOLD = 0.72
 LOW_IOU_RESCUE_MAX_TARGET_AREA_PX = 7000
+MICRO_MASK_SNAP_MAX_TARGET_AREA_PX = 60
+MICRO_MASK_SNAP_MIN_IOU = 0.90
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -941,6 +943,52 @@ def stabilize_tiny_island_rgba(
     return warped_rgba
 
 
+def micro_mask_snap_rgba(
+    warped_rgba: np.ndarray,
+    mask_u8: np.ndarray,
+    *,
+    target_area: int,
+) -> np.ndarray:
+    if target_area <= 0 or target_area > MICRO_MASK_SNAP_MAX_TARGET_AREA_PX:
+        return warped_rgba
+    if iou_from_alpha(warped_rgba[:, :, 3], mask_u8) >= MICRO_MASK_SNAP_MIN_IOU:
+        return warped_rgba
+
+    mask = mask_u8 > 0
+    if not np.any(mask):
+        return warped_rgba
+
+    alpha = warped_rgba[:, :, 3]
+    pred = alpha > OUTPUT_ALPHA_THRESHOLD
+    keep = mask & pred
+
+    snapped = np.zeros_like(warped_rgba)
+    if np.any(keep):
+        snapped[keep, :3] = warped_rgba[keep, :3]
+
+    if np.any(pred):
+        source_colors = warped_rgba[pred, :3]
+    else:
+        source_colors = np.empty((0, 3), dtype=np.uint8)
+    if source_colors.size > 0:
+        fill_color = np.median(source_colors.astype(np.uint16), axis=0).astype(np.uint8)
+    else:
+        fill_color = np.array([255, 255, 255], dtype=np.uint8)
+
+    fill = mask & ~keep
+    if np.any(fill):
+        padded = edge_pad_rgba(warped_rgba, radius=1)
+        snapped[fill, :3] = padded[fill, :3]
+        fill_rows = snapped[fill, :3]
+        zero_rows = np.all(fill_rows == 0, axis=1)
+        if np.any(zero_rows):
+            fill_rows[zero_rows] = fill_color
+            snapped[fill, :3] = fill_rows
+
+    snapped[mask, 3] = 255
+    return snapped
+
+
 def alpha_coverage(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
     target_px = int(np.sum(mask_u8 > 0))
     if target_px <= 0:
@@ -1641,6 +1689,11 @@ def main() -> None:
                     used_tiny_fallback = True
                     tiny_fallback_count += 1
 
+            warped_rgba = micro_mask_snap_rgba(
+                warped_rgba,
+                (job.target_shape.mask > 0).astype(np.uint8),
+                target_area=int(job.target_area),
+            )
             warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
             iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
             region_iou_vals.append(iou)
