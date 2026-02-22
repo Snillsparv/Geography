@@ -44,7 +44,7 @@ DEFAULT_MAX_CTRL = 420
 DEFAULT_DIRECTIONS = 12
 DEFAULT_SOURCE_UNDERLAY = "none"
 EDGE_PAD_RADIUS = 1
-BOUNDARY_HOLE_FILL_PX = 5
+BOUNDARY_HOLE_FILL_PX = 7
 BOUNDARY_HOLE_FILL_ALPHA = 220
 BOUNDARY_HOLE_MIN_ALPHA = 196
 DEHALO_ALPHA_MAX = 224
@@ -137,6 +137,12 @@ RELAXED_CLIP_FEATURE_KEYS = {
     "NRU",
     "VCT",
     "WSM",
+}
+
+AGGRESSIVE_RELAX_FEATURE_KEYS = {
+    # Extra retention for tiny archipelagos where strict clipping often leaves
+    # only thin edge fragments on the globe.
+    "BHS",
 }
 
 
@@ -566,7 +572,7 @@ def keep_major_component(mask: np.ndarray) -> np.ndarray:
     dominant = largest_area / total
 
     # If one component dominates, use it for stable anchors.
-    if dominant >= 0.7:
+    if dominant >= 0.82:
         out = (labels == largest_idx).astype(np.uint8)
         return out
 
@@ -777,6 +783,8 @@ def render_country_with_inverse_map(
     mask = job.target_shape.mask
     bbox = job.target_shape.bbox
     out_h, out_w = mask.shape
+    target_area = int(job.target_area)
+    feature_key = str(job.country.get("featureKey", ""))
 
     x = np.arange(out_w, dtype=np.float64)
     y = np.arange(out_h, dtype=np.float64)
@@ -801,15 +809,18 @@ def render_country_with_inverse_map(
         borderValue=(0.0, 0.0, 0.0, 0.0),
     )
     warped = unpremultiply_rgba(warped_pm)
-    if int(job.target_area) >= 80 and EDGE_PAD_RADIUS > 0:
-        warped = edge_pad_rgba(warped, radius=EDGE_PAD_RADIUS)
+    pad_radius = EDGE_PAD_RADIUS
+    if target_area < 1200:
+        pad_radius = max(pad_radius, 2)
+    if feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS and target_area < 2200:
+        pad_radius = max(pad_radius, 4)
+    if target_area >= 80 and pad_radius > 0:
+        warped = edge_pad_rgba(warped, radius=pad_radius)
 
     warped_alpha = warped[:, :, 3].astype(np.uint16)
     strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
 
     final_alpha = strict_alpha
-    target_area = int(job.target_area)
-    feature_key = str(job.country.get("featureKey", ""))
     warped_px = int(np.sum(warped_alpha > OUTPUT_ALPHA_THRESHOLD))
     strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
 
@@ -833,7 +844,11 @@ def render_country_with_inverse_map(
         best_alpha = strict_alpha
         best_iou = strict_iou
         best_ret = strict_ret
-        best_score = best_iou + 0.06 * best_ret
+        aggressive_relax = feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS
+        ret_weight = 0.12 if aggressive_relax else 0.06
+        min_ret_gain = 1.03 if aggressive_relax else 1.12
+        max_iou_drop = 0.10 if aggressive_relax else 0.03
+        best_score = best_iou + ret_weight * best_ret
 
         # Small candidate radii; choose only if it improves retention with
         # limited IoU loss versus strict clip.
@@ -846,9 +861,12 @@ def render_country_with_inverse_map(
             radii.append(7)
         if feature_key == "CUB":
             radii.extend([5, 7])
+        if aggressive_relax and target_area < 2000:
+            radii.extend([8, 10])
+        if aggressive_relax and target_area < 1000:
+            radii.extend([12])
         radii = sorted(set(r for r in radii if r > 0))
 
-        max_iou_drop = 0.03
         for radius in radii:
             k = 2 * radius + 1
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
@@ -861,9 +879,9 @@ def render_country_with_inverse_map(
             cand_iou = alpha_iou(cand_alpha)
             if cand_iou < strict_iou - max_iou_drop:
                 continue
-            if cand_ret < best_ret * 1.12:
+            if cand_ret < best_ret * min_ret_gain:
                 continue
-            cand_score = cand_iou + 0.06 * cand_ret
+            cand_score = cand_iou + ret_weight * cand_ret
             if cand_score > best_score:
                 best_alpha = cand_alpha
                 best_iou = cand_iou
