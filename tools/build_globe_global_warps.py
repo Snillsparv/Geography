@@ -54,6 +54,8 @@ OWNER_CANDIDATE_DILATE_PX = 0
 TINY_ISLAND_MAX_TARGET_AREA_PX = 280
 TINY_ISLAND_MIN_COVERAGE = 0.72
 TINY_ISLAND_REGIONS = {"oceanien", "vastindien"}
+TINY_FALLBACK_MAX_TARGET_AREA_PX = 2600
+TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
@@ -923,6 +925,31 @@ def stabilize_tiny_island_rgba(
     return warped_rgba
 
 
+def alpha_coverage(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
+    target_px = int(np.sum(mask_u8 > 0))
+    if target_px <= 0:
+        return 0.0
+    pred_px = int(np.sum(alpha > OUTPUT_ALPHA_THRESHOLD))
+    return float(pred_px) / float(target_px)
+
+
+def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
+    # Prefer overlap quality first (IoU), but include a small boost for coverage
+    # so tiny islands do not disappear into sparse fragments.
+    iou = iou_from_alpha(alpha, mask_u8)
+    cov = min(1.35, alpha_coverage(alpha, mask_u8))
+    return float(iou + 0.10 * cov)
+
+
+def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
+    region = str(job.source_region).lower()
+    if region not in TINY_ISLAND_REGIONS:
+        return False
+    if int(job.target_area) > TINY_FALLBACK_MAX_TARGET_AREA_PX:
+        return False
+    return True
+
+
 def use_nearest_region_split(job: RegionCountryJob) -> bool:
     feature_key = str(job.country.get("featureKey", ""))
     if job.target_area < NEAREST_REGION_SPLIT_AREA_PX:
@@ -1498,6 +1525,7 @@ def main() -> None:
 
         region_iou_vals = []
         rendered_by_job: List[Tuple[RegionCountryJob, np.ndarray]] = []
+        tiny_fallback_count = 0
 
         for idx, job in enumerate(jobs):
             h = int(job.target_shape.bbox.height)
@@ -1538,6 +1566,25 @@ def main() -> None:
                 source_region=job.source_region,
                 feature_key=str(job.country.get("featureKey", "")),
             )
+
+            used_tiny_fallback = False
+            if should_try_tiny_fallback(job):
+                mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
+                sheet_score = tiny_quality_score(warped_rgba[:, :, 3], mask_u8)
+                fallback_rgba = render_country_with_inverse_map(job, model)
+                fallback_rgba = stabilize_tiny_island_rgba(
+                    fallback_rgba,
+                    mask_u8,
+                    target_area=int(job.target_area),
+                    source_region=job.source_region,
+                    feature_key=str(job.country.get("featureKey", "")),
+                )
+                fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
+                if fallback_score > sheet_score + TINY_FALLBACK_MIN_SCORE_GAIN:
+                    warped_rgba = fallback_rgba
+                    used_tiny_fallback = True
+                    tiny_fallback_count += 1
+
             warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
             iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
             region_iou_vals.append(iou)
@@ -1560,7 +1607,11 @@ def main() -> None:
                 "warpWidth": int(job.target_shape.bbox.width),
                 "warpHeight": int(job.target_shape.bbox.height),
                 "warpIoU": round(float(iou), 4),
-                "warpStrategy": "region-global-sheet+labels",
+                "warpStrategy": (
+                    "region-global-sheet+labels+tiny-fallback"
+                    if used_tiny_fallback
+                    else "region-global-sheet+labels"
+                ),
                 "warpSourceRegion": region,
             }
 
@@ -1620,6 +1671,7 @@ def main() -> None:
                 "tpsReg": region_tps_reg,
                 "maxControlPoints": region_max_ctrl,
                 "directionCount": region_dirs,
+                "tinyFallbackCountries": int(tiny_fallback_count),
                 **fit_stats,
             }
         )
