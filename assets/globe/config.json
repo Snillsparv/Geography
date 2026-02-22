@@ -3387,7 +3387,7 @@
       "warpTop": 156,
       "warpWidth": 2012,
       "warpHeight": 945,
-      "warpIoU": 0.8605,
+      "warpIoU": 0.8888,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 884137
@@ -3409,7 +3409,7 @@
       "warpTop": 423,
       "warpWidth": 2744,
       "warpHeight": 1195,
-      "warpIoU": 0.8996,
+      "warpIoU": 0.9025,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 582089
@@ -3497,7 +3497,7 @@
       "warpTop": 1520,
       "warpWidth": 246,
       "warpHeight": 78,
-      "warpIoU": 0.852,
+      "warpIoU": 0.8447,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 5182
@@ -3519,7 +3519,7 @@
       "warpTop": 1303,
       "warpWidth": 724,
       "warpHeight": 416,
-      "warpIoU": 0.9386,
+      "warpIoU": 0.9397,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 91256
@@ -3563,7 +3563,7 @@
       "warpTop": 1642,
       "warpWidth": 93,
       "warpHeight": 95,
-      "warpIoU": 0.9926,
+      "warpIoU": 0.991,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 4871

@@ -48,15 +48,15 @@
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.9674,
-      "p10IoU": 0.8722,
+      "meanIoU": 0.969,
+      "p10IoU": 0.8929,
       "unwrapCenterX": 2101.1971,
-      "tpsReg": 0.00025,
+      "tpsReg": 0.00035,
       "maxControlPoints": 1200,
       "directionCount": 24,
       "anchorCount": 411,
-      "anchorRmsePx": 62.94533822917986,
-      "anchorP95Px": 106.7409306611494
+      "anchorRmsePx": 63.71741650377083,
+      "anchorP95Px": 105.04262231115288
     },
     {
       "region": "oceanien",
@@ -1359,7 +1359,7 @@
       "name": "Guatemala",
       "featureKey": "GTM",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9926,
+      "warpIoU": 0.991,
       "targetAreaPx": 4871,
       "warpFile": "assets/globe/warped/GTM.webp"
     },
@@ -1391,7 +1391,7 @@
       "name": "Kanada",
       "featureKey": "CAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8605,
+      "warpIoU": 0.8888,
       "targetAreaPx": 884137,
       "warpFile": "assets/globe/warped/CAN.webp"
     },
@@ -1399,7 +1399,7 @@
       "name": "Kuba",
       "featureKey": "CUB",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.852,
+      "warpIoU": 0.8447,
       "targetAreaPx": 5182,
       "warpFile": "assets/globe/warped/CUB.webp"
     },
@@ -1407,7 +1407,7 @@
       "name": "Mexiko",
       "featureKey": "MEX",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9386,
+      "warpIoU": 0.9397,
       "targetAreaPx": 91256,
       "warpFile": "assets/globe/warped/MEX.webp"
     },
@@ -1431,7 +1431,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8996,
+      "warpIoU": 0.9025,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1718,7 +1718,7 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9875,
+    "meanIoU": 0.9876,
     "p10IoU": 0.9737,
     "minIoU": 0.7418
   }

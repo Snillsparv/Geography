@@ -63,7 +63,7 @@ REGION_PARAM_OVERRIDES = {
         "directions": 16,
     },
     "nordamerika": {
-        "tps_reg": 0.00025,
+        "tps_reg": 0.00035,
         "max_control_points": 1200,
         "directions": 24,
     },
