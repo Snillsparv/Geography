@@ -9,21 +9,21 @@
     {
       "region": "afrika",
       "countries": 55,
-      "meanIoU": 0.886,
-      "p10IoU": 0.7169,
+      "meanIoU": 0.9695,
+      "p10IoU": 0.9431,
       "unwrapCenterX": 4478.7829,
       "tpsReg": 0.001,
-      "maxControlPoints": 420,
-      "directionCount": 12,
-      "anchorCount": 940,
-      "anchorRmsePx": 24.490269896329252,
-      "anchorP95Px": 36.00255510992815
+      "maxControlPoints": 650,
+      "directionCount": 16,
+      "anchorCount": 1160,
+      "anchorRmsePx": 19.229712422258746,
+      "anchorP95Px": 27.201273213370808
     },
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.8944,
-      "p10IoU": 0.785,
+      "meanIoU": 0.954,
+      "p10IoU": 0.8874,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
       "maxControlPoints": 420,
@@ -35,34 +35,34 @@
     {
       "region": "europa",
       "countries": 48,
-      "meanIoU": 0.884,
-      "p10IoU": 0.8106,
+      "meanIoU": 0.9714,
+      "p10IoU": 0.9241,
       "unwrapCenterX": 4391.3137,
       "tpsReg": 0.001,
-      "maxControlPoints": 420,
-      "directionCount": 12,
-      "anchorCount": 787,
-      "anchorRmsePx": 19.576245030353533,
-      "anchorP95Px": 34.11750986512954
+      "maxControlPoints": 650,
+      "directionCount": 16,
+      "anchorCount": 971,
+      "anchorRmsePx": 16.987906361796355,
+      "anchorP95Px": 25.16337694371451
     },
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.8008,
-      "p10IoU": 0.6874,
+      "meanIoU": 0.9164,
+      "p10IoU": 0.8171,
       "unwrapCenterX": 2101.1971,
-      "tpsReg": 0.001,
-      "maxControlPoints": 420,
-      "directionCount": 12,
-      "anchorCount": 243,
-      "anchorRmsePx": 32.14123992246207,
-      "anchorP95Px": 50.51758652743329
+      "tpsReg": 0.00025,
+      "maxControlPoints": 1200,
+      "directionCount": 24,
+      "anchorCount": 411,
+      "anchorRmsePx": 27.425317025804695,
+      "anchorP95Px": 62.060719216713935
     },
     {
       "region": "oceanien",
       "countries": 13,
-      "meanIoU": 0.5113,
-      "p10IoU": 0.0,
+      "meanIoU": 0.9583,
+      "p10IoU": 0.8873,
       "unwrapCenterX": 7916.4152,
       "tpsReg": 0.0002,
       "maxControlPoints": 700,
@@ -74,28 +74,28 @@
     {
       "region": "sydamerika",
       "countries": 13,
-      "meanIoU": 0.8402,
-      "p10IoU": 0.6527,
+      "meanIoU": 0.899,
+      "p10IoU": 0.7098,
       "unwrapCenterX": 2610.1126,
       "tpsReg": 0.001,
-      "maxControlPoints": 420,
-      "directionCount": 12,
-      "anchorCount": 226,
-      "anchorRmsePx": 58.66975207828472,
-      "anchorP95Px": 81.70301064755613
+      "maxControlPoints": 900,
+      "directionCount": 20,
+      "anchorCount": 330,
+      "anchorRmsePx": 54.4692344441884,
+      "anchorP95Px": 82.38769511911254
     },
     {
       "region": "vastindien",
       "countries": 9,
-      "meanIoU": 0.7341,
-      "p10IoU": 0.4612,
+      "meanIoU": 0.9837,
+      "p10IoU": 0.936,
       "unwrapCenterX": 2664.826,
       "tpsReg": 0.001,
-      "maxControlPoints": 420,
-      "directionCount": 12,
-      "anchorCount": 158,
-      "anchorRmsePx": 6.717271074997982,
-      "anchorP95Px": 13.965528487190632
+      "maxControlPoints": 650,
+      "directionCount": 16,
+      "anchorCount": 194,
+      "anchorRmsePx": 5.855815965297451,
+      "anchorP95Px": 14.23496566566904
     }
   ],
   "countries": [
@@ -103,7 +103,7 @@
       "name": "Algeriet",
       "featureKey": "DZA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9744,
+      "warpIoU": 0.9915,
       "targetAreaPx": 111132,
       "warpFile": "assets/globe/warped/DZA.webp"
     },
@@ -111,7 +111,7 @@
       "name": "Angola",
       "featureKey": "AGO",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9378,
+      "warpIoU": 0.9613,
       "targetAreaPx": 54148,
       "warpFile": "assets/globe/warped/AGO.webp"
     },
@@ -119,7 +119,7 @@
       "name": "Benin",
       "featureKey": "BEN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9721,
+      "warpIoU": 0.9945,
       "targetAreaPx": 5128,
       "warpFile": "assets/globe/warped/BEN.webp"
     },
@@ -127,7 +127,7 @@
       "name": "Botswana",
       "featureKey": "BWA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9399,
+      "warpIoU": 1.0,
       "targetAreaPx": 26542,
       "warpFile": "assets/globe/warped/BWA.webp"
     },
@@ -135,7 +135,7 @@
       "name": "Burkina Faso",
       "featureKey": "BFA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9842,
+      "warpIoU": 0.9981,
       "targetAreaPx": 11916,
       "warpFile": "assets/globe/warped/BFA.webp"
     },
@@ -143,7 +143,7 @@
       "name": "Burundi",
       "featureKey": "BDI",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9423,
+      "warpIoU": 1.0,
       "targetAreaPx": 1214,
       "warpFile": "assets/globe/warped/BDI.webp"
     },
@@ -151,7 +151,7 @@
       "name": "Centralafrikanska Republiken",
       "featureKey": "CAF",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9848,
+      "warpIoU": 0.9901,
       "targetAreaPx": 26491,
       "warpFile": "assets/globe/warped/CAF.webp"
     },
@@ -159,7 +159,7 @@
       "name": "Demokratiska Republiken Kongo",
       "featureKey": "COD",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9722,
+      "warpIoU": 0.9943,
       "targetAreaPx": 98834,
       "warpFile": "assets/globe/warped/COD.webp"
     },
@@ -167,7 +167,7 @@
       "name": "Djibouti",
       "featureKey": "DJI",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9518,
+      "warpIoU": 1.0,
       "targetAreaPx": 975,
       "warpFile": "assets/globe/warped/DJI.webp"
     },
@@ -175,7 +175,7 @@
       "name": "Egypten",
       "featureKey": "EGY",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9061,
+      "warpIoU": 0.9894,
       "targetAreaPx": 47477,
       "warpFile": "assets/globe/warped/EGY.webp"
     },
@@ -183,7 +183,7 @@
       "name": "Ekvatorialguinea",
       "featureKey": "GNQ",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9073,
+      "warpIoU": 0.9774,
       "targetAreaPx": 1197,
       "warpFile": "assets/globe/warped/GNQ.webp"
     },
@@ -191,7 +191,7 @@
       "name": "Elfenbenskusten",
       "featureKey": "CIV",
       "sourceRegion": "afrika",
-      "warpIoU": 0.963,
+      "warpIoU": 0.998,
       "targetAreaPx": 13863,
       "warpFile": "assets/globe/warped/CIV.webp"
     },
@@ -199,7 +199,7 @@
       "name": "Eritrea",
       "featureKey": "ERI",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9578,
+      "warpIoU": 0.9957,
       "targetAreaPx": 5570,
       "warpFile": "assets/globe/warped/ERI.webp"
     },
@@ -207,7 +207,7 @@
       "name": "Etiopien",
       "featureKey": "ETH",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9866,
+      "warpIoU": 0.9703,
       "targetAreaPx": 48318,
       "warpFile": "assets/globe/warped/ETH.webp"
     },
@@ -215,7 +215,7 @@
       "name": "Gabon",
       "featureKey": "GAB",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9708,
+      "warpIoU": 0.9817,
       "targetAreaPx": 11147,
       "warpFile": "assets/globe/warped/GAB.webp"
     },
@@ -223,7 +223,7 @@
       "name": "Gambia",
       "featureKey": "GMB",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7823,
+      "warpIoU": 0.9981,
       "targetAreaPx": 519,
       "warpFile": "assets/globe/warped/GMB.webp"
     },
@@ -231,7 +231,7 @@
       "name": "Ghana",
       "featureKey": "GHA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9845,
+      "warpIoU": 0.9973,
       "targetAreaPx": 10321,
       "warpFile": "assets/globe/warped/GHA.webp"
     },
@@ -239,7 +239,7 @@
       "name": "Guinea",
       "featureKey": "GIN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9684,
+      "warpIoU": 0.9975,
       "targetAreaPx": 10696,
       "warpFile": "assets/globe/warped/GIN.webp"
     },
@@ -247,7 +247,7 @@
       "name": "Guinea-Bissau",
       "featureKey": "GNB",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9195,
+      "warpIoU": 0.9774,
       "targetAreaPx": 1503,
       "warpFile": "assets/globe/warped/GNB.webp"
     },
@@ -255,7 +255,7 @@
       "name": "Kamerun",
       "featureKey": "CMR",
       "sourceRegion": "afrika",
-      "warpIoU": 0.976,
+      "warpIoU": 0.9973,
       "targetAreaPx": 19934,
       "warpFile": "assets/globe/warped/CMR.webp"
     },
@@ -263,7 +263,7 @@
       "name": "Kap Verde",
       "featureKey": "CPV",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7196,
+      "warpIoU": 0.9953,
       "targetAreaPx": 214,
       "warpFile": "assets/globe/warped/CPV.webp"
     },
@@ -271,7 +271,7 @@
       "name": "Kenya",
       "featureKey": "KEN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9797,
+      "warpIoU": 0.9772,
       "targetAreaPx": 25223,
       "warpFile": "assets/globe/warped/KEN.webp"
     },
@@ -279,7 +279,7 @@
       "name": "Komorerna",
       "featureKey": "COM",
       "sourceRegion": "afrika",
-      "warpIoU": 0.0693,
+      "warpIoU": 0.9505,
       "targetAreaPx": 101,
       "warpFile": "assets/globe/warped/COM.webp"
     },
@@ -287,7 +287,7 @@
       "name": "Kongo-Brazaville",
       "featureKey": "COG",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9762,
+      "warpIoU": 0.99,
       "targetAreaPx": 14852,
       "warpFile": "assets/globe/warped/COG.webp"
     },
@@ -295,7 +295,7 @@
       "name": "Lesotho",
       "featureKey": "LSO",
       "sourceRegion": "afrika",
-      "warpIoU": 0.968,
+      "warpIoU": 0.9993,
       "targetAreaPx": 1498,
       "warpFile": "assets/globe/warped/LSO.webp"
     },
@@ -303,7 +303,7 @@
       "name": "Liberia",
       "featureKey": "LBR",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9634,
+      "warpIoU": 1.0,
       "targetAreaPx": 4125,
       "warpFile": "assets/globe/warped/LBR.webp"
     },
@@ -311,7 +311,7 @@
       "name": "Libyen",
       "featureKey": "LBY",
       "sourceRegion": "afrika",
-      "warpIoU": 0.952,
+      "warpIoU": 0.9732,
       "targetAreaPx": 76969,
       "warpFile": "assets/globe/warped/LBY.webp"
     },
@@ -319,7 +319,7 @@
       "name": "Madagaskar",
       "featureKey": "MDG",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9548,
+      "warpIoU": 0.9803,
       "targetAreaPx": 26820,
       "warpFile": "assets/globe/warped/MDG.webp"
     },
@@ -327,7 +327,7 @@
       "name": "Malawi",
       "featureKey": "MWI",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7835,
+      "warpIoU": 0.9381,
       "targetAreaPx": 5363,
       "warpFile": "assets/globe/warped/MWI.webp"
     },
@@ -335,7 +335,7 @@
       "name": "Mali",
       "featureKey": "MLI",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9312,
+      "warpIoU": 0.9966,
       "targetAreaPx": 55817,
       "warpFile": "assets/globe/warped/MLI.webp"
     },
@@ -343,7 +343,7 @@
       "name": "Marocko",
       "featureKey": "MAR",
       "sourceRegion": "afrika",
-      "warpIoU": 0.6516,
+      "warpIoU": 0.7853,
       "targetAreaPx": 28590,
       "warpFile": "assets/globe/warped/MAR.webp"
     },
@@ -351,7 +351,7 @@
       "name": "Mauretanien",
       "featureKey": "MRT",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9474,
+      "warpIoU": 0.9756,
       "targetAreaPx": 46923,
       "warpFile": "assets/globe/warped/MRT.webp"
     },
@@ -359,7 +359,7 @@
       "name": "Mauritius",
       "featureKey": "MUS",
       "sourceRegion": "afrika",
-      "warpIoU": 0.43,
+      "warpIoU": 0.74,
       "targetAreaPx": 100,
       "warpFile": "assets/globe/warped/MUS.webp"
     },
@@ -367,7 +367,7 @@
       "name": "Mocambique",
       "featureKey": "MOZ",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9691,
+      "warpIoU": 0.9915,
       "targetAreaPx": 35229,
       "warpFile": "assets/globe/warped/MOZ.webp"
     },
@@ -375,7 +375,7 @@
       "name": "Namibia",
       "featureKey": "NAM",
       "sourceRegion": "afrika",
-      "warpIoU": 0.978,
+      "warpIoU": 0.9908,
       "targetAreaPx": 37765,
       "warpFile": "assets/globe/warped/NAM.webp"
     },
@@ -383,7 +383,7 @@
       "name": "Niger",
       "featureKey": "NER",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9732,
+      "warpIoU": 0.9964,
       "targetAreaPx": 52456,
       "warpFile": "assets/globe/warped/NER.webp"
     },
@@ -391,7 +391,7 @@
       "name": "Nigeria",
       "featureKey": "NGA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.99,
+      "warpIoU": 0.9975,
       "targetAreaPx": 39130,
       "warpFile": "assets/globe/warped/NGA.webp"
     },
@@ -399,7 +399,7 @@
       "name": "Rwanda",
       "featureKey": "RWA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.8379,
+      "warpIoU": 0.9688,
       "targetAreaPx": 1123,
       "warpFile": "assets/globe/warped/RWA.webp"
     },
@@ -407,7 +407,7 @@
       "name": "Sao Tome & Principe",
       "featureKey": "STP",
       "sourceRegion": "afrika",
-      "warpIoU": 0.6607,
+      "warpIoU": 1.0,
       "targetAreaPx": 56,
       "warpFile": "assets/globe/warped/STP.webp"
     },
@@ -415,7 +415,7 @@
       "name": "Senegal",
       "featureKey": "SEN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9848,
+      "warpIoU": 0.9998,
       "targetAreaPx": 8750,
       "warpFile": "assets/globe/warped/SEN.webp"
     },
@@ -423,7 +423,7 @@
       "name": "Seychellerna",
       "featureKey": "SYC",
       "sourceRegion": "afrika",
-      "warpIoU": 0.0,
+      "warpIoU": 1.0,
       "targetAreaPx": 12,
       "warpFile": "assets/globe/warped/SYC.webp"
     },
@@ -431,7 +431,7 @@
       "name": "Sierra Leone",
       "featureKey": "SLE",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9783,
+      "warpIoU": 1.0,
       "targetAreaPx": 3138,
       "warpFile": "assets/globe/warped/SLE.webp"
     },
@@ -439,7 +439,7 @@
       "name": "Somalia",
       "featureKey": "SOM",
       "sourceRegion": "afrika",
-      "warpIoU": 0.8917,
+      "warpIoU": 0.9365,
       "targetAreaPx": 20203,
       "warpFile": "assets/globe/warped/SOM.webp"
     },
@@ -447,7 +447,7 @@
       "name": "Sudan",
       "featureKey": "SDN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9782,
+      "warpIoU": 0.9756,
       "targetAreaPx": 81906,
       "warpFile": "assets/globe/warped/SDN.webp"
     },
@@ -455,7 +455,7 @@
       "name": "Swaziland",
       "featureKey": "SWZ",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9783,
+      "warpIoU": 0.9904,
       "targetAreaPx": 831,
       "warpFile": "assets/globe/warped/SWZ.webp"
     },
@@ -463,7 +463,7 @@
       "name": "Sydafrika",
       "featureKey": "ZAF",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9848,
+      "warpIoU": 0.9977,
       "targetAreaPx": 59005,
       "warpFile": "assets/globe/warped/ZAF.webp"
     },
@@ -471,7 +471,7 @@
       "name": "Sydsudan",
       "featureKey": "SSD",
       "sourceRegion": "afrika",
-      "warpIoU": 0.954,
+      "warpIoU": 0.9736,
       "targetAreaPx": 26682,
       "warpFile": "assets/globe/warped/SSD.webp"
     },
@@ -479,7 +479,7 @@
       "name": "Tanzania",
       "featureKey": "TZA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9149,
+      "warpIoU": 0.958,
       "targetAreaPx": 40140,
       "warpFile": "assets/globe/warped/TZA.webp"
     },
@@ -487,7 +487,7 @@
       "name": "Tchad",
       "featureKey": "TCD",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9948,
+      "warpIoU": 0.9668,
       "targetAreaPx": 55690,
       "warpFile": "assets/globe/warped/TCD.webp"
     },
@@ -495,7 +495,7 @@
       "name": "Togo",
       "featureKey": "TGO",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9709,
+      "warpIoU": 0.99,
       "targetAreaPx": 2511,
       "warpFile": "assets/globe/warped/TGO.webp"
     },
@@ -503,7 +503,7 @@
       "name": "Tunisien",
       "featureKey": "TUN",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9402,
+      "warpIoU": 0.9705,
       "targetAreaPx": 8114,
       "warpFile": "assets/globe/warped/TUN.webp"
     },
@@ -511,7 +511,7 @@
       "name": "Uganda",
       "featureKey": "UGA",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7901,
+      "warpIoU": 0.8373,
       "targetAreaPx": 10320,
       "warpFile": "assets/globe/warped/UGA.webp"
     },
@@ -519,7 +519,7 @@
       "name": "Västsahara",
       "featureKey": "ESH",
       "sourceRegion": "afrika",
-      "warpIoU": 0.7151,
+      "warpIoU": 0.6751,
       "targetAreaPx": 4451,
       "warpFile": "assets/globe/warped/ESH.webp"
     },
@@ -527,7 +527,7 @@
       "name": "Zambia",
       "featureKey": "ZMB",
       "sourceRegion": "afrika",
-      "warpIoU": 0.952,
+      "warpIoU": 0.9981,
       "targetAreaPx": 32905,
       "warpFile": "assets/globe/warped/ZMB.webp"
     },
@@ -535,7 +535,7 @@
       "name": "Zimbabwe",
       "featureKey": "ZWE",
       "sourceRegion": "afrika",
-      "warpIoU": 0.982,
+      "warpIoU": 0.9986,
       "targetAreaPx": 17463,
       "warpFile": "assets/globe/warped/ZWE.webp"
     },
@@ -543,7 +543,7 @@
       "name": "Afghanistan",
       "featureKey": "AFG",
       "sourceRegion": "asien",
-      "warpIoU": 0.9214,
+      "warpIoU": 0.957,
       "targetAreaPx": 32740,
       "warpFile": "assets/globe/warped/AFG.webp"
     },
@@ -551,7 +551,7 @@
       "name": "Armenien",
       "featureKey": "ARM",
       "sourceRegion": "asien",
-      "warpIoU": 0.8695,
+      "warpIoU": 0.962,
       "targetAreaPx": 1709,
       "warpFile": "assets/globe/warped/ARM.webp"
     },
@@ -559,7 +559,7 @@
       "name": "Azerbajdzjan",
       "featureKey": "AZE",
       "sourceRegion": "asien",
-      "warpIoU": 0.962,
+      "warpIoU": 0.9917,
       "targetAreaPx": 4923,
       "warpFile": "assets/globe/warped/AZE.webp"
     },
@@ -575,7 +575,7 @@
       "name": "Bangladesh",
       "featureKey": "BGD",
       "sourceRegion": "asien",
-      "warpIoU": 0.9563,
+      "warpIoU": 0.9957,
       "targetAreaPx": 6548,
       "warpFile": "assets/globe/warped/BGD.webp"
     },
@@ -583,7 +583,7 @@
       "name": "Bhutan",
       "featureKey": "BTN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9851,
+      "warpIoU": 1.0,
       "targetAreaPx": 1950,
       "warpFile": "assets/globe/warped/BTN.webp"
     },
@@ -591,7 +591,7 @@
       "name": "Brunei",
       "featureKey": "BRN",
       "sourceRegion": "asien",
-      "warpIoU": 0.8964,
+      "warpIoU": 0.9964,
       "targetAreaPx": 280,
       "warpFile": "assets/globe/warped/BRN.webp"
     },
@@ -599,7 +599,7 @@
       "name": "Burma",
       "featureKey": "MMR",
       "sourceRegion": "asien",
-      "warpIoU": 0.956,
+      "warpIoU": 0.9838,
       "targetAreaPx": 30550,
       "warpFile": "assets/globe/warped/MMR.webp"
     },
@@ -607,7 +607,7 @@
       "name": "Filippinerna",
       "featureKey": "PHL",
       "sourceRegion": "asien",
-      "warpIoU": 0.8367,
+      "warpIoU": 0.9861,
       "targetAreaPx": 13483,
       "warpFile": "assets/globe/warped/PHL.webp"
     },
@@ -615,7 +615,7 @@
       "name": "Förenade Arabemiraten",
       "featureKey": "ARE",
       "sourceRegion": "asien",
-      "warpIoU": 0.9393,
+      "warpIoU": 0.9956,
       "targetAreaPx": 3393,
       "warpFile": "assets/globe/warped/ARE.webp"
     },
@@ -623,7 +623,7 @@
       "name": "Georgien",
       "featureKey": "ADM0:GEO",
       "sourceRegion": "asien",
-      "warpIoU": 0.9285,
+      "warpIoU": 0.9711,
       "targetAreaPx": 4044,
       "warpFile": "assets/globe/warped/ADM0:GEO.webp"
     },
@@ -631,7 +631,7 @@
       "name": "Indien",
       "featureKey": "IND",
       "sourceRegion": "asien",
-      "warpIoU": 0.9618,
+      "warpIoU": 0.9772,
       "targetAreaPx": 145487,
       "warpFile": "assets/globe/warped/IND.webp"
     },
@@ -639,7 +639,7 @@
       "name": "Indoneien",
       "featureKey": "IDN",
       "sourceRegion": "asien",
-      "warpIoU": 0.7589,
+      "warpIoU": 0.8712,
       "targetAreaPx": 81530,
       "warpFile": "assets/globe/warped/IDN.webp"
     },
@@ -647,7 +647,7 @@
       "name": "Irak",
       "featureKey": "IRQ",
       "sourceRegion": "asien",
-      "warpIoU": 0.8814,
+      "warpIoU": 0.9179,
       "targetAreaPx": 22108,
       "warpFile": "assets/globe/warped/IRQ.webp"
     },
@@ -655,7 +655,7 @@
       "name": "Iran",
       "featureKey": "IRN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9738,
+      "warpIoU": 0.9866,
       "targetAreaPx": 81331,
       "warpFile": "assets/globe/warped/IRN.webp"
     },
@@ -663,7 +663,7 @@
       "name": "Israel",
       "featureKey": "ISR",
       "sourceRegion": "asien",
-      "warpIoU": 0.7278,
+      "warpIoU": 0.8884,
       "targetAreaPx": 1183,
       "warpFile": "assets/globe/warped/ISR.webp"
     },
@@ -671,7 +671,7 @@
       "name": "Japan",
       "featureKey": "JPN",
       "sourceRegion": "asien",
-      "warpIoU": 0.8026,
+      "warpIoU": 0.8977,
       "targetAreaPx": 20477,
       "warpFile": "assets/globe/warped/JPN.webp"
     },
@@ -679,7 +679,7 @@
       "name": "Jemen",
       "featureKey": "YEM",
       "sourceRegion": "asien",
-      "warpIoU": 0.9437,
+      "warpIoU": 0.9755,
       "targetAreaPx": 20018,
       "warpFile": "assets/globe/warped/YEM.webp"
     },
@@ -687,7 +687,7 @@
       "name": "Jordanien",
       "featureKey": "JOR",
       "sourceRegion": "asien",
-      "warpIoU": 0.8004,
+      "warpIoU": 0.874,
       "targetAreaPx": 4469,
       "warpFile": "assets/globe/warped/JOR.webp"
     },
@@ -695,7 +695,7 @@
       "name": "Kambodja",
       "featureKey": "KHM",
       "sourceRegion": "asien",
-      "warpIoU": 0.966,
+      "warpIoU": 0.9918,
       "targetAreaPx": 7970,
       "warpFile": "assets/globe/warped/KHM.webp"
     },
@@ -703,7 +703,7 @@
       "name": "Kazakstan",
       "featureKey": "KAZ",
       "sourceRegion": "asien",
-      "warpIoU": 0.8782,
+      "warpIoU": 0.9,
       "targetAreaPx": 171515,
       "warpFile": "assets/globe/warped/KAZ.webp"
     },
@@ -711,7 +711,7 @@
       "name": "Kina",
       "featureKey": "CHN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9668,
+      "warpIoU": 0.9768,
       "targetAreaPx": 494352,
       "warpFile": "assets/globe/warped/CHN.webp"
     },
@@ -719,7 +719,7 @@
       "name": "Kirgizistan",
       "featureKey": "KGZ",
       "sourceRegion": "asien",
-      "warpIoU": 0.8689,
+      "warpIoU": 0.9218,
       "targetAreaPx": 11340,
       "warpFile": "assets/globe/warped/KGZ.webp"
     },
@@ -727,7 +727,7 @@
       "name": "Kuwait",
       "featureKey": "KWT",
       "sourceRegion": "asien",
-      "warpIoU": 0.8643,
+      "warpIoU": 0.9555,
       "targetAreaPx": 899,
       "warpFile": "assets/globe/warped/KWT.webp"
     },
@@ -735,7 +735,7 @@
       "name": "Laos",
       "featureKey": "LAO",
       "sourceRegion": "asien",
-      "warpIoU": 0.8241,
+      "warpIoU": 0.8878,
       "targetAreaPx": 10373,
       "warpFile": "assets/globe/warped/LAO.webp"
     },
@@ -743,7 +743,7 @@
       "name": "Libanon",
       "featureKey": "LBN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9703,
+      "warpIoU": 1.0,
       "targetAreaPx": 539,
       "warpFile": "assets/globe/warped/LBN.webp"
     },
@@ -751,7 +751,7 @@
       "name": "Malaysia",
       "featureKey": "MYS",
       "sourceRegion": "asien",
-      "warpIoU": 0.9061,
+      "warpIoU": 0.9695,
       "targetAreaPx": 14227,
       "warpFile": "assets/globe/warped/MYS.webp"
     },
@@ -759,7 +759,7 @@
       "name": "Maldiverna",
       "featureKey": "MDV",
       "sourceRegion": "asien",
-      "warpIoU": 0.75,
+      "warpIoU": 1.0,
       "targetAreaPx": 12,
       "warpFile": "assets/globe/warped/MDV.webp"
     },
@@ -767,7 +767,7 @@
       "name": "Mongoliet",
       "featureKey": "MNG",
       "sourceRegion": "asien",
-      "warpIoU": 0.9316,
+      "warpIoU": 0.949,
       "targetAreaPx": 96185,
       "warpFile": "assets/globe/warped/MNG.webp"
     },
@@ -775,7 +775,7 @@
       "name": "Nepal",
       "featureKey": "NPL",
       "sourceRegion": "asien",
-      "warpIoU": 0.943,
+      "warpIoU": 0.9842,
       "targetAreaPx": 7170,
       "warpFile": "assets/globe/warped/NPL.webp"
     },
@@ -783,7 +783,7 @@
       "name": "Nordkorea",
       "featureKey": "PRK",
       "sourceRegion": "asien",
-      "warpIoU": 0.8764,
+      "warpIoU": 0.9337,
       "targetAreaPx": 6907,
       "warpFile": "assets/globe/warped/PRK.webp"
     },
@@ -791,7 +791,7 @@
       "name": "Oman",
       "featureKey": "OMN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9511,
+      "warpIoU": 0.9835,
       "targetAreaPx": 14217,
       "warpFile": "assets/globe/warped/OMN.webp"
     },
@@ -799,7 +799,7 @@
       "name": "Pakistan",
       "featureKey": "PAK",
       "sourceRegion": "asien",
-      "warpIoU": 0.894,
+      "warpIoU": 0.9259,
       "targetAreaPx": 42740,
       "warpFile": "assets/globe/warped/PAK.webp"
     },
@@ -807,7 +807,7 @@
       "name": "Palestina",
       "featureKey": "ADM0:PSX",
       "sourceRegion": "asien",
-      "warpIoU": 0.8693,
+      "warpIoU": 1.0,
       "targetAreaPx": 352,
       "warpFile": "assets/globe/warped/ADM0:PSX.webp"
     },
@@ -815,7 +815,7 @@
       "name": "Papua Nya Guinea",
       "featureKey": "ADM0:PNG",
       "sourceRegion": "asien",
-      "warpIoU": 0.7797,
+      "warpIoU": 0.8834,
       "targetAreaPx": 20299,
       "warpFile": "assets/globe/warped/ADM0:PNG.webp"
     },
@@ -823,7 +823,7 @@
       "name": "Qatar",
       "featureKey": "QAT",
       "sourceRegion": "asien",
-      "warpIoU": 0.824,
+      "warpIoU": 0.9909,
       "targetAreaPx": 551,
       "warpFile": "assets/globe/warped/QAT.webp"
     },
@@ -831,7 +831,7 @@
       "name": "Ryssland",
       "featureKey": "RUS",
       "sourceRegion": "asien",
-      "warpIoU": 0.7855,
+      "warpIoU": 0.8053,
       "targetAreaPx": 1523263,
       "warpFile": "assets/globe/warped/RUS.webp"
     },
@@ -839,7 +839,7 @@
       "name": "Saudiarabien",
       "featureKey": "SAU",
       "sourceRegion": "asien",
-      "warpIoU": 0.9914,
+      "warpIoU": 0.9958,
       "targetAreaPx": 88989,
       "warpFile": "assets/globe/warped/SAU.webp"
     },
@@ -855,7 +855,7 @@
       "name": "Sri Lanka",
       "featureKey": "LKA",
       "sourceRegion": "asien",
-      "warpIoU": 0.9616,
+      "warpIoU": 0.9993,
       "targetAreaPx": 2892,
       "warpFile": "assets/globe/warped/LKA.webp"
     },
@@ -863,7 +863,7 @@
       "name": "Sydkorea",
       "featureKey": "KOR",
       "sourceRegion": "asien",
-      "warpIoU": 0.9321,
+      "warpIoU": 0.9899,
       "targetAreaPx": 5270,
       "warpFile": "assets/globe/warped/KOR.webp"
     },
@@ -871,7 +871,7 @@
       "name": "Syrien",
       "featureKey": "SYR",
       "sourceRegion": "asien",
-      "warpIoU": 0.9459,
+      "warpIoU": 0.9828,
       "targetAreaPx": 9657,
       "warpFile": "assets/globe/warped/SYR.webp"
     },
@@ -879,7 +879,7 @@
       "name": "Tadzjikistan",
       "featureKey": "TJK",
       "sourceRegion": "asien",
-      "warpIoU": 0.8304,
+      "warpIoU": 0.897,
       "targetAreaPx": 7842,
       "warpFile": "assets/globe/warped/TJK.webp"
     },
@@ -887,7 +887,7 @@
       "name": "Taiwan",
       "featureKey": "TWN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9009,
+      "warpIoU": 0.9817,
       "targetAreaPx": 1746,
       "warpFile": "assets/globe/warped/TWN.webp"
     },
@@ -895,7 +895,7 @@
       "name": "Thailand",
       "featureKey": "THA",
       "sourceRegion": "asien",
-      "warpIoU": 0.9027,
+      "warpIoU": 0.9395,
       "targetAreaPx": 22927,
       "warpFile": "assets/globe/warped/THA.webp"
     },
@@ -903,7 +903,7 @@
       "name": "Turkiet",
       "featureKey": "TUR",
       "sourceRegion": "asien",
-      "warpIoU": 0.9629,
+      "warpIoU": 0.9788,
       "targetAreaPx": 42533,
       "warpFile": "assets/globe/warped/TUR.webp"
     },
@@ -911,7 +911,7 @@
       "name": "Turkmenistan",
       "featureKey": "TKM",
       "sourceRegion": "asien",
-      "warpIoU": 0.9518,
+      "warpIoU": 0.9758,
       "targetAreaPx": 25813,
       "warpFile": "assets/globe/warped/TKM.webp"
     },
@@ -919,7 +919,7 @@
       "name": "Uzbekistan",
       "featureKey": "UZB",
       "sourceRegion": "asien",
-      "warpIoU": 0.897,
+      "warpIoU": 0.9264,
       "targetAreaPx": 25667,
       "warpFile": "assets/globe/warped/UZB.webp"
     },
@@ -927,7 +927,7 @@
       "name": "Vietnam",
       "featureKey": "VNM",
       "sourceRegion": "asien",
-      "warpIoU": 0.8294,
+      "warpIoU": 0.9065,
       "targetAreaPx": 14885,
       "warpFile": "assets/globe/warped/VNM.webp"
     },
@@ -935,7 +935,7 @@
       "name": "Östtimor",
       "featureKey": "TLS",
       "sourceRegion": "asien",
-      "warpIoU": 0.6613,
+      "warpIoU": 0.8394,
       "targetAreaPx": 685,
       "warpFile": "assets/globe/warped/TLS.webp"
     },
@@ -943,7 +943,7 @@
       "name": "Albanien",
       "featureKey": "ALB",
       "sourceRegion": "europa",
-      "warpIoU": 0.9505,
+      "warpIoU": 0.9946,
       "targetAreaPx": 1658,
       "warpFile": "assets/globe/warped/ALB.webp"
     },
@@ -959,7 +959,7 @@
       "name": "Belgien",
       "featureKey": "ADM0:BEL",
       "sourceRegion": "europa",
-      "warpIoU": 0.9492,
+      "warpIoU": 0.9915,
       "targetAreaPx": 2124,
       "warpFile": "assets/globe/warped/ADM0:BEL.webp"
     },
@@ -967,7 +967,7 @@
       "name": "Bosnien-Hercegovina",
       "featureKey": "ADM0:BIH",
       "sourceRegion": "europa",
-      "warpIoU": 0.9645,
+      "warpIoU": 0.9965,
       "targetAreaPx": 3101,
       "warpFile": "assets/globe/warped/ADM0:BIH.webp"
     },
@@ -975,7 +975,7 @@
       "name": "Bulgarien",
       "featureKey": "BGR",
       "sourceRegion": "europa",
-      "warpIoU": 0.8393,
+      "warpIoU": 0.9245,
       "targetAreaPx": 6546,
       "warpFile": "assets/globe/warped/BGR.webp"
     },
@@ -983,7 +983,7 @@
       "name": "Cypern",
       "featureKey": "CYP",
       "sourceRegion": "europa",
-      "warpIoU": 0.9511,
+      "warpIoU": 0.9969,
       "targetAreaPx": 327,
       "warpFile": "assets/globe/warped/CYP.webp"
     },
@@ -991,7 +991,7 @@
       "name": "Danmark",
       "featureKey": "DNK",
       "sourceRegion": "europa",
-      "warpIoU": 0.9082,
+      "warpIoU": 0.9436,
       "targetAreaPx": 3422,
       "warpFile": "assets/globe/warped/DNK.webp"
     },
@@ -999,7 +999,7 @@
       "name": "England",
       "featureKey": "ENG",
       "sourceRegion": "europa",
-      "warpIoU": 0.9373,
+      "warpIoU": 0.9811,
       "targetAreaPx": 9136,
       "warpFile": "assets/globe/warped/ENG.webp"
     },
@@ -1007,7 +1007,7 @@
       "name": "Estland",
       "featureKey": "EST",
       "sourceRegion": "europa",
-      "warpIoU": 0.9463,
+      "warpIoU": 0.994,
       "targetAreaPx": 3819,
       "warpFile": "assets/globe/warped/EST.webp"
     },
@@ -1015,7 +1015,7 @@
       "name": "Finland",
       "featureKey": "FIN",
       "sourceRegion": "europa",
-      "warpIoU": 0.8924,
+      "warpIoU": 0.923,
       "targetAreaPx": 32571,
       "warpFile": "assets/globe/warped/FIN.webp"
     },
@@ -1023,7 +1023,7 @@
       "name": "Frankrike",
       "featureKey": "FRA",
       "sourceRegion": "europa",
-      "warpIoU": 0.9457,
+      "warpIoU": 0.9875,
       "targetAreaPx": 33729,
       "warpFile": "assets/globe/warped/FRA.webp"
     },
@@ -1031,7 +1031,7 @@
       "name": "Grekland",
       "featureKey": "GRC",
       "sourceRegion": "europa",
-      "warpIoU": 0.5076,
+      "warpIoU": 0.7907,
       "targetAreaPx": 7663,
       "warpFile": "assets/globe/warped/GRC.webp"
     },
@@ -1039,7 +1039,7 @@
       "name": "Irland",
       "featureKey": "IRL",
       "sourceRegion": "europa",
-      "warpIoU": 0.9016,
+      "warpIoU": 0.9795,
       "targetAreaPx": 5018,
       "warpFile": "assets/globe/warped/IRL.webp"
     },
@@ -1047,7 +1047,7 @@
       "name": "Island",
       "featureKey": "ISL",
       "sourceRegion": "europa",
-      "warpIoU": 0.9079,
+      "warpIoU": 0.9755,
       "targetAreaPx": 10319,
       "warpFile": "assets/globe/warped/ISL.webp"
     },
@@ -1055,7 +1055,7 @@
       "name": "Italien",
       "featureKey": "ITA",
       "sourceRegion": "europa",
-      "warpIoU": 0.7419,
+      "warpIoU": 0.8646,
       "targetAreaPx": 17665,
       "warpFile": "assets/globe/warped/ITA.webp"
     },
@@ -1063,7 +1063,7 @@
       "name": "Kosovo",
       "featureKey": "KOS",
       "sourceRegion": "europa",
-      "warpIoU": 0.8241,
+      "warpIoU": 0.997,
       "targetAreaPx": 665,
       "warpFile": "assets/globe/warped/KOS.webp"
     },
@@ -1071,7 +1071,7 @@
       "name": "Kroatien",
       "featureKey": "HRV",
       "sourceRegion": "europa",
-      "warpIoU": 0.9008,
+      "warpIoU": 0.9691,
       "targetAreaPx": 3529,
       "warpFile": "assets/globe/warped/HRV.webp"
     },
@@ -1079,7 +1079,7 @@
       "name": "Lettland",
       "featureKey": "LVA",
       "sourceRegion": "europa",
-      "warpIoU": 0.9767,
+      "warpIoU": 0.9988,
       "targetAreaPx": 5064,
       "warpFile": "assets/globe/warped/LVA.webp"
     },
@@ -1095,7 +1095,7 @@
       "name": "Litauen",
       "featureKey": "LTU",
       "sourceRegion": "europa",
-      "warpIoU": 0.9803,
+      "warpIoU": 0.9984,
       "targetAreaPx": 4862,
       "warpFile": "assets/globe/warped/LTU.webp"
     },
@@ -1103,7 +1103,7 @@
       "name": "Luxembourg",
       "featureKey": "LUX",
       "sourceRegion": "europa",
-      "warpIoU": 0.8103,
+      "warpIoU": 1.0,
       "targetAreaPx": 195,
       "warpFile": "assets/globe/warped/LUX.webp"
     },
@@ -1111,7 +1111,7 @@
       "name": "Makedonien",
       "featureKey": "MKD",
       "sourceRegion": "europa",
-      "warpIoU": 0.9413,
+      "warpIoU": 0.9987,
       "targetAreaPx": 1482,
       "warpFile": "assets/globe/warped/MKD.webp"
     },
@@ -1127,7 +1127,7 @@
       "name": "Moldavien",
       "featureKey": "MDA",
       "sourceRegion": "europa",
-      "warpIoU": 0.8108,
+      "warpIoU": 0.9293,
       "targetAreaPx": 2135,
       "warpFile": "assets/globe/warped/MDA.webp"
     },
@@ -1143,7 +1143,7 @@
       "name": "Montenegro",
       "featureKey": "MNE",
       "sourceRegion": "europa",
-      "warpIoU": 0.9673,
+      "warpIoU": 0.9952,
       "targetAreaPx": 826,
       "warpFile": "assets/globe/warped/MNE.webp"
     },
@@ -1151,7 +1151,7 @@
       "name": "Nederländerna",
       "featureKey": "NLD",
       "sourceRegion": "europa",
-      "warpIoU": 0.8641,
+      "warpIoU": 0.9536,
       "targetAreaPx": 2694,
       "warpFile": "assets/globe/warped/NLD.webp"
     },
@@ -1159,7 +1159,7 @@
       "name": "Nordirland",
       "featureKey": "NIR",
       "sourceRegion": "europa",
-      "warpIoU": 0.9313,
+      "warpIoU": 1.0,
       "targetAreaPx": 1077,
       "warpFile": "assets/globe/warped/NIR.webp"
     },
@@ -1167,7 +1167,7 @@
       "name": "Norge",
       "featureKey": "NOR",
       "sourceRegion": "europa",
-      "warpIoU": 0.7062,
+      "warpIoU": 0.9213,
       "targetAreaPx": 32538,
       "warpFile": "assets/globe/warped/NOR.webp"
     },
@@ -1175,7 +1175,7 @@
       "name": "Polen",
       "featureKey": "POL",
       "sourceRegion": "europa",
-      "warpIoU": 0.9205,
+      "warpIoU": 0.967,
       "targetAreaPx": 21570,
       "warpFile": "assets/globe/warped/POL.webp"
     },
@@ -1183,7 +1183,7 @@
       "name": "Portugal",
       "featureKey": "ADM0:PRT",
       "sourceRegion": "europa",
-      "warpIoU": 0.9253,
+      "warpIoU": 0.9891,
       "targetAreaPx": 5157,
       "warpFile": "assets/globe/warped/ADM0:PRT.webp"
     },
@@ -1191,7 +1191,7 @@
       "name": "Rumänien",
       "featureKey": "ROU",
       "sourceRegion": "europa",
-      "warpIoU": 0.9226,
+      "warpIoU": 0.9668,
       "targetAreaPx": 14353,
       "warpFile": "assets/globe/warped/ROU.webp"
     },
@@ -1207,7 +1207,7 @@
       "name": "Schweiz",
       "featureKey": "CHE",
       "sourceRegion": "europa",
-      "warpIoU": 0.9221,
+      "warpIoU": 0.9833,
       "targetAreaPx": 2631,
       "warpFile": "assets/globe/warped/CHE.webp"
     },
@@ -1215,7 +1215,7 @@
       "name": "Serbien",
       "featureKey": "ADM0:SRB",
       "sourceRegion": "europa",
-      "warpIoU": 0.881,
+      "warpIoU": 0.9821,
       "targetAreaPx": 4691,
       "warpFile": "assets/globe/warped/ADM0:SRB.webp"
     },
@@ -1223,7 +1223,7 @@
       "name": "Skottland",
       "featureKey": "SCT",
       "sourceRegion": "europa",
-      "warpIoU": 0.8599,
+      "warpIoU": 0.9634,
       "targetAreaPx": 6197,
       "warpFile": "assets/globe/warped/SCT.webp"
     },
@@ -1231,7 +1231,7 @@
       "name": "Slovakien",
       "featureKey": "SVK",
       "sourceRegion": "europa",
-      "warpIoU": 0.8376,
+      "warpIoU": 0.9862,
       "targetAreaPx": 3184,
       "warpFile": "assets/globe/warped/SVK.webp"
     },
@@ -1239,7 +1239,7 @@
       "name": "Slovenien",
       "featureKey": "SVN",
       "sourceRegion": "europa",
-      "warpIoU": 0.8797,
+      "warpIoU": 0.9923,
       "targetAreaPx": 1305,
       "warpFile": "assets/globe/warped/SVN.webp"
     },
@@ -1247,7 +1247,7 @@
       "name": "Spanien",
       "featureKey": "ESP",
       "sourceRegion": "europa",
-      "warpIoU": 0.9579,
+      "warpIoU": 0.979,
       "targetAreaPx": 28187,
       "warpFile": "assets/globe/warped/ESP.webp"
     },
@@ -1255,7 +1255,7 @@
       "name": "Sverige",
       "featureKey": "SWE",
       "sourceRegion": "europa",
-      "warpIoU": 0.9121,
+      "warpIoU": 0.8325,
       "targetAreaPx": 41131,
       "warpFile": "assets/globe/warped/SWE.webp"
     },
@@ -1263,7 +1263,7 @@
       "name": "Tjeckien",
       "featureKey": "CZE",
       "sourceRegion": "europa",
-      "warpIoU": 0.8386,
+      "warpIoU": 0.982,
       "targetAreaPx": 5234,
       "warpFile": "assets/globe/warped/CZE.webp"
     },
@@ -1271,7 +1271,7 @@
       "name": "Tyskland",
       "featureKey": "DEU",
       "sourceRegion": "europa",
-      "warpIoU": 0.9492,
+      "warpIoU": 0.9825,
       "targetAreaPx": 24170,
       "warpFile": "assets/globe/warped/DEU.webp"
     },
@@ -1279,7 +1279,7 @@
       "name": "Ukraina",
       "featureKey": "UKR",
       "sourceRegion": "europa",
-      "warpIoU": 0.906,
+      "warpIoU": 0.9362,
       "targetAreaPx": 37001,
       "warpFile": "assets/globe/warped/UKR.webp"
     },
@@ -1287,7 +1287,7 @@
       "name": "Ungern",
       "featureKey": "HUN",
       "sourceRegion": "europa",
-      "warpIoU": 0.847,
+      "warpIoU": 0.9974,
       "targetAreaPx": 5864,
       "warpFile": "assets/globe/warped/HUN.webp"
     },
@@ -1295,7 +1295,7 @@
       "name": "VItryssland",
       "featureKey": "BLR",
       "sourceRegion": "europa",
-      "warpIoU": 0.9278,
+      "warpIoU": 0.9979,
       "targetAreaPx": 14811,
       "warpFile": "assets/globe/warped/BLR.webp"
     },
@@ -1303,7 +1303,7 @@
       "name": "Vatikanstaten",
       "featureKey": "VAT",
       "sourceRegion": "europa",
-      "warpIoU": 0.0,
+      "warpIoU": 1.0,
       "targetAreaPx": 2,
       "warpFile": "assets/globe/warped/VAT.webp"
     },
@@ -1311,7 +1311,7 @@
       "name": "Wales",
       "featureKey": "WLS",
       "sourceRegion": "europa",
-      "warpIoU": 0.9587,
+      "warpIoU": 0.9987,
       "targetAreaPx": 1500,
       "warpFile": "assets/globe/warped/WLS.webp"
     },
@@ -1319,7 +1319,7 @@
       "name": "Österrike",
       "featureKey": "AUT",
       "sourceRegion": "europa",
-      "warpIoU": 0.9283,
+      "warpIoU": 0.9842,
       "targetAreaPx": 5385,
       "warpFile": "assets/globe/warped/AUT.webp"
     },
@@ -1327,7 +1327,7 @@
       "name": "Belize",
       "featureKey": "BLZ",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.7843,
+      "warpIoU": 0.9991,
       "targetAreaPx": 1080,
       "warpFile": "assets/globe/warped/BLZ.webp"
     },
@@ -1335,7 +1335,7 @@
       "name": "Costa Rica",
       "featureKey": "CRI",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9638,
+      "warpIoU": 1.0,
       "targetAreaPx": 2294,
       "warpFile": "assets/globe/warped/CRI.webp"
     },
@@ -1343,7 +1343,7 @@
       "name": "Dominikanska Republiken",
       "featureKey": "DOM",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9481,
+      "warpIoU": 0.9996,
       "targetAreaPx": 2237,
       "warpFile": "assets/globe/warped/DOM.webp"
     },
@@ -1351,7 +1351,7 @@
       "name": "El Salvador",
       "featureKey": "SLV",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8544,
+      "warpIoU": 0.9957,
       "targetAreaPx": 927,
       "warpFile": "assets/globe/warped/SLV.webp"
     },
@@ -1359,7 +1359,7 @@
       "name": "Guatemala",
       "featureKey": "GTM",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9415,
+      "warpIoU": 0.9862,
       "targetAreaPx": 4871,
       "warpFile": "assets/globe/warped/GTM.webp"
     },
@@ -1367,7 +1367,7 @@
       "name": "Haiti",
       "featureKey": "HTI",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.7185,
+      "warpIoU": 0.9531,
       "targetAreaPx": 1279,
       "warpFile": "assets/globe/warped/HTI.webp"
     },
@@ -1375,7 +1375,7 @@
       "name": "Honduras",
       "featureKey": "HND",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.962,
+      "warpIoU": 0.9955,
       "targetAreaPx": 5073,
       "warpFile": "assets/globe/warped/HND.webp"
     },
@@ -1383,7 +1383,7 @@
       "name": "Jamaica",
       "featureKey": "JAM",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.6756,
+      "warpIoU": 0.9637,
       "targetAreaPx": 524,
       "warpFile": "assets/globe/warped/JAM.webp"
     },
@@ -1391,7 +1391,7 @@
       "name": "Kanada",
       "featureKey": "CAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.715,
+      "warpIoU": 0.8076,
       "targetAreaPx": 884137,
       "warpFile": "assets/globe/warped/CAN.webp"
     },
@@ -1399,7 +1399,7 @@
       "name": "Kuba",
       "featureKey": "CUB",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.1052,
+      "warpIoU": 0.4645,
       "targetAreaPx": 5182,
       "warpFile": "assets/globe/warped/CUB.webp"
     },
@@ -1407,7 +1407,7 @@
       "name": "Mexiko",
       "featureKey": "MEX",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8542,
+      "warpIoU": 0.8871,
       "targetAreaPx": 91256,
       "warpFile": "assets/globe/warped/MEX.webp"
     },
@@ -1415,7 +1415,7 @@
       "name": "Nicaragua",
       "featureKey": "NIC",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9673,
+      "warpIoU": 0.9869,
       "targetAreaPx": 5710,
       "warpFile": "assets/globe/warped/NIC.webp"
     },
@@ -1423,7 +1423,7 @@
       "name": "Panama",
       "featureKey": "PAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8582,
+      "warpIoU": 0.952,
       "targetAreaPx": 3314,
       "warpFile": "assets/globe/warped/PAN.webp"
     },
@@ -1431,7 +1431,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8626,
+      "warpIoU": 0.839,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1439,7 +1439,7 @@
       "name": "Australien",
       "featureKey": "AUS",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.8698,
+      "warpIoU": 0.8873,
       "targetAreaPx": 362161,
       "warpFile": "assets/globe/warped/AUS.webp"
     },
@@ -1447,7 +1447,7 @@
       "name": "Fiji",
       "featureKey": "FJI",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.23,
+      "warpIoU": 0.7227,
       "targetAreaPx": 952,
       "warpFile": "assets/globe/warped/FJI.webp"
     },
@@ -1455,7 +1455,7 @@
       "name": "Kiribati",
       "featureKey": "KIR",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.5417,
+      "warpIoU": 1.0,
       "targetAreaPx": 120,
       "warpFile": "assets/globe/warped/KIR.webp"
     },
@@ -1463,7 +1463,7 @@
       "name": "Marshalöarna",
       "featureKey": "MHL",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.5,
+      "warpIoU": 1.0,
       "targetAreaPx": 40,
       "warpFile": "assets/globe/warped/MHL.webp"
     },
@@ -1471,7 +1471,7 @@
       "name": "Mikronesien",
       "featureKey": "FSM",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.7872,
+      "warpIoU": 1.0,
       "targetAreaPx": 47,
       "warpFile": "assets/globe/warped/FSM.webp"
     },
@@ -1479,7 +1479,7 @@
       "name": "Nauru",
       "featureKey": "NRU",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.0,
+      "warpIoU": 1.0,
       "targetAreaPx": 3,
       "warpFile": "assets/globe/warped/NRU.webp"
     },
@@ -1487,7 +1487,7 @@
       "name": "Nya Zeeland",
       "featureKey": "NZL",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.8985,
+      "warpIoU": 0.9672,
       "targetAreaPx": 15563,
       "warpFile": "assets/globe/warped/NZL.webp"
     },
@@ -1495,7 +1495,7 @@
       "name": "Palau",
       "featureKey": "PLW",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.6923,
+      "warpIoU": 1.0,
       "targetAreaPx": 26,
       "warpFile": "assets/globe/warped/PLW.webp"
     },
@@ -1503,7 +1503,7 @@
       "name": "Samoa",
       "featureKey": "WSM",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.7163,
+      "warpIoU": 0.9929,
       "targetAreaPx": 141,
       "warpFile": "assets/globe/warped/WSM.webp"
     },
@@ -1511,7 +1511,7 @@
       "name": "Solomonöarna",
       "featureKey": "SLB",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.5132,
+      "warpIoU": 0.8874,
       "targetAreaPx": 1323,
       "warpFile": "assets/globe/warped/SLB.webp"
     },
@@ -1519,7 +1519,7 @@
       "name": "Tonga",
       "featureKey": "TON",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.0,
+      "warpIoU": 1.0,
       "targetAreaPx": 34,
       "warpFile": "assets/globe/warped/TON.webp"
     },
@@ -1527,7 +1527,7 @@
       "name": "Tuvalu",
       "featureKey": "TUV",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.0,
+      "warpIoU": 1.0,
       "targetAreaPx": 4,
       "warpFile": "assets/globe/warped/TUV.webp"
     },
@@ -1535,7 +1535,7 @@
       "name": "Vanuatu",
       "featureKey": "VUT",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.8983,
+      "warpIoU": 1.0,
       "targetAreaPx": 649,
       "warpFile": "assets/globe/warped/VUT.webp"
     },
@@ -1543,7 +1543,7 @@
       "name": "Argentina",
       "featureKey": "ARG",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.8697,
+      "warpIoU": 0.9088,
       "targetAreaPx": 145211,
       "warpFile": "assets/globe/warped/ARG.webp"
     },
@@ -1551,7 +1551,7 @@
       "name": "Bolivia",
       "featureKey": "BOL",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.8682,
+      "warpIoU": 0.8925,
       "targetAreaPx": 48163,
       "warpFile": "assets/globe/warped/BOL.webp"
     },
@@ -1559,7 +1559,7 @@
       "name": "Brasilien",
       "featureKey": "BRA",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9526,
+      "warpIoU": 0.968,
       "targetAreaPx": 367688,
       "warpFile": "assets/globe/warped/BRA.webp"
     },
@@ -1567,7 +1567,7 @@
       "name": "Chile",
       "featureKey": "CHL",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.4552,
+      "warpIoU": 0.7326,
       "targetAreaPx": 41528,
       "warpFile": "assets/globe/warped/CHL.webp"
     },
@@ -1575,7 +1575,7 @@
       "name": "Colombia",
       "featureKey": "COL",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9283,
+      "warpIoU": 0.9553,
       "targetAreaPx": 48460,
       "warpFile": "assets/globe/warped/COL.webp"
     },
@@ -1583,7 +1583,7 @@
       "name": "Ecuador",
       "featureKey": "ECU",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.6226,
+      "warpIoU": 0.6234,
       "targetAreaPx": 10994,
       "warpFile": "assets/globe/warped/ECU.webp"
     },
@@ -1591,7 +1591,7 @@
       "name": "Franska Guyana",
       "featureKey": "GUF",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.773,
+      "warpIoU": 0.9975,
       "targetAreaPx": 3626,
       "warpFile": "assets/globe/warped/GUF.webp"
     },
@@ -1599,7 +1599,7 @@
       "name": "Guyana",
       "featureKey": "GUY",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9147,
+      "warpIoU": 0.9715,
       "targetAreaPx": 9134,
       "warpFile": "assets/globe/warped/GUY.webp"
     },
@@ -1607,7 +1607,7 @@
       "name": "Paraguay",
       "featureKey": "PRY",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9525,
+      "warpIoU": 0.9969,
       "targetAreaPx": 18509,
       "warpFile": "assets/globe/warped/PRY.webp"
     },
@@ -1615,7 +1615,7 @@
       "name": "Peru",
       "featureKey": "PER",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.7885,
+      "warpIoU": 0.7041,
       "targetAreaPx": 55650,
       "warpFile": "assets/globe/warped/PER.webp"
     },
@@ -1623,7 +1623,7 @@
       "name": "Surinam",
       "featureKey": "SUR",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9278,
+      "warpIoU": 0.9558,
       "targetAreaPx": 6247,
       "warpFile": "assets/globe/warped/SUR.webp"
     },
@@ -1631,7 +1631,7 @@
       "name": "Uruguay",
       "featureKey": "URY",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9224,
+      "warpIoU": 0.9906,
       "targetAreaPx": 8970,
       "warpFile": "assets/globe/warped/URY.webp"
     },
@@ -1639,7 +1639,7 @@
       "name": "Venezuela",
       "featureKey": "VEN",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9475,
+      "warpIoU": 0.9898,
       "targetAreaPx": 39134,
       "warpFile": "assets/globe/warped/VEN.webp"
     },
@@ -1647,7 +1647,7 @@
       "name": "Antigua & Barbuda",
       "featureKey": "ADM0:ATG",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.9,
+      "warpIoU": 1.0,
       "targetAreaPx": 30,
       "warpFile": "assets/globe/warped/ADM0:ATG.webp"
     },
@@ -1655,7 +1655,7 @@
       "name": "Bahamas",
       "featureKey": "BHS",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.306,
+      "warpIoU": 0.9115,
       "targetAreaPx": 768,
       "warpFile": "assets/globe/warped/BHS.webp"
     },
@@ -1671,7 +1671,7 @@
       "name": "Dominica",
       "featureKey": "DMA",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.7073,
+      "warpIoU": 1.0,
       "targetAreaPx": 41,
       "warpFile": "assets/globe/warped/DMA.webp"
     },
@@ -1679,7 +1679,7 @@
       "name": "Grenada",
       "featureKey": "GRD",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.5,
+      "warpIoU": 1.0,
       "targetAreaPx": 20,
       "warpFile": "assets/globe/warped/GRD.webp"
     },
@@ -1687,7 +1687,7 @@
       "name": "Saint Kitts & Nevis",
       "featureKey": "KNA",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.75,
+      "warpIoU": 1.0,
       "targetAreaPx": 20,
       "warpFile": "assets/globe/warped/KNA.webp"
     },
@@ -1695,7 +1695,7 @@
       "name": "Saint Lucia",
       "featureKey": "LCA",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.7576,
+      "warpIoU": 1.0,
       "targetAreaPx": 33,
       "warpFile": "assets/globe/warped/LCA.webp"
     },
@@ -1711,15 +1711,15 @@
       "name": "Trinidad & Tobago",
       "featureKey": "TTO",
       "sourceRegion": "vastindien",
-      "warpIoU": 0.686,
+      "warpIoU": 0.9421,
       "targetAreaPx": 242,
       "warpFile": "assets/globe/warped/TTO.webp"
     }
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.8478,
-    "p10IoU": 0.6766,
-    "minIoU": 0.0
+    "meanIoU": 0.9578,
+    "p10IoU": 0.8873,
+    "minIoU": 0.4645
   }
 }

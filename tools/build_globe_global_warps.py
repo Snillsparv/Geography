@@ -44,6 +44,9 @@ DEFAULT_MAX_CTRL = 420
 DEFAULT_DIRECTIONS = 12
 DEFAULT_SOURCE_UNDERLAY = "none"
 EDGE_PAD_RADIUS = 1
+BOUNDARY_HOLE_FILL_PX = 2
+BOUNDARY_HOLE_FILL_ALPHA = 220
+BOUNDARY_HOLE_MIN_ALPHA = 196
 
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
@@ -847,6 +850,24 @@ def render_country_with_inverse_map(
         final_alpha = best_alpha
 
     warped[:, :, 3] = final_alpha.astype(np.uint8)
+    if BOUNDARY_HOLE_FILL_PX > 0:
+        mask_u8 = (mask > 0).astype(np.uint8) * 255
+        k = 2 * BOUNDARY_HOLE_FILL_PX + 1
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+        inner = cv2.erode(mask_u8, kernel, iterations=1)
+        boundary_band = (mask_u8 > 0) & (inner == 0)
+        warped_alpha_u8 = warped[:, :, 3]
+        hole_band = boundary_band & (warped_alpha_u8 < BOUNDARY_HOLE_MIN_ALPHA)
+        if np.any(hole_band):
+            # Extend nearby edge colors into sparse boundary pixels to remove
+            # visible seams between neighboring country sprites.
+            padded = edge_pad_rgba(warped, radius=max(1, BOUNDARY_HOLE_FILL_PX))
+            fill_alpha = np.maximum(
+                padded[:, :, 3].astype(np.uint16),
+                ((mask_u8.astype(np.uint16) * BOUNDARY_HOLE_FILL_ALPHA) // 255),
+            ).astype(np.uint8)
+            warped[hole_band, :3] = padded[hole_band, :3]
+            warped[:, :, 3][hole_band] = fill_alpha[hole_band]
     warped[warped[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return warped
 
