@@ -21,7 +21,7 @@
       "warpTop": 1203,
       "warpWidth": 472,
       "warpHeight": 414,
-      "warpIoU": 0.993,
+      "warpIoU": 0.9942,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 111132
@@ -65,7 +65,7 @@
       "warpTop": 1230,
       "warpWidth": 364,
       "warpHeight": 332,
-      "warpIoU": 0.8038,
+      "warpIoU": 0.8241,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 28590
@@ -87,7 +87,7 @@
       "warpTop": 1418,
       "warpWidth": 194,
       "warpHeight": 158,
-      "warpIoU": 0.7014,
+      "warpIoU": 0.7311,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 4451
@@ -109,7 +109,7 @@
       "warpTop": 1427,
       "warpWidth": 281,
       "warpHeight": 287,
-      "warpIoU": 0.9794,
+      "warpIoU": 0.9828,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 46923
@@ -131,7 +131,7 @@
       "warpTop": 1479,
       "warpWidth": 378,
       "warpHeight": 340,
-      "warpIoU": 0.9987,
+      "warpIoU": 0.9997,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 55817
@@ -197,7 +197,7 @@
       "warpTop": 1759,
       "warpWidth": 170,
       "warpHeight": 126,
-      "warpIoU": 0.9994,
+      "warpIoU": 0.9999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 10696
@@ -219,7 +219,7 @@
       "warpTop": 1759,
       "warpWidth": 71,
       "warpHeight": 42,
-      "warpIoU": 0.984,
+      "warpIoU": 0.986,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 1503
@@ -263,7 +263,7 @@
       "warpTop": 1704,
       "warpWidth": 182,
       "warpHeight": 131,
-      "warpIoU": 0.9998,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 11916
@@ -285,7 +285,7 @@
       "warpTop": 1803,
       "warpWidth": 140,
       "warpHeight": 147,
-      "warpIoU": 0.9993,
+      "warpIoU": 0.9999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 13863
@@ -329,7 +329,7 @@
       "warpTop": 1766,
       "warpWidth": 72,
       "warpHeight": 142,
-      "warpIoU": 0.9973,
+      "warpIoU": 0.999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 5128
@@ -351,7 +351,7 @@
       "warpTop": 1795,
       "warpWidth": 45,
       "warpHeight": 116,
-      "warpIoU": 0.9972,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 2511
@@ -373,7 +373,7 @@
       "warpTop": 1793,
       "warpWidth": 103,
       "warpHeight": 148,
-      "warpIoU": 0.9995,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 10321
@@ -395,7 +395,7 @@
       "warpTop": 1514,
       "warpWidth": 241,
       "warpHeight": 365,
-      "warpIoU": 0.9698,
+      "warpIoU": 0.9731,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 55690
@@ -417,7 +417,7 @@
       "warpTop": 1750,
       "warpWidth": 176,
       "warpHeight": 261,
-      "warpIoU": 0.9996,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 19934
@@ -439,7 +439,7 @@
       "warpTop": 1732,
       "warpWidth": 273,
       "warpHeight": 220,
-      "warpIoU": 0.9989,
+      "warpIoU": 0.9995,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 39130
@@ -461,7 +461,7 @@
       "warpTop": 1512,
       "warpWidth": 362,
       "warpHeight": 271,
-      "warpIoU": 0.9977,
+      "warpIoU": 0.9984,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 52456
@@ -483,7 +483,7 @@
       "warpTop": 1292,
       "warpWidth": 363,
       "warpHeight": 314,
-      "warpIoU": 0.9789,
+      "warpIoU": 0.9844,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 76969
@@ -505,7 +505,7 @@
       "warpTop": 1198,
       "warpWidth": 94,
       "warpHeight": 164,
-      "warpIoU": 0.9808,
+      "warpIoU": 0.9894,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 8114
@@ -527,7 +527,7 @@
       "warpTop": 1327,
       "warpWidth": 279,
       "warpHeight": 222,
-      "warpIoU": 0.9921,
+      "warpIoU": 0.9947,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 47477
@@ -549,7 +549,7 @@
       "warpTop": 1542,
       "warpWidth": 384,
       "warpHeight": 310,
-      "warpIoU": 0.9793,
+      "warpIoU": 0.9832,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 81906
@@ -571,7 +571,7 @@
       "warpTop": 1927,
       "warpWidth": 436,
       "warpHeight": 429,
-      "warpIoU": 0.9965,
+      "warpIoU": 0.9983,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 98834
@@ -593,7 +593,7 @@
       "warpTop": 1769,
       "warpWidth": 255,
       "warpHeight": 201,
-      "warpIoU": 0.9789,
+      "warpIoU": 0.9846,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 26682
@@ -615,7 +615,7 @@
       "warpTop": 1797,
       "warpWidth": 297,
       "warpHeight": 201,
-      "warpIoU": 0.9938,
+      "warpIoU": 0.9966,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 26491
@@ -637,7 +637,7 @@
       "warpTop": 1923,
       "warpWidth": 184,
       "warpHeight": 233,
-      "warpIoU": 0.9803,
+      "warpIoU": 0.9836,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 25223
@@ -659,7 +659,7 @@
       "warpTop": 1951,
       "warpWidth": 125,
       "warpHeight": 132,
-      "warpIoU": 0.8528,
+      "warpIoU": 0.868,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 10320
@@ -681,7 +681,7 @@
       "warpTop": 1638,
       "warpWidth": 155,
       "warpHeight": 130,
-      "warpIoU": 0.9993,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 5570
@@ -703,7 +703,7 @@
       "warpTop": 1775,
       "warpWidth": 239,
       "warpHeight": 313,
-      "warpIoU": 0.9491,
+      "warpIoU": 0.9623,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 20203
@@ -725,7 +725,7 @@
       "warpTop": 1710,
       "warpWidth": 343,
       "warpHeight": 261,
-      "warpIoU": 0.9743,
+      "warpIoU": 0.9784,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 48318
@@ -769,7 +769,7 @@
       "warpTop": 2070,
       "warpWidth": 255,
       "warpHeight": 246,
-      "warpIoU": 0.9611,
+      "warpIoU": 0.9642,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 40140
@@ -791,7 +791,7 @@
       "warpTop": 2072,
       "warpWidth": 48,
       "warpHeight": 41,
-      "warpIoU": 0.984,
+      "warpIoU": 0.9973,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 1123
@@ -835,7 +835,7 @@
       "warpTop": 2234,
       "warpWidth": 267,
       "warpHeight": 226,
-      "warpIoU": 0.9986,
+      "warpIoU": 0.9988,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 32905
@@ -857,7 +857,7 @@
       "warpTop": 2261,
       "warpWidth": 75,
       "warpHeight": 178,
-      "warpIoU": 0.951,
+      "warpIoU": 0.9638,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 5363
@@ -879,7 +879,7 @@
       "warpTop": 2286,
       "warpWidth": 244,
       "warpHeight": 375,
-      "warpIoU": 0.9952,
+      "warpIoU": 0.9974,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 35229
@@ -901,7 +901,7 @@
       "warpTop": 2322,
       "warpWidth": 166,
       "warpHeight": 309,
-      "warpIoU": 0.9851,
+      "warpIoU": 0.9891,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 26820
@@ -923,7 +923,7 @@
       "warpTop": 2148,
       "warpWidth": 282,
       "warpHeight": 312,
-      "warpIoU": 0.9669,
+      "warpIoU": 0.9721,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 54148
@@ -945,7 +945,7 @@
       "warpTop": 1964,
       "warpWidth": 172,
       "warpHeight": 199,
-      "warpIoU": 0.9947,
+      "warpIoU": 0.997,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 14852
@@ -967,7 +967,7 @@
       "warpTop": 1995,
       "warpWidth": 133,
       "warpHeight": 144,
-      "warpIoU": 0.9893,
+      "warpIoU": 0.9941,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 11147
@@ -989,7 +989,7 @@
       "warpTop": 1962,
       "warpWidth": 68,
       "warpHeight": 66,
-      "warpIoU": 0.9967,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 1197
@@ -1011,7 +1011,7 @@
       "warpTop": 2434,
       "warpWidth": 310,
       "warpHeight": 274,
-      "warpIoU": 0.9929,
+      "warpIoU": 0.9946,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 37765
@@ -1033,7 +1033,7 @@
       "warpTop": 2403,
       "warpWidth": 180,
       "warpHeight": 156,
-      "warpIoU": 0.9998,
+      "warpIoU": 0.9999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 17463
@@ -1077,7 +1077,7 @@
       "warpTop": 2551,
       "warpWidth": 490,
       "warpHeight": 567,
-      "warpIoU": 0.9995,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 59005
@@ -1099,7 +1099,7 @@
       "warpTop": 2633,
       "warpWidth": 32,
       "warpHeight": 38,
-      "warpIoU": 0.9928,
+      "warpIoU": 0.9964,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 831
@@ -1165,7 +1165,7 @@
       "warpTop": 2502,
       "warpWidth": 13,
       "warpHeight": 14,
-      "warpIoU": 0.87,
+      "warpIoU": 0.99,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 100
@@ -1231,7 +1231,7 @@
       "warpTop": 1090,
       "warpWidth": 437,
       "warpHeight": 144,
-      "warpIoU": 0.983,
+      "warpIoU": 0.9869,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 42533
@@ -1253,7 +1253,7 @@
       "warpTop": 1913,
       "warpWidth": 1043,
       "warpHeight": 385,
-      "warpIoU": 0.9014,
+      "warpIoU": 0.9272,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 81530
@@ -1319,7 +1319,7 @@
       "warpTop": 2078,
       "warpWidth": 345,
       "warpHeight": 236,
-      "warpIoU": 0.9077,
+      "warpIoU": 0.9304,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 20299
@@ -1341,7 +1341,7 @@
       "warpTop": 1880,
       "warpWidth": 448,
       "warpHeight": 150,
-      "warpIoU": 0.9805,
+      "warpIoU": 0.9874,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 14227
@@ -1363,7 +1363,7 @@
       "warpTop": 1573,
       "warpWidth": 221,
       "warpHeight": 361,
-      "warpIoU": 0.9973,
+      "warpIoU": 0.9999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 13483
@@ -1385,7 +1385,7 @@
       "warpTop": 1472,
       "warpWidth": 85,
       "warpHeight": 79,
-      "warpIoU": 0.9914,
+      "warpIoU": 0.9971,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 1746
@@ -1407,7 +1407,7 @@
       "warpTop": 829,
       "warpWidth": 1394,
       "warpHeight": 806,
-      "warpIoU": 0.9797,
+      "warpIoU": 0.9824,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 494352
@@ -1429,7 +1429,7 @@
       "warpTop": 2233,
       "warpWidth": 76,
       "warpHeight": 33,
-      "warpIoU": 0.8774,
+      "warpIoU": 0.9401,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 685
@@ -1451,7 +1451,7 @@
       "warpTop": 1399,
       "warpWidth": 206,
       "warpHeight": 426,
-      "warpIoU": 0.9881,
+      "warpIoU": 0.9914,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 30550
@@ -1473,7 +1473,7 @@
       "warpTop": 1583,
       "warpWidth": 190,
       "warpHeight": 338,
-      "warpIoU": 0.9483,
+      "warpIoU": 0.9562,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 22927
@@ -1495,7 +1495,7 @@
       "warpTop": 1713,
       "warpWidth": 122,
       "warpHeight": 100,
-      "warpIoU": 0.9964,
+      "warpIoU": 0.9986,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 7970
@@ -1517,7 +1517,7 @@
       "warpTop": 1516,
       "warpWidth": 169,
       "warpHeight": 338,
-      "warpIoU": 0.9255,
+      "warpIoU": 0.9432,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 14885
@@ -1539,7 +1539,7 @@
       "warpTop": 1536,
       "warpWidth": 173,
       "warpHeight": 197,
-      "warpIoU": 0.9074,
+      "warpIoU": 0.9263,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 10373
@@ -1583,7 +1583,7 @@
       "warpTop": 1240,
       "warpWidth": 666,
       "warpHeight": 656,
-      "warpIoU": 0.9812,
+      "warpIoU": 0.9846,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 145487
@@ -1605,7 +1605,7 @@
       "warpTop": 1443,
       "warpWidth": 106,
       "warpHeight": 133,
-      "warpIoU": 0.9989,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 6548
@@ -1649,7 +1649,7 @@
       "warpTop": 1356,
       "warpWidth": 187,
       "warpHeight": 94,
-      "warpIoU": 0.9936,
+      "warpIoU": 0.9992,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 7170
@@ -1671,7 +1671,7 @@
       "warpTop": 1172,
       "warpWidth": 330,
       "warpHeight": 209,
-      "warpIoU": 0.9683,
+      "warpIoU": 0.9782,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 32740
@@ -1693,7 +1693,7 @@
       "warpTop": 1205,
       "warpWidth": 371,
       "warpHeight": 304,
-      "warpIoU": 0.9366,
+      "warpIoU": 0.9475,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 42740
@@ -1715,7 +1715,7 @@
       "warpTop": 1114,
       "warpWidth": 179,
       "warpHeight": 101,
-      "warpIoU": 0.9176,
+      "warpIoU": 0.9393,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 7842
@@ -1737,7 +1737,7 @@
       "warpTop": 1064,
       "warpWidth": 253,
       "warpHeight": 93,
-      "warpIoU": 0.9365,
+      "warpIoU": 0.9492,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 11340
@@ -1759,7 +1759,7 @@
       "warpTop": 1143,
       "warpWidth": 441,
       "warpHeight": 335,
-      "warpIoU": 0.9897,
+      "warpIoU": 0.9931,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 81331
@@ -1781,7 +1781,7 @@
       "warpTop": 1012,
       "warpWidth": 506,
       "warpHeight": 485,
-      "warpIoU": 0.9178,
+      "warpIoU": 0.937,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 20477
@@ -1803,7 +1803,7 @@
       "warpTop": 185,
       "warpWidth": 3885,
       "warpHeight": 927,
-      "warpIoU": 0.8126,
+      "warpIoU": 0.8199,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 1523263
@@ -1825,7 +1825,7 @@
       "warpTop": 1069,
       "warpWidth": 146,
       "warpHeight": 122,
-      "warpIoU": 0.9502,
+      "warpIoU": 0.9661,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 6907
@@ -1847,7 +1847,7 @@
       "warpTop": 1169,
       "warpWidth": 114,
       "warpHeight": 125,
-      "warpIoU": 0.9973,
+      "warpIoU": 0.9994,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 5270
@@ -1869,7 +1869,7 @@
       "warpTop": 862,
       "warpWidth": 734,
       "warpHeight": 241,
-      "warpIoU": 0.9548,
+      "warpIoU": 0.9601,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 96185
@@ -1935,7 +1935,7 @@
       "warpTop": 787,
       "warpWidth": 929,
       "warpHeight": 338,
-      "warpIoU": 0.9071,
+      "warpIoU": 0.9147,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 171515
@@ -1957,7 +1957,7 @@
       "warpTop": 1011,
       "warpWidth": 393,
       "warpHeight": 193,
-      "warpIoU": 0.9358,
+      "warpIoU": 0.9463,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 25667
@@ -1979,7 +1979,7 @@
       "warpTop": 1074,
       "warpWidth": 324,
       "warpHeight": 175,
-      "warpIoU": 0.9831,
+      "warpIoU": 0.9891,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 25813
@@ -2001,7 +2001,7 @@
       "warpTop": 1056,
       "warpWidth": 155,
       "warpHeight": 59,
-      "warpIoU": 0.9832,
+      "warpIoU": 0.9921,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 4044
@@ -2023,7 +2023,7 @@
       "warpTop": 1094,
       "warpWidth": 130,
       "warpHeight": 82,
-      "warpIoU": 0.9974,
+      "warpIoU": 0.9996,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 4923
@@ -2045,7 +2045,7 @@
       "warpTop": 1108,
       "warpWidth": 74,
       "warpHeight": 57,
-      "warpIoU": 0.9772,
+      "warpIoU": 0.9865,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 1709
@@ -2067,7 +2067,7 @@
       "warpTop": 1197,
       "warpWidth": 224,
       "warpHeight": 191,
-      "warpIoU": 0.9293,
+      "warpIoU": 0.9432,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 22108
@@ -2089,7 +2089,7 @@
       "warpTop": 1316,
       "warpWidth": 481,
       "warpHeight": 361,
-      "warpIoU": 0.9967,
+      "warpIoU": 0.998,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 88989
@@ -2111,7 +2111,7 @@
       "warpTop": 1288,
       "warpWidth": 101,
       "warpHeight": 97,
-      "warpIoU": 0.898,
+      "warpIoU": 0.9221,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 4469
@@ -2155,7 +2155,7 @@
       "warpTop": 1199,
       "warpWidth": 152,
       "warpHeight": 115,
-      "warpIoU": 0.9921,
+      "warpIoU": 0.9975,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 9657
@@ -2199,7 +2199,7 @@
       "warpTop": 1287,
       "warpWidth": 39,
       "warpHeight": 92,
-      "warpIoU": 0.9281,
+      "warpIoU": 0.9552,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 1183
@@ -2221,7 +2221,7 @@
       "warpTop": 1363,
       "warpWidth": 46,
       "warpHeight": 37,
-      "warpIoU": 0.9766,
+      "warpIoU": 0.99,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 899
@@ -2265,7 +2265,7 @@
       "warpTop": 1454,
       "warpWidth": 112,
       "warpHeight": 81,
-      "warpIoU": 0.9994,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 3393
@@ -2287,7 +2287,7 @@
       "warpTop": 1448,
       "warpWidth": 181,
       "warpHeight": 223,
-      "warpIoU": 0.9898,
+      "warpIoU": 0.9951,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 14217
@@ -2309,7 +2309,7 @@
       "warpTop": 1615,
       "warpWidth": 274,
       "warpHeight": 154,
-      "warpIoU": 0.984,
+      "warpIoU": 0.991,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "asien",
       "targetAreaPx": 20018
@@ -2331,7 +2331,7 @@
       "warpTop": 856,
       "warpWidth": 412,
       "warpHeight": 164,
-      "warpIoU": 0.9442,
+      "warpIoU": 0.952,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 37001
@@ -2375,7 +2375,7 @@
       "warpTop": 944,
       "warpWidth": 82,
       "warpHeight": 71,
-      "warpIoU": 0.9494,
+      "warpIoU": 0.9677,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 2135
@@ -2397,7 +2397,7 @@
       "warpTop": 949,
       "warpWidth": 217,
       "warpHeight": 107,
-      "warpIoU": 0.9742,
+      "warpIoU": 0.9806,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 14353
@@ -2419,7 +2419,7 @@
       "warpTop": 770,
       "warpWidth": 219,
       "warpHeight": 113,
-      "warpIoU": 0.9991,
+      "warpIoU": 0.9997,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 14811
@@ -2441,7 +2441,7 @@
       "warpTop": 764,
       "warpWidth": 136,
       "warpHeight": 59,
-      "warpIoU": 0.9996,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 4862
@@ -2463,7 +2463,7 @@
       "warpTop": 726,
       "warpWidth": 165,
       "warpHeight": 57,
-      "warpIoU": 0.9998,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5064
@@ -2485,7 +2485,7 @@
       "warpTop": 690,
       "warpWidth": 145,
       "warpHeight": 50,
-      "warpIoU": 0.9984,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 3819
@@ -2507,7 +2507,7 @@
       "warpTop": 453,
       "warpWidth": 250,
       "warpHeight": 235,
-      "warpIoU": 0.9301,
+      "warpIoU": 0.9371,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 32571
@@ -2529,7 +2529,7 @@
       "warpTop": 429,
       "warpWidth": 597,
       "warpHeight": 300,
-      "warpIoU": 0.9486,
+      "warpIoU": 0.9683,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 32538
@@ -2551,7 +2551,7 @@
       "warpTop": 788,
       "warpWidth": 101,
       "warpHeight": 90,
-      "warpIoU": 0.9876,
+      "warpIoU": 0.994,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5018
@@ -2595,7 +2595,7 @@
       "warpTop": 778,
       "warpWidth": 170,
       "warpHeight": 133,
-      "warpIoU": 0.9876,
+      "warpIoU": 0.9923,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 9136
@@ -2617,7 +2617,7 @@
       "warpTop": 663,
       "warpWidth": 156,
       "warpHeight": 142,
-      "warpIoU": 0.9822,
+      "warpIoU": 0.9916,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 6197
@@ -2661,7 +2661,7 @@
       "warpTop": 534,
       "warpWidth": 250,
       "warpHeight": 73,
-      "warpIoU": 0.9869,
+      "warpIoU": 0.993,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 10319
@@ -2683,7 +2683,7 @@
       "warpTop": 800,
       "warpWidth": 229,
       "warpHeight": 134,
-      "warpIoU": 0.9741,
+      "warpIoU": 0.9803,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 21570
@@ -2705,7 +2705,7 @@
       "warpTop": 795,
       "warpWidth": 210,
       "warpHeight": 179,
-      "warpIoU": 0.9882,
+      "warpIoU": 0.9932,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 24170
@@ -2727,7 +2727,7 @@
       "warpTop": 734,
       "warpWidth": 162,
       "warpHeight": 72,
-      "warpIoU": 0.9629,
+      "warpIoU": 0.9804,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 3422
@@ -2749,7 +2749,7 @@
       "warpTop": 886,
       "warpWidth": 155,
       "warpHeight": 58,
-      "warpIoU": 0.9864,
+      "warpIoU": 0.9906,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5234
@@ -2771,7 +2771,7 @@
       "warpTop": 919,
       "warpWidth": 131,
       "warpHeight": 44,
-      "warpIoU": 0.9965,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 3184
@@ -2793,7 +2793,7 @@
       "warpTop": 943,
       "warpWidth": 156,
       "warpHeight": 65,
-      "warpIoU": 0.9991,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5864
@@ -2815,7 +2815,7 @@
       "warpTop": 997,
       "warpWidth": 96,
       "warpHeight": 91,
-      "warpIoU": 0.9881,
+      "warpIoU": 0.9942,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 4691
@@ -2881,7 +2881,7 @@
       "warpTop": 1098,
       "warpWidth": 197,
       "warpHeight": 157,
-      "warpIoU": 0.8505,
+      "warpIoU": 0.9002,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 7663
@@ -2903,7 +2903,7 @@
       "warpTop": 1041,
       "warpWidth": 144,
       "warpHeight": 70,
-      "warpIoU": 0.9458,
+      "warpIoU": 0.9652,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 6546
@@ -2947,7 +2947,7 @@
       "warpTop": 1077,
       "warpWidth": 42,
       "warpHeight": 70,
-      "warpIoU": 0.9976,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 1658
@@ -2991,7 +2991,7 @@
       "warpTop": 1017,
       "warpWidth": 89,
       "warpHeight": 64,
-      "warpIoU": 0.9981,
+      "warpIoU": 0.9994,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 3101
@@ -3013,7 +3013,7 @@
       "warpTop": 989,
       "warpWidth": 136,
       "warpHeight": 95,
-      "warpIoU": 0.981,
+      "warpIoU": 0.9906,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 3529
@@ -3035,7 +3035,7 @@
       "warpTop": 981,
       "warpWidth": 73,
       "warpHeight": 35,
-      "warpIoU": 0.9969,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 1305
@@ -3057,7 +3057,7 @@
       "warpTop": 976,
       "warpWidth": 272,
       "warpHeight": 239,
-      "warpIoU": 0.885,
+      "warpIoU": 0.9061,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 17665
@@ -3101,7 +3101,7 @@
       "warpTop": 932,
       "warpWidth": 176,
       "warpHeight": 62,
-      "warpIoU": 0.9948,
+      "warpIoU": 0.9996,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5385
@@ -3145,7 +3145,7 @@
       "warpTop": 960,
       "warpWidth": 104,
       "warpHeight": 47,
-      "warpIoU": 0.9943,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 2631
@@ -3211,7 +3211,7 @@
       "warpTop": 1052,
       "warpWidth": 514,
       "warpHeight": 368,
-      "warpIoU": 0.9855,
+      "warpIoU": 0.99,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 28187
@@ -3233,7 +3233,7 @@
       "warpTop": 1089,
       "warpWidth": 572,
       "warpHeight": 218,
-      "warpIoU": 0.9944,
+      "warpIoU": 0.9971,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 5157
@@ -3255,7 +3255,7 @@
       "warpTop": 876,
       "warpWidth": 89,
       "warpHeight": 47,
-      "warpIoU": 0.9972,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 2124
@@ -3277,7 +3277,7 @@
       "warpTop": 827,
       "warpWidth": 89,
       "warpHeight": 68,
-      "warpIoU": 0.9688,
+      "warpIoU": 0.9814,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 2694
@@ -3299,7 +3299,7 @@
       "warpTop": 885,
       "warpWidth": 328,
       "warpHeight": 223,
-      "warpIoU": 0.9913,
+      "warpIoU": 0.9944,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 33729
@@ -3343,7 +3343,7 @@
       "warpTop": 477,
       "warpWidth": 298,
       "warpHeight": 313,
-      "warpIoU": 0.8451,
+      "warpIoU": 0.858,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "europa",
       "targetAreaPx": 41131
@@ -3387,7 +3387,7 @@
       "warpTop": 156,
       "warpWidth": 2012,
       "warpHeight": 945,
-      "warpIoU": 0.8226,
+      "warpIoU": 0.8372,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 884137
@@ -3409,7 +3409,7 @@
       "warpTop": 423,
       "warpWidth": 2744,
       "warpHeight": 1195,
-      "warpIoU": 0.8488,
+      "warpIoU": 0.8585,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 582089
@@ -3431,7 +3431,7 @@
       "warpTop": 1590,
       "warpWidth": 66,
       "warpHeight": 49,
-      "warpIoU": 0.9765,
+      "warpIoU": 0.9922,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 1279
@@ -3475,7 +3475,7 @@
       "warpTop": 1626,
       "warpWidth": 50,
       "warpHeight": 20,
-      "warpIoU": 0.9847,
+      "warpIoU": 0.9981,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 524
@@ -3497,7 +3497,7 @@
       "warpTop": 1520,
       "warpWidth": 246,
       "warpHeight": 78,
-      "warpIoU": 0.5384,
+      "warpIoU": 0.6245,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 5182
@@ -3519,7 +3519,7 @@
       "warpTop": 1303,
       "warpWidth": 724,
       "warpHeight": 416,
-      "warpIoU": 0.8964,
+      "warpIoU": 0.9064,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 91256
@@ -3563,7 +3563,7 @@
       "warpTop": 1642,
       "warpWidth": 93,
       "warpHeight": 95,
-      "warpIoU": 0.9871,
+      "warpIoU": 0.9875,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 4871
@@ -3607,7 +3607,7 @@
       "warpTop": 1672,
       "warpWidth": 143,
       "warpHeight": 82,
-      "warpIoU": 0.9976,
+      "warpIoU": 0.999,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 5073
@@ -3629,7 +3629,7 @@
       "warpTop": 1706,
       "warpWidth": 104,
       "warpHeight": 99,
-      "warpIoU": 0.9909,
+      "warpIoU": 0.9951,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 5710
@@ -3673,7 +3673,7 @@
       "warpTop": 1829,
       "warpWidth": 135,
       "warpHeight": 56,
-      "warpIoU": 0.9689,
+      "warpIoU": 0.9828,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 3314
@@ -3695,7 +3695,7 @@
       "warpTop": 2276,
       "warpWidth": 1050,
       "warpHeight": 1019,
-      "warpIoU": 0.8932,
+      "warpIoU": 0.8995,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "oceanien",
       "targetAreaPx": 362161
@@ -3717,7 +3717,7 @@
       "warpTop": 2831,
       "warpWidth": 412,
       "warpHeight": 415,
-      "warpIoU": 0.9802,
+      "warpIoU": 0.99,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "oceanien",
       "targetAreaPx": 15563
@@ -3761,7 +3761,7 @@
       "warpTop": 2331,
       "warpWidth": 165,
       "warpHeight": 212,
-      "warpIoU": 0.8088,
+      "warpIoU": 0.8897,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "oceanien",
       "targetAreaPx": 952
@@ -3849,7 +3849,7 @@
       "warpTop": 2198,
       "warpWidth": 258,
       "warpHeight": 121,
-      "warpIoU": 0.9569,
+      "warpIoU": 0.9887,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "oceanien",
       "targetAreaPx": 1323
@@ -3981,7 +3981,7 @@
       "warpTop": 2544,
       "warpWidth": 455,
       "warpHeight": 758,
-      "warpIoU": 0.9143,
+      "warpIoU": 0.9202,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 145211
@@ -4003,7 +4003,7 @@
       "warpTop": 2446,
       "warpWidth": 981,
       "warpHeight": 875,
-      "warpIoU": 0.7696,
+      "warpIoU": 0.8044,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 41528
@@ -4025,7 +4025,7 @@
       "warpTop": 2732,
       "warpWidth": 123,
       "warpHeight": 112,
-      "warpIoU": 0.9953,
+      "warpIoU": 0.9986,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 8970
@@ -4047,7 +4047,7 @@
       "warpTop": 2486,
       "warpWidth": 193,
       "warpHeight": 191,
-      "warpIoU": 0.9984,
+      "warpIoU": 0.9997,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 18509
@@ -4069,7 +4069,7 @@
       "warpTop": 1928,
       "warpWidth": 893,
       "warpHeight": 889,
-      "warpIoU": 0.9697,
+      "warpIoU": 0.9713,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 367688
@@ -4091,7 +4091,7 @@
       "warpTop": 2268,
       "warpWidth": 278,
       "warpHeight": 302,
-      "warpIoU": 0.9023,
+      "warpIoU": 0.9133,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 48163
@@ -4113,7 +4113,7 @@
       "warpTop": 2048,
       "warpWidth": 290,
       "warpHeight": 419,
-      "warpIoU": 0.7153,
+      "warpIoU": 0.7284,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 55650
@@ -4135,7 +4135,7 @@
       "warpTop": 2014,
       "warpWidth": 375,
       "warpHeight": 149,
-      "warpIoU": 0.6425,
+      "warpIoU": 0.6626,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 10994
@@ -4157,7 +4157,7 @@
       "warpTop": 1765,
       "warpWidth": 279,
       "warpHeight": 381,
-      "warpIoU": 0.96,
+      "warpIoU": 0.9651,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 48460
@@ -4179,7 +4179,7 @@
       "warpTop": 1770,
       "warpWidth": 310,
       "warpHeight": 264,
-      "warpIoU": 0.9941,
+      "warpIoU": 0.9973,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 39134
@@ -4201,7 +4201,7 @@
       "warpTop": 1853,
       "warpWidth": 113,
       "warpHeight": 169,
-      "warpIoU": 0.9805,
+      "warpIoU": 0.9889,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 9134
@@ -4223,7 +4223,7 @@
       "warpTop": 1911,
       "warpWidth": 95,
       "warpHeight": 97,
-      "warpIoU": 0.9683,
+      "warpIoU": 0.9803,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 6247
@@ -4245,7 +4245,7 @@
       "warpTop": 1916,
       "warpWidth": 69,
       "warpHeight": 85,
-      "warpIoU": 0.9986,
+      "warpIoU": 0.9994,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 3626
@@ -4355,7 +4355,7 @@
       "warpTop": 1790,
       "warpWidth": 33,
       "warpHeight": 30,
-      "warpIoU": 0.9835,
+      "warpIoU": 0.9959,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "vastindien",
       "targetAreaPx": 242
@@ -4443,7 +4443,7 @@
       "warpTop": 1434,
       "warpWidth": 144,
       "warpHeight": 139,
-      "warpIoU": 0.9466,
+      "warpIoU": 0.974,
       "warpStrategy": "region-global-affine+tps",
       "warpSourceRegion": "vastindien",
       "targetAreaPx": 768
