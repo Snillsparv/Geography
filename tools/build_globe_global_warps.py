@@ -68,6 +68,7 @@ MICRO_MASK_SNAP_MIN_IOU = 0.90
 ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 1200000
 ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX = 4000
 ART_FALLBACK_BLEND_RECALL_DELTA = 0.010
+FORCED_ART_MASK_LOCK_MIN_RECALL = 0.90
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -954,6 +955,40 @@ def blend_art_fallback_with_sheet(
     return out
 
 
+def lock_alpha_to_mask(
+    rgba: np.ndarray,
+    mask_u8: np.ndarray,
+    *,
+    pad_radius: int = 2,
+) -> np.ndarray:
+    """Force full in-mask coverage while keeping color as local as possible."""
+    mask = (mask_u8 > 0)
+    if not np.any(mask):
+        return rgba
+
+    out = rgba.copy()
+    pred = out[:, :, 3] > OUTPUT_ALPHA_THRESHOLD
+    missing = mask & ~pred
+    if np.any(missing):
+        padded = edge_pad_rgba(out, radius=max(1, pad_radius))
+        out[missing, :3] = padded[missing, :3]
+
+        # If pad did not reach some deep holes, fallback to median in-mask color.
+        still_missing = missing & np.all(out[:, :, :3] == 0, axis=2)
+        if np.any(still_missing):
+            src = out[pred & mask, :3]
+            if src.size > 0:
+                fill_color = np.median(src.astype(np.uint16), axis=0).astype(np.uint8)
+            else:
+                fill_color = np.array([255, 255, 255], dtype=np.uint8)
+            out[still_missing, :3] = fill_color
+
+    out[:, :, 3][mask] = 255
+    out[~mask, :3] = 0
+    out[:, :, 3][~mask] = 0
+    return out
+
+
 def stabilize_tiny_island_rgba(
     warped_rgba: np.ndarray,
     mask_u8: np.ndarray,
@@ -1800,6 +1835,12 @@ def main() -> None:
                         # Keep fallback motif where it lands well, but recover
                         # missing geographic coverage from the shared sheet.
                         fallback_rgba = blend_art_fallback_with_sheet(sheet_rgba, fallback_rgba, mask_u8)
+                    if forced_art:
+                        fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
+                        if fallback_recall < FORCED_ART_MASK_LOCK_MIN_RECALL:
+                            # For explicit user-reported breakages, prioritize
+                            # complete in-mask coverage over sparse dropouts.
+                            fallback_rgba = lock_alpha_to_mask(fallback_rgba, mask_u8, pad_radius=2)
                     warped_rgba = fallback_rgba
                     used_tiny_fallback = True
                     tiny_fallback_count += 1

@@ -4113,7 +4113,7 @@
       "warpTop": 2048,
       "warpWidth": 290,
       "warpHeight": 419,
-      "warpIoU": 0.8434,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-sheet+labels+tiny-fallback",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 55650

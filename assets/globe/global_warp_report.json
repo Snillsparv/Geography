@@ -79,8 +79,8 @@
     {
       "region": "sydamerika",
       "countries": 13,
-      "meanIoU": 0.9288,
-      "p10IoU": 0.8176,
+      "meanIoU": 0.9408,
+      "p10IoU": 0.8334,
       "unwrapCenterX": 2610.1126,
       "tpsReg": 0.001,
       "maxControlPoints": 900,
@@ -1622,7 +1622,7 @@
       "name": "Peru",
       "featureKey": "PER",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.8434,
+      "warpIoU": 1.0,
       "targetAreaPx": 55650,
       "warpFile": "assets/globe/warped/PER.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9721,
-    "p10IoU": 0.9027,
+    "meanIoU": 0.9728,
+    "p10IoU": 0.9037,
     "minIoU": 0.7896
   }
 }
