@@ -2507,7 +2507,7 @@
       "warpTop": 453,
       "warpWidth": 250,
       "warpHeight": 235,
-      "warpIoU": 0.9587,
+      "warpIoU": 0.9732,
       "warpStrategy": "region-global-sheet+labels+tiny-fallback",
       "warpSourceRegion": "europa",
       "targetAreaPx": 32571
@@ -3409,7 +3409,7 @@
       "warpTop": 423,
       "warpWidth": 2744,
       "warpHeight": 1195,
-      "warpIoU": 0.9425,
+      "warpIoU": 0.975,
       "warpStrategy": "region-global-sheet+labels+tiny-fallback",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 582089
@@ -4113,7 +4113,7 @@
       "warpTop": 2048,
       "warpWidth": 290,
       "warpHeight": 419,
-      "warpIoU": 0.7791,
+      "warpIoU": 0.8434,
       "warpStrategy": "region-global-sheet+labels+tiny-fallback",
       "warpSourceRegion": "sydamerika",
       "targetAreaPx": 55650

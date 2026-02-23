@@ -66,6 +66,8 @@ LOW_IOU_RESCUE_MAX_TARGET_AREA_PX = 7000
 MICRO_MASK_SNAP_MAX_TARGET_AREA_PX = 60
 MICRO_MASK_SNAP_MIN_IOU = 0.90
 ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 1200000
+ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX = 4000
+ART_FALLBACK_BLEND_RECALL_DELTA = 0.010
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -926,6 +928,32 @@ def repair_boundary_holes(
     return warped_rgba
 
 
+def blend_art_fallback_with_sheet(
+    sheet_rgba: np.ndarray,
+    fallback_rgba: np.ndarray,
+    mask_u8: np.ndarray,
+) -> np.ndarray:
+    """Use fallback colors where available, but keep sheet coverage for stability."""
+    mask_u8 = (mask_u8 > 0).astype(np.uint8) * 255
+    if not np.any(mask_u8):
+        return fallback_rgba
+
+    out = sheet_rgba.copy()
+    mask_u16 = mask_u8.astype(np.uint16)
+    sheet_alpha = ((sheet_rgba[:, :, 3].astype(np.uint16) * mask_u16) // 255).astype(np.uint8)
+    fallback_alpha = ((fallback_rgba[:, :, 3].astype(np.uint16) * mask_u16) // 255).astype(np.uint8)
+
+    use_fallback_rgb = fallback_alpha > OUTPUT_ALPHA_THRESHOLD
+    if np.any(use_fallback_rgb):
+        out[use_fallback_rgb, :3] = fallback_rgba[use_fallback_rgb, :3]
+
+    out[:, :, 3] = np.maximum(sheet_alpha, fallback_alpha)
+    if BOUNDARY_HOLE_FILL_PX > 0:
+        out = repair_boundary_holes(out, (mask_u8 > 0).astype(np.uint8))
+    out[out[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
+    return out
+
+
 def stabilize_tiny_island_rgba(
     warped_rgba: np.ndarray,
     mask_u8: np.ndarray,
@@ -1030,6 +1058,16 @@ def alpha_coverage(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
         return 0.0
     pred_px = int(np.sum(alpha > OUTPUT_ALPHA_THRESHOLD))
     return float(pred_px) / float(target_px)
+
+
+def alpha_recall(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
+    tgt = mask_u8 > 0
+    target_px = int(np.sum(tgt))
+    if target_px <= 0:
+        return 0.0
+    pred = alpha > OUTPUT_ALPHA_THRESHOLD
+    inter = int(np.sum(pred & tgt))
+    return float(inter) / float(target_px)
 
 
 def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
@@ -1698,12 +1736,14 @@ def main() -> None:
                 source_region=job.source_region,
                 feature_key=str(job.country.get("featureKey", "")),
             )
+            sheet_rgba = warped_rgba.copy()
 
             used_tiny_fallback = False
             if should_try_tiny_fallback(job):
                 mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
-                sheet_score = tiny_quality_score(warped_rgba[:, :, 3], mask_u8)
-                sheet_iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
+                sheet_score = tiny_quality_score(sheet_rgba[:, :, 3], mask_u8)
+                sheet_iou = iou_from_alpha(sheet_rgba[:, :, 3], job.target_shape.mask)
+                sheet_recall = alpha_recall(sheet_rgba[:, :, 3], mask_u8)
                 fallback_rgba = render_country_with_inverse_map(job, model)
                 fallback_rgba = stabilize_tiny_island_rgba(
                     fallback_rgba,
@@ -1714,6 +1754,7 @@ def main() -> None:
                 )
                 fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
                 fallback_iou = iou_from_alpha(fallback_rgba[:, :, 3], job.target_shape.mask)
+                fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
                 min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
                 if int(job.target_area) <= 260:
                     min_gain = 0.0015
@@ -1751,6 +1792,14 @@ def main() -> None:
                     # yields any real overlap improvement.
                     use_fallback = True
                 if use_fallback:
+                    if (
+                        art_priority
+                        and int(job.target_area) >= ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX
+                        and sheet_recall > fallback_recall + ART_FALLBACK_BLEND_RECALL_DELTA
+                    ):
+                        # Keep fallback motif where it lands well, but recover
+                        # missing geographic coverage from the shared sheet.
+                        fallback_rgba = blend_art_fallback_with_sheet(sheet_rgba, fallback_rgba, mask_u8)
                     warped_rgba = fallback_rgba
                     used_tiny_fallback = True
                     tiny_fallback_count += 1

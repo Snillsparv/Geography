@@ -37,7 +37,7 @@
     {
       "region": "europa",
       "countries": 48,
-      "meanIoU": 0.968,
+      "meanIoU": 0.9683,
       "p10IoU": 0.8912,
       "unwrapCenterX": 4391.3137,
       "tpsReg": 0.001,
@@ -51,7 +51,7 @@
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.9664,
+      "meanIoU": 0.9687,
       "p10IoU": 0.9008,
       "unwrapCenterX": 2101.1971,
       "tpsReg": 0.00035,
@@ -79,8 +79,8 @@
     {
       "region": "sydamerika",
       "countries": 13,
-      "meanIoU": 0.9238,
-      "p10IoU": 0.7956,
+      "meanIoU": 0.9288,
+      "p10IoU": 0.8176,
       "unwrapCenterX": 2610.1126,
       "tpsReg": 0.001,
       "maxControlPoints": 900,
@@ -1022,7 +1022,7 @@
       "name": "Finland",
       "featureKey": "FIN",
       "sourceRegion": "europa",
-      "warpIoU": 0.9587,
+      "warpIoU": 0.9732,
       "targetAreaPx": 32571,
       "warpFile": "assets/globe/warped/FIN.webp"
     },
@@ -1438,7 +1438,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9425,
+      "warpIoU": 0.975,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1622,7 +1622,7 @@
       "name": "Peru",
       "featureKey": "PER",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.7791,
+      "warpIoU": 0.8434,
       "targetAreaPx": 55650,
       "warpFile": "assets/globe/warped/PER.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9715,
+    "meanIoU": 0.9721,
     "p10IoU": 0.9027,
-    "minIoU": 0.7791
+    "minIoU": 0.7896
   }
 }
