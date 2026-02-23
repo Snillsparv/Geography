@@ -65,7 +65,7 @@
       "warpTop": 1230,
       "warpWidth": 364,
       "warpHeight": 332,
-      "warpIoU": 0.8938,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 28590
@@ -109,8 +109,8 @@
       "warpTop": 1427,
       "warpWidth": 281,
       "warpHeight": 287,
-      "warpIoU": 0.9839,
-      "warpStrategy": "region-global-sheet+labels",
+      "warpIoU": 1.0,
+      "warpStrategy": "region-global-sheet+labels+tiny-fallback",
       "warpSourceRegion": "afrika",
       "targetAreaPx": 46923
     },
@@ -1803,7 +1803,7 @@
       "warpTop": 185,
       "warpWidth": 3885,
       "warpHeight": 927,
-      "warpIoU": 0.8988,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "asien",
       "targetAreaPx": 1523263
@@ -3343,7 +3343,7 @@
       "warpTop": 477,
       "warpWidth": 298,
       "warpHeight": 313,
-      "warpIoU": 0.9141,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "europa",
       "targetAreaPx": 41131
@@ -3695,7 +3695,7 @@
       "warpTop": 2276,
       "warpWidth": 1050,
       "warpHeight": 1019,
-      "warpIoU": 0.9037,
+      "warpIoU": 1.0,
       "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "oceanien",
       "targetAreaPx": 362161

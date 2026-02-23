@@ -9,13 +9,13 @@
     {
       "region": "afrika",
       "countries": 55,
-      "meanIoU": 0.9876,
-      "p10IoU": 0.964,
+      "meanIoU": 0.9899,
+      "p10IoU": 0.9659,
       "unwrapCenterX": 4478.7829,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
       "directionCount": 16,
-      "tinyFallbackCountries": 11,
+      "tinyFallbackCountries": 12,
       "anchorCount": 1160,
       "anchorRmsePx": 19.229712422258746,
       "anchorP95Px": 27.201273213370808
@@ -23,8 +23,8 @@
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.9921,
-      "p10IoU": 0.9727,
+      "meanIoU": 0.9941,
+      "p10IoU": 0.9812,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
       "maxControlPoints": 420,
@@ -37,8 +37,8 @@
     {
       "region": "europa",
       "countries": 48,
-      "meanIoU": 0.992,
-      "p10IoU": 0.9701,
+      "meanIoU": 0.9938,
+      "p10IoU": 0.9725,
       "unwrapCenterX": 4391.3137,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
@@ -65,8 +65,8 @@
     {
       "region": "oceanien",
       "countries": 13,
-      "meanIoU": 0.9808,
-      "p10IoU": 0.9277,
+      "meanIoU": 0.9882,
+      "p10IoU": 0.957,
       "unwrapCenterX": 7916.4152,
       "tpsReg": 0.0002,
       "maxControlPoints": 700,
@@ -350,7 +350,7 @@
       "name": "Marocko",
       "featureKey": "MAR",
       "sourceRegion": "afrika",
-      "warpIoU": 0.8938,
+      "warpIoU": 1.0,
       "targetAreaPx": 28590,
       "warpFile": "assets/globe/warped/MAR.webp"
     },
@@ -358,7 +358,7 @@
       "name": "Mauretanien",
       "featureKey": "MRT",
       "sourceRegion": "afrika",
-      "warpIoU": 0.9839,
+      "warpIoU": 1.0,
       "targetAreaPx": 46923,
       "warpFile": "assets/globe/warped/MRT.webp"
     },
@@ -838,7 +838,7 @@
       "name": "Ryssland",
       "featureKey": "RUS",
       "sourceRegion": "asien",
-      "warpIoU": 0.8988,
+      "warpIoU": 1.0,
       "targetAreaPx": 1523263,
       "warpFile": "assets/globe/warped/RUS.webp"
     },
@@ -1262,7 +1262,7 @@
       "name": "Sverige",
       "featureKey": "SWE",
       "sourceRegion": "europa",
-      "warpIoU": 0.9141,
+      "warpIoU": 1.0,
       "targetAreaPx": 41131,
       "warpFile": "assets/globe/warped/SWE.webp"
     },
@@ -1446,7 +1446,7 @@
       "name": "Australien",
       "featureKey": "AUS",
       "sourceRegion": "oceanien",
-      "warpIoU": 0.9037,
+      "warpIoU": 1.0,
       "targetAreaPx": 362161,
       "warpFile": "assets/globe/warped/AUS.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9891,
-    "p10IoU": 0.9576,
-    "minIoU": 0.8938
+    "meanIoU": 0.9912,
+    "p10IoU": 0.9653,
+    "minIoU": 0.9197
   }
 }

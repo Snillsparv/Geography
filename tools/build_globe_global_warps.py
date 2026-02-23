@@ -72,6 +72,8 @@ FORCED_ART_MASK_LOCK_MIN_RECALL = 0.90
 PRECISION_CLIP_GUARD_MIN_PRECISION = 0.93
 PRECISION_CLIP_GUARD_MAX_TARGET_AREA_PX = 42000
 LOW_RECALL_MASK_LOCK_MIN_RECALL = 0.90
+LARGE_GEO_LOCK_MIN_RECALL = 0.96
+LARGE_GEO_LOCK_MIN_PRECISION = 0.96
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -194,6 +196,7 @@ ART_PRIORITY_FALLBACK_FEATURE_KEYS = {
     "MAD",  # legacy key guard
     "MDG",
     "MEX",
+    "MRT",
     "NOR",
     "PER",
     "PRK",
@@ -211,6 +214,20 @@ FORCED_ART_FALLBACK_FEATURE_KEYS = {
 LOW_RECALL_MASK_LOCK_FEATURE_KEYS = {
     "CUB",
     "ECU",
+}
+
+# Countries where a rigid bbox-fit render preserves mnemonic motifs better
+# than inverse sampling through the shared region warp.
+RIGID_ART_FALLBACK_FEATURE_KEYS = {
+    "MRT",
+}
+
+# Large countries still showing mask dropout/spill after shared-sheet render.
+LARGE_GEO_LOCK_FEATURE_KEYS = {
+    "AUS",
+    "MAR",
+    "RUS",
+    "SWE",
 }
 
 AGGRESSIVE_RELAX_FEATURE_KEYS = {
@@ -1336,6 +1353,22 @@ def render_country_with_inverse_map(
     return warped
 
 
+def render_country_with_bbox_fit(job: RegionCountryJob) -> np.ndarray:
+    """Rigidly fit source art to target bbox and clip to target mask."""
+    mask = (job.target_shape.mask > 0).astype(np.uint8)
+    out_h, out_w = mask.shape
+    src = job.render_rgba
+    fitted = np.array(
+        Image.fromarray(src, mode="RGBA").resize((out_w, out_h), resample=Image.Resampling.LANCZOS),
+        dtype=np.uint8,
+    )
+    fitted[:, :, 3] = (
+        (fitted[:, :, 3].astype(np.uint16) * mask.astype(np.uint16)) // 255
+    ).astype(np.uint8)
+    fitted[fitted[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
+    return fitted
+
+
 def iou_from_alpha(alpha: np.ndarray, target_mask: np.ndarray) -> float:
     pred = alpha > OUTPUT_ALPHA_THRESHOLD
     tgt = target_mask > 0
@@ -1811,6 +1844,9 @@ def main() -> None:
                 sheet_iou = iou_from_alpha(sheet_rgba[:, :, 3], job.target_shape.mask)
                 sheet_recall = alpha_recall(sheet_rgba[:, :, 3], mask_u8)
                 fallback_rgba = render_country_with_inverse_map(job, model)
+                feature_key = str(job.country.get("featureKey", ""))
+                if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
+                    fallback_rgba = render_country_with_bbox_fit(job)
                 fallback_rgba = stabilize_tiny_island_rgba(
                     fallback_rgba,
                     mask_u8,
@@ -1828,7 +1864,6 @@ def main() -> None:
                     min_gain = 0.004
                 elif int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
                     min_gain = 0.003
-                feature_key = str(job.country.get("featureKey", ""))
                 art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
                 forced_art = feature_key in FORCED_ART_FALLBACK_FEATURE_KEYS
                 use_fallback = fallback_score > sheet_score + min_gain
@@ -1847,6 +1882,10 @@ def main() -> None:
                 ):
                     # Allow a larger geometric tradeoff for user-reported
                     # broken motifs to keep the drawing itself intact.
+                    use_fallback = True
+                if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
+                    # Explicit hard override for user-reported motif stretch:
+                    # always use rigid art fallback for these countries.
                     use_fallback = True
                 if (
                     not use_fallback
@@ -1899,6 +1938,17 @@ def main() -> None:
                 recall = alpha_recall(warped_rgba[:, :, 3], mask_u8)
                 if recall < LOW_RECALL_MASK_LOCK_MIN_RECALL:
                     warped_rgba = lock_alpha_to_mask(warped_rgba, mask_u8, pad_radius=1)
+
+            if feature_key in LARGE_GEO_LOCK_FEATURE_KEYS:
+                recall = alpha_recall(warped_rgba[:, :, 3], mask_u8)
+                precision = alpha_precision(warped_rgba[:, :, 3], mask_u8)
+                if (
+                    recall < LARGE_GEO_LOCK_MIN_RECALL
+                    or precision < LARGE_GEO_LOCK_MIN_PRECISION
+                ):
+                    # Keep mnemonic colors but enforce exact target coverage
+                    # for a small set of persistent large-country outliers.
+                    warped_rgba = lock_alpha_to_mask(warped_rgba, mask_u8, pad_radius=2)
 
             warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
             iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
