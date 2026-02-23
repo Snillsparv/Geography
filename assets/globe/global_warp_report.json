@@ -23,13 +23,13 @@
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.9941,
+      "meanIoU": 0.9939,
       "p10IoU": 0.9812,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
       "maxControlPoints": 420,
       "directionCount": 12,
-      "tinyFallbackCountries": 23,
+      "tinyFallbackCountries": 22,
       "anchorCount": 855,
       "anchorRmsePx": 65.02076249882911,
       "anchorP95Px": 72.75499448145054
@@ -51,13 +51,13 @@
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.9865,
-      "p10IoU": 0.9491,
+      "meanIoU": 0.9753,
+      "p10IoU": 0.9259,
       "unwrapCenterX": 2101.1971,
       "tpsReg": 0.00035,
       "maxControlPoints": 1200,
       "directionCount": 24,
-      "tinyFallbackCountries": 12,
+      "tinyFallbackCountries": 10,
       "anchorCount": 411,
       "anchorRmsePx": 63.71741650377083,
       "anchorP95Px": 105.04262231115288
@@ -718,7 +718,7 @@
       "name": "Kina",
       "featureKey": "CHN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9965,
+      "warpIoU": 0.9873,
       "targetAreaPx": 494352,
       "warpFile": "assets/globe/warped/CHN.webp"
     },
@@ -1398,7 +1398,7 @@
       "name": "Kanada",
       "featureKey": "CAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.9379,
+      "warpIoU": 0.84,
       "targetAreaPx": 884137,
       "warpFile": "assets/globe/warped/CAN.webp"
     },
@@ -1438,7 +1438,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.975,
+      "warpIoU": 0.916,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9912,
-    "p10IoU": 0.9653,
-    "minIoU": 0.9197
+    "meanIoU": 0.9903,
+    "p10IoU": 0.9644,
+    "minIoU": 0.84
   }
 }

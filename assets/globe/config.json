@@ -1407,8 +1407,8 @@
       "warpTop": 829,
       "warpWidth": 1394,
       "warpHeight": 806,
-      "warpIoU": 0.9965,
-      "warpStrategy": "region-global-sheet+labels+tiny-fallback",
+      "warpIoU": 0.9873,
+      "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "asien",
       "targetAreaPx": 494352
     },
@@ -3387,8 +3387,8 @@
       "warpTop": 156,
       "warpWidth": 2012,
       "warpHeight": 945,
-      "warpIoU": 0.9379,
-      "warpStrategy": "region-global-sheet+labels+tiny-fallback",
+      "warpIoU": 0.84,
+      "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 884137
     },
@@ -3409,8 +3409,8 @@
       "warpTop": 423,
       "warpWidth": 2744,
       "warpHeight": 1195,
-      "warpIoU": 0.975,
-      "warpStrategy": "region-global-sheet+labels+tiny-fallback",
+      "warpIoU": 0.916,
+      "warpStrategy": "region-global-sheet+labels",
       "warpSourceRegion": "nordamerika",
       "targetAreaPx": 582089
     },

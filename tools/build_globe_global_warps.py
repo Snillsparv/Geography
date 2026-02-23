@@ -65,7 +65,9 @@ LOW_IOU_RESCUE_THRESHOLD = 0.72
 LOW_IOU_RESCUE_MAX_TARGET_AREA_PX = 7000
 MICRO_MASK_SNAP_MAX_TARGET_AREA_PX = 60
 MICRO_MASK_SNAP_MIN_IOU = 0.90
-ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 1200000
+# Very large countries are better handled by the shared regional sheet; the
+# per-country inverse fallback is more prone to long-streak artifacts there.
+ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 260000
 ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX = 4000
 ART_FALLBACK_BLEND_RECALL_DELTA = 0.010
 FORCED_ART_MASK_LOCK_MIN_RECALL = 0.90
@@ -833,6 +835,38 @@ def edge_pad_rgba(rgba_u8: np.ndarray, radius: int) -> np.ndarray:
     return out
 
 
+def sanitize_remap_coordinates(
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    *,
+    src_w: int,
+    src_h: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Stabilize remap coordinates and mask only truly invalid samples."""
+    mx = np.asarray(map_x, dtype=np.float64)
+    my = np.asarray(map_y, dtype=np.float64)
+    valid = np.isfinite(mx) & np.isfinite(my)
+
+    if src_w <= 0 or src_h <= 0:
+        bad = np.full(mx.shape, -10000.0, dtype=np.float32)
+        return bad, bad.copy(), np.zeros(mx.shape, dtype=bool)
+
+    # Important: do not clamp to source edges. Let remap sample out-of-bounds
+    # as transparent via BORDER_CONSTANT; edge clamping causes long streaks.
+    # Only reject absurd magnitudes that can destabilize remap numerics.
+    lim_x = max(4096.0, float(src_w) * 8.0)
+    lim_y = max(4096.0, float(src_h) * 8.0)
+    sane = (np.abs(mx) <= lim_x) & (np.abs(my) <= lim_y)
+    valid &= sane
+
+    mx32 = mx.astype(np.float32)
+    my32 = my.astype(np.float32)
+    if not np.all(valid):
+        mx32[~valid] = -10000.0
+        my32[~valid] = -10000.0
+    return mx32, my32, valid
+
+
 def alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
     h, w = src.shape[:2]
     if h <= 0 or w <= 0:
@@ -1230,8 +1264,8 @@ def render_country_with_inverse_map(
     query = np.column_stack([target_x.reshape(-1), target_y.reshape(-1)])
     src_global = model.inverse(query)
 
-    map_x = (src_global[:, 0] - float(job.source_left)).reshape(out_h, out_w).astype(np.float32)
-    map_y = (src_global[:, 1] - float(job.source_top)).reshape(out_h, out_w).astype(np.float32)
+    map_x = (src_global[:, 0] - float(job.source_left)).reshape(out_h, out_w)
+    map_y = (src_global[:, 1] - float(job.source_top)).reshape(out_h, out_w)
 
     src_for_warp = job.render_rgba
     # For very large targets, the inverse map can sample slightly outside the
@@ -1249,6 +1283,13 @@ def render_country_with_inverse_map(
     if pre_pad_radius > 0:
         src_for_warp = edge_pad_rgba(src_for_warp, radius=pre_pad_radius)
 
+    map_x, map_y, valid_map = sanitize_remap_coordinates(
+        map_x,
+        map_y,
+        src_w=int(src_for_warp.shape[1]),
+        src_h=int(src_for_warp.shape[0]),
+    )
+
     src_pm = premultiply_rgba(src_for_warp)
     # Preserve hard mnemonic details for very small targets (tiny islands),
     # where linear filtering can collapse interior strokes into edge-only color.
@@ -1264,6 +1305,8 @@ def render_country_with_inverse_map(
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=(0.0, 0.0, 0.0, 0.0),
     )
+    if not np.all(valid_map):
+        warped_pm[~valid_map] = 0.0
     warped = unpremultiply_rgba(warped_pm)
     pad_radius = EDGE_PAD_RADIUS
     if target_area < 1200:
@@ -1715,8 +1758,8 @@ def main() -> None:
 
         query = np.column_stack([target_x.reshape(-1), target_y.reshape(-1)])
         src_global = model.inverse(query)
-        map_x = (src_global[:, 0] - float(src_left)).reshape(region_h, region_w).astype(np.float32)
-        map_y = (src_global[:, 1] - float(src_top)).reshape(region_h, region_w).astype(np.float32)
+        map_x = (src_global[:, 0] - float(src_left)).reshape(region_h, region_w)
+        map_y = (src_global[:, 1] - float(src_top)).reshape(region_h, region_w)
 
         region_src_for_warp = source_sheet
         region_area = int(region_w * region_h)
@@ -1728,6 +1771,13 @@ def main() -> None:
         if pre_pad_radius > 0:
             region_src_for_warp = edge_pad_rgba(region_src_for_warp, radius=pre_pad_radius)
 
+        map_x, map_y, valid_region_map = sanitize_remap_coordinates(
+            map_x,
+            map_y,
+            src_w=int(region_src_for_warp.shape[1]),
+            src_h=int(region_src_for_warp.shape[0]),
+        )
+
         src_pm = premultiply_rgba(region_src_for_warp)
         warped_region_linear_pm = cv2.remap(
             src_pm,
@@ -1737,6 +1787,8 @@ def main() -> None:
             borderMode=cv2.BORDER_CONSTANT,
             borderValue=(0.0, 0.0, 0.0, 0.0),
         )
+        if not np.all(valid_region_map):
+            warped_region_linear_pm[~valid_region_map] = 0.0
         warped_region_linear = unpremultiply_rgba(warped_region_linear_pm)
 
         has_nearest_sheet = any(use_nearest_region_split(job) for job in jobs)
@@ -1750,6 +1802,8 @@ def main() -> None:
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0.0, 0.0, 0.0, 0.0),
             )
+            if not np.all(valid_region_map):
+                warped_region_nearest_pm[~valid_region_map] = 0.0
             warped_region_nearest = unpremultiply_rgba(warped_region_nearest_pm)
 
         owner = np.full((region_h, region_w), -1, dtype=np.int32)
