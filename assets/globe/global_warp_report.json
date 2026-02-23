@@ -9,13 +9,13 @@
     {
       "region": "afrika",
       "countries": 55,
-      "meanIoU": 0.975,
-      "p10IoU": 0.9076,
+      "meanIoU": 0.9774,
+      "p10IoU": 0.9192,
       "unwrapCenterX": 4478.7829,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
       "directionCount": 16,
-      "tinyFallbackCountries": 10,
+      "tinyFallbackCountries": 11,
       "anchorCount": 1160,
       "anchorRmsePx": 19.229712422258746,
       "anchorP95Px": 27.201273213370808
@@ -23,13 +23,13 @@
     {
       "region": "asien",
       "countries": 50,
-      "meanIoU": 0.9624,
-      "p10IoU": 0.8759,
+      "meanIoU": 0.9762,
+      "p10IoU": 0.8987,
       "unwrapCenterX": 5887.3608,
       "tpsReg": 0.001,
       "maxControlPoints": 420,
       "directionCount": 12,
-      "tinyFallbackCountries": 18,
+      "tinyFallbackCountries": 23,
       "anchorCount": 855,
       "anchorRmsePx": 65.02076249882911,
       "anchorP95Px": 72.75499448145054
@@ -37,13 +37,13 @@
     {
       "region": "europa",
       "countries": 48,
-      "meanIoU": 0.9622,
-      "p10IoU": 0.8831,
+      "meanIoU": 0.968,
+      "p10IoU": 0.8912,
       "unwrapCenterX": 4391.3137,
       "tpsReg": 0.001,
       "maxControlPoints": 650,
       "directionCount": 16,
-      "tinyFallbackCountries": 14,
+      "tinyFallbackCountries": 17,
       "anchorCount": 971,
       "anchorRmsePx": 16.987906361796355,
       "anchorP95Px": 25.16337694371451
@@ -51,13 +51,13 @@
     {
       "region": "nordamerika",
       "countries": 14,
-      "meanIoU": 0.9532,
-      "p10IoU": 0.8719,
+      "meanIoU": 0.9664,
+      "p10IoU": 0.9008,
       "unwrapCenterX": 2101.1971,
       "tpsReg": 0.00035,
       "maxControlPoints": 1200,
       "directionCount": 24,
-      "tinyFallbackCountries": 9,
+      "tinyFallbackCountries": 12,
       "anchorCount": 411,
       "anchorRmsePx": 63.71741650377083,
       "anchorP95Px": 105.04262231115288
@@ -79,13 +79,13 @@
     {
       "region": "sydamerika",
       "countries": 13,
-      "meanIoU": 0.9246,
-      "p10IoU": 0.8114,
+      "meanIoU": 0.9238,
+      "p10IoU": 0.7956,
       "unwrapCenterX": 2610.1126,
       "tpsReg": 0.001,
       "maxControlPoints": 900,
       "directionCount": 20,
-      "tinyFallbackCountries": 0,
+      "tinyFallbackCountries": 3,
       "anchorCount": 330,
       "anchorRmsePx": 54.4692344441884,
       "anchorP95Px": 82.38769511911254
@@ -326,7 +326,7 @@
       "name": "Madagaskar",
       "featureKey": "MDG",
       "sourceRegion": "afrika",
-      "warpIoU": 0.865,
+      "warpIoU": 0.9997,
       "targetAreaPx": 26820,
       "warpFile": "assets/globe/warped/MDG.webp"
     },
@@ -646,7 +646,7 @@
       "name": "Indoneien",
       "featureKey": "IDN",
       "sourceRegion": "asien",
-      "warpIoU": 0.7526,
+      "warpIoU": 0.9848,
       "targetAreaPx": 81530,
       "warpFile": "assets/globe/warped/IDN.webp"
     },
@@ -718,7 +718,7 @@
       "name": "Kina",
       "featureKey": "CHN",
       "sourceRegion": "asien",
-      "warpIoU": 0.9873,
+      "warpIoU": 0.9965,
       "targetAreaPx": 494352,
       "warpFile": "assets/globe/warped/CHN.webp"
     },
@@ -790,7 +790,7 @@
       "name": "Nordkorea",
       "featureKey": "PRK",
       "sourceRegion": "asien",
-      "warpIoU": 0.877,
+      "warpIoU": 0.9949,
       "targetAreaPx": 6907,
       "warpFile": "assets/globe/warped/PRK.webp"
     },
@@ -862,7 +862,7 @@
       "name": "Sri Lanka",
       "featureKey": "LKA",
       "sourceRegion": "asien",
-      "warpIoU": 0.7755,
+      "warpIoU": 1.0,
       "targetAreaPx": 2892,
       "warpFile": "assets/globe/warped/LKA.webp"
     },
@@ -910,7 +910,7 @@
       "name": "Turkiet",
       "featureKey": "TUR",
       "sourceRegion": "asien",
-      "warpIoU": 0.8903,
+      "warpIoU": 0.9977,
       "targetAreaPx": 42533,
       "warpFile": "assets/globe/warped/TUR.webp"
     },
@@ -1022,7 +1022,7 @@
       "name": "Finland",
       "featureKey": "FIN",
       "sourceRegion": "europa",
-      "warpIoU": 0.8837,
+      "warpIoU": 0.9587,
       "targetAreaPx": 32571,
       "warpFile": "assets/globe/warped/FIN.webp"
     },
@@ -1030,7 +1030,7 @@
       "name": "Frankrike",
       "featureKey": "FRA",
       "sourceRegion": "europa",
-      "warpIoU": 0.9106,
+      "warpIoU": 0.9996,
       "targetAreaPx": 33729,
       "warpFile": "assets/globe/warped/FRA.webp"
     },
@@ -1174,7 +1174,7 @@
       "name": "Norge",
       "featureKey": "NOR",
       "sourceRegion": "europa",
-      "warpIoU": 0.8836,
+      "warpIoU": 0.9996,
       "targetAreaPx": 32538,
       "warpFile": "assets/globe/warped/NOR.webp"
     },
@@ -1398,7 +1398,7 @@
       "name": "Kanada",
       "featureKey": "CAN",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.84,
+      "warpIoU": 0.9379,
       "targetAreaPx": 884137,
       "warpFile": "assets/globe/warped/CAN.webp"
     },
@@ -1414,7 +1414,7 @@
       "name": "Mexiko",
       "featureKey": "MEX",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.8881,
+      "warpIoU": 0.949,
       "targetAreaPx": 91256,
       "warpFile": "assets/globe/warped/MEX.webp"
     },
@@ -1438,7 +1438,7 @@
       "name": "USA",
       "featureKey": "USA",
       "sourceRegion": "nordamerika",
-      "warpIoU": 0.916,
+      "warpIoU": 0.9425,
       "targetAreaPx": 582089,
       "warpFile": "assets/globe/warped/USA.webp"
     },
@@ -1550,7 +1550,7 @@
       "name": "Argentina",
       "featureKey": "ARG",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.9186,
+      "warpIoU": 0.9426,
       "targetAreaPx": 145211,
       "warpFile": "assets/globe/warped/ARG.webp"
     },
@@ -1622,7 +1622,7 @@
       "name": "Peru",
       "featureKey": "PER",
       "sourceRegion": "sydamerika",
-      "warpIoU": 0.8126,
+      "warpIoU": 0.7791,
       "targetAreaPx": 55650,
       "warpFile": "assets/globe/warped/PER.webp"
     },
@@ -1725,8 +1725,8 @@
   ],
   "summary": {
     "updatedCountries": 202,
-    "meanIoU": 0.9652,
-    "p10IoU": 0.8853,
-    "minIoU": 0.7526
+    "meanIoU": 0.9715,
+    "p10IoU": 0.9027,
+    "minIoU": 0.7791
   }
 }

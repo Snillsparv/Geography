@@ -60,10 +60,12 @@ SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX = 2600
 SELECTIVE_ISLAND_FALLBACK_MAX_TARGET_AREA_PX = 26000
 COMPONENT_FALLBACK_MAX_TARGET_AREA_PX = 22000
 COMPONENT_FALLBACK_MIN_COMPONENTS = 4
+LARGE_ARCHIPELAGO_FALLBACK_MAX_TARGET_AREA_PX = 120000
 LOW_IOU_RESCUE_THRESHOLD = 0.72
 LOW_IOU_RESCUE_MAX_TARGET_AREA_PX = 7000
 MICRO_MASK_SNAP_MAX_TARGET_AREA_PX = 60
 MICRO_MASK_SNAP_MIN_IOU = 0.90
+ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 1200000
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -162,6 +164,39 @@ SELECTIVE_ISLAND_FALLBACK_FEATURE_KEYS = {
     "CYP",
     "JPN",
     "PHL",
+}
+
+# Large island countries with mostly coastal outlines where per-country
+# inverse fallback tends to preserve mnemonic drawing structure better.
+LARGE_ARCHIPELAGO_FALLBACK_FEATURE_KEYS = {
+    "IDN",
+    "LKA",
+}
+
+# User-priority countries where preserving mnemonic drawing integrity is
+# preferred even when geometric score differences are small.
+ART_PRIORITY_FALLBACK_FEATURE_KEYS = {
+    "ARG",
+    "CAN",
+    "CHN",
+    "FIN",
+    "FRA",
+    "ITA",
+    "KOR",
+    "MAD",  # legacy key guard
+    "MDG",
+    "MEX",
+    "NOR",
+    "PER",
+    "PRK",
+    "PRY",
+    "TUR",
+    "USA",
+}
+
+# Countries where the user explicitly reported visibly broken motifs.
+FORCED_ART_FALLBACK_FEATURE_KEYS = {
+    "PER",
 }
 
 AGGRESSIVE_RELAX_FEATURE_KEYS = {
@@ -1015,6 +1050,16 @@ def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
     region = str(job.source_region).lower()
     feature_key = str(job.country.get("featureKey", ""))
     area = int(job.target_area)
+    if (
+        feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
+        and area <= ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX
+    ):
+        return True
+    if (
+        feature_key in LARGE_ARCHIPELAGO_FALLBACK_FEATURE_KEYS
+        and area <= LARGE_ARCHIPELAGO_FALLBACK_MAX_TARGET_AREA_PX
+    ):
+        return True
     if area <= GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX:
         return True
     if area <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
@@ -1076,8 +1121,10 @@ def render_country_with_inverse_map(
         pre_pad_radius = 2
     if target_area >= 150000:
         pre_pad_radius = 4
+    if target_area >= 300000:
+        pre_pad_radius = 12
     if target_area >= 500000:
-        pre_pad_radius = 8
+        pre_pad_radius = 16
     if pre_pad_radius > 0:
         src_for_warp = edge_pad_rgba(src_for_warp, radius=pre_pad_radius)
 
@@ -1674,7 +1721,26 @@ def main() -> None:
                     min_gain = 0.004
                 elif int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
                     min_gain = 0.003
+                feature_key = str(job.country.get("featureKey", ""))
+                art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
+                forced_art = feature_key in FORCED_ART_FALLBACK_FEATURE_KEYS
                 use_fallback = fallback_score > sheet_score + min_gain
+                if (
+                    art_priority
+                    and fallback_iou >= sheet_iou - 0.01
+                    and fallback_score >= sheet_score - 0.002
+                ):
+                    # For explicit art-priority countries, accept fallback when
+                    # geometry is comparable so hand-drawn motifs survive.
+                    use_fallback = True
+                if (
+                    forced_art
+                    and fallback_iou >= sheet_iou - 0.08
+                    and fallback_score >= sheet_score - 0.05
+                ):
+                    # Allow a larger geometric tradeoff for user-reported
+                    # broken motifs to keep the drawing itself intact.
+                    use_fallback = True
                 if (
                     not use_fallback
                     and int(job.target_area) <= LOW_IOU_RESCUE_MAX_TARGET_AREA_PX
