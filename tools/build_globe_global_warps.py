@@ -69,6 +69,9 @@ ART_PRIORITY_FALLBACK_MAX_TARGET_AREA_PX = 1200000
 ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX = 4000
 ART_FALLBACK_BLEND_RECALL_DELTA = 0.010
 FORCED_ART_MASK_LOCK_MIN_RECALL = 0.90
+PRECISION_CLIP_GUARD_MIN_PRECISION = 0.93
+PRECISION_CLIP_GUARD_MAX_TARGET_AREA_PX = 42000
+LOW_RECALL_MASK_LOCK_MIN_RECALL = 0.90
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
 # Region-specific tuning where one global default is not sufficient.
@@ -181,7 +184,9 @@ LARGE_ARCHIPELAGO_FALLBACK_FEATURE_KEYS = {
 ART_PRIORITY_FALLBACK_FEATURE_KEYS = {
     "ARG",
     "CAN",
+    "CHL",
     "CHN",
+    "ECU",
     "FIN",
     "FRA",
     "ITA",
@@ -200,6 +205,12 @@ ART_PRIORITY_FALLBACK_FEATURE_KEYS = {
 # Countries where the user explicitly reported visibly broken motifs.
 FORCED_ART_FALLBACK_FEATURE_KEYS = {
     "PER",
+}
+
+# Countries where the shared-sheet output can leave obvious in-mask dropouts.
+LOW_RECALL_MASK_LOCK_FEATURE_KEYS = {
+    "CUB",
+    "ECU",
 }
 
 AGGRESSIVE_RELAX_FEATURE_KEYS = {
@@ -1105,6 +1116,26 @@ def alpha_recall(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
     return float(inter) / float(target_px)
 
 
+def alpha_precision(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
+    tgt = mask_u8 > 0
+    pred = alpha > OUTPUT_ALPHA_THRESHOLD
+    pred_px = int(np.sum(pred))
+    if pred_px <= 0:
+        return 0.0
+    inter = int(np.sum(pred & tgt))
+    return float(inter) / float(pred_px)
+
+
+def clip_rgba_to_mask(rgba: np.ndarray, mask_u8: np.ndarray) -> np.ndarray:
+    mask = mask_u8 > 0
+    if not np.any(mask):
+        return rgba
+    out = rgba.copy()
+    out[:, :, 3] = np.where(mask, out[:, :, 3], 0).astype(np.uint8)
+    out[~mask, :3] = 0
+    return out
+
+
 def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
     # Prefer overlap quality first (IoU), but include a small boost for coverage
     # so tiny islands do not disappear into sparse fragments.
@@ -1850,11 +1881,29 @@ def main() -> None:
                 (job.target_shape.mask > 0).astype(np.uint8),
                 target_area=int(job.target_area),
             )
+            mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
+            feature_key = str(job.country.get("featureKey", ""))
+            precision = alpha_precision(warped_rgba[:, :, 3], mask_u8)
+            art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
+            if (
+                not art_priority
+                and feature_key not in RELAXED_CLIP_FEATURE_KEYS
+                and int(job.target_area) <= PRECISION_CLIP_GUARD_MAX_TARGET_AREA_PX
+                and precision < PRECISION_CLIP_GUARD_MIN_PRECISION
+            ):
+                # Keep coastlines geographically tight for non-priority
+                # countries that otherwise spill noticeably outside the mask.
+                warped_rgba = clip_rgba_to_mask(warped_rgba, mask_u8)
+
+            if feature_key in LOW_RECALL_MASK_LOCK_FEATURE_KEYS:
+                recall = alpha_recall(warped_rgba[:, :, 3], mask_u8)
+                if recall < LOW_RECALL_MASK_LOCK_MIN_RECALL:
+                    warped_rgba = lock_alpha_to_mask(warped_rgba, mask_u8, pad_radius=1)
+
             warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
             iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
             region_iou_vals.append(iou)
 
-            feature_key = str(job.country.get("featureKey"))
             file_name = f"{feature_key}.webp"
             out_path = warped_dir / file_name
             Image.fromarray(warped_rgba, mode="RGBA").save(
