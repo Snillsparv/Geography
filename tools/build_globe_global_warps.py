@@ -78,6 +78,21 @@ LARGE_GEO_LOCK_MIN_RECALL = 0.96
 LARGE_GEO_LOCK_MIN_PRECISION = 0.96
 TINY_FALLBACK_MIN_SCORE_GAIN = 0.008
 
+# Keep warped mnemonic alpha as the primary shape signal (instead of
+# hard-clipping to geographic mask). Geo mask is only used as a loose guard
+# to drop clearly disconnected leak components.
+USE_WARP_ALPHA_SHAPE = True
+ALPHA_GEO_PROXIMITY_GUARD_PX = 12
+ALPHA_GEO_MIN_COMPONENT_AREA_PX = 4
+# Expand target bbox so warped mnemonic details can overhang geography.
+TARGET_BBOX_MARGIN_MIN_PX = 8
+TARGET_BBOX_MARGIN_MAX_PX = 28
+TARGET_BBOX_MARGIN_SCALE = 0.07
+# Render each country from its own warped mnemonic by default. This avoids
+# cross-country texture bleeding that can happen when splitting a shared
+# warped region sheet by geographic ownership labels.
+USE_REGION_SHARED_SHEET_LABEL_SPLIT = False
+
 # Region-specific tuning where one global default is not sufficient.
 REGION_PARAM_OVERRIDES = {
     "afrika": {
@@ -581,14 +596,23 @@ def target_mask_and_bbox(feature_geometry: Dict, atlas_w: int, atlas_h: int) -> 
     max_x = float(np.max(all_pts[:, 0]))
     min_y = float(np.min(all_pts[:, 1]))
     max_y = float(np.max(all_pts[:, 1]))
+    span = max(max_x - min_x, max_y - min_y)
+    bbox_margin = int(
+        round(
+            max(
+                TARGET_BBOX_MARGIN_MIN_PX,
+                min(TARGET_BBOX_MARGIN_MAX_PX, span * TARGET_BBOX_MARGIN_SCALE),
+            )
+        )
+    )
 
     if max_x - min_x > atlas_w * 0.95:
         return None
 
-    left_raw = int(math.floor(min_x))
-    top = int(math.floor(min_y))
-    right = int(math.ceil(max_x))
-    bottom = int(math.ceil(max_y))
+    left_raw = int(math.floor(min_x)) - bbox_margin
+    top = int(math.floor(min_y)) - bbox_margin
+    right = int(math.ceil(max_x)) + bbox_margin
+    bottom = int(math.ceil(max_y)) + bbox_margin
     width = max(2, right - left_raw + 2)
     height = max(2, bottom - top + 2)
 
@@ -625,7 +649,7 @@ def target_mask_and_bbox(feature_geometry: Dict, atlas_w: int, atlas_h: int) -> 
 
     ys, xs = np.where(mask > 0)
     if len(xs) > 0 and len(ys) > 0:
-        pad = 1
+        pad = max(1, int(bbox_margin))
         x0 = max(0, int(xs.min()) - pad)
         y0 = max(0, int(ys.min()) - pad)
         x1 = min(mask.shape[1] - 1, int(xs.max()) + pad)
@@ -1011,7 +1035,7 @@ def blend_art_fallback_with_sheet(
         out[use_fallback_rgb, :3] = fallback_rgba[use_fallback_rgb, :3]
 
     out[:, :, 3] = np.maximum(sheet_alpha, fallback_alpha)
-    if BOUNDARY_HOLE_FILL_PX > 0:
+    if BOUNDARY_HOLE_FILL_PX > 0 and not USE_WARP_ALPHA_SHAPE:
         out = repair_boundary_holes(out, (mask_u8 > 0).astype(np.uint8))
     out[out[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return out
@@ -1187,6 +1211,63 @@ def clip_rgba_to_mask(rgba: np.ndarray, mask_u8: np.ndarray) -> np.ndarray:
     return out
 
 
+def prune_alpha_components_by_geo_proximity(
+    rgba: np.ndarray,
+    mask_u8: np.ndarray,
+    *,
+    proximity_px: int = ALPHA_GEO_PROXIMITY_GUARD_PX,
+    min_component_area_px: int = ALPHA_GEO_MIN_COMPONENT_AREA_PX,
+) -> np.ndarray:
+    """Keep warped-alpha components that stay near geography; drop far leaks."""
+    alpha = rgba[:, :, 3].astype(np.uint8)
+    binary = (alpha > OUTPUT_ALPHA_THRESHOLD).astype(np.uint8)
+    if not np.any(binary):
+        return rgba
+
+    cc_count, labels, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    if cc_count <= 1:
+        return rgba
+
+    geo_mask = (mask_u8 > 0).astype(np.uint8)
+    if np.any(geo_mask):
+        radius = max(0, int(proximity_px))
+        if radius > 0:
+            k = 2 * radius + 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+            near_geo = cv2.dilate(geo_mask, kernel, iterations=1) > 0
+        else:
+            near_geo = geo_mask > 0
+    else:
+        near_geo = np.ones_like(binary, dtype=bool)
+
+    keep_labels = np.zeros(cc_count, dtype=np.uint8)
+    area_floor = max(1, int(min_component_area_px))
+    for label in range(1, cc_count):
+        area = int(stats[label, cv2.CC_STAT_AREA])
+        if area < area_floor:
+            continue
+        comp = labels == label
+        if np.any(comp & near_geo):
+            keep_labels[label] = 1
+
+    # Safety fallback: keep at least the largest component if none intersect.
+    if int(np.sum(keep_labels[1:])) == 0:
+        largest_label = 1
+        largest_area = int(stats[1, cv2.CC_STAT_AREA])
+        for label in range(2, cc_count):
+            area = int(stats[label, cv2.CC_STAT_AREA])
+            if area > largest_area:
+                largest_area = area
+                largest_label = label
+        keep_labels[largest_label] = 1
+
+    keep = keep_labels[labels] > 0
+    out = rgba.copy()
+    out[:, :, 3] = np.where(keep, out[:, :, 3], 0).astype(np.uint8)
+    out[~keep, :3] = 0
+    return out
+
+
 def tiny_quality_score(alpha: np.ndarray, mask_u8: np.ndarray) -> float:
     # Prefer overlap quality first (IoU), but include a small boost for coverage
     # so tiny islands do not disappear into sparse fragments.
@@ -1317,87 +1398,94 @@ def render_country_with_inverse_map(
         warped = edge_pad_rgba(warped, radius=pad_radius)
 
     warped_alpha = warped[:, :, 3].astype(np.uint16)
-    strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
+    if USE_WARP_ALPHA_SHAPE:
+        final_alpha = warped_alpha
+    else:
+        strict_alpha = (warped_alpha * (mask.astype(np.uint16))) // 255
+        final_alpha = strict_alpha
+        warped_px = int(np.sum(warped_alpha > OUTPUT_ALPHA_THRESHOLD))
+        strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
 
-    final_alpha = strict_alpha
-    warped_px = int(np.sum(warped_alpha > OUTPUT_ALPHA_THRESHOLD))
-    strict_px = int(np.sum(strict_alpha > OUTPUT_ALPHA_THRESHOLD))
+        if (
+            feature_key in RELAXED_CLIP_FEATURE_KEYS
+            and target_area >= 20
+            and warped_px > 0
+            and strict_px > 0
+        ):
+            def alpha_iou(alpha_u16: np.ndarray) -> float:
+                pred = alpha_u16 > OUTPUT_ALPHA_THRESHOLD
+                tgt = mask > 0
+                union = int(np.sum(pred | tgt))
+                if union <= 0:
+                    return 0.0
+                inter = int(np.sum(pred & tgt))
+                return float(inter / union)
 
-    if (
-        feature_key in RELAXED_CLIP_FEATURE_KEYS
-        and target_area >= 20
-        and warped_px > 0
-        and strict_px > 0
-    ):
-        def alpha_iou(alpha_u16: np.ndarray) -> float:
-            pred = alpha_u16 > OUTPUT_ALPHA_THRESHOLD
-            tgt = mask > 0
-            union = int(np.sum(pred | tgt))
-            if union <= 0:
-                return 0.0
-            inter = int(np.sum(pred & tgt))
-            return float(inter / union)
+            strict_iou = alpha_iou(strict_alpha)
+            strict_ret = float(strict_px) / float(warped_px)
+            best_alpha = strict_alpha
+            best_iou = strict_iou
+            best_ret = strict_ret
+            aggressive_relax = feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS
+            ret_weight = 0.12 if aggressive_relax else 0.06
+            min_ret_gain = 1.03 if aggressive_relax else 1.12
+            max_iou_drop = 0.10 if aggressive_relax else 0.03
+            best_score = best_iou + ret_weight * best_ret
 
-        strict_iou = alpha_iou(strict_alpha)
-        strict_ret = float(strict_px) / float(warped_px)
-        best_alpha = strict_alpha
-        best_iou = strict_iou
-        best_ret = strict_ret
-        aggressive_relax = feature_key in AGGRESSIVE_RELAX_FEATURE_KEYS
-        ret_weight = 0.12 if aggressive_relax else 0.06
-        min_ret_gain = 1.03 if aggressive_relax else 1.12
-        max_iou_drop = 0.10 if aggressive_relax else 0.03
-        best_score = best_iou + ret_weight * best_ret
+            # Small candidate radii; choose only if it improves retention with
+            # limited IoU loss versus strict clip.
+            radii = [2, 3, 4]
+            if target_area < 1500:
+                radii.append(5)
+            if target_area < 800:
+                radii.append(6)
+            if target_area < 300:
+                radii.append(7)
+            if feature_key == "CUB":
+                radii.extend([5, 7])
+            if aggressive_relax and target_area < 2000:
+                radii.extend([8, 10])
+            if aggressive_relax and target_area < 1000:
+                radii.extend([12])
+            radii = sorted(set(r for r in radii if r > 0))
 
-        # Small candidate radii; choose only if it improves retention with
-        # limited IoU loss versus strict clip.
-        radii = [2, 3, 4]
-        if target_area < 1500:
-            radii.append(5)
-        if target_area < 800:
-            radii.append(6)
-        if target_area < 300:
-            radii.append(7)
-        if feature_key == "CUB":
-            radii.extend([5, 7])
-        if aggressive_relax and target_area < 2000:
-            radii.extend([8, 10])
-        if aggressive_relax and target_area < 1000:
-            radii.extend([12])
-        radii = sorted(set(r for r in radii if r > 0))
+            for radius in radii:
+                k = 2 * radius + 1
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+                relaxed_mask = cv2.dilate(mask, kernel, iterations=1)
+                cand_alpha = (warped_alpha * relaxed_mask.astype(np.uint16)) // 255
+                cand_px = int(np.sum(cand_alpha > OUTPUT_ALPHA_THRESHOLD))
+                if cand_px <= strict_px:
+                    continue
+                cand_ret = float(cand_px) / float(warped_px)
+                cand_iou = alpha_iou(cand_alpha)
+                if cand_iou < strict_iou - max_iou_drop:
+                    continue
+                if cand_ret < best_ret * min_ret_gain:
+                    continue
+                cand_score = cand_iou + ret_weight * cand_ret
+                if cand_score > best_score:
+                    best_alpha = cand_alpha
+                    best_iou = cand_iou
+                    best_ret = cand_ret
+                    best_score = cand_score
 
-        for radius in radii:
-            k = 2 * radius + 1
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
-            relaxed_mask = cv2.dilate(mask, kernel, iterations=1)
-            cand_alpha = (warped_alpha * relaxed_mask.astype(np.uint16)) // 255
-            cand_px = int(np.sum(cand_alpha > OUTPUT_ALPHA_THRESHOLD))
-            if cand_px <= strict_px:
-                continue
-            cand_ret = float(cand_px) / float(warped_px)
-            cand_iou = alpha_iou(cand_alpha)
-            if cand_iou < strict_iou - max_iou_drop:
-                continue
-            if cand_ret < best_ret * min_ret_gain:
-                continue
-            cand_score = cand_iou + ret_weight * cand_ret
-            if cand_score > best_score:
-                best_alpha = cand_alpha
-                best_iou = cand_iou
-                best_ret = cand_ret
-                best_score = cand_score
-
-        final_alpha = best_alpha
+            final_alpha = best_alpha
 
     warped[:, :, 3] = final_alpha.astype(np.uint8)
-    if BOUNDARY_HOLE_FILL_PX > 0:
+    if USE_WARP_ALPHA_SHAPE:
+        warped = prune_alpha_components_by_geo_proximity(
+            warped,
+            mask.astype(np.uint8),
+        )
+    if BOUNDARY_HOLE_FILL_PX > 0 and not USE_WARP_ALPHA_SHAPE:
         warped = repair_boundary_holes(warped, mask.astype(np.uint8))
     warped[warped[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return warped
 
 
 def render_country_with_bbox_fit(job: RegionCountryJob) -> np.ndarray:
-    """Rigidly fit source art to target bbox and clip to target mask."""
+    """Rigidly fit source art to target bbox."""
     mask = (job.target_shape.mask > 0).astype(np.uint8)
     out_h, out_w = mask.shape
     src = job.render_rgba
@@ -1405,9 +1493,12 @@ def render_country_with_bbox_fit(job: RegionCountryJob) -> np.ndarray:
         Image.fromarray(src, mode="RGBA").resize((out_w, out_h), resample=Image.Resampling.LANCZOS),
         dtype=np.uint8,
     )
-    fitted[:, :, 3] = (
-        (fitted[:, :, 3].astype(np.uint16) * mask.astype(np.uint16)) // 255
-    ).astype(np.uint8)
+    if USE_WARP_ALPHA_SHAPE:
+        fitted = prune_alpha_components_by_geo_proximity(fitted, mask)
+    else:
+        fitted[:, :, 3] = (
+            (fitted[:, :, 3].astype(np.uint16) * mask.astype(np.uint16)) // 255
+        ).astype(np.uint8)
     fitted[fitted[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return fitted
 
@@ -1857,128 +1948,157 @@ def main() -> None:
             y0 = int(job.target_shape.bbox.top - region_top)
             x1 = x0 + w
             y1 = y0 + h
-
-            warped_rgba = np.zeros((h, w, 4), dtype=np.uint8)
-            if not (x1 <= 0 or y1 <= 0 or x0 >= region_w or y0 >= region_h):
-                rx0 = max(0, x0)
-                ry0 = max(0, y0)
-                rx1 = min(region_w, x1)
-                ry1 = min(region_h, y1)
-                mx0 = rx0 - x0
-                my0 = ry0 - y0
-                mx1 = mx0 + (rx1 - rx0)
-                my1 = my0 + (ry1 - ry0)
-
-                source_patch = warped_region_linear[ry0:ry1, rx0:rx1]
-                if has_nearest_sheet and use_nearest_region_split(job):
-                    source_patch = warped_region_nearest[ry0:ry1, rx0:rx1]
-                owner_patch = owner[ry0:ry1, rx0:rx1]
-                dst_patch = warped_rgba[my0:my1, mx0:mx1]
-                keep = owner_patch == idx
-                dst_patch[keep] = source_patch[keep]
-
-            if BOUNDARY_HOLE_FILL_PX > 0:
-                warped_rgba = repair_boundary_holes(
-                    warped_rgba,
-                    (job.target_shape.mask > 0).astype(np.uint8),
-                )
-            warped_rgba = stabilize_tiny_island_rgba(
-                warped_rgba,
-                (job.target_shape.mask > 0).astype(np.uint8),
-                target_area=int(job.target_area),
-                source_region=job.source_region,
-                feature_key=str(job.country.get("featureKey", "")),
-            )
-            sheet_rgba = warped_rgba.copy()
-
+            mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
+            feature_key = str(job.country.get("featureKey", ""))
             used_tiny_fallback = False
-            if should_try_tiny_fallback(job):
-                mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
-                sheet_score = tiny_quality_score(sheet_rgba[:, :, 3], mask_u8)
-                sheet_iou = iou_from_alpha(sheet_rgba[:, :, 3], job.target_shape.mask)
-                sheet_recall = alpha_recall(sheet_rgba[:, :, 3], mask_u8)
-                fallback_rgba = render_country_with_inverse_map(job, model)
-                feature_key = str(job.country.get("featureKey", ""))
+            warp_strategy = "country-inverse"
+            if not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
                 if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
-                    fallback_rgba = render_country_with_bbox_fit(job)
-                fallback_rgba = stabilize_tiny_island_rgba(
-                    fallback_rgba,
+                    warped_rgba = render_country_with_bbox_fit(job)
+                    warp_strategy = "country-rigid-bbox"
+                else:
+                    warped_rgba = render_country_with_inverse_map(job, model)
+            else:
+                warped_rgba = np.zeros((h, w, 4), dtype=np.uint8)
+                if not (x1 <= 0 or y1 <= 0 or x0 >= region_w or y0 >= region_h):
+                    rx0 = max(0, x0)
+                    ry0 = max(0, y0)
+                    rx1 = min(region_w, x1)
+                    ry1 = min(region_h, y1)
+                    mx0 = rx0 - x0
+                    my0 = ry0 - y0
+                    mx1 = mx0 + (rx1 - rx0)
+                    my1 = my0 + (ry1 - ry0)
+
+                    source_patch = warped_region_linear[ry0:ry1, rx0:rx1]
+                    if has_nearest_sheet and use_nearest_region_split(job):
+                        source_patch = warped_region_nearest[ry0:ry1, rx0:rx1]
+                    owner_patch = owner[ry0:ry1, rx0:rx1]
+                    dst_patch = warped_rgba[my0:my1, mx0:mx1]
+                    keep = owner_patch == idx
+                    dst_patch[keep] = source_patch[keep]
+
+                if BOUNDARY_HOLE_FILL_PX > 0 and not USE_WARP_ALPHA_SHAPE:
+                    warped_rgba = repair_boundary_holes(
+                        warped_rgba,
+                        mask_u8,
+                    )
+                warped_rgba = stabilize_tiny_island_rgba(
+                    warped_rgba,
                     mask_u8,
                     target_area=int(job.target_area),
                     source_region=job.source_region,
-                    feature_key=str(job.country.get("featureKey", "")),
+                    feature_key=feature_key,
                 )
-                fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
-                fallback_iou = iou_from_alpha(fallback_rgba[:, :, 3], job.target_shape.mask)
-                fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
-                min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
-                if int(job.target_area) <= 260:
-                    min_gain = 0.0015
-                elif int(job.target_area) <= 800:
-                    min_gain = 0.004
-                elif int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
-                    min_gain = 0.003
-                art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
-                forced_art = feature_key in FORCED_ART_FALLBACK_FEATURE_KEYS
-                use_fallback = fallback_score > sheet_score + min_gain
-                if (
-                    art_priority
-                    and fallback_iou >= sheet_iou - 0.01
-                    and fallback_score >= sheet_score - 0.002
-                ):
-                    # For explicit art-priority countries, accept fallback when
-                    # geometry is comparable so hand-drawn motifs survive.
-                    use_fallback = True
-                if (
-                    forced_art
-                    and fallback_iou >= sheet_iou - 0.08
-                    and fallback_score >= sheet_score - 0.05
-                ):
-                    # Allow a larger geometric tradeoff for user-reported
-                    # broken motifs to keep the drawing itself intact.
-                    use_fallback = True
-                if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
-                    # Explicit hard override for user-reported motif stretch:
-                    # always use rigid art fallback for these countries.
-                    use_fallback = True
-                if (
-                    not use_fallback
-                    and int(job.target_area) <= LOW_IOU_RESCUE_MAX_TARGET_AREA_PX
-                    and sheet_iou < LOW_IOU_RESCUE_THRESHOLD
-                    and fallback_iou > sheet_iou + 0.0005
-                ):
-                    # Rescue low-IoU small countries when inverse rendering
-                    # yields any real overlap improvement.
-                    use_fallback = True
-                if use_fallback:
+                sheet_rgba = warped_rgba.copy()
+
+                if should_try_tiny_fallback(job):
+                    sheet_score = tiny_quality_score(sheet_rgba[:, :, 3], mask_u8)
+                    sheet_iou = iou_from_alpha(sheet_rgba[:, :, 3], job.target_shape.mask)
+                    sheet_recall = alpha_recall(sheet_rgba[:, :, 3], mask_u8)
+                    fallback_rgba = render_country_with_inverse_map(job, model)
+                    if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
+                        fallback_rgba = render_country_with_bbox_fit(job)
+                    fallback_rgba = stabilize_tiny_island_rgba(
+                        fallback_rgba,
+                        mask_u8,
+                        target_area=int(job.target_area),
+                        source_region=job.source_region,
+                        feature_key=feature_key,
+                    )
+                    fallback_score = tiny_quality_score(fallback_rgba[:, :, 3], mask_u8)
+                    fallback_iou = iou_from_alpha(fallback_rgba[:, :, 3], job.target_shape.mask)
+                    fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
+                    min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
+                    if int(job.target_area) <= 260:
+                        min_gain = 0.0015
+                    elif int(job.target_area) <= 800:
+                        min_gain = 0.004
+                    elif int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
+                        min_gain = 0.003
+                    art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
+                    forced_art = feature_key in FORCED_ART_FALLBACK_FEATURE_KEYS
+                    use_fallback = fallback_score > sheet_score + min_gain
                     if (
                         art_priority
-                        and int(job.target_area) >= ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX
-                        and sheet_recall > fallback_recall + ART_FALLBACK_BLEND_RECALL_DELTA
+                        and fallback_iou >= sheet_iou - 0.01
+                        and fallback_score >= sheet_score - 0.002
                     ):
-                        # Keep fallback motif where it lands well, but recover
-                        # missing geographic coverage from the shared sheet.
-                        fallback_rgba = blend_art_fallback_with_sheet(sheet_rgba, fallback_rgba, mask_u8)
-                    if forced_art:
-                        fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
-                        if fallback_recall < FORCED_ART_MASK_LOCK_MIN_RECALL:
-                            # For explicit user-reported breakages, prioritize
-                            # complete in-mask coverage over sparse dropouts.
-                            fallback_rgba = lock_alpha_to_mask(fallback_rgba, mask_u8, pad_radius=2)
-                    warped_rgba = fallback_rgba
-                    used_tiny_fallback = True
-                    tiny_fallback_count += 1
+                        # For explicit art-priority countries, accept fallback when
+                        # geometry is comparable so hand-drawn motifs survive.
+                        use_fallback = True
+                    if (
+                        forced_art
+                        and fallback_iou >= sheet_iou - 0.08
+                        and fallback_score >= sheet_score - 0.05
+                    ):
+                        # Allow a larger geometric tradeoff for user-reported
+                        # broken motifs to keep the drawing itself intact.
+                        use_fallback = True
+                    if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
+                        # Explicit hard override for user-reported motif stretch:
+                        # always use rigid art fallback for these countries.
+                        use_fallback = True
+                    if (
+                        not use_fallback
+                        and int(job.target_area) <= LOW_IOU_RESCUE_MAX_TARGET_AREA_PX
+                        and sheet_iou < LOW_IOU_RESCUE_THRESHOLD
+                        and fallback_iou > sheet_iou + 0.0005
+                    ):
+                        # Rescue low-IoU small countries when inverse rendering
+                        # yields any real overlap improvement.
+                        use_fallback = True
+                    if use_fallback:
+                        if (
+                            art_priority
+                            and int(job.target_area) >= ART_FALLBACK_BLEND_MIN_TARGET_AREA_PX
+                            and sheet_recall > fallback_recall + ART_FALLBACK_BLEND_RECALL_DELTA
+                        ):
+                            # Keep fallback motif where it lands well, but recover
+                            # missing geographic coverage from the shared sheet.
+                            fallback_rgba = blend_art_fallback_with_sheet(sheet_rgba, fallback_rgba, mask_u8)
+                        if forced_art:
+                            fallback_recall = alpha_recall(fallback_rgba[:, :, 3], mask_u8)
+                            if (
+                                not USE_WARP_ALPHA_SHAPE
+                                and fallback_recall < FORCED_ART_MASK_LOCK_MIN_RECALL
+                            ):
+                                # For explicit user-reported breakages, prioritize
+                                # complete in-mask coverage over sparse dropouts.
+                                fallback_rgba = lock_alpha_to_mask(fallback_rgba, mask_u8, pad_radius=2)
+                        warped_rgba = fallback_rgba
+                        used_tiny_fallback = True
+                        tiny_fallback_count += 1
+
+                warp_strategy = (
+                    "region-global-sheet+labels+tiny-fallback"
+                    if used_tiny_fallback
+                    else "region-global-sheet+labels"
+                )
+
+            if BOUNDARY_HOLE_FILL_PX > 0 and not USE_WARP_ALPHA_SHAPE:
+                warped_rgba = repair_boundary_holes(
+                    warped_rgba,
+                    mask_u8,
+                )
+            warped_rgba = stabilize_tiny_island_rgba(
+                warped_rgba,
+                mask_u8,
+                target_area=int(job.target_area),
+                source_region=job.source_region,
+                feature_key=feature_key,
+            )
 
             warped_rgba = micro_mask_snap_rgba(
                 warped_rgba,
-                (job.target_shape.mask > 0).astype(np.uint8),
+                mask_u8,
                 target_area=int(job.target_area),
             )
-            mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
-            feature_key = str(job.country.get("featureKey", ""))
             precision = alpha_precision(warped_rgba[:, :, 3], mask_u8)
             art_priority = feature_key in ART_PRIORITY_FALLBACK_FEATURE_KEYS
             if (
+                not USE_WARP_ALPHA_SHAPE
+                and
                 not art_priority
                 and feature_key not in RELAXED_CLIP_FEATURE_KEYS
                 and int(job.target_area) <= PRECISION_CLIP_GUARD_MAX_TARGET_AREA_PX
@@ -1988,12 +2108,12 @@ def main() -> None:
                 # countries that otherwise spill noticeably outside the mask.
                 warped_rgba = clip_rgba_to_mask(warped_rgba, mask_u8)
 
-            if feature_key in LOW_RECALL_MASK_LOCK_FEATURE_KEYS:
+            if (not USE_WARP_ALPHA_SHAPE) and feature_key in LOW_RECALL_MASK_LOCK_FEATURE_KEYS:
                 recall = alpha_recall(warped_rgba[:, :, 3], mask_u8)
                 if recall < LOW_RECALL_MASK_LOCK_MIN_RECALL:
                     warped_rgba = lock_alpha_to_mask(warped_rgba, mask_u8, pad_radius=1)
 
-            if feature_key in LARGE_GEO_LOCK_FEATURE_KEYS:
+            if (not USE_WARP_ALPHA_SHAPE) and feature_key in LARGE_GEO_LOCK_FEATURE_KEYS:
                 recall = alpha_recall(warped_rgba[:, :, 3], mask_u8)
                 precision = alpha_precision(warped_rgba[:, :, 3], mask_u8)
                 if (
@@ -2025,11 +2145,7 @@ def main() -> None:
                 "warpWidth": int(job.target_shape.bbox.width),
                 "warpHeight": int(job.target_shape.bbox.height),
                 "warpIoU": round(float(iou), 4),
-                "warpStrategy": (
-                    "region-global-sheet+labels+tiny-fallback"
-                    if used_tiny_fallback
-                    else "region-global-sheet+labels"
-                ),
+                "warpStrategy": warp_strategy,
                 "warpSourceRegion": region,
             }
 

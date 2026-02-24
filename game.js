@@ -266,10 +266,10 @@ function resolveConfigAssetPath(rawPath, assetBase, fallbackRelativePath = '') {
 }
 
 function shouldClipGlobeToGeography() {
-  if (DEBUG_RAW_UNCLIPPED) return false;
-  if (DEBUG_GLOBE_CLIP_FORCE_ON) return true;
-  if (DEBUG_GLOBE_CLIP_FORCE_OFF) return false;
-  return GLOBE_WARP_CROP_MODE === 'geographic';
+  // Globe mnemonics are always rendered art-first (no geographic clipping).
+  // Keep this unconditional so no URL/debug flag can accidentally re-enable
+  // hard border clipping.
+  return false;
 }
 
 // ══════════════════════════════════
@@ -362,10 +362,12 @@ let globeCountryForCoordsCaches = {
 };
 let globeGeographicPickAtlas = null;
 let globeOverlayImagePreloadPromise = null;
+let globeInfoImagePreloadPromise = null;
 let globeProjectedFeatureCache = new WeakMap();
 let globeHoverOverlayRectCache = new WeakMap();
 let globeOverlayRenderedRevealed = new Set();
 let globeOverlayIncrementalPromise = null;
+let globeOverlayPendingIncrementalReveals = new Set();
 let globeOverlayBuildMsLast = 0;
 let globeOverlayBuildMsSamples = [];
 let globeOverlayAttachRetryFrames = 0;
@@ -543,9 +545,9 @@ const GLOBE_UNDERFILL_FORCE_ON = GLOBE_UNDERFILL_PARAM === '1';
 const GLOBE_UNDERFILL_FORCE_OFF = GLOBE_UNDERFILL_PARAM === '0';
 const GLOBE_UNDERFILL_AUTO_KEYS = new Set(['RUS', 'CAN', 'KAZ', 'CHL', 'SOM']);
 const GLOBE_IGNORE_HOLES_FEATURE_KEYS = new Set(['SOM', 'RUS']);
-// Somalia's global warp can show visible in-mask dropout artifacts in 3D;
-// use the source mnemonic fit path for that key until the warp is regenerated.
-const GLOBE_DISABLE_WARP_FEATURE_KEYS = new Set(['SOM']);
+// Somalia's generated warp file currently has visible dropout artifacts.
+// Keep warp placement behavior, but render from the source mnemonic image.
+const GLOBE_SOURCE_IMAGE_IN_WARP_SLOT_FEATURE_KEYS = new Set(['SOM']);
 let globeResizeObserver = null;
 const globeMissingImageWarned = new Set();
 const GLOBE_TRANSPARENT_PIXEL_DATA_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
@@ -1177,7 +1179,14 @@ function loadGlobeImage(url) {
   const promise = new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      // Decode eagerly so first draw/click does not block on lazy decode.
+      if (typeof img.decode === 'function') {
+        img.decode().catch(() => undefined).finally(() => resolve(img));
+        return;
+      }
+      resolve(img);
+    };
     img.onerror = () => resolve(null);
     img.src = url;
   });
@@ -1185,17 +1194,29 @@ function loadGlobeImage(url) {
   return promise;
 }
 
+function prefetchGlobeInfoImageForCountry(country) {
+  if (!country || !country.filename) return;
+  const url = countryImgSrc(country.filename);
+  if (!url) return;
+  loadGlobeImage(url).catch(() => undefined);
+}
+
 function buildGlobeOverlayDrawItem(country) {
   const featureKey = country?.featureKey || '';
-  const hasWarp =
+  const hasWarpPlacement = !!(country.warpWidth && country.warpHeight);
+  const useSourceInWarpSlot =
+    hasWarpPlacement && GLOBE_SOURCE_IMAGE_IN_WARP_SLOT_FEATURE_KEYS.has(featureKey);
+  const useWarpFile =
     !DEBUG_DISABLE_GLOBE_WARP &&
-    !GLOBE_DISABLE_WARP_FEATURE_KEYS.has(featureKey) &&
-    !!(country.warpFile && country.warpWidth && country.warpHeight);
-  const warpUrl = hasWarp ? appendVersionQuery(country.warpFile, GLOBE_WARP_VERSION) : '';
+    !!(country.warpFile && country.warpWidth && country.warpHeight) &&
+    !useSourceInWarpSlot;
+  const useWarpPlacement = useWarpFile || useSourceInWarpSlot;
+  const warpUrl = useWarpFile ? appendVersionQuery(country.warpFile, GLOBE_WARP_VERSION) : '';
   return {
     country,
-    isWarp: hasWarp,
-    url: hasWarp ? warpUrl : countryImgSrc(country.filename)
+    isWarp: useWarpPlacement,
+    isWarpFile: useWarpFile,
+    url: useWarpFile ? warpUrl : countryImgSrc(country.filename)
   };
 }
 
@@ -1211,6 +1232,22 @@ function preloadGlobeOverlayImages() {
       throw error;
     });
   return globeOverlayImagePreloadPromise;
+}
+
+function preloadGlobeInfoPanelImages() {
+  if (!IS_GLOBE_REGION) return Promise.resolve();
+  if (globeInfoImagePreloadPromise) return globeInfoImagePreloadPromise;
+  const urls = COUNTRIES
+    .map(country => countryImgSrc(country.filename))
+    .filter(Boolean);
+  globeInfoImagePreloadPromise = Promise.all(urls.map(loadGlobeImage))
+    .then(() => undefined)
+    .catch(error => {
+      // Allow retry after transient failures.
+      globeInfoImagePreloadPromise = null;
+      throw error;
+    });
+  return globeInfoImagePreloadPromise;
 }
 
 function drawWarpImageClippedToFeature(ctx, image, feature, width, height, dx, dy, dw, dh) {
@@ -1629,6 +1666,7 @@ function globeOverlayDependsOnRevealState() {
 
 function markGlobeOverlayDirtyForRevealState() {
   if (!globeOverlayDependsOnRevealState()) return;
+  globeOverlayPendingIncrementalReveals.clear();
   if (globeOverlayIncrementalPromise) {
     // Invalidate in-flight incremental draws before falling back to full rebuild.
     globeOverlayBaseRenderToken += 1;
@@ -1652,8 +1690,44 @@ function canIncrementallyRevealOnGlobeOverlay(filename) {
   return true;
 }
 
+function canQueueIncrementalRevealOnGlobeOverlay(filename) {
+  if (!GLOBE_OVERLAY_INCREMENTAL_REVEAL) return false;
+  if (!GLOBE_LAYER_MNEMONICS) return false;
+  if (DEBUG_SHOW_ALL_GLOBE) return false;
+  if (globeFillOverlayEnabled || GLOBE_UNCLICKED_FILL_VISIBLE) return false;
+  if (!isGlobeReady() || !globeOverlayBaseCanvas || !globeOverlayTexture) return false;
+  if (globeOverlayBaseDirty || globeOverlayRenderQueued || globeOverlayRenderInProgress || globeOverlayRenderRaf !== null) {
+    return false;
+  }
+  if (!globeOverlayIncrementalPromise) return false;
+  if (!revealed.has(filename)) return false;
+  if (globeOverlayRenderedRevealed.has(filename)) return false;
+  return true;
+}
+
+function flushPendingIncrementalGlobeReveals() {
+  if (globeOverlayIncrementalPromise) return false;
+  if (globeOverlayPendingIncrementalReveals.size === 0) return false;
+  for (const filename of Array.from(globeOverlayPendingIncrementalReveals)) {
+    globeOverlayPendingIncrementalReveals.delete(filename);
+    if (!revealed.has(filename) || globeOverlayRenderedRevealed.has(filename)) continue;
+    if (canIncrementallyRevealOnGlobeOverlay(filename)) {
+      return tryIncrementalRevealOnGlobeOverlay(filename);
+    }
+    return false;
+  }
+  return false;
+}
+
 function tryIncrementalRevealOnGlobeOverlay(filename) {
-  if (!canIncrementallyRevealOnGlobeOverlay(filename)) return false;
+  if (!canIncrementallyRevealOnGlobeOverlay(filename)) {
+    if (canQueueIncrementalRevealOnGlobeOverlay(filename)) {
+      globeOverlayPendingIncrementalReveals.add(filename);
+      return true;
+    }
+    return false;
+  }
+  globeOverlayPendingIncrementalReveals.delete(filename);
   const country = COUNTRY_BY_FILENAME[filename];
   if (!country || !country.featureKey) return false;
   const ctx = globeOverlayBaseCanvas.getContext('2d');
@@ -1679,7 +1753,10 @@ function tryIncrementalRevealOnGlobeOverlay(filename) {
     })
     .then(success => {
       globeOverlayIncrementalPromise = null;
-      if (success) return;
+      if (success) {
+        flushPendingIncrementalGlobeReveals();
+        return;
+      }
       markGlobeOverlayDirtyForRevealState();
     });
 
@@ -2319,7 +2396,7 @@ function installRaycastGuards(root) {
 function shouldUseGlobeUnderfill(country, item) {
   if (GLOBE_UNDERFILL_FORCE_ON) return true;
   if (GLOBE_UNDERFILL_FORCE_OFF) return false;
-  if (!item || !item.isWarp) return false;
+  if (!item || !item.isWarp || !item.isWarpFile) return false;
   const key = country?.featureKey;
   return !!key && GLOBE_UNDERFILL_AUTO_KEYS.has(key);
 }
@@ -2489,6 +2566,10 @@ function setGlobeHoverMnemonicTarget(targetAlpha, durationMs = GLOBE_HOVER_FADE_
 function setGlobeHoverFeature(nextKey) {
   const normalizedKey = nextKey || null;
   if (normalizedKey === globeHoverFeatureKey) return false;
+  if (normalizedKey) {
+    const country = globeCountryByFeatureKey.get(normalizedKey);
+    if (country) prefetchGlobeInfoImageForCountry(country);
+  }
   globeHoverFeatureKey = normalizedKey;
 
   if (GLOBE_HOVER_LEGACY) {
@@ -3248,6 +3329,11 @@ async function initGlobe() {
         console.warn('Failed to preload globe mnemonic images:', error);
       });
     }
+
+    const infoPreloadPromise = preloadGlobeInfoPanelImages();
+    infoPreloadPromise.catch(error => {
+      console.warn('Failed to preload globe info images:', error);
+    });
   }
 
   if (shouldUseGlobeOverlayTexture()) {
@@ -3707,6 +3793,7 @@ function handleClick(c, e) {
 function showInfoCard(c) {
   activeCountry = c.filename;
   infoName.textContent = c.name;
+  if (IS_GLOBE_REGION) prefetchGlobeInfoImageForCountry(c);
   infoShape.src = countryImgSrc(c.filename);
   const assoc = IMAGE_ASSOCIATIONS[c.filename];
   infoDesc.innerHTML = (assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : '') + escHtml(c.desc);
