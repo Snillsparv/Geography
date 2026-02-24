@@ -543,6 +543,9 @@ const GLOBE_UNDERFILL_FORCE_ON = GLOBE_UNDERFILL_PARAM === '1';
 const GLOBE_UNDERFILL_FORCE_OFF = GLOBE_UNDERFILL_PARAM === '0';
 const GLOBE_UNDERFILL_AUTO_KEYS = new Set(['RUS', 'CAN', 'KAZ', 'CHL', 'SOM']);
 const GLOBE_IGNORE_HOLES_FEATURE_KEYS = new Set(['SOM', 'RUS']);
+// Somalia's global warp can show visible in-mask dropout artifacts in 3D;
+// use the source mnemonic fit path for that key until the warp is regenerated.
+const GLOBE_DISABLE_WARP_FEATURE_KEYS = new Set(['SOM']);
 let globeResizeObserver = null;
 const globeMissingImageWarned = new Set();
 const GLOBE_TRANSPARENT_PIXEL_DATA_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
@@ -1183,7 +1186,11 @@ function loadGlobeImage(url) {
 }
 
 function buildGlobeOverlayDrawItem(country) {
-  const hasWarp = !DEBUG_DISABLE_GLOBE_WARP && !!(country.warpFile && country.warpWidth && country.warpHeight);
+  const featureKey = country?.featureKey || '';
+  const hasWarp =
+    !DEBUG_DISABLE_GLOBE_WARP &&
+    !GLOBE_DISABLE_WARP_FEATURE_KEYS.has(featureKey) &&
+    !!(country.warpFile && country.warpWidth && country.warpHeight);
   const warpUrl = hasWarp ? appendVersionQuery(country.warpFile, GLOBE_WARP_VERSION) : '';
   return {
     country,
