@@ -1162,11 +1162,449 @@
       margin-top: 20px;
     }
 
-    /* ── Responsive ── */
+    /* ── Responsive (mobile) ── */
     @media (max-width: 900px) {
-      body { overflow: auto; }
-      .game-container { flex-direction: column; height: auto; }
-      .map-panel { height: 50vh; min-height: 300px; }
-      .map-wrapper img.base-map { max-height: 46vh; }
-      .info-panel { width: 100%; min-height: 50vh; }
+      body {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* ── Header ── */
+      header {
+        padding: 6px 12px;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        min-height: auto;
+      }
+
+      header h1 {
+        font-size: 1rem;
+        order: 1;
+      }
+
+      .back-btn {
+        order: 0;
+        font-size: 1rem;
+        padding: 2px 8px;
+      }
+
+      .mode-toggle {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .mode-btn {
+        padding: 5px 14px;
+        font-size: 0.8rem;
+      }
+
+      .header-hint {
+        order: 2;
+        font-size: 0.75rem;
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* ── Game layout: vertical stack ── */
+      .game-container {
+        flex-direction: column;
+        height: calc(100vh - var(--mobile-header-h, 80px));
+        overflow: hidden;
+      }
+
+      /* ── Map panel ── */
+      .map-panel {
+        flex: 1;
+        min-height: 0;
+        padding: 8px;
+        touch-action: none;
+      }
+
+      .map-wrapper img.base-map {
+        max-height: 100%;
+        max-width: 100%;
+      }
+
+      /* ── Zoom controls on mobile ── */
+      .zoom-controls {
+        bottom: 10px;
+        left: 10px;
+        gap: 2px;
+      }
+
+      .zoom-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 1.1rem;
+      }
+
+      .zoom-level {
+        font-size: 0.6rem;
+      }
+
+      .explore-toggle-buttons {
+        bottom: auto;
+        top: 10px;
+        left: 10px;
+        flex-direction: row;
+      }
+
+      .explore-toggle-btn {
+        width: 34px;
+        height: 34px;
+      }
+
+      /* ── World back bar on mobile ── */
+      .world-back-bar {
+        top: 6px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
+      }
+
+      .world-back-bar button {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+      }
+
+      .world-region-label {
+        font-size: 0.8rem;
+      }
+
+      /* ── Info panel as bottom sheet ── */
+      .info-panel {
+        width: 100%;
+        max-height: 35vh;
+        min-height: 0;
+        flex-shrink: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .info-panel-content {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        min-height: 0;
+      }
+
+      /* ── Explore UI compact ── */
+      .info-header {
+        padding: 8px 16px 6px;
+      }
+
+      .info-header h2 {
+        font-size: 0.85rem;
+      }
+
+      .info-default {
+        padding: 16px;
+      }
+
+      .info-default .arrow-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+      }
+
+      .info-default p {
+        font-size: 0.85rem;
+      }
+
+      .info-card {
+        padding: 12px 16px;
+        gap: 10px;
+      }
+
+      .info-card .country-name {
+        font-size: 1.2rem;
+      }
+
+      .info-card .country-shape-preview {
+        height: 100px;
+      }
+
+      .info-card .country-shape-preview img {
+        max-height: 90px;
+      }
+
+      .info-card .description {
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .info-card .close-hint {
+        font-size: 0.7rem;
+      }
+
+      .counter {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+      }
+
+      /* ── Seterra panel compact ── */
+      .seterra-panel {
+        padding: 10px 16px;
+        gap: 10px;
+      }
+
+      .seterra-target .label {
+        font-size: 0.75rem;
+        margin-bottom: 2px;
+      }
+
+      .seterra-target .target-name {
+        font-size: 1.3rem;
+      }
+
+      .seterra-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+
+      .stat-box {
+        padding: 6px 4px;
+        border-radius: 8px;
+      }
+
+      .stat-box .stat-label {
+        font-size: 0.6rem;
+        letter-spacing: 0;
+        margin-bottom: 2px;
+      }
+
+      .stat-box .stat-value {
+        font-size: 1rem;
+      }
+
+      .seterra-progress {
+        height: 6px;
+      }
+
+      .seterra-progress-label {
+        font-size: 0.7rem;
+      }
+
+      .seterra-feedback {
+        min-height: 50px;
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+
+      .seterra-feedback .fb-banner {
+        font-size: 0.9rem;
+        padding: 4px 12px;
+        margin-bottom: 4px;
+      }
+
+      .seterra-feedback .fb-title {
+        font-size: 0.9rem;
+      }
+
+      .seterra-feedback .fb-desc {
+        font-size: 0.8rem;
+      }
+
+      /* ── Seterra done screen ── */
+      .seterra-done {
+        padding: 16px;
+        gap: 10px;
+      }
+
+      .seterra-done h2 {
+        font-size: 1.2rem;
+      }
+
+      .seterra-done .big-score {
+        font-size: 2rem;
+      }
+
+      .seterra-done .done-detail {
+        font-size: 0.85rem;
+      }
+
+      .hs-form {
+        max-width: 260px;
+      }
+
+      .hs-form input {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+      }
+
+      .hs-form button {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+      }
+
+      .highscore-list {
+        max-height: 200px;
+      }
+
+      .restart-btn {
+        padding: 10px 28px;
+        font-size: 0.9rem;
+      }
+
+      /* ── Jonas section compact ── */
+      .jonas-section {
+        padding: 6px 16px 8px;
+        gap: 4px;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .jonas-section img {
+        width: 50px;
+        border-radius: 6px;
+      }
+
+      .highfive-counter {
+        font-size: 0.7rem;
+      }
+
+      /* ── Cursor label: fixed mobile banner ── */
+      .cursor-label {
+        /* On mobile, the cursor-following tooltip is hidden by JS;
+           instead the target name shows in the seterra panel */
+        display: none !important;
+      }
+
+      /* ── Region selector ── */
+      .region-selector {
+        min-height: calc(100vh - 40px);
+        padding: 20px 12px;
+      }
+
+      .region-selector h2 {
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+      }
+
+      .region-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        max-width: 100%;
+      }
+
+      .region-card img {
+        height: 100px;
+      }
+
+      .region-card span {
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+
+      .region-card.world-card {
+        max-width: 100%;
+      }
+
+      .region-card.world-card img {
+        height: 120px;
+      }
+
+      .region-card.world-card span {
+        font-size: 1rem;
+      }
+
+      /* ── Modals ── */
+      .name-modal {
+        padding: 20px 20px;
+        max-width: 320px;
+      }
+
+      .name-modal h3 {
+        font-size: 1.1rem;
+      }
+
+      .name-modal .modal-score {
+        font-size: 1.8rem;
+      }
+
+      .name-modal .modal-detail {
+        font-size: 0.8rem;
+        margin-bottom: 14px;
+      }
+
+      .name-modal .modal-input-row input {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+      }
+
+      .name-modal .modal-input-row button {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+      }
+
+      /* ── World setup modal ── */
+      .world-setup-modal {
+        padding: 24px 20px;
+        max-width: 340px;
+      }
+
+      .world-setup-modal h2 {
+        font-size: 1.3rem;
+      }
+
+      .world-setup-desc {
+        font-size: 0.85rem;
+        margin-bottom: 16px;
+      }
+
+      .count-buttons {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .count-buttons button {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+      }
+
+      /* ── Celebration overlay ── */
+      .celebration-content .medal {
+        font-size: 4rem;
+      }
+
+      .celebration-content h2 {
+        font-size: 1.8rem;
+        margin: 8px 0;
+      }
+
+      .celebration-score {
+        font-size: 2.5rem;
+      }
+
+      .celebration-detail {
+        font-size: 0.85rem;
+      }
+
+      .celebration-jonas img {
+        width: 100px;
+      }
+    }
+
+    /* Extra compact for very small phones */
+    @media (max-width: 400px) {
+      .region-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .info-panel {
+        max-height: 30vh;
+      }
+
+      .seterra-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+      }
+
+      .stat-box .stat-value {
+        font-size: 0.9rem;
+      }
     }

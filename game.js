@@ -456,6 +456,7 @@ let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
+  if (pinchActive) return;
   if (e.target.closest('.zoom-controls') || e.target.closest('.explore-toggle-buttons') || e.target.closest('.world-back-bar')) return;
   e.preventDefault();
   mapPanel.setPointerCapture(e.pointerId);
@@ -866,6 +867,7 @@ function switchMode(mode) {
     headerHint.textContent = 'Klicka där du tror landet är!';
     startSeterra();
   }
+  requestAnimationFrame(updateMobileHeaderHeight);
 }
 
 // ══════════════════════
@@ -904,6 +906,46 @@ function setZoom(newZoom, cursorX, cursorY) {
 function onWheel(e) {
   e.preventDefault();
   setZoom(zoom * (e.deltaY > 0 ? 0.9 : 1.1), e.clientX, e.clientY);
+}
+
+// ══════════════════════
+// Pinch-to-zoom (mobile)
+// ══════════════════════
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+let pinchActive = false;
+
+function getTouchDist(t1, t2) {
+  return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+}
+
+function getTouchCenter(t1, t2) {
+  return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+}
+
+function onTouchStart(e) {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    pinchActive = true;
+    pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+    pinchStartZoom = zoom;
+  }
+}
+
+function onTouchMove(e) {
+  if (pinchActive && e.touches.length === 2) {
+    e.preventDefault();
+    const dist = getTouchDist(e.touches[0], e.touches[1]);
+    const center = getTouchCenter(e.touches[0], e.touches[1]);
+    const newZoom = pinchStartZoom * (dist / pinchStartDist);
+    setZoom(newZoom, center.x, center.y);
+  }
+}
+
+function onTouchEnd(e) {
+  if (e.touches.length < 2) {
+    pinchActive = false;
+  }
 }
 
 // ══════════════════════════════════
@@ -1008,6 +1050,10 @@ async function initGame(config) {
   document.querySelector('.mode-toggle').style.display = '';
   document.getElementById('header-hint').style.display = '';
   document.body.style.overflow = 'hidden';
+  if (window.innerWidth <= 900) document.body.style.position = 'fixed';
+
+  // Measure header for mobile layout
+  requestAnimationFrame(updateMobileHeaderHeight);
 
   createOverlays();
   await loadHitData();
@@ -1019,6 +1065,11 @@ async function initGame(config) {
   mapPanel.addEventListener('pointerup', onPointerUp);
   mapPanel.addEventListener('pointercancel', onPointerUp);
   mapPanel.addEventListener('wheel', onWheel, { passive: false });
+
+  // Pinch-to-zoom for mobile
+  mapPanel.addEventListener('touchstart', onTouchStart, { passive: false });
+  mapPanel.addEventListener('touchmove', onTouchMove, { passive: false });
+  mapPanel.addEventListener('touchend', onTouchEnd);
 }
 
 // ══════════════════════════════════
@@ -1140,6 +1191,7 @@ function showRegionSelector() {
   document.querySelector('header h1').textContent = 'Jonas geografi';
   document.title = 'Jonas geografi';
   document.body.style.overflow = 'auto';
+  document.body.style.position = '';
   if (isWorldTest) {
     clearInterval(worldTimerInterval);
     mapPanel.removeEventListener('pointerdown', worldPointerDown);
@@ -1468,6 +1520,7 @@ async function startWorldTest() {
   document.getElementById('back-btn').style.display = '';
   document.getElementById('explore-toggle-buttons').style.display = 'none';
   document.body.style.overflow = 'hidden';
+  if (window.innerWidth <= 900) document.body.style.position = 'fixed';
 
   headerHint.textContent = 'Laddar VÄRLDSTEST...';
   document.querySelector('header h1').textContent = 'VÄRLDSTEST';
@@ -1551,6 +1604,9 @@ function showWorldHub() {
   mapPanel.removeEventListener('pointermove', worldPointerMove);
   mapPanel.removeEventListener('pointerup', worldPointerUp);
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
+  mapPanel.removeEventListener('touchstart', onTouchStart);
+  mapPanel.removeEventListener('touchmove', onTouchMove);
+  mapPanel.removeEventListener('touchend', onTouchEnd);
 
   // Show world map
   baseMap.src = 'assets/world/map.webp';
@@ -1574,12 +1630,17 @@ function showWorldHub() {
   mapPanel.addEventListener('pointerup', worldPointerUp);
   mapPanel.addEventListener('pointercancel', worldPointerUp);
   mapPanel.addEventListener('wheel', onWheel, { passive: false });
+  mapPanel.addEventListener('touchstart', onTouchStart, { passive: false });
+  mapPanel.addEventListener('touchmove', onTouchMove, { passive: false });
+  mapPanel.addEventListener('touchend', onTouchEnd);
 
   // Show cursor label with target
   if (worldTarget) {
     cursorLabel.textContent = worldTarget.country.name;
     cursorLabel.style.display = 'block';
   }
+
+  requestAnimationFrame(updateMobileHeaderHeight);
 }
 
 let worldDragStart = null;
@@ -1681,6 +1742,9 @@ async function enterWorldRegion(slug) {
   mapPanel.removeEventListener('pointerup', worldPointerUp);
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
   mapPanel.removeEventListener('wheel', onWheel);
+  mapPanel.removeEventListener('touchstart', onTouchStart);
+  mapPanel.removeEventListener('touchmove', onTouchMove);
+  mapPanel.removeEventListener('touchend', onTouchEnd);
 
   const config = worldConfigs[slug];
   const cache = worldRegionCache[slug];
@@ -1734,6 +1798,9 @@ async function enterWorldRegion(slug) {
   mapPanel.addEventListener('pointerup', onPointerUp);
   mapPanel.addEventListener('pointercancel', onPointerUp);
   mapPanel.addEventListener('wheel', onWheel, { passive: false });
+  mapPanel.addEventListener('touchstart', onTouchStart, { passive: false });
+  mapPanel.addEventListener('touchmove', onTouchMove, { passive: false });
+  mapPanel.addEventListener('touchend', onTouchEnd);
 
   // Clear any leftover seterra feedback from world hub
   seterraFeedback.className = 'seterra-feedback';
@@ -1745,6 +1812,8 @@ async function enterWorldRegion(slug) {
   headerHint.textContent = 'Hitta landet på kartan!';
   document.getElementById('world-back-bar').style.display = '';
   document.getElementById('world-region-label').textContent = regionName;
+
+  requestAnimationFrame(updateMobileHeaderHeight);
 
   // Set up as seterra target within this region
   seterraTarget = worldTarget.country;
@@ -1852,6 +1921,9 @@ function endWorldTest() {
   mapPanel.removeEventListener('pointermove', worldPointerMove);
   mapPanel.removeEventListener('pointerup', worldPointerUp);
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
+  mapPanel.removeEventListener('touchstart', onTouchStart);
+  mapPanel.removeEventListener('touchmove', onTouchMove);
+  mapPanel.removeEventListener('touchend', onTouchEnd);
 
   const score = worldTotal > 0 ? Math.round(((worldTotal - worldWrong) / worldTotal) * 100) : 100;
   const elapsed = Math.floor((Date.now() - worldStartTime) / 1000);
@@ -1983,6 +2055,17 @@ function showCelebration(elapsed, m, s) {
 document.getElementById('world-back-btn').addEventListener('click', () => {
   showWorldHub();
 });
+
+// ══════════════════════════════════
+// Mobile header height tracking
+// ══════════════════════════════════
+function updateMobileHeaderHeight() {
+  const header = document.querySelector('header');
+  if (header) {
+    document.documentElement.style.setProperty('--mobile-header-h', header.offsetHeight + 'px');
+  }
+}
+window.addEventListener('resize', updateMobileHeaderHeight);
 
 // ══════════════════════════════════
 // Bootstrap
