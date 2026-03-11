@@ -180,6 +180,24 @@
       opacity: 1;
     }
 
+    /* Hit marker dot for small island nations */
+    .hit-marker {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      margin-left: -7px;
+      margin-top: -7px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 4;
+      transition: background-color 0.15s, box-shadow 0.15s;
+    }
+
+    .hit-marker.active {
+      background-color: rgba(255, 220, 40, 0.85);
+      box-shadow: 0 0 8px 2px rgba(255, 220, 40, 0.5);
+    }
+
     /* Overlay: black contour lines always on top */
     .map-overlay {
       position: absolute;

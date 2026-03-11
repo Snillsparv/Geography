@@ -44,6 +44,7 @@ const hitCanvases = {};
 const hitPixelData = {};
 const overlayEls = {};
 const hoverEls = {};
+const markerEls = {};
 const revealed = new Set();
 const NO_HOVER = new Set();
 let sortedCountries = [];
@@ -140,9 +141,8 @@ function createOverlays() {
     hover.className = 'hover-highlight';
     hover.dataset.country = c.filename;
     hover.draggable = false;
-    // hitOnly shapes: no hover image, just pointer cursor
     if (shape && shape.hitOnly) {
-      // No src — hover highlight stays invisible
+      // No hover image for hitOnly — we use a marker dot instead
     } else if (shape) {
       hover.src = shape.shapeFile;
     } else {
@@ -150,6 +150,14 @@ function createOverlays() {
     }
     mapWrapper.appendChild(hover);
     hoverEls[c.filename] = hover;
+
+    // Create hover marker dot for hitOnly shapes
+    if (shape && shape.hitOnly) {
+      const marker = document.createElement('div');
+      marker.className = 'hit-marker';
+      mapWrapper.appendChild(marker);
+      markerEls[c.filename] = marker;
+    }
   });
 
   // Add overlay (black contour lines) on top of everything, if available
@@ -312,6 +320,16 @@ function positionOverlays() {
         hEl.style.height = relH + 'px';
       }
     }
+
+    // Position hit-marker at center of shape
+    const mEl = markerEls[c.filename];
+    if (mEl) {
+      const shape = SPECIAL_SHAPES[c.filename];
+      const cx = (shape.left + shape.width / 2 - MAP_LEFT) * scale;
+      const cy = (shape.top + shape.height / 2 - MAP_TOP) * scale;
+      mEl.style.left = (offsetX + cx) + 'px';
+      mEl.style.top = (offsetY + cy) + 'px';
+    }
   });
 
   const overlayEl = document.getElementById('map-overlay');
@@ -397,13 +415,16 @@ function updateHover(e) {
     if (currentHover) {
       hoverEls[currentHover].classList.remove('active');
       overlayEls[currentHover].classList.remove('hovered');
+      if (markerEls[currentHover]) markerEls[currentHover].classList.remove('active');
       justRevealed.delete(currentHover);
     }
     if (newHover && !justRevealed.has(newHover)) {
       const isHitOnly = SPECIAL_SHAPES[newHover] && SPECIAL_SHAPES[newHover].hitOnly;
       if (revealed.has(newHover)) {
         overlayEls[newHover].classList.add('hovered');
-      } else if (!isHitOnly && !overlayEls[newHover].classList.contains('flash-wrong')) {
+      } else if (isHitOnly) {
+        if (markerEls[newHover]) markerEls[newHover].classList.add('active');
+      } else if (!overlayEls[newHover].classList.contains('flash-wrong')) {
         hoverEls[newHover].classList.add('active');
       }
     }
