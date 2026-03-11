@@ -177,7 +177,10 @@ function createOverlays() {
   sortedCountries = [...COUNTRIES].sort((a, b) => (a.width * a.height) - (b.width * b.height));
 
   positionOverlays();
-  window.addEventListener('resize', positionOverlays);
+  if (!createOverlays._resizeListenerAdded) {
+    window.addEventListener('resize', positionOverlays);
+    createOverlays._resizeListenerAdded = true;
+  }
 }
 
 function processHoverImages(mapImageOverride) {
@@ -1408,10 +1411,10 @@ async function loadWorldMap() {
 
 function showWorldHub() {
   worldPhase = 'hub';
-  worldTargetRegion = null;
 
-  // Clean up any region overlays
+  // Clean up region overlays BEFORE nulling worldTargetRegion (cache needs it)
   cleanupMapWrapper();
+  worldTargetRegion = null;
 
   // Detach ALL event listeners to avoid duplicates
   mapPanel.removeEventListener('pointerdown', onPointerDown);
@@ -1515,7 +1518,7 @@ function worldPointerUp(e) {
   }
 }
 
-function enterWorldRegion(slug) {
+async function enterWorldRegion(slug) {
   worldPhase = 'region';
   worldTargetRegion = slug;
 
@@ -1541,8 +1544,12 @@ function enterWorldRegion(slug) {
   OVERLAY_FILE = config.overlayFile;
   SPECIAL_SHAPES = config.specialShapes;
 
-  // Set base map (already cached by browser from pre-load)
+  // Load base map and wait for it to render (needed for correct overlay positioning)
   baseMap.src = MAP_FILE;
+  await new Promise(resolve => {
+    if (baseMap.complete && baseMap.naturalWidth > 0) resolve();
+    else baseMap.onload = resolve;
+  });
 
   // Reset zoom/pan
   zoom = 1; panX = 0; panY = 0;
