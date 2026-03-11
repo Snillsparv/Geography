@@ -23,7 +23,8 @@ your layers in Swedish (e.g. "Argentina", "Brasilien", "Skåne").
 
 Usage:
     pip install psd-tools Pillow
-    python tools/extract_psd.py
+    python tools/extract_psd.py              # all regions
+    python tools/extract_psd.py Västindien   # single region
 """
 
 import os
@@ -342,6 +343,13 @@ def main():
     print("  =====================================")
     print()
 
+    # Optional region filter from command line
+    region_filter = None
+    if len(sys.argv) > 1:
+        region_filter = sys.argv[1]
+        print(f"  Filtering: only '{region_filter}'")
+        print()
+
     # Collect PSD files
     psd_files = []
 
@@ -378,6 +386,15 @@ def main():
         print("  No real PSD files found (all are LFS pointers).")
         print("  Make sure the actual PSD files are in the 'psd/' folder.")
         sys.exit(1)
+
+    # Apply region filter
+    if region_filter:
+        filtered = [p for p in real_files if region_filter.lower() in p.stem.lower()]
+        if not filtered:
+            print(f"  No PSD file matching '{region_filter}' found.")
+            print(f"  Available: {', '.join(p.stem for p in real_files)}")
+            sys.exit(1)
+        real_files = filtered
 
     print(f"  Found {len(real_files)} PSD file(s) to process")
 
