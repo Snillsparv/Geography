@@ -701,57 +701,10 @@ function endSeterra() {
   document.getElementById('hs-saved-msg').style.display = 'none';
 
   if (!seterraIsRetry) {
-    if (score === 100) {
-      showSeterraCelebration(m, s);
-    } else {
-      showNameModal(score, m, s);
-    }
+    showNameModal(score, m, s);
   } else {
     renderHighscores();
   }
-}
-
-function showSeterraCelebration(m, s) {
-  const overlay = document.getElementById('celebration-overlay');
-  document.getElementById('celebration-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
-  overlay.classList.add('active');
-
-  const confettiCanvas = document.getElementById('confetti-canvas');
-  const stopConfetti = startConfetti(confettiCanvas);
-
-  const celebMusic = new Audio('CELEBRATION.mp3');
-  celebMusic.loop = true;
-  celebMusic.volume = 0.7;
-  celebMusic.play().catch(() => {});
-
-  const jonasEl = document.getElementById('celebration-jonas-img');
-  let toggle = false;
-  const jonasInterval = setInterval(() => {
-    toggle = !toggle;
-    jonasEl.src = toggle ? 'Jonas_2.webp' : 'Jonas_1.webp';
-  }, 300);
-
-  const celebAudio = new Audio('high_five.wav');
-  celebAudio.play().catch(() => {});
-  const soundInterval = setInterval(() => {
-    celebAudio.currentTime = 0;
-    celebAudio.play().catch(() => {});
-  }, 800);
-
-  const closeBtn = document.getElementById('celebration-close');
-  const closeFn = () => {
-    clearInterval(jonasInterval);
-    clearInterval(soundInterval);
-    stopConfetti();
-    celebMusic.pause();
-    celebMusic.currentTime = 0;
-    overlay.classList.remove('active');
-    jonasEl.src = 'Jonas_1.webp';
-    closeBtn.removeEventListener('click', closeFn);
-    showNameModal(100, m, s);
-  };
-  closeBtn.addEventListener('click', closeFn);
 }
 
 // ══════════════════════
@@ -1927,7 +1880,7 @@ function endWorldTest() {
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = 'none';
 
-  if (score === 100) {
+  if (score === 100 && worldTotal >= 50) {
     showCelebration(elapsed, m, s);
   } else {
     showNameModal(score, m, s);
