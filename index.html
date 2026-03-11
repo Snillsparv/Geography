@@ -21,6 +21,10 @@
 <div class="region-selector" id="region-selector" style="display:none">
   <h2>V&auml;lj en v&auml;rldsdel</h2>
   <div class="region-grid">
+    <a class="region-card world-card" href="?region=world">
+      <img src="assets/world/map.webp" alt="V&auml;rldstest" loading="lazy">
+      <span>V&auml;rldstest (50 l&auml;nder)</span>
+    </a>
     <a class="region-card" href="?region=europa">
       <img src="assets/covers/europa.webp" alt="Europa" loading="lazy">
       <span>Europa</span>
@@ -72,6 +76,10 @@
       <button class="explore-toggle-btn" id="hide-all-btn" title="D&ouml;lj alla l&auml;nder">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
+    </div>
+    <div class="world-back-bar" id="world-back-bar" style="display:none">
+      <button id="world-back-btn">&larr; Tillbaka till v&auml;rldskartan</button>
+      <span class="world-region-label" id="world-region-label"></span>
     </div>
     <div class="zoom-controls">
       <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
@@ -165,6 +173,19 @@
       <img id="jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
       <div class="highfive-counter">High fives: <strong id="highfive-count">0</strong></div>
     </div>
+  </div>
+</div>
+
+<div class="celebration-overlay" id="celebration-overlay">
+  <div class="celebration-content">
+    <div class="medal">&#127942;</div>
+    <h2>PERFEKT!</h2>
+    <p class="celebration-score">100%</p>
+    <p class="celebration-detail" id="celebration-detail"></p>
+    <div class="celebration-jonas">
+      <img id="celebration-jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+    </div>
+    <button class="restart-btn" id="celebration-close">Forts&auml;tt</button>
   </div>
 </div>
 
