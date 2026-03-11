@@ -887,12 +887,21 @@
       grid-column: 1 / -1;
       max-width: 500px;
       justify-self: center;
-      border: 2px solid rgba(91,191,255,0.3);
+      border: 2px solid rgba(212,175,55,0.5);
       background: linear-gradient(135deg, #1a2940, #1e3550);
+      box-shadow: 0 0 8px rgba(212,175,55,0.25);
+      animation: gold-shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes gold-shimmer {
+      0%, 100% { border-color: rgba(212,175,55,0.5); box-shadow: 0 0 8px rgba(212,175,55,0.25); }
+      50% { border-color: rgba(255,215,0,0.8); box-shadow: 0 0 16px rgba(255,215,0,0.4); }
     }
 
     .region-card.world-card:hover {
-      border-color: rgba(91,191,255,0.6);
+      border-color: rgba(255,215,0,0.9);
+      box-shadow: 0 0 20px rgba(255,215,0,0.5);
+      animation: none;
     }
 
     .region-card.world-card img {
@@ -903,7 +912,7 @@
 
     .region-card.world-card span {
       font-size: 1.25rem;
-      color: #5bbfff;
+      color: #ffd700;
     }
 
     /* ── World back bar ── */
