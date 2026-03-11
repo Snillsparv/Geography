@@ -218,6 +218,9 @@ function processHoverImages() {
       }
     }
 
+    // Skip hover highlight generation for hitOnly shapes (pointer cursor only)
+    if (shape && shape.hitOnly) return;
+
     // Determine which canvas/coords to use for the hover highlight
     let hoverSource, hoverLeft, hoverTop, hoverW, hoverH;
     if (shape && hitCanvases[c.filename + '_shape']) {
