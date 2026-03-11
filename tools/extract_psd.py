@@ -287,12 +287,40 @@ def extract_psd(psd_path, output_dir):
             print(f"\n  WARNING: Shape layer '!{layer.name.strip().lstrip('!')}' "
                   f"has no matching display layer '{layer.name.strip().lstrip('!')}'!")
 
-    # --- Save config ---
+    # --- Merge with existing config to preserve hand-edited fields ---
+    config_path = output_dir / "config.json"
+    if config_path.exists():
+        try:
+            with open(str(config_path), "r", encoding="utf-8") as f:
+                existing = json.load(f)
+
+            # Preserve top-level fields that the script doesn't generate
+            for key in ("slug", "hsKey"):
+                if key in existing and key not in config:
+                    config[key] = existing[key]
+
+            # Preserve per-country fields (desc, imageAssociation, filename)
+            old_countries = {}
+            for c in existing.get("countries", []):
+                old_key = safe_filename(c.get("name", ""))
+                old_countries[old_key] = c
+
+            for c in config["countries"]:
+                key = safe_filename(c["name"])
+                if key in old_countries:
+                    old = old_countries[key]
+                    for field in ("desc", "imageAssociation", "filename"):
+                        if field in old and field not in c:
+                            c[field] = old[field]
+
+            print(f"\n  Merged with existing config (preserved desc/imageAssociation)")
+        except (json.JSONDecodeError, KeyError):
+            print(f"\n  WARNING: Could not merge with existing config, overwriting")
+
     # Omit empty specialShapes to keep config clean
     if not config["specialShapes"]:
         del config["specialShapes"]
 
-    config_path = output_dir / "config.json"
     with open(str(config_path), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
