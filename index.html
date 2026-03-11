@@ -184,17 +184,23 @@
       <p>F&ouml;rst klickar du p&aring; r&auml;tt v&auml;rldsdel p&aring; v&auml;rldskartan, sedan hittar du landet p&aring; regionens karta.</p>
       <p>Lycka till!</p>
     </div>
-    <div class="world-setup-count">
-      <label>Antal l&auml;nder:</label>
-      <div class="count-buttons" id="world-count-buttons">
-        <button data-count="10">10</button>
-        <button data-count="20">20</button>
-        <button data-count="30">30</button>
-        <button data-count="50" class="active">50</button>
-        <button data-count="100">100</button>
-      </div>
+    <div class="world-setup-loading" id="world-setup-loading">
+      <p>V&auml;rlden laddas...</p>
+      <div class="world-loading-bar-wrap"><div class="world-loading-bar" id="world-loading-bar"></div></div>
     </div>
-    <button class="restart-btn" id="world-start-btn">Starta!</button>
+    <div class="world-setup-ready" id="world-setup-ready" style="display:none">
+      <div class="world-setup-count">
+        <label>Antal l&auml;nder:</label>
+        <div class="count-buttons" id="world-count-buttons">
+          <button data-count="10">10</button>
+          <button data-count="20">20</button>
+          <button data-count="30">30</button>
+          <button data-count="50" class="active">50</button>
+          <button data-count="100">100</button>
+        </div>
+      </div>
+      <button class="restart-btn" id="world-start-btn">Starta!</button>
+    </div>
   </div>
 </div>
 

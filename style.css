@@ -491,6 +491,11 @@
       color: #0f1b2d;
     }
 
+    .fb-banner.wrong-banner {
+      background: #ff5555;
+      color: #fff;
+    }
+
     .seterra-feedback.correct-fb .fb-title { color: #4cdf8b; }
     .seterra-feedback.wrong-fb .fb-title { color: #ffa500; }
 
@@ -981,6 +986,29 @@
 
     .world-setup-desc p {
       margin-bottom: 8px;
+    }
+
+    .world-setup-loading {
+      color: #b0c8d8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    .world-loading-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .world-loading-bar {
+      width: 0%;
+      height: 100%;
+      background: #5bbfff;
+      border-radius: 3px;
+      transition: width 0.3s;
     }
 
     .world-setup-count {

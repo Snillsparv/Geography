@@ -456,7 +456,7 @@ let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
 function onPointerDown(e) {
   if (e.button !== 0) return;
-  if (e.target.closest('.zoom-controls') || e.target.closest('.explore-toggle-buttons')) return;
+  if (e.target.closest('.zoom-controls') || e.target.closest('.explore-toggle-buttons') || e.target.closest('.world-back-bar')) return;
   e.preventDefault();
   mapPanel.setPointerCapture(e.pointerId);
   isDragging = true;
@@ -1216,7 +1216,7 @@ function detectContinent(px, py) {
   // Caribbean zone → Västindien (expanded zone)
   if (best.slug === 'nordamerika') {
     const pctX = px / worldMapW, pctY = py / worldMapH;
-    if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35 && pctY < 0.50) {
+    if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35) {
       return { slug: 'vastindien', name: 'Västindien' };
     }
   }
@@ -1300,6 +1300,8 @@ async function preloadWorldRegions() {
     const slug = WORLD_SLUGS[i];
     const config = worldConfigs[slug];
     headerHint.textContent = `Laddar ${config.name}... (${i + 1}/${totalRegions})`;
+    const loadBar = document.getElementById('world-loading-bar');
+    if (loadBar) loadBar.style.width = `${Math.round(((i + 1) / totalRegions) * 100)}%`;
 
     // Set globals for this region
     COUNTRIES = config.countries;
@@ -1385,7 +1387,7 @@ function generateContinentHovers() {
         let actualSlug = pixelContinent.slug;
         if (pixelContinent.slug === 'nordamerika') {
           const pctX = x / worldMapW, pctY = y / worldMapH;
-          if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35 && pctY < 0.50) {
+          if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35) {
             actualSlug = 'vastindien';
           }
         }
@@ -1485,6 +1487,12 @@ async function startWorldTest() {
   document.querySelector('header h1').textContent = 'Världstest';
   document.title = 'Världstest – Jonas geografi';
 
+  // Show setup overlay immediately (with loading indicator)
+  document.getElementById('world-setup-loading').style.display = '';
+  document.getElementById('world-setup-ready').style.display = 'none';
+  document.getElementById('world-loading-bar').style.width = '0%';
+  showWorldSetup();
+
   // Load all region configs
   const configs = await Promise.all(WORLD_SLUGS.map(s => loadRegionConfig(s)));
   WORLD_SLUGS.forEach((s, i) => worldConfigs[s] = configs[i]);
@@ -1498,8 +1506,9 @@ async function startWorldTest() {
   // Generate continent hover highlights
   generateContinentHovers();
 
-  // Show setup overlay so user can pick country count
-  showWorldSetup();
+  // Loading done — show count selector
+  document.getElementById('world-setup-loading').style.display = 'none';
+  document.getElementById('world-setup-ready').style.display = '';
 }
 
 // Setup overlay: count selection
@@ -1573,11 +1582,12 @@ function showWorldHub() {
   // Attach continent hover overlays
   attachContinentHovers();
 
-  // Attach world map click handler
+  // Attach world map click and scroll handler
   mapPanel.addEventListener('pointerdown', worldPointerDown);
   mapPanel.addEventListener('pointermove', worldPointerMove);
   mapPanel.addEventListener('pointerup', worldPointerUp);
   mapPanel.addEventListener('pointercancel', worldPointerUp);
+  mapPanel.addEventListener('wheel', onWheel, { passive: false });
 
   // Show cursor label with target
   if (worldTarget) {
@@ -1587,10 +1597,14 @@ function showWorldHub() {
 }
 
 let worldDragStart = null;
+let worldDidDrag = false;
 function worldPointerDown(e) {
   if (e.button !== 0) return;
+  if (e.target.closest('.world-back-bar')) return;
   e.preventDefault();
+  mapPanel.setPointerCapture(e.pointerId);
   worldDragStart = { x: e.clientX, y: e.clientY };
+  worldDidDrag = false;
 }
 
 function worldPointerMove(e) {
@@ -1598,6 +1612,20 @@ function worldPointerMove(e) {
   if (cursorLabel.style.display === 'block') {
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
+  }
+
+  // Pan if dragging
+  if (worldDragStart) {
+    const dx = e.clientX - worldDragStart.x;
+    const dy = e.clientY - worldDragStart.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      worldDidDrag = true;
+      panX += dx;
+      panY += dy;
+      worldDragStart = { x: e.clientX, y: e.clientY };
+      applyTransform();
+      return;
+    }
   }
 
   // Hover highlight: detect continent under cursor
@@ -1632,13 +1660,13 @@ function worldPointerMove(e) {
 }
 
 function worldPointerUp(e) {
-  if (!worldDragStart) return;
-  const dx = Math.abs(e.clientX - worldDragStart.x);
-  const dy = Math.abs(e.clientY - worldDragStart.y);
+  if (!worldDragStart && !worldDidDrag) return;
+  const wasDrag = worldDidDrag;
   worldDragStart = null;
+  worldDidDrag = false;
 
   // Ignore drags
-  if (dx > 5 || dy > 5) return;
+  if (wasDrag) return;
   if (worldLocked || !worldTarget) return;
 
   const mapRect = baseMap.getBoundingClientRect();
@@ -1666,6 +1694,7 @@ async function enterWorldRegion(slug) {
   mapPanel.removeEventListener('pointermove', worldPointerMove);
   mapPanel.removeEventListener('pointerup', worldPointerUp);
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
+  mapPanel.removeEventListener('wheel', onWheel);
 
   const config = worldConfigs[slug];
   const cache = worldRegionCache[slug];
@@ -1784,26 +1813,25 @@ function worldSeterraClick(c) {
       nextWorldQuestion();
     }, 1200);
   } else {
-    // Wrong country — max one wrong counted per question
-    if (!worldTarget.wrongCounted) {
-      worldWrong++;
-      worldTarget.wrongCounted = true;
-      worldMissedCountries.add(worldTarget.country.filename);
-    }
-    seterraTargetMisses++;
+    // Wrong country — count as wrong and move to next question
+    worldWrong++;
+    worldMissedCountries.add(worldTarget.country.filename);
     flashWrong(c.filename);
 
     const assoc = IMAGE_ASSOCIATIONS[c.filename];
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${escHtml(c.name)}</div>${assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner wrong-banner">FEL!</div><div class="fb-title">${escHtml(worldTarget.country.name)}</div><div class="fb-desc">Det var ${escHtml(c.name)}</div>`;
+
+    worldQueueIndex++;
     updateWorldUI();
 
-    if (seterraTargetMisses >= 3) {
-      blinkHint(worldTarget.country.filename);
-    }
-
+    // Go back to world hub with next question
     seterraLocked = true;
-    setTimeout(() => { seterraLocked = false; }, 600);
+    setTimeout(() => {
+      seterraLocked = false;
+      showWorldHub();
+      nextWorldQuestion();
+    }, 1200);
   }
 }
 
@@ -1813,9 +1841,10 @@ function updateWorldUI() {
   seterraScoreEl.textContent = score + '%';
   seterraCorrectEl.textContent = worldCorrect;
   seterraWrongEl.textContent = worldWrong;
-  const pct = Math.round((worldCorrect / worldTotal) * 100);
+  const answered = worldCorrect + worldWrong;
+  const pct = Math.round((answered / worldTotal) * 100);
   seterraBar.style.width = pct + '%';
-  seterraProgressLabel.textContent = `${worldCorrect} / ${worldTotal}`;
+  seterraProgressLabel.textContent = `${answered} / ${worldTotal}`;
 }
 
 function updateWorldTimer() {
