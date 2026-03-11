@@ -1190,6 +1190,7 @@ const CONTINENT_COLORS = [
   { slug: 'afrika', name: 'Afrika', r: 229, g: 120, b: 33 },
   { slug: 'asien', name: 'Asien', r: 246, g: 198, b: 10 },
   { slug: 'oceanien', name: 'Oceanien', r: 131, g: 47, b: 129 },
+  { slug: 'vastindien', name: 'Västindien', r: 0, g: 175, b: 170 },
 ];
 
 // Countries that exist in multiple regions — either region is correct
@@ -1213,13 +1214,6 @@ function detectContinent(px, py) {
   }
   if (bestDist > 12000) return null;
 
-  // Caribbean zone → Västindien (expanded zone)
-  if (best.slug === 'nordamerika') {
-    const pctX = px / worldMapW, pctY = py / worldMapH;
-    if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35) {
-      return { slug: 'vastindien', name: 'Västindien' };
-    }
-  }
   return best;
 }
 
@@ -1357,8 +1351,8 @@ function generateContinentHovers() {
   // Create highlight overlay images for each continent from world map pixel data
   if (!worldMapPixelData) return;
 
-  // Group all continent slugs (including vastindien as part of nordamerika color)
-  const continentSlugs = CONTINENT_COLORS.map(c => c.slug).concat('vastindien');
+  // Group all continent slugs (vastindien now has its own color on the map)
+  const continentSlugs = CONTINENT_COLORS.map(c => c.slug);
 
   for (const slug of continentSlugs) {
     const canvas = document.createElement('canvas');
@@ -1383,16 +1377,7 @@ function generateContinentHovers() {
         }
         if (bestDist > 12000 || !pixelContinent) continue;
 
-        // Determine actual slug (Caribbean zone)
-        let actualSlug = pixelContinent.slug;
-        if (pixelContinent.slug === 'nordamerika') {
-          const pctX = x / worldMapW, pctY = y / worldMapH;
-          if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35) {
-            actualSlug = 'vastindien';
-          }
-        }
-
-        if (actualSlug === slug) {
+        if (pixelContinent.slug === slug) {
           // White highlight pixel
           data[idx] = 255;
           data[idx + 1] = 255;
