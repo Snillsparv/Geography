@@ -1469,9 +1469,9 @@ async function startWorldTest() {
   document.getElementById('explore-toggle-buttons').style.display = 'none';
   document.body.style.overflow = 'hidden';
 
-  headerHint.textContent = 'Laddar världstest...';
-  document.querySelector('header h1').textContent = 'Världstest';
-  document.title = 'Världstest – Jonas geografi';
+  headerHint.textContent = 'Laddar VÄRLDSTEST...';
+  document.querySelector('header h1').textContent = 'VÄRLDSTEST';
+  document.title = 'VÄRLDSTEST – Jonas geografi';
 
   // Show setup overlay immediately (with loading indicator)
   document.getElementById('world-setup-loading').style.display = '';
@@ -1560,7 +1560,7 @@ function showWorldHub() {
   zoom = 1; panX = 0; panY = 0;
   applyTransform();
 
-  document.querySelector('header h1').textContent = 'Världstest';
+  document.querySelector('header h1').textContent = 'VÄRLDSTEST';
   headerHint.textContent = 'Klicka på rätt världsdel!';
   document.getElementById('world-back-bar').style.display = 'none';
   document.getElementById('explore-toggle-buttons').style.display = 'none';
