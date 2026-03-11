@@ -180,7 +180,7 @@ function createOverlays() {
   window.addEventListener('resize', positionOverlays);
 }
 
-function processHoverImages() {
+function processHoverImages(mapImageOverride) {
   const HOVER_R = 255, HOVER_G = 220, HOVER_B = 50;
   const BORDER_THRESHOLD = 150;
 
@@ -188,7 +188,7 @@ function processHoverImages() {
   mapCanvas.width = MAP_W;
   mapCanvas.height = MAP_H;
   const mapCtx = mapCanvas.getContext('2d');
-  mapCtx.drawImage(baseMap, 0, 0, MAP_W, MAP_H);
+  mapCtx.drawImage(mapImageOverride || baseMap, 0, 0, MAP_W, MAP_H);
   const mapData = mapCtx.getImageData(0, 0, MAP_W, MAP_H).data;
 
   const raw = new Uint8Array(MAP_W * MAP_H);
@@ -1239,9 +1239,15 @@ function sampleWorldQuestions(total) {
 }
 
 function cleanupMapWrapper() {
-  // Remove all dynamically created elements from mapWrapper
-  mapWrapper.querySelectorAll('.country-overlay, .hover-highlight, .hit-marker, .map-overlay').forEach(el => el.remove());
-  // Clear state
+  // In world test mode, detach DOM elements back to their cache
+  if (isWorldTest && worldTargetRegion && worldRegionCache[worldTargetRegion]) {
+    const cache = worldRegionCache[worldTargetRegion];
+    cache.domElements.forEach(el => el.remove());
+  } else {
+    // Remove all dynamically created elements from mapWrapper
+    mapWrapper.querySelectorAll('.country-overlay, .hover-highlight, .hit-marker, .map-overlay').forEach(el => el.remove());
+  }
+  // Clear globals
   for (const k in hitCanvases) delete hitCanvases[k];
   for (const k in hitPixelData) delete hitPixelData[k];
   for (const k in overlayEls) delete overlayEls[k];
@@ -1252,6 +1258,75 @@ function cleanupMapWrapper() {
   justRevealed.clear();
   currentHover = null;
   NO_HOVER.clear();
+}
+
+const worldRegionCache = {};
+
+async function preloadWorldRegions() {
+  // Pre-fetch all map images in parallel
+  const mapImages = {};
+  await Promise.all(WORLD_SLUGS.map(slug => new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { mapImages[slug] = img; resolve(); };
+    img.onerror = resolve;
+    img.src = worldConfigs[slug].mapFile;
+  })));
+
+  const totalRegions = WORLD_SLUGS.length;
+  for (let i = 0; i < totalRegions; i++) {
+    const slug = WORLD_SLUGS[i];
+    const config = worldConfigs[slug];
+    headerHint.textContent = `Laddar ${config.name}... (${i + 1}/${totalRegions})`;
+
+    // Set globals for this region
+    COUNTRIES = config.countries;
+    MAP_LEFT = config.mapLeft;
+    MAP_TOP = config.mapTop;
+    MAP_W = config.mapW;
+    MAP_H = config.mapH;
+    IMAGE_ASSOCIATIONS = config.imageAssociations;
+    ASSET_BASE = config.assetBase;
+    IMAGE_EXT = config.imageExt;
+    MAP_FILE = config.mapFile;
+    OVERLAY_FILE = config.overlayFile;
+    SPECIAL_SHAPES = config.specialShapes;
+
+    // Use pre-fetched map image as base map
+    baseMap.src = config.mapFile;
+    await new Promise(resolve => {
+      if (baseMap.complete && baseMap.naturalWidth > 0) resolve();
+      else baseMap.onload = resolve;
+    });
+
+    createOverlays();
+    await loadHitData();
+    processHoverImages(mapImages[slug]);
+
+    // Cache all state for this region
+    const domEls = [...mapWrapper.querySelectorAll('.country-overlay, .hover-highlight, .hit-marker, .map-overlay')];
+    worldRegionCache[slug] = {
+      overlayEls: { ...overlayEls },
+      hoverEls: { ...hoverEls },
+      markerEls: { ...markerEls },
+      hitPixelData: { ...hitPixelData },
+      sortedCountries: [...sortedCountries],
+      noHover: new Set(NO_HOVER),
+      domElements: domEls
+    };
+
+    // Detach DOM elements (keep in cache)
+    domEls.forEach(el => el.remove());
+
+    // Clear globals for next iteration
+    for (const k in hitCanvases) delete hitCanvases[k];
+    for (const k in hitPixelData) delete hitPixelData[k];
+    for (const k in overlayEls) delete overlayEls[k];
+    for (const k in hoverEls) delete hoverEls[k];
+    for (const k in markerEls) delete markerEls[k];
+    sortedCountries = [];
+    NO_HOVER.clear();
+  }
 }
 
 async function startWorldTest() {
@@ -1282,6 +1357,9 @@ async function startWorldTest() {
   const configs = await Promise.all(WORLD_SLUGS.map(s => loadRegionConfig(s)));
   WORLD_SLUGS.forEach((s, i) => worldConfigs[s] = configs[i]);
 
+  // Pre-load all regions (overlays, hit data, hover images)
+  await preloadWorldRegions();
+
   // Sample 50 questions
   worldQuestions = sampleWorldQuestions(50);
   worldTotal = worldQuestions.length;
@@ -1293,7 +1371,7 @@ async function startWorldTest() {
   seterraDone.classList.remove('active');
   currentMode = 'seterra';
 
-  // Start timer
+  // Start timer (after loading is complete)
   worldStartTime = Date.now();
   clearInterval(worldTimerInterval);
   worldTimerInterval = setInterval(updateWorldTimer, 500);
@@ -1437,7 +1515,7 @@ function worldPointerUp(e) {
   }
 }
 
-async function enterWorldRegion(slug) {
+function enterWorldRegion(slug) {
   worldPhase = 'region';
   worldTargetRegion = slug;
 
@@ -1448,6 +1526,7 @@ async function enterWorldRegion(slug) {
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
 
   const config = worldConfigs[slug];
+  const cache = worldRegionCache[slug];
 
   // Set globals for this region
   COUNTRIES = config.countries;
@@ -1462,22 +1541,26 @@ async function enterWorldRegion(slug) {
   OVERLAY_FILE = config.overlayFile;
   SPECIAL_SHAPES = config.specialShapes;
 
-  // Load region map
+  // Set base map (already cached by browser from pre-load)
   baseMap.src = MAP_FILE;
-  await new Promise(resolve => {
-    if (baseMap.complete && baseMap.naturalWidth > 0) resolve();
-    else baseMap.onload = resolve;
-  });
 
   // Reset zoom/pan
   zoom = 1; panX = 0; panY = 0;
   applyTransform();
 
-  createOverlays();
-  await loadHitData();
-  processHoverImages();
+  // Restore cached DOM elements and state
+  cache.domElements.forEach(el => mapWrapper.appendChild(el));
+  Object.assign(overlayEls, cache.overlayEls);
+  Object.assign(hoverEls, cache.hoverEls);
+  Object.assign(markerEls, cache.markerEls);
+  Object.assign(hitPixelData, cache.hitPixelData);
+  sortedCountries = cache.sortedCountries;
+  cache.noHover.forEach(v => NO_HOVER.add(v));
+
+  positionOverlays();
 
   // Reveal countries the player has already found in this region
+  revealed.clear();
   for (const q of worldQuestions) {
     if (q.region === slug && q.found) {
       revealCountry(q.country.filename);
@@ -1541,31 +1624,13 @@ function worldSeterraClick(c) {
     worldQueueIndex++;
     updateWorldUI();
 
-    // Check if next question is in the same region
-    const nextQ = worldQuestions[worldQueueIndex];
-    if (nextQ && nextQ.region === worldTargetRegion) {
-      // Stay in this region
-      seterraLocked = true;
-      setTimeout(() => {
-        seterraLocked = false;
-        worldTarget = nextQ;
-        seterraTarget = nextQ.country;
-        seterraTargetName.textContent = nextQ.country.name;
-        cursorLabel.textContent = nextQ.country.name;
-        seterraTargetMisses = 0;
-        seterraFeedback.className = 'seterra-feedback';
-        seterraFeedback.innerHTML = '';
-        updateWorldUI();
-      }, 800);
-    } else {
-      // Go back to world hub
-      seterraLocked = true;
-      setTimeout(() => {
-        seterraLocked = false;
-        showWorldHub();
-        nextWorldQuestion();
-      }, 1200);
-    }
+    // Always go back to world hub for next question
+    seterraLocked = true;
+    setTimeout(() => {
+      seterraLocked = false;
+      showWorldHub();
+      nextWorldQuestion();
+    }, 1200);
   } else {
     // Wrong country
     worldWrong++;

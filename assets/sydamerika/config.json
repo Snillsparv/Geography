@@ -106,16 +106,17 @@
       "top": 336,
       "width": 202,
       "height": 202
-    },
-    {
-      "name": "Bolivia Shape",
+    }
+  ],
+  "specialShapes": {
+    "bolivia": {
       "file": "countries/bolivia_shape.webp",
       "left": 1275,
       "top": 1220,
       "width": 844,
       "height": 880
     }
-  ],
+  },
   "mapWidth": 2779,
   "mapHeight": 3955,
   "mapOffset": {
