@@ -701,10 +701,57 @@ function endSeterra() {
   document.getElementById('hs-saved-msg').style.display = 'none';
 
   if (!seterraIsRetry) {
-    showNameModal(score, m, s);
+    if (score === 100) {
+      showSeterraCelebration(m, s);
+    } else {
+      showNameModal(score, m, s);
+    }
   } else {
     renderHighscores();
   }
+}
+
+function showSeterraCelebration(m, s) {
+  const overlay = document.getElementById('celebration-overlay');
+  document.getElementById('celebration-detail').innerHTML =
+    `${seterraCorrect} av ${seterraTotal} länder &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+  overlay.classList.add('active');
+
+  const confettiCanvas = document.getElementById('confetti-canvas');
+  const stopConfetti = startConfetti(confettiCanvas);
+
+  const celebMusic = new Audio('CELEBRATION.mp3');
+  celebMusic.loop = true;
+  celebMusic.volume = 0.7;
+  celebMusic.play().catch(() => {});
+
+  const jonasEl = document.getElementById('celebration-jonas-img');
+  let toggle = false;
+  const jonasInterval = setInterval(() => {
+    toggle = !toggle;
+    jonasEl.src = toggle ? 'Jonas_2.webp' : 'Jonas_1.webp';
+  }, 300);
+
+  const celebAudio = new Audio('high_five.wav');
+  celebAudio.play().catch(() => {});
+  const soundInterval = setInterval(() => {
+    celebAudio.currentTime = 0;
+    celebAudio.play().catch(() => {});
+  }, 800);
+
+  const closeBtn = document.getElementById('celebration-close');
+  const closeFn = () => {
+    clearInterval(jonasInterval);
+    clearInterval(soundInterval);
+    stopConfetti();
+    celebMusic.pause();
+    celebMusic.currentTime = 0;
+    overlay.classList.remove('active');
+    jonasEl.src = 'Jonas_1.webp';
+    closeBtn.removeEventListener('click', closeFn);
+    showNameModal(100, m, s);
+  };
+  closeBtn.addEventListener('click', closeFn);
 }
 
 // ══════════════════════
@@ -1887,11 +1934,63 @@ function endWorldTest() {
   }
 }
 
+// ── Confetti engine ──
+function startConfetti(canvas) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const colors = ['#ff4444', '#ffdd00', '#44bb44', '#4488ff', '#ff44ff', '#ff8800', '#00ddff', '#ffd700'];
+  const pieces = [];
+  for (let i = 0; i < 200; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      w: 6 + Math.random() * 8,
+      h: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speed: 1.5 + Math.random() * 3,
+      drift: (Math.random() - 0.5) * 1.5,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.15,
+    });
+  }
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of pieces) {
+      p.y += p.speed;
+      p.x += p.drift;
+      p.rot += p.rotSpeed;
+      if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+  return () => { running = false; ctx.clearRect(0, 0, canvas.width, canvas.height); };
+}
+
 function showCelebration(elapsed, m, s) {
   const overlay = document.getElementById('celebration-overlay');
   document.getElementById('celebration-detail').innerHTML =
     `${worldCorrect} av ${worldTotal} länder &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
   overlay.classList.add('active');
+
+  // Start confetti rain
+  const confettiCanvas = document.getElementById('confetti-canvas');
+  const stopConfetti = startConfetti(confettiCanvas);
+
+  // Play celebration music
+  const celebMusic = new Audio('CELEBRATION.mp3');
+  celebMusic.loop = true;
+  celebMusic.volume = 0.7;
+  celebMusic.play().catch(() => {});
 
   // Jonas high-five animation
   const jonasEl = document.getElementById('celebration-jonas-img');
@@ -1913,6 +2012,9 @@ function showCelebration(elapsed, m, s) {
   const closeFn = () => {
     clearInterval(jonasInterval);
     clearInterval(soundInterval);
+    stopConfetti();
+    celebMusic.pause();
+    celebMusic.currentTime = 0;
     overlay.classList.remove('active');
     jonasEl.src = 'Jonas_1.webp';
     closeBtn.removeEventListener('click', closeFn);

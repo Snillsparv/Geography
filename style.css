@@ -1082,7 +1082,18 @@
       display: flex;
     }
 
+    #confetti-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 301;
+    }
+
     .celebration-content {
+      z-index: 302;
       text-align: center;
       animation: celebIn 0.5s ease;
     }
