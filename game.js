@@ -135,13 +135,15 @@ function createOverlays() {
     mapWrapper.appendChild(img);
     overlayEls[c.filename] = img;
 
+    const shape = SPECIAL_SHAPES[c.filename];
     const hover = document.createElement('img');
     hover.className = 'hover-highlight';
     hover.dataset.country = c.filename;
     hover.draggable = false;
-    // Use special shape for hover if available (unless hitOnly)
-    const shape = SPECIAL_SHAPES[c.filename];
-    if (shape && !shape.hitOnly) {
+    // hitOnly shapes: no hover image, just pointer cursor
+    if (shape && shape.hitOnly) {
+      // No src — hover highlight stays invisible
+    } else if (shape) {
       hover.src = shape.shapeFile;
     } else {
       hover.src = countryImgSrc(c.filename);
@@ -403,6 +405,7 @@ function updateHover(e) {
     }
     currentHover = newHover;
   }
+  mapPanel.style.cursor = newHover ? 'pointer' : '';
 
   if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = e.clientX + 'px';
