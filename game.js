@@ -1178,6 +1178,8 @@ let worldContinentMisses = 0;
 let worldMapPixelData = null;
 let worldMapW = 0, worldMapH = 0;
 let worldLocked = false;
+let worldHoverEls = {};       // continent slug → img element for hover highlights
+let currentWorldHover = null; // currently hovered continent slug
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 
@@ -1189,6 +1191,12 @@ const CONTINENT_COLORS = [
   { slug: 'asien', name: 'Asien', r: 246, g: 198, b: 10 },
   { slug: 'oceanien', name: 'Oceanien', r: 131, g: 47, b: 129 },
 ];
+
+// Countries that exist in multiple regions — either region is correct
+const CROSS_REGION_COUNTRIES = {
+  turkiet: ['europa', 'asien'],
+  papua_nya_guinea: ['asien', 'oceanien']
+};
 
 function detectContinent(px, py) {
   if (!worldMapPixelData) return null;
@@ -1205,10 +1213,10 @@ function detectContinent(px, py) {
   }
   if (bestDist > 12000) return null;
 
-  // Caribbean zone → Västindien
+  // Caribbean zone → Västindien (expanded zone)
   if (best.slug === 'nordamerika') {
     const pctX = px / worldMapW, pctY = py / worldMapH;
-    if (pctX > 0.18 && pctX < 0.32 && pctY > 0.39 && pctY < 0.50) {
+    if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35 && pctY < 0.50) {
       return { slug: 'vastindien', name: 'Västindien' };
     }
   }
@@ -1221,6 +1229,9 @@ function sampleWorldQuestions(total) {
     countries: shuffle([...worldConfigs[slug].countries])
   }));
   const totalCountries = entries.reduce((s, e) => s + e.countries.length, 0);
+
+  // Cap at total available
+  if (total > totalCountries) total = totalCountries;
 
   // Largest remainder method for proportional allocation
   const raw = entries.map(e => {
@@ -1235,7 +1246,15 @@ function sampleWorldQuestions(total) {
   const questions = [];
   for (const r of raw) {
     for (let i = 0; i < Math.min(r.count, r.countries.length); i++) {
-      questions.push({ country: r.countries[i], region: r.slug });
+      const country = r.countries[i];
+      const altRegions = CROSS_REGION_COUNTRIES[country.filename];
+      questions.push({
+        country,
+        region: r.slug,
+        altRegions: altRegions || null,
+        wrongCounted: false,
+        found: false
+      });
     }
   }
   return shuffle(questions);
@@ -1332,6 +1351,116 @@ async function preloadWorldRegions() {
   }
 }
 
+function generateContinentHovers() {
+  // Create highlight overlay images for each continent from world map pixel data
+  if (!worldMapPixelData) return;
+
+  // Group all continent slugs (including vastindien as part of nordamerika color)
+  const continentSlugs = CONTINENT_COLORS.map(c => c.slug).concat('vastindien');
+
+  for (const slug of continentSlugs) {
+    const canvas = document.createElement('canvas');
+    canvas.width = worldMapW;
+    canvas.height = worldMapH;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(worldMapW, worldMapH);
+    const data = imgData.data;
+
+    for (let y = 0; y < worldMapH; y++) {
+      for (let x = 0; x < worldMapW; x++) {
+        const idx = (y * worldMapW + x) * 4;
+        const r = worldMapPixelData[idx], g = worldMapPixelData[idx + 1], b = worldMapPixelData[idx + 2];
+
+        if (r > 200 && g > 200 && b > 200) continue; // skip background
+
+        let pixelContinent = null;
+        let bestDist = Infinity;
+        for (const c of CONTINENT_COLORS) {
+          const dist = (r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2;
+          if (dist < bestDist) { bestDist = dist; pixelContinent = c; }
+        }
+        if (bestDist > 12000 || !pixelContinent) continue;
+
+        // Determine actual slug (Caribbean zone)
+        let actualSlug = pixelContinent.slug;
+        if (pixelContinent.slug === 'nordamerika') {
+          const pctX = x / worldMapW, pctY = y / worldMapH;
+          if (pctX > 0.17 && pctX < 0.36 && pctY > 0.35 && pctY < 0.50) {
+            actualSlug = 'vastindien';
+          }
+        }
+
+        if (actualSlug === slug) {
+          // White highlight pixel
+          data[idx] = 255;
+          data[idx + 1] = 255;
+          data[idx + 2] = 255;
+          data[idx + 3] = 180;
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    const img = new Image();
+    img.src = canvas.toDataURL();
+    img.className = 'continent-hover';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.position = 'absolute';
+    img.style.left = '0';
+    img.style.top = '0';
+    img.style.pointerEvents = 'none';
+    img.style.opacity = '0';
+    img.style.mixBlendMode = 'screen';
+    img.style.transition = 'opacity 0.15s';
+    worldHoverEls[slug] = img;
+  }
+}
+
+function attachContinentHovers() {
+  for (const slug in worldHoverEls) {
+    mapWrapper.appendChild(worldHoverEls[slug]);
+  }
+}
+
+function detachContinentHovers() {
+  for (const slug in worldHoverEls) {
+    worldHoverEls[slug].remove();
+    worldHoverEls[slug].style.opacity = '0';
+  }
+  currentWorldHover = null;
+}
+
+function showWorldSetup() {
+  const overlay = document.getElementById('world-setup-overlay');
+  overlay.classList.add('active');
+}
+
+function beginWorldGame(count) {
+  const overlay = document.getElementById('world-setup-overlay');
+  overlay.classList.remove('active');
+
+  // Sample questions
+  worldQuestions = sampleWorldQuestions(count);
+  worldTotal = worldQuestions.length;
+
+  // Set up seterra UI for world test
+  document.getElementById('explore-ui').style.display = 'none';
+  document.getElementById('seterra-ui').style.display = '';
+  seterraGame.classList.add('active');
+  seterraDone.classList.remove('active');
+  currentMode = 'seterra';
+
+  // Start timer
+  worldStartTime = Date.now();
+  clearInterval(worldTimerInterval);
+  worldTimerInterval = setInterval(updateWorldTimer, 500);
+
+  showWorldHub();
+  nextWorldQuestion();
+}
+
 async function startWorldTest() {
   isWorldTest = true;
   worldPhase = 'hub';
@@ -1363,28 +1492,29 @@ async function startWorldTest() {
   // Pre-load all regions (overlays, hit data, hover images)
   await preloadWorldRegions();
 
-  // Sample 50 questions
-  worldQuestions = sampleWorldQuestions(50);
-  worldTotal = worldQuestions.length;
-
-  // Set up seterra UI for world test
-  document.getElementById('explore-ui').style.display = 'none';
-  document.getElementById('seterra-ui').style.display = '';
-  seterraGame.classList.add('active');
-  seterraDone.classList.remove('active');
-  currentMode = 'seterra';
-
-  // Start timer (after loading is complete)
-  worldStartTime = Date.now();
-  clearInterval(worldTimerInterval);
-  worldTimerInterval = setInterval(updateWorldTimer, 500);
-
-  // Load world map image
+  // Load world map image and generate pixel data
   await loadWorldMap();
 
-  showWorldHub();
-  nextWorldQuestion();
+  // Generate continent hover highlights
+  generateContinentHovers();
+
+  // Show setup overlay so user can pick country count
+  showWorldSetup();
 }
+
+// Setup overlay: count selection
+document.getElementById('world-count-buttons').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-count]');
+  if (!btn) return;
+  document.querySelectorAll('#world-count-buttons button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+});
+
+document.getElementById('world-start-btn').addEventListener('click', () => {
+  const activeBtn = document.querySelector('#world-count-buttons button.active');
+  const count = activeBtn ? parseInt(activeBtn.dataset.count) : 50;
+  beginWorldGame(count);
+});
 
 async function loadWorldMap() {
   const worldMapUrl = 'assets/world/map.webp';
@@ -1440,6 +1570,9 @@ function showWorldHub() {
   document.getElementById('world-back-bar').style.display = 'none';
   document.getElementById('explore-toggle-buttons').style.display = 'none';
 
+  // Attach continent hover overlays
+  attachContinentHovers();
+
   // Attach world map click handler
   mapPanel.addEventListener('pointerdown', worldPointerDown);
   mapPanel.addEventListener('pointermove', worldPointerMove);
@@ -1477,8 +1610,24 @@ function worldPointerMove(e) {
   if (px >= 0 && px < worldMapW && py >= 0 && py < worldMapH) {
     const c = detectContinent(px, py);
     mapPanel.style.cursor = c ? 'pointer' : '';
+
+    // Show/hide continent hover highlight
+    const slug = c ? c.slug : null;
+    if (slug !== currentWorldHover) {
+      if (currentWorldHover && worldHoverEls[currentWorldHover]) {
+        worldHoverEls[currentWorldHover].style.opacity = '0';
+      }
+      if (slug && worldHoverEls[slug]) {
+        worldHoverEls[slug].style.opacity = '0.5';
+      }
+      currentWorldHover = slug;
+    }
   } else {
     mapPanel.style.cursor = '';
+    if (currentWorldHover && worldHoverEls[currentWorldHover]) {
+      worldHoverEls[currentWorldHover].style.opacity = '0';
+    }
+    currentWorldHover = null;
   }
 }
 
@@ -1503,19 +1652,9 @@ function worldPointerUp(e) {
   const clicked = detectContinent(px, py);
   if (!clicked) return;
 
-  if (clicked.slug === worldTarget.region) {
-    // Correct continent! Transition to region map
-    enterWorldRegion(clicked.slug);
-  } else {
-    // Wrong continent
-    worldContinentMisses++;
-    worldLocked = true;
-
-    seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det här är ${escHtml(clicked.name)}</div><div class="fb-desc">Försök igen!</div>`;
-
-    setTimeout(() => { worldLocked = false; }, 600);
-  }
+  // Free navigation: always enter the clicked continent (no wrong penalty here)
+  detachContinentHovers();
+  enterWorldRegion(clicked.slug);
 }
 
 async function enterWorldRegion(slug) {
@@ -1569,7 +1708,7 @@ async function enterWorldRegion(slug) {
   // Reveal countries the player has already found in this region
   revealed.clear();
   for (const q of worldQuestions) {
-    if (q.region === slug && q.found) {
+    if (q.found && (q.region === slug || (q.altRegions && q.altRegions.includes(slug)))) {
       revealCountry(q.country.filename);
     }
   }
@@ -1618,7 +1757,13 @@ function nextWorldQuestion() {
 function worldSeterraClick(c) {
   if (!worldTarget || seterraLocked || worldPhase !== 'region') return;
 
-  if (c.filename === worldTarget.country.filename) {
+  // Check if the clicked country is the target
+  // For cross-region countries, the target may exist in multiple regions
+  const isCorrect = c.filename === worldTarget.country.filename ||
+    (worldTarget.altRegions && worldTarget.altRegions.includes(worldTargetRegion) &&
+     c.filename === worldTarget.country.filename);
+
+  if (isCorrect) {
     // Correct!
     worldCorrect++;
     worldTarget.found = true;
@@ -1639,10 +1784,13 @@ function worldSeterraClick(c) {
       nextWorldQuestion();
     }, 1200);
   } else {
-    // Wrong country
-    worldWrong++;
+    // Wrong country — max one wrong counted per question
+    if (!worldTarget.wrongCounted) {
+      worldWrong++;
+      worldTarget.wrongCounted = true;
+      worldMissedCountries.add(worldTarget.country.filename);
+    }
     seterraTargetMisses++;
-    worldMissedCountries.add(worldTarget.country.filename);
     flashWrong(c.filename);
 
     const assoc = IMAGE_ASSOCIATIONS[c.filename];
@@ -1660,8 +1808,8 @@ function worldSeterraClick(c) {
 }
 
 function updateWorldUI() {
-  const totalClicks = worldCorrect + worldWrong;
-  const score = totalClicks > 0 ? Math.round((worldCorrect / totalClicks) * 100) : 100;
+  // Score = (total - wrong) / total * 100 (max one wrong per country)
+  const score = worldTotal > 0 ? Math.round(((worldTotal - worldWrong) / worldTotal) * 100) : 100;
   seterraScoreEl.textContent = score + '%';
   seterraCorrectEl.textContent = worldCorrect;
   seterraWrongEl.textContent = worldWrong;
@@ -1689,8 +1837,7 @@ function endWorldTest() {
   mapPanel.removeEventListener('pointerup', worldPointerUp);
   mapPanel.removeEventListener('pointercancel', worldPointerUp);
 
-  const totalClicks = worldCorrect + worldWrong;
-  const score = totalClicks > 0 ? Math.round((worldCorrect / totalClicks) * 100) : 100;
+  const score = worldTotal > 0 ? Math.round(((worldTotal - worldWrong) / worldTotal) * 100) : 100;
   const elapsed = Math.floor((Date.now() - worldStartTime) / 1000);
   const m = Math.floor(elapsed / 60);
   const s = elapsed % 60;
@@ -1699,7 +1846,7 @@ function endWorldTest() {
   seterraDone.classList.add('active');
   document.getElementById('seterra-final-score').textContent = score + '%';
   document.getElementById('seterra-final-detail').innerHTML =
-    `${worldCorrect} av ${worldTotal} länder<br>${worldWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
+    `${worldCorrect} av ${worldTotal} länder<br>${worldWrong} fel<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
 
   document.getElementById('world-back-bar').style.display = 'none';
   headerHint.textContent = '';
