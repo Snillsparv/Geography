@@ -397,9 +397,10 @@ function updateHover(e) {
       justRevealed.delete(currentHover);
     }
     if (newHover && !justRevealed.has(newHover)) {
+      const isHitOnly = SPECIAL_SHAPES[newHover] && SPECIAL_SHAPES[newHover].hitOnly;
       if (revealed.has(newHover)) {
         overlayEls[newHover].classList.add('hovered');
-      } else if (!overlayEls[newHover].classList.contains('flash-wrong')) {
+      } else if (!isHitOnly && !overlayEls[newHover].classList.contains('flash-wrong')) {
         hoverEls[newHover].classList.add('active');
       }
     }
