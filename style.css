@@ -898,7 +898,7 @@
     .region-card.world-card img {
       height: 200px;
       object-fit: contain;
-      background: #fff;
+      background: linear-gradient(135deg, #1a2940, #1e3550);
     }
 
     .region-card.world-card span {
