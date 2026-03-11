@@ -624,6 +624,7 @@ function nextSeterraTarget() {
 
 function seterraClick(c) {
   if (!seterraTarget || seterraLocked) return;
+  if (revealed.has(c.filename)) return;
 
   if (c.filename === seterraTarget.filename) {
     seterraCorrect++;
@@ -1770,6 +1771,7 @@ function nextWorldQuestion() {
 
 function worldSeterraClick(c) {
   if (!worldTarget || seterraLocked || worldPhase !== 'region') return;
+  if (revealed.has(c.filename)) return;
 
   // Check if the clicked country is the target
   // For cross-region countries, the target may exist in multiple regions

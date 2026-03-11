@@ -4,7 +4,16 @@
   "canvasHeight": 3664,
   "slug": "asien",
   "hsKey": "asien-highscores",
-  "specialShapes": {},
+  "specialShapes": {
+    "singapore": {
+      "file": "countries/singapore_shape.webp",
+      "left": 2257,
+      "top": 2998,
+      "width": 120,
+      "height": 120,
+      "hitOnly": true
+    }
+  },
   "countries": [
     {
       "name": "Turkiet",
