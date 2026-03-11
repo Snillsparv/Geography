@@ -101,7 +101,7 @@ def safe_filename(name):
 def classify_layer(layer):
     """Return one of: 'skip', 'overlay', 'map', 'shape', 'country'."""
     name = layer.name.strip()
-    if name.startswith('!'):
+    if name.startswith('!') or name.endswith('!'):
         return "shape"
     name_lower = name.lower()
     if name_lower in SKIP_NAMES:
@@ -206,7 +206,7 @@ def extract_psd(psd_path, output_dir):
     # --- Build shape lookup (! layers → click targets) ---
     shape_lookup = {}
     for layer in shape_layers:
-        base_name = layer.name.strip().lstrip('!')
+        base_name = layer.name.strip().strip('!')
         key = safe_filename(base_name)
         shape_lookup[key] = layer
 
@@ -299,6 +299,11 @@ def extract_psd(psd_path, output_dir):
             for key in ("slug", "hsKey"):
                 if key in existing and key not in config:
                     config[key] = existing[key]
+
+            # Preserve manually added specialShapes not found in extraction
+            for key, shape in existing.get("specialShapes", {}).items():
+                if key not in config.get("specialShapes", {}):
+                    config.setdefault("specialShapes", {})[key] = shape
 
             # Preserve per-country fields (desc, imageAssociation, filename)
             old_countries = {}
