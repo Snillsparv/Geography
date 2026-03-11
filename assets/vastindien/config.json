@@ -175,17 +175,6 @@
       "desc": "Bahamas består av hela 700 öar och över 2 000 korallrev, men bara cirka 30 av öarna är bebodda. Det var här Columbus först landsteg i Amerika år 1492. Bahamas är känt för sina simmande grisar på ön Big Major Cay – en av världens mest ovanliga turistattraktioner!",
       "imageAssociation": "BANANER i röken från Kuba-cigarren",
       "filename": "bahamas"
-    },
-    {
-      "name": "Trinidad & Tobago",
-      "file": "countries/trinidad__tobago.webp",
-      "left": 2551,
-      "top": 2128,
-      "width": 88,
-      "height": 80,
-      "desc": "Trinidad och Tobago ligger längst söderut i Karibien, nära Venezuelas kust. Landet är världsberömt för sin karneval och är födelseplatsen för steelpan-trumman, Karibiens mest kända musikinstrument. Trinidad har också världens största naturliga asfaltsjö, Pitch Lake.",
-      "imageAssociation": "En pappa med tryne (TRYNE-DAD) som röker TOBAK",
-      "filename": "trinidad__tobago"
     }
   ],
   "mapWidth": 3313,
