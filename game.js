@@ -51,7 +51,7 @@ let currentMode = 'explore';
 
 // Zoom & Pan
 let zoom = 1, panX = 0, panY = 0;
-const MIN_ZOOM = 1, MAX_ZOOM = 5;
+const MIN_ZOOM = 0.5, MAX_ZOOM = 5;
 
 // Explore state
 let activeCountry = null;
