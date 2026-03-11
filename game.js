@@ -1190,7 +1190,7 @@ const CONTINENT_COLORS = [
   { slug: 'afrika', name: 'Afrika', r: 229, g: 120, b: 33 },
   { slug: 'asien', name: 'Asien', r: 246, g: 198, b: 10 },
   { slug: 'oceanien', name: 'Oceanien', r: 131, g: 47, b: 129 },
-  { slug: 'vastindien', name: 'Västindien', r: 0, g: 175, b: 170 },
+  { slug: 'vastindien', name: 'Västindien', r: 39, g: 213, b: 250 },
 ];
 
 // Countries that exist in multiple regions — either region is correct
