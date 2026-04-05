@@ -1050,7 +1050,10 @@ async function initGame(config) {
   document.querySelector('.mode-toggle').style.display = '';
   document.getElementById('header-hint').style.display = '';
   document.body.style.overflow = 'hidden';
-  if (window.innerWidth <= 900) document.body.style.position = 'fixed';
+  if (window.innerWidth <= 900) {
+    document.body.style.position = 'fixed';
+    document.body.style.height = '100%';
+  }
 
   // Measure header for mobile layout
   requestAnimationFrame(updateMobileHeaderHeight);
@@ -1192,6 +1195,7 @@ function showRegionSelector() {
   document.title = 'Jonas geografi';
   document.body.style.overflow = 'auto';
   document.body.style.position = '';
+  document.body.style.height = '';
   if (isWorldTest) {
     clearInterval(worldTimerInterval);
     mapPanel.removeEventListener('pointerdown', worldPointerDown);
@@ -1520,7 +1524,10 @@ async function startWorldTest() {
   document.getElementById('back-btn').style.display = '';
   document.getElementById('explore-toggle-buttons').style.display = 'none';
   document.body.style.overflow = 'hidden';
-  if (window.innerWidth <= 900) document.body.style.position = 'fixed';
+  if (window.innerWidth <= 900) {
+    document.body.style.position = 'fixed';
+    document.body.style.height = '100%';
+  }
 
   headerHint.textContent = 'Laddar VÄRLDSTEST...';
   document.querySelector('header h1').textContent = 'VÄRLDSTEST';
