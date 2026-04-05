@@ -1475,8 +1475,15 @@
 
       /* ── Region selector ── */
       .region-selector {
-        min-height: calc(100vh - 40px);
+        min-height: 0;
+        max-height: calc(100vh - 40px);
         padding: 20px 12px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .region-selector::-webkit-scrollbar {
+        display: none;
       }
 
       .region-selector h2 {
