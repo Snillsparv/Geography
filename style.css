@@ -1011,7 +1011,7 @@
 
       body.is-globe-region .explore-toggle-buttons {
         left: 12px;
-        bottom: calc(var(--globe-mobile-panel-height) + env(safe-area-inset-bottom, 0px) + 108px);
+        bottom: calc(var(--globe-mobile-panel-height) + env(safe-area-inset-bottom, 0px) + 128px);
         z-index: 24;
       }
 
