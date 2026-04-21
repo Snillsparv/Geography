@@ -285,10 +285,31 @@ const headerHint = document.getElementById('header-hint');
 
 const infoDefault = document.getElementById('info-default');
 const infoCard = document.getElementById('info-card');
+const infoHeaderTitle = document.querySelector('.info-header h2');
 const infoName = document.getElementById('info-name');
 const infoShape = document.getElementById('info-shape');
 const infoDesc = document.getElementById('info-desc');
 const exploredCountEl = document.getElementById('explored-count');
+
+function syncGlobeInfoPanelState() {
+  document.body.classList.toggle(
+    'globe-info-card-active',
+    IS_GLOBE_REGION && infoCard.classList.contains('active')
+  );
+  if (infoHeaderTitle) {
+    infoHeaderTitle.textContent =
+      IS_GLOBE_REGION && infoCard.classList.contains('active') && infoName.textContent
+        ? infoName.textContent
+        : 'Landinformation';
+  }
+}
+
+function clearExploreSelection() {
+  activeCountry = null;
+  infoCard.classList.remove('active');
+  infoDefault.style.display = '';
+  syncGlobeInfoPanelState();
+}
 
 const seterraTargetName = document.getElementById('seterra-target-name');
 const seterraScoreEl = document.getElementById('seterra-score');
@@ -2645,7 +2666,12 @@ function onGlobeClick(feature, event) {
 
 function onGlobeSurfaceClick(coords, event) {
   if (isGlobePointerInteractionDrag(event)) return;
-  if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return;
+  if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) {
+    setGlobeHoverFeature(null);
+    if (GLOBE_HOVER_LEGACY) refreshGlobeHoverStyles();
+    clearExploreSelection();
+    return;
+  }
   const country = globeCountryForCoords(coords.lat, coords.lng);
   if (!country) return;
   setGlobeHoverFeature(null);
@@ -2789,8 +2815,8 @@ function removeGlobeCpuPointerHandlers() {
 
 function syncGlobeViewport() {
   if (!isGlobeReady()) return;
-  const width = mapPanel.clientWidth;
-  const height = mapPanel.clientHeight;
+  const width = globeContainer.clientWidth || mapPanel.clientWidth;
+  const height = globeContainer.clientHeight || mapPanel.clientHeight;
   if (width > 0 && height > 0) {
     globe.width(width);
     globe.height(height);
@@ -3094,7 +3120,7 @@ async function initGlobe() {
 
   mapWrapper.style.display = 'none';
   globeContainer.style.display = '';
-  document.querySelector('.zoom-controls').style.display = 'none';
+  document.querySelector('.zoom-controls').style.display = '';
 
   const allFeatures = await loadGlobeFeatureSet(GLOBE_GEO_FILE, 'main');
   if (allFeatures.length === 0) {
@@ -3218,6 +3244,7 @@ async function initGlobe() {
   if (window.ResizeObserver) {
     globeResizeObserver = new ResizeObserver(() => syncGlobeViewport());
     globeResizeObserver.observe(mapPanel);
+    globeResizeObserver.observe(globeContainer);
   } else {
     window.addEventListener('resize', syncGlobeViewport);
   }
@@ -3799,6 +3826,7 @@ function showInfoCard(c) {
   infoDesc.innerHTML = (assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : '') + escHtml(c.desc);
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
+  syncGlobeInfoPanelState();
 }
 
 function exploreClick(c, e) {
@@ -4151,9 +4179,7 @@ function switchMode(mode) {
     seterraTarget = null;
     headerHint.textContent = IS_GLOBE_REGION ? 'Klicka på ett land på jordgloben' : 'Klicka på ett land';
     resetOverlays();
-    activeCountry = null;
-    infoCard.classList.remove('active');
-    infoDefault.style.display = '';
+    clearExploreSelection();
     exploredCountEl.textContent = '0';
   } else {
     document.getElementById('explore-ui').style.display = 'none';
@@ -4353,12 +4379,14 @@ async function initGame(config) {
   const configCropMode = normalizeGlobeCropMode(config.warpCropMode);
   GLOBE_WARP_CROP_MODE = GLOBE_WARP_CROP_MODE_OVERRIDE || configCropMode || 'mnemonic';
   COUNTRY_BY_FILENAME = Object.fromEntries(COUNTRIES.map(c => [c.filename, c]));
+  document.body.classList.toggle('is-globe-region', IS_GLOBE_REGION);
 
   // Update HTML elements
   document.title = `${config.name} – Jonas geografi`;
   document.querySelector('header h1').textContent = config.name;
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
+  syncGlobeInfoPanelState();
 
   // Show game container (hidden if region selector was showing)
   document.getElementById('region-selector').style.display = 'none';
@@ -4373,7 +4401,7 @@ async function initGame(config) {
     baseMap.removeAttribute('src');
     mapWrapper.style.display = 'none';
     globeContainer.style.display = '';
-    document.querySelector('.zoom-controls').style.display = 'none';
+    document.querySelector('.zoom-controls').style.display = '';
     await initGlobe();
   } else {
     globeContainer.style.display = 'none';
@@ -4473,9 +4501,7 @@ if (hideAllBtn) {
   hideAllBtn.addEventListener('click', () => {
     resetOverlays();
     exploredCountEl.textContent = '0';
-    activeCountry = null;
-    infoCard.classList.remove('active');
-    infoDefault.style.display = '';
+    clearExploreSelection();
   });
 }
 
@@ -4514,6 +4540,8 @@ jonasImg.addEventListener('click', () => {
 // Region selector helpers
 // ══════════════════════════════════
 function showRegionSelector() {
+  document.body.classList.remove('is-globe-region');
+  document.body.classList.remove('globe-info-card-active');
   document.getElementById('region-selector').style.display = '';
   document.querySelector('.game-container').style.display = 'none';
   document.querySelector('.mode-toggle').style.display = 'none';
