@@ -29,6 +29,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from globe_partition_mesh import (
+    arap_refine_partition_mesh,
     build_partition_mesh,
     map_partition_mesh_vertices,
     rasterize_partition_mesh,
@@ -1538,12 +1539,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-dir", default="artifacts/global_warp_previews")
     parser.add_argument("--no-previews", action="store_true")
     parser.add_argument("--region", action="append", default=[])
-    parser.add_argument("--solver", choices=["legacy", "partition-mesh-tps"], default="legacy")
+    parser.add_argument("--solver", choices=["legacy", "partition-mesh-tps", "partition-mesh-arap"], default="legacy")
     parser.add_argument("--partition-canary", action="store_true")
     parser.add_argument("--partition-debug-dir", default="artifacts/globe_partition_debug")
     parser.add_argument("--partition-raster-dir", default="artifacts/globe_partition_raster")
     parser.add_argument("--partition-border-step", type=int, default=18)
     parser.add_argument("--partition-grid-step", type=int, default=48)
+    parser.add_argument("--partition-solver-border-step", type=int, default=54)
+    parser.add_argument("--partition-solver-grid-step", type=int, default=144)
+    parser.add_argument("--partition-arap-iterations", type=int, default=12)
+    parser.add_argument("--partition-arap-init-weight", type=float, default=0.15)
     return parser.parse_args()
 
 
@@ -1725,23 +1730,29 @@ def main() -> None:
         source_mesh = None
         target_partition = None
         target_mesh = None
-        if args.partition_canary or args.solver == "partition-mesh-tps":
+        solver_border_step = args.partition_border_step
+        solver_grid_step = args.partition_grid_step
+        if args.solver == "partition-mesh-arap":
+            solver_border_step = max(1, int(args.partition_solver_border_step))
+            solver_grid_step = max(1, int(args.partition_solver_grid_step))
+        if args.partition_canary or args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
             source_partition = build_source_region_partition(jobs, alpha_threshold=ALPHA_THRESHOLD)
             source_mesh = build_partition_mesh(
                 source_partition,
-                border_step_px=args.partition_border_step,
-                grid_step_px=args.partition_grid_step,
+                border_step_px=solver_border_step,
+                grid_step_px=solver_grid_step,
             )
-        if args.partition_canary:
+        if args.partition_canary or args.solver == "partition-mesh-arap":
             target_partition = build_target_region_partition(
                 jobs,
                 unwrap_center_x=unwrap_center,
                 atlas_width=args.atlas_width,
             )
+        if args.partition_canary and target_partition is not None:
             target_mesh = build_partition_mesh(
                 target_partition,
-                border_step_px=args.partition_border_step,
-                grid_step_px=args.partition_grid_step,
+                border_step_px=solver_border_step,
+                grid_step_px=solver_grid_step,
             )
             write_partition_canary_artifacts(
                 project_dir / args.partition_debug_dir / region,
@@ -1990,7 +2001,7 @@ def main() -> None:
         tiny_fallback_count = 0
 
         partition_raster = None
-        if args.solver == "partition-mesh-tps":
+        if args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
             if source_partition is None or source_mesh is None:
                 raise RuntimeError("partition mesh path requires source partition mesh")
             target_mesh_vertices = map_partition_mesh_vertices(
@@ -1998,6 +2009,17 @@ def main() -> None:
                 source_mesh,
                 forward_map=model.forward,
             )
+            if args.solver == "partition-mesh-arap":
+                if target_partition is None:
+                    raise RuntimeError("partition-mesh-arap requires target partition")
+                target_mesh_vertices = arap_refine_partition_mesh(
+                    source_partition=source_partition,
+                    target_partition=target_partition,
+                    mesh=source_mesh,
+                    init_vertices_global=target_mesh_vertices,
+                    iterations=args.partition_arap_iterations,
+                    init_weight=args.partition_arap_init_weight,
+                )
             partition_raster = rasterize_partition_mesh(
                 source_partition=source_partition,
                 source_mesh=source_mesh,
@@ -2023,7 +2045,7 @@ def main() -> None:
             feature_key = str(job.country.get("featureKey", ""))
             used_tiny_fallback = False
             warp_strategy = "country-inverse"
-            if args.solver == "partition-mesh-tps":
+            if args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
                 if partition_raster is None:
                     raise RuntimeError("partition rasterization result missing")
                 warped_rgba = partition_raster.country_rgba[idx].copy()
@@ -2038,7 +2060,7 @@ def main() -> None:
                 src_my1 = my1 - my0
                 if src_mx1 > 0 and src_my1 > 0:
                     mask_u8[my0:my1, mx0:mx1] = (job.target_shape.mask[:src_my1, :src_mx1] > 0).astype(np.uint8)
-                warp_strategy = "partition-mesh-tps"
+                warp_strategy = args.solver
             elif not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
                 mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
@@ -2231,22 +2253,22 @@ def main() -> None:
                 "warpFile": f"assets/globe/warped/{file_name}",
                 "warpLeft": int(
                     partition_raster.region_left + partition_raster.country_boxes[idx].left
-                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.left
                 ),
                 "warpTop": int(
                     partition_raster.region_top + partition_raster.country_boxes[idx].top
-                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.top
                 ),
                 "warpWidth": int(
                     partition_raster.country_boxes[idx].width
-                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.width
                 ),
                 "warpHeight": int(
                     partition_raster.country_boxes[idx].height
-                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.height
                 ),
                 "warpIoU": round(float(iou), 4),

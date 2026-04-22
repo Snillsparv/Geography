@@ -4,7 +4,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Sequence, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -37,6 +37,13 @@ class PartitionRasterization:
     country_boxes: List[PartitionCropBox]
     target_boxes: List[PartitionCropBox]
     country_rgba: List[np.ndarray]
+
+
+@dataclass
+class BoundaryTargets:
+    signature_points: Dict[Tuple[int, ...], np.ndarray]
+    owner_points: Dict[int, np.ndarray]
+    all_points: np.ndarray
 
 
 def _sample_closed_polyline(points: np.ndarray, step_px: float) -> List[Tuple[float, float]]:
@@ -246,6 +253,241 @@ def build_partition_mesh(
         triangle_owners=triangle_owner_np,
         border_edges=np.asarray(border_edges, dtype=np.int32) if border_edges else np.zeros((0, 2), dtype=np.int32),
     )
+
+
+def _signature_at(partition: RegionPartition, x: float, y: float, radius: int = 1) -> Tuple[int, ...]:
+    xi = int(round(x))
+    yi = int(round(y))
+    owners = set()
+    includes_outside = False
+    for yy in range(yi - radius, yi + radius + 1):
+        for xx in range(xi - radius, xi + radius + 1):
+            if xx < 0 or yy < 0 or xx >= partition.width or yy >= partition.height:
+                includes_outside = True
+                continue
+            if partition.union_mask[yy, xx] <= 0:
+                includes_outside = True
+                continue
+            owner = int(partition.owner[yy, xx])
+            if owner >= 0:
+                owners.add(owner)
+    sig = list(sorted(owners))
+    if includes_outside:
+        sig.append(-1)
+    return tuple(sig)
+
+
+def build_boundary_targets(partition: RegionPartition) -> BoundaryTargets:
+    owner = partition.owner
+    union = partition.union_mask > 0
+    boundary = np.zeros((partition.height, partition.width), dtype=bool)
+    boundary[:, :-1] |= ((owner[:, :-1] != owner[:, 1:]) & union[:, :-1] & union[:, 1:])
+    boundary[:-1, :] |= ((owner[:-1, :] != owner[1:, :]) & union[:-1, :] & union[1:, :])
+    boundary |= union & ~cv2.erode(union.astype(np.uint8), np.ones((3, 3), dtype=np.uint8), iterations=1).astype(bool)
+
+    signature_points: Dict[Tuple[int, ...], List[Tuple[float, float]]] = {}
+    owner_points: Dict[int, List[Tuple[float, float]]] = {}
+    all_points: List[Tuple[float, float]] = []
+
+    ys, xs = np.where(boundary)
+    for x, y in zip(xs.tolist(), ys.tolist()):
+        sig = _signature_at(partition, float(x), float(y), radius=1)
+        if not sig:
+            continue
+        pt = (float(x), float(y))
+        signature_points.setdefault(sig, []).append(pt)
+        all_points.append(pt)
+        for owner_id in sig:
+            if owner_id >= 0:
+                owner_points.setdefault(owner_id, []).append(pt)
+
+    return BoundaryTargets(
+        signature_points={k: np.asarray(v, dtype=np.float64) for k, v in signature_points.items()},
+        owner_points={k: np.asarray(v, dtype=np.float64) for k, v in owner_points.items()},
+        all_points=np.asarray(all_points, dtype=np.float64) if all_points else np.zeros((0, 2), dtype=np.float64),
+    )
+
+
+def _unique_edges(mesh: PartitionMesh) -> np.ndarray:
+    if len(mesh.triangles) == 0:
+        return np.zeros((0, 2), dtype=np.int32)
+    edges = set()
+    for tri in mesh.triangles.tolist():
+        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+            edges.add((a, b) if a < b else (b, a))
+    return np.asarray(sorted(edges), dtype=np.int32) if edges else np.zeros((0, 2), dtype=np.int32)
+
+
+def _neighbor_lists(mesh: PartitionMesh) -> List[np.ndarray]:
+    n = len(mesh.vertices)
+    neighbors: List[set] = [set() for _ in range(n)]
+    for a, b in _unique_edges(mesh).tolist():
+        neighbors[a].add(b)
+        neighbors[b].add(a)
+    return [np.asarray(sorted(v), dtype=np.int32) for v in neighbors]
+
+
+def _border_vertex_mask(mesh: PartitionMesh) -> np.ndarray:
+    mask = np.zeros(len(mesh.vertices), dtype=bool)
+    for a, b in mesh.border_edges.tolist():
+        mask[a] = True
+        mask[b] = True
+    return mask
+
+
+def _nearest_point(points: np.ndarray, query: np.ndarray) -> Optional[np.ndarray]:
+    if points.size == 0:
+        return None
+    d2 = np.sum((points - query[None, :]) ** 2, axis=1)
+    idx = int(np.argmin(d2))
+    return points[idx]
+
+
+def build_boundary_vertex_constraints(
+    *,
+    source_partition: RegionPartition,
+    target_partition: RegionPartition,
+    mesh: PartitionMesh,
+    init_vertices_global: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    border_mask = _border_vertex_mask(mesh)
+    target_boundary = build_boundary_targets(target_partition)
+    constrained = np.zeros(len(mesh.vertices), dtype=bool)
+    targets = np.asarray(init_vertices_global, dtype=np.float64).copy()
+
+    for vidx, is_border in enumerate(border_mask.tolist()):
+        if not is_border:
+            continue
+        src_local = mesh.vertices[vidx]
+        sig = _signature_at(source_partition, float(src_local[0]), float(src_local[1]), radius=1)
+        if not sig:
+            continue
+        query = init_vertices_global[vidx]
+        candidate = target_boundary.signature_points.get(sig)
+        if candidate is None:
+            owners = tuple(v for v in sig if v >= 0)
+            if owners:
+                pooled = []
+                for owner_id in owners:
+                    arr = target_boundary.owner_points.get(owner_id)
+                    if arr is not None and len(arr):
+                        pooled.append(arr)
+                if pooled:
+                    candidate = np.concatenate(pooled, axis=0)
+        if candidate is None:
+            candidate = target_boundary.all_points
+        hit = _nearest_point(candidate, query - np.array([target_partition.left, target_partition.top], dtype=np.float64))
+        if hit is None:
+            continue
+        constrained[vidx] = True
+        targets[vidx] = hit + np.array([target_partition.left, target_partition.top], dtype=np.float64)
+    return constrained, targets
+
+
+def _estimate_vertex_rotations(
+    rest_vertices: np.ndarray,
+    current_vertices: np.ndarray,
+    neighbors: List[np.ndarray],
+) -> np.ndarray:
+    n = len(rest_vertices)
+    rotations = np.repeat(np.eye(2, dtype=np.float64)[None, :, :], n, axis=0)
+    for i in range(n):
+        neigh = neighbors[i]
+        if len(neigh) == 0:
+            continue
+        pi = rest_vertices[i]
+        qi = current_vertices[i]
+        cov = np.zeros((2, 2), dtype=np.float64)
+        for j in neigh.tolist():
+            p = rest_vertices[j] - pi
+            q = current_vertices[j] - qi
+            cov += np.outer(q, p)
+        try:
+            u, _, vt = np.linalg.svd(cov)
+        except np.linalg.LinAlgError:
+            continue
+        r = u @ vt
+        if np.linalg.det(r) < 0:
+            u[:, -1] *= -1.0
+            r = u @ vt
+        rotations[i] = r
+    return rotations
+
+
+def _triangle_signed_areas(vertices: np.ndarray, triangles: np.ndarray) -> np.ndarray:
+    if len(triangles) == 0:
+        return np.zeros((0,), dtype=np.float64)
+    a = vertices[triangles[:, 0]]
+    b = vertices[triangles[:, 1]]
+    c = vertices[triangles[:, 2]]
+    return (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (b[:, 1] - a[:, 1]) * (c[:, 0] - a[:, 0])
+
+
+def arap_refine_partition_mesh(
+    *,
+    source_partition: RegionPartition,
+    target_partition: RegionPartition,
+    mesh: PartitionMesh,
+    init_vertices_global: np.ndarray,
+    iterations: int = 12,
+    init_weight: float = 0.15,
+) -> np.ndarray:
+    if len(mesh.vertices) == 0:
+        return np.zeros((0, 2), dtype=np.float64)
+    rest = mesh.vertices.astype(np.float64)
+    current = np.asarray(init_vertices_global, dtype=np.float64).copy()
+    current[:, 0] -= float(source_partition.left)
+    current[:, 1] -= float(source_partition.top)
+    init_local = current.copy()
+
+    constrained, targets_global = build_boundary_vertex_constraints(
+        source_partition=source_partition,
+        target_partition=target_partition,
+        mesh=mesh,
+        init_vertices_global=np.asarray(init_vertices_global, dtype=np.float64),
+    )
+    target_local = targets_global.copy()
+    target_local[:, 0] -= float(source_partition.left)
+    target_local[:, 1] -= float(source_partition.top)
+    current[constrained] = target_local[constrained]
+
+    neighbors = _neighbor_lists(mesh)
+    free = ~constrained
+    for _ in range(max(1, int(iterations))):
+        rotations = _estimate_vertex_rotations(rest, current, neighbors)
+        proposal = current.copy()
+        for i in np.where(free)[0].tolist():
+            neigh = neighbors[i]
+            if len(neigh) == 0:
+                continue
+            accum = np.zeros(2, dtype=np.float64)
+            weight_sum = 0.0
+            for j in neigh.tolist():
+                rest_edge = rest[i] - rest[j]
+                arap_term = 0.5 * (rotations[i] + rotations[j]) @ rest_edge
+                accum += current[j] + arap_term
+                weight_sum += 1.0
+            if weight_sum <= 0:
+                continue
+            proposal[i] = (accum + init_weight * init_local[i]) / (weight_sum + init_weight)
+        if np.any(constrained):
+            proposal[constrained] = target_local[constrained]
+
+        damp = 1.0
+        while damp > 1e-3:
+            candidate = current * (1.0 - damp) + proposal * damp
+            areas = _triangle_signed_areas(candidate, mesh.triangles)
+            if np.all(areas > 1e-6):
+                current = candidate
+                break
+            damp *= 0.5
+        else:
+            current[free] = 0.5 * (current[free] + init_local[free])
+
+    out = current.copy()
+    out[:, 0] += float(source_partition.left)
+    out[:, 1] += float(source_partition.top)
+    return out
 
 
 def render_partition_preview(partition: RegionPartition) -> Image.Image:

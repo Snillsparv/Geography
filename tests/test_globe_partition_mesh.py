@@ -8,7 +8,7 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from globe_partition_mesh import build_partition_mesh
+from globe_partition_mesh import arap_refine_partition_mesh, build_boundary_targets, build_partition_mesh
 from globe_partition_mesh import map_partition_mesh_vertices, rasterize_partition_mesh
 from globe_partition_model import (
     RegionPartition,
@@ -153,6 +153,50 @@ class GlobePartitionMeshTests(unittest.TestCase):
             float(np.mean(raster.country_rgba[1][:, :, 2])),
             float(np.mean(raster.country_rgba[1][:, :, 0])),
         )
+
+    def test_arap_refinement_reduces_boundary_error_on_identity_target(self) -> None:
+        owner = np.full((20, 40), -1, dtype=np.int32)
+        owner[:, :20] = 0
+        owner[:, 20:] = 1
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=40,
+            height=20,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["A", "B"],
+        )
+        mesh = build_partition_mesh(partition, border_step_px=6, grid_step_px=12)
+        init = mesh.vertices.copy()
+        init[:, 0] += 4.0 * (mesh.vertices[:, 1] / max(1.0, np.max(mesh.vertices[:, 1])))
+        refined = arap_refine_partition_mesh(
+            source_partition=partition,
+            target_partition=partition,
+            mesh=mesh,
+            init_vertices_global=init,
+            iterations=8,
+            init_weight=0.1,
+        )
+        boundary_targets = build_boundary_targets(partition)
+        border_vertices = set()
+        for a, b in mesh.border_edges.tolist():
+            border_vertices.add(int(a))
+            border_vertices.add(int(b))
+        border_vertices = sorted(border_vertices)
+        boundary_points = boundary_targets.all_points
+        def mean_boundary_dist(points: np.ndarray) -> float:
+            vals = []
+            for p in points:
+                d2 = np.sum((boundary_points - p[None, :]) ** 2, axis=1)
+                vals.append(float(np.sqrt(np.min(d2))))
+            return float(np.mean(vals))
+        init_err = mean_boundary_dist(init[border_vertices])
+        refined_err = mean_boundary_dist(refined[border_vertices])
+        self.assertLess(refined_err, init_err)
 
 
 if __name__ == "__main__":
