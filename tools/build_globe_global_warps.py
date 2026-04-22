@@ -28,6 +28,15 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
+from globe_partition_mesh import (
+    build_partition_mesh,
+    write_partition_canary_artifacts,
+)
+from globe_partition_model import (
+    build_source_region_partition,
+    build_target_region_partition,
+)
+
 
 # Raster/alpha handling
 ALPHA_THRESHOLD = 8
@@ -1526,6 +1535,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-dir", default="artifacts/global_warp_previews")
     parser.add_argument("--no-previews", action="store_true")
     parser.add_argument("--region", action="append", default=[])
+    parser.add_argument("--partition-canary", action="store_true")
+    parser.add_argument("--partition-debug-dir", default="artifacts/globe_partition_debug")
+    parser.add_argument("--partition-border-step", type=int, default=18)
+    parser.add_argument("--partition-grid-step", type=int, default=48)
     return parser.parse_args()
 
 
@@ -1702,6 +1715,31 @@ def main() -> None:
             continue
 
         unwrap_center = circular_mean_x(np.array(all_dst_x, dtype=np.float64), period=float(args.atlas_width))
+
+        if args.partition_canary:
+            source_partition = build_source_region_partition(jobs, alpha_threshold=ALPHA_THRESHOLD)
+            target_partition = build_target_region_partition(
+                jobs,
+                unwrap_center_x=unwrap_center,
+                atlas_width=args.atlas_width,
+            )
+            source_mesh = build_partition_mesh(
+                source_partition,
+                border_step_px=args.partition_border_step,
+                grid_step_px=args.partition_grid_step,
+            )
+            target_mesh = build_partition_mesh(
+                target_partition,
+                border_step_px=args.partition_border_step,
+                grid_step_px=args.partition_grid_step,
+            )
+            write_partition_canary_artifacts(
+                project_dir / args.partition_debug_dir / region,
+                source_partition=source_partition,
+                target_partition=target_partition,
+                source_mesh=source_mesh,
+                target_mesh=target_mesh,
+            )
 
         anchor_src = []
         anchor_dst = []
