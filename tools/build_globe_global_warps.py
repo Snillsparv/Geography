@@ -30,7 +30,10 @@ from PIL import Image, ImageDraw
 
 from globe_partition_mesh import (
     build_partition_mesh,
+    map_partition_mesh_vertices,
+    rasterize_partition_mesh,
     write_partition_canary_artifacts,
+    write_partition_rasterization_artifacts,
 )
 from globe_partition_model import (
     build_source_region_partition,
@@ -1535,8 +1538,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-dir", default="artifacts/global_warp_previews")
     parser.add_argument("--no-previews", action="store_true")
     parser.add_argument("--region", action="append", default=[])
+    parser.add_argument("--solver", choices=["legacy", "partition-mesh-tps"], default="legacy")
     parser.add_argument("--partition-canary", action="store_true")
     parser.add_argument("--partition-debug-dir", default="artifacts/globe_partition_debug")
+    parser.add_argument("--partition-raster-dir", default="artifacts/globe_partition_raster")
     parser.add_argument("--partition-border-step", type=int, default=18)
     parser.add_argument("--partition-grid-step", type=int, default=48)
     return parser.parse_args()
@@ -1716,17 +1721,22 @@ def main() -> None:
 
         unwrap_center = circular_mean_x(np.array(all_dst_x, dtype=np.float64), period=float(args.atlas_width))
 
-        if args.partition_canary:
+        source_partition = None
+        source_mesh = None
+        target_partition = None
+        target_mesh = None
+        if args.partition_canary or args.solver == "partition-mesh-tps":
             source_partition = build_source_region_partition(jobs, alpha_threshold=ALPHA_THRESHOLD)
-            target_partition = build_target_region_partition(
-                jobs,
-                unwrap_center_x=unwrap_center,
-                atlas_width=args.atlas_width,
-            )
             source_mesh = build_partition_mesh(
                 source_partition,
                 border_step_px=args.partition_border_step,
                 grid_step_px=args.partition_grid_step,
+            )
+        if args.partition_canary:
+            target_partition = build_target_region_partition(
+                jobs,
+                unwrap_center_x=unwrap_center,
+                atlas_width=args.atlas_width,
             )
             target_mesh = build_partition_mesh(
                 target_partition,
@@ -1979,6 +1989,30 @@ def main() -> None:
         rendered_by_job: List[Tuple[RegionCountryJob, np.ndarray]] = []
         tiny_fallback_count = 0
 
+        partition_raster = None
+        if args.solver == "partition-mesh-tps":
+            if source_partition is None or source_mesh is None:
+                raise RuntimeError("partition mesh path requires source partition mesh")
+            target_mesh_vertices = map_partition_mesh_vertices(
+                source_partition,
+                source_mesh,
+                forward_map=model.forward,
+            )
+            partition_raster = rasterize_partition_mesh(
+                source_partition=source_partition,
+                source_mesh=source_mesh,
+                target_vertices_global=target_mesh_vertices,
+                source_sheet_rgba=source_sheet,
+                jobs=jobs,
+                unwrap_x=model.unwrap_x,
+            )
+            write_partition_rasterization_artifacts(
+                project_dir / args.partition_raster_dir / region,
+                region=region,
+                rasterization=partition_raster,
+                feature_keys=[str(job.country.get("featureKey", "")) for job in jobs],
+            )
+
         for idx, job in enumerate(jobs):
             h = int(job.target_shape.bbox.height)
             w = int(job.target_shape.bbox.width)
@@ -1986,17 +2020,34 @@ def main() -> None:
             y0 = int(job.target_shape.bbox.top - region_top)
             x1 = x0 + w
             y1 = y0 + h
-            mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
             feature_key = str(job.country.get("featureKey", ""))
             used_tiny_fallback = False
             warp_strategy = "country-inverse"
-            if not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
+            if args.solver == "partition-mesh-tps":
+                if partition_raster is None:
+                    raise RuntimeError("partition rasterization result missing")
+                warped_rgba = partition_raster.country_rgba[idx].copy()
+                crop_box = partition_raster.country_boxes[idx]
+                target_box = partition_raster.target_boxes[idx]
+                mask_u8 = np.zeros((crop_box.height, crop_box.width), dtype=np.uint8)
+                mx0 = max(0, int(target_box.left - crop_box.left))
+                my0 = max(0, int(target_box.top - crop_box.top))
+                mx1 = min(mask_u8.shape[1], mx0 + w)
+                my1 = min(mask_u8.shape[0], my0 + h)
+                src_mx1 = mx1 - mx0
+                src_my1 = my1 - my0
+                if src_mx1 > 0 and src_my1 > 0:
+                    mask_u8[my0:my1, mx0:mx1] = (job.target_shape.mask[:src_my1, :src_mx1] > 0).astype(np.uint8)
+                warp_strategy = "partition-mesh-tps"
+            elif not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
+                mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
                     warped_rgba = render_country_with_bbox_fit(job)
                     warp_strategy = "country-rigid-bbox"
                 else:
                     warped_rgba = render_country_with_inverse_map(job, model)
             else:
+                mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 warped_rgba = np.zeros((h, w, 4), dtype=np.uint8)
                 if not (x1 <= 0 or y1 <= 0 or x0 >= region_w or y0 >= region_h):
                     rx0 = max(0, x0)
@@ -2163,7 +2214,7 @@ def main() -> None:
                     warped_rgba = lock_alpha_to_mask(warped_rgba, mask_u8, pad_radius=2)
 
             warped_rgba[warped_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
-            iou = iou_from_alpha(warped_rgba[:, :, 3], job.target_shape.mask)
+            iou = iou_from_alpha(warped_rgba[:, :, 3], mask_u8)
             region_iou_vals.append(iou)
 
             file_name = f"{feature_key}.webp"
@@ -2178,10 +2229,26 @@ def main() -> None:
 
             results_by_feature[feature_key] = {
                 "warpFile": f"assets/globe/warped/{file_name}",
-                "warpLeft": int(job.target_shape.bbox.left),
-                "warpTop": int(job.target_shape.bbox.top),
-                "warpWidth": int(job.target_shape.bbox.width),
-                "warpHeight": int(job.target_shape.bbox.height),
+                "warpLeft": int(
+                    partition_raster.region_left + partition_raster.country_boxes[idx].left
+                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    else job.target_shape.bbox.left
+                ),
+                "warpTop": int(
+                    partition_raster.region_top + partition_raster.country_boxes[idx].top
+                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    else job.target_shape.bbox.top
+                ),
+                "warpWidth": int(
+                    partition_raster.country_boxes[idx].width
+                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    else job.target_shape.bbox.width
+                ),
+                "warpHeight": int(
+                    partition_raster.country_boxes[idx].height
+                    if args.solver == "partition-mesh-tps" and partition_raster is not None
+                    else job.target_shape.bbox.height
+                ),
                 "warpIoU": round(float(iou), 4),
                 "warpStrategy": warp_strategy,
                 "warpSourceRegion": region,

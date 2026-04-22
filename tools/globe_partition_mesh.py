@@ -4,7 +4,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Callable, Dict, Iterable, List, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -19,6 +19,24 @@ class PartitionMesh:
     triangles: np.ndarray
     triangle_owners: np.ndarray
     border_edges: np.ndarray
+
+
+@dataclass
+class PartitionCropBox:
+    left: int
+    top: int
+    width: int
+    height: int
+
+
+@dataclass
+class PartitionRasterization:
+    region_left: int
+    region_top: int
+    region_rgba: np.ndarray
+    country_boxes: List[PartitionCropBox]
+    target_boxes: List[PartitionCropBox]
+    country_rgba: List[np.ndarray]
 
 
 def _sample_closed_polyline(points: np.ndarray, step_px: float) -> List[Tuple[float, float]]:
@@ -274,6 +292,199 @@ def mesh_summary(partition: RegionPartition, mesh: PartitionMesh) -> Dict[str, o
     }
 
 
+def map_partition_mesh_vertices(
+    partition: RegionPartition,
+    mesh: PartitionMesh,
+    forward_map: Callable[[np.ndarray], np.ndarray],
+) -> np.ndarray:
+    if len(mesh.vertices) == 0:
+        return np.zeros((0, 2), dtype=np.float64)
+    src_global = mesh.vertices.astype(np.float64).copy()
+    src_global[:, 0] += float(partition.left)
+    src_global[:, 1] += float(partition.top)
+    return np.asarray(forward_map(src_global), dtype=np.float64)
+
+
+def _alpha_blit(dst: np.ndarray, src: np.ndarray, x: int, y: int) -> None:
+    h, w = src.shape[:2]
+    if h <= 0 or w <= 0:
+        return
+    x0 = max(0, x)
+    y0 = max(0, y)
+    x1 = min(dst.shape[1], x + w)
+    y1 = min(dst.shape[0], y + h)
+    if x0 >= x1 or y0 >= y1:
+        return
+
+    sx0 = x0 - x
+    sy0 = y0 - y
+    sx1 = sx0 + (x1 - x0)
+    sy1 = sy0 + (y1 - y0)
+
+    src_patch = src[sy0:sy1, sx0:sx1].astype(np.float32) / 255.0
+    dst_patch = dst[y0:y1, x0:x1].astype(np.float32) / 255.0
+
+    sa = src_patch[:, :, 3:4]
+    da = dst_patch[:, :, 3:4]
+    out_a = sa + da * (1.0 - sa)
+
+    src_rgb_pm = src_patch[:, :, :3] * sa
+    dst_rgb_pm = dst_patch[:, :, :3] * da
+    out_rgb_pm = src_rgb_pm + dst_rgb_pm * (1.0 - sa)
+
+    out_rgb = np.zeros_like(out_rgb_pm)
+    np.divide(out_rgb_pm, np.maximum(out_a, 1e-6), out=out_rgb, where=out_a > 1e-6)
+    out = np.concatenate([out_rgb, out_a], axis=2)
+    dst[y0:y1, x0:x1] = (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
+def _crop_box_union(box: PartitionCropBox, left: int, top: int, right: int, bottom: int) -> PartitionCropBox:
+    x0 = min(box.left, left)
+    y0 = min(box.top, top)
+    x1 = max(box.left + box.width, right)
+    y1 = max(box.top + box.height, bottom)
+    return PartitionCropBox(left=int(x0), top=int(y0), width=max(1, int(x1 - x0)), height=max(1, int(y1 - y0)))
+
+
+def _boxes_from_triangles(
+    triangle_owners: np.ndarray,
+    triangles: np.ndarray,
+    target_vertices_local: np.ndarray,
+    job_target_boxes_local: List[PartitionCropBox],
+    pad: int = 2,
+) -> List[PartitionCropBox]:
+    boxes: List[PartitionCropBox] = [PartitionCropBox(b.left, b.top, b.width, b.height) for b in job_target_boxes_local]
+    for tri, owner_id in zip(triangles, triangle_owners):
+        pts = target_vertices_local[tri]
+        left = int(math.floor(np.min(pts[:, 0]))) - pad
+        top = int(math.floor(np.min(pts[:, 1]))) - pad
+        right = int(math.ceil(np.max(pts[:, 0]))) + pad + 1
+        bottom = int(math.ceil(np.max(pts[:, 1]))) + pad + 1
+        boxes[int(owner_id)] = _crop_box_union(boxes[int(owner_id)], left, top, right, bottom)
+    return boxes
+
+
+def rasterize_partition_mesh(
+    *,
+    source_partition: RegionPartition,
+    source_mesh: PartitionMesh,
+    target_vertices_global: np.ndarray,
+    source_sheet_rgba: np.ndarray,
+    jobs: Sequence[object],
+    unwrap_x: Callable[[np.ndarray], np.ndarray],
+) -> PartitionRasterization:
+    if len(source_mesh.vertices) == 0 or len(source_mesh.triangles) == 0:
+        raise ValueError("source mesh is empty")
+
+    target_vertices = np.asarray(target_vertices_global, dtype=np.float64).copy()
+    if len(target_vertices) != len(source_mesh.vertices):
+        raise ValueError("target_vertices must match source mesh vertex count")
+    target_vertices[:, 0] = unwrap_x(target_vertices[:, 0])
+
+    job_boxes_u: List[PartitionCropBox] = []
+    for job in jobs:
+        bbox = getattr(getattr(job, "target_shape"), "bbox")
+        lr = np.array([float(bbox.left), float(bbox.left + bbox.width)], dtype=np.float64)
+        lr_u = unwrap_x(lr)
+        left_u = float(lr_u[0])
+        right_u = float(lr_u[1])
+        if right_u < left_u:
+            right_u = left_u + float(bbox.width)
+        job_boxes_u.append(
+            PartitionCropBox(
+                left=int(math.floor(left_u)),
+                top=int(bbox.top),
+                width=int(bbox.width),
+                height=int(bbox.height),
+            )
+        )
+
+    min_x = min([float(np.min(target_vertices[:, 0]))] + [float(b.left) for b in job_boxes_u])
+    max_x = max([float(np.max(target_vertices[:, 0]))] + [float(b.left + b.width) for b in job_boxes_u])
+    min_y = min([float(np.min(target_vertices[:, 1]))] + [float(b.top) for b in job_boxes_u])
+    max_y = max([float(np.max(target_vertices[:, 1]))] + [float(b.top + b.height) for b in job_boxes_u])
+
+    region_left = int(math.floor(min_x)) - 2
+    region_top = int(math.floor(min_y)) - 2
+    region_right = int(math.ceil(max_x)) + 2
+    region_bottom = int(math.ceil(max_y)) + 2
+    region_w = max(1, region_right - region_left)
+    region_h = max(1, region_bottom - region_top)
+
+    target_vertices_local = target_vertices.copy()
+    target_vertices_local[:, 0] -= float(region_left)
+    target_vertices_local[:, 1] -= float(region_top)
+
+    job_target_boxes_local = [
+        PartitionCropBox(
+            left=b.left - region_left,
+            top=b.top - region_top,
+            width=b.width,
+            height=b.height,
+        )
+        for b in job_boxes_u
+    ]
+    country_boxes = _boxes_from_triangles(
+        source_mesh.triangle_owners,
+        source_mesh.triangles,
+        target_vertices_local,
+        job_target_boxes_local,
+        pad=2,
+    )
+    country_rgba = [np.zeros((box.height, box.width, 4), dtype=np.uint8) for box in country_boxes]
+    region_rgba = np.zeros((region_h, region_w, 4), dtype=np.uint8)
+
+    source_vertices = source_mesh.vertices.astype(np.float64)
+    for tri, owner_id in zip(source_mesh.triangles, source_mesh.triangle_owners):
+        src_tri = source_vertices[tri]
+        dst_tri = target_vertices_local[tri]
+        src_x0 = int(math.floor(np.min(src_tri[:, 0])))
+        src_y0 = int(math.floor(np.min(src_tri[:, 1])))
+        src_x1 = int(math.ceil(np.max(src_tri[:, 0]))) + 1
+        src_y1 = int(math.ceil(np.max(src_tri[:, 1]))) + 1
+        dst_x0 = int(math.floor(np.min(dst_tri[:, 0])))
+        dst_y0 = int(math.floor(np.min(dst_tri[:, 1])))
+        dst_x1 = int(math.ceil(np.max(dst_tri[:, 0]))) + 1
+        dst_y1 = int(math.ceil(np.max(dst_tri[:, 1]))) + 1
+        if src_x1 <= src_x0 or src_y1 <= src_y0 or dst_x1 <= dst_x0 or dst_y1 <= dst_y0:
+            continue
+        src_patch = source_sheet_rgba[src_y0:src_y1, src_x0:src_x1]
+        if src_patch.size == 0:
+            continue
+
+        src_tri_local = (src_tri - np.array([src_x0, src_y0], dtype=np.float64)).astype(np.float32)
+        dst_tri_local = (dst_tri - np.array([dst_x0, dst_y0], dtype=np.float64)).astype(np.float32)
+        affine = cv2.getAffineTransform(src_tri_local, dst_tri_local)
+        dst_w = max(1, dst_x1 - dst_x0)
+        dst_h = max(1, dst_y1 - dst_y0)
+        warped_patch = cv2.warpAffine(
+            src_patch,
+            affine,
+            (dst_w, dst_h),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0, 0),
+        )
+        mask = np.zeros((dst_h, dst_w), dtype=np.uint8)
+        cv2.fillConvexPoly(mask, np.round(dst_tri_local).astype(np.int32), 255, lineType=cv2.LINE_8)
+        warped_patch[mask <= 0] = 0
+        warped_patch[:, :, 3] = ((warped_patch[:, :, 3].astype(np.uint16) * mask.astype(np.uint16)) // 255).astype(np.uint8)
+        warped_patch[warped_patch[:, :, 3] == 0, :3] = 0
+
+        _alpha_blit(region_rgba, warped_patch, dst_x0, dst_y0)
+        box = country_boxes[int(owner_id)]
+        _alpha_blit(country_rgba[int(owner_id)], warped_patch, dst_x0 - box.left, dst_y0 - box.top)
+
+    return PartitionRasterization(
+        region_left=region_left,
+        region_top=region_top,
+        region_rgba=region_rgba,
+        country_boxes=country_boxes,
+        target_boxes=job_target_boxes_local,
+        country_rgba=country_rgba,
+    )
+
+
 def write_partition_canary_artifacts(
     output_dir: Path,
     *,
@@ -296,5 +507,41 @@ def write_partition_canary_artifacts(
     }
     (output_dir / f"{region}-partition-summary.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_partition_rasterization_artifacts(
+    output_dir: Path,
+    *,
+    region: str,
+    rasterization: PartitionRasterization,
+    feature_keys: Sequence[str],
+) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(rasterization.region_rgba, mode="RGBA").save(output_dir / f"{region}-partition-raster-region.png")
+    summary = {
+        "region": region,
+        "regionLeft": rasterization.region_left,
+        "regionTop": rasterization.region_top,
+        "countries": [],
+    }
+    for feature_key, box, rgba in zip(feature_keys, rasterization.country_boxes, rasterization.country_rgba):
+        Image.fromarray(rgba, mode="RGBA").save(output_dir / f"{feature_key}.png")
+        summary["countries"].append(
+            {
+                "featureKey": feature_key,
+                "left": box.left + rasterization.region_left,
+                "top": box.top + rasterization.region_top,
+                "width": box.width,
+                "height": box.height,
+                "targetLeft": rasterization.target_boxes[len(summary["countries"])].left + rasterization.region_left,
+                "targetTop": rasterization.target_boxes[len(summary["countries"])].top + rasterization.region_top,
+                "targetWidth": rasterization.target_boxes[len(summary["countries"])].width,
+                "targetHeight": rasterization.target_boxes[len(summary["countries"])].height,
+            }
+        )
+    (output_dir / f"{region}-partition-raster-summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
