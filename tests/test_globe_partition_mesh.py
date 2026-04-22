@@ -8,7 +8,12 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from globe_partition_mesh import arap_refine_partition_mesh, build_boundary_targets, build_partition_mesh
+from globe_partition_mesh import (
+    arap_refine_partition_mesh,
+    build_boundary_targets,
+    build_country_guides,
+    build_partition_mesh,
+)
 from globe_partition_mesh import map_partition_mesh_vertices, rasterize_partition_mesh
 from globe_partition_model import (
     RegionPartition,
@@ -44,6 +49,26 @@ class DummyJob:
 
 
 class GlobePartitionMeshTests(unittest.TestCase):
+    def test_build_country_guides_detects_disconnected_components(self) -> None:
+        owner = np.full((30, 30), -1, dtype=np.int32)
+        owner[2:10, 2:10] = 0
+        owner[18:26, 18:26] = 0
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=30,
+            height=30,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["A"],
+        )
+        guides = build_country_guides(partition)
+        self.assertIn(0, guides)
+        self.assertGreaterEqual(len(guides[0].component_guides), 2)
+
     def test_build_source_partition_tracks_adjacency(self) -> None:
         rgba_a = np.zeros((20, 20, 4), dtype=np.uint8)
         rgba_b = np.zeros((20, 20, 4), dtype=np.uint8)
@@ -197,6 +222,25 @@ class GlobePartitionMeshTests(unittest.TestCase):
         init_err = mean_boundary_dist(init[border_vertices])
         refined_err = mean_boundary_dist(refined[border_vertices])
         self.assertLess(refined_err, init_err)
+
+    def test_build_country_guides_detects_axis_guides_for_long_country(self) -> None:
+        owner = np.full((20, 80), -1, dtype=np.int32)
+        owner[7:13, 5:75] = 0
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=80,
+            height=20,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["LONG"],
+        )
+        guides = build_country_guides(partition)
+        self.assertIn(0, guides)
+        self.assertGreaterEqual(len(guides[0].axis_guides), 3)
 
 
 if __name__ == "__main__":

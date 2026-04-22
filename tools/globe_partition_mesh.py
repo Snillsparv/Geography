@@ -46,6 +46,25 @@ class BoundaryTargets:
     all_points: np.ndarray
 
 
+@dataclass
+class GuidePoint:
+    point: np.ndarray
+    weight: float
+    kind: str
+
+
+@dataclass
+class CountryGuideSet:
+    owner_id: int
+    feature_key: str
+    component_guides: List[GuidePoint]
+    axis_guides: List[GuidePoint]
+
+    @property
+    def all_guides(self) -> List[GuidePoint]:
+        return list(self.component_guides) + list(self.axis_guides)
+
+
 def _sample_closed_polyline(points: np.ndarray, step_px: float) -> List[Tuple[float, float]]:
     pts = np.asarray(points, dtype=np.float64)
     if len(pts) < 2:
@@ -99,6 +118,7 @@ def _collect_seed_points(
         mask = (owner == owner_id).astype(np.uint8)
         for contour in _partition_contours(mask):
             points.extend(_sample_closed_polyline(contour, step_px=float(border_step_px)))
+        points.extend(_seed_points_for_mask(mask))
 
     for contour in _partition_contours(partition.union_mask):
         points.extend(_sample_closed_polyline(contour, step_px=float(border_step_px)))
@@ -118,6 +138,72 @@ def _collect_seed_points(
         points.append((x, y))
 
     return _dedupe_points(points, partition.width, partition.height)
+
+
+def _connected_component_centroids(mask_u8: np.ndarray) -> np.ndarray:
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    pts: List[np.ndarray] = []
+    if count <= 1:
+        return np.zeros((0, 2), dtype=np.float64)
+    total = float(np.sum(stats[1:, cv2.CC_STAT_AREA])) if count > 1 else 0.0
+    min_area = max(6.0, total * 0.015)
+    for idx in range(1, count):
+        area = float(stats[idx, cv2.CC_STAT_AREA])
+        if area < min_area:
+            continue
+        pts.append(np.asarray(centroids[idx], dtype=np.float64))
+    if not pts:
+        pts = [np.asarray(centroids[idx], dtype=np.float64) for idx in range(1, count)]
+    if not pts:
+        return np.zeros((0, 2), dtype=np.float64)
+    arr = np.asarray(pts, dtype=np.float64)
+    order = np.lexsort((arr[:, 1], arr[:, 0]))
+    return arr[order]
+
+
+def _mask_principal_axis_guides(mask_u8: np.ndarray) -> np.ndarray:
+    ys, xs = np.where(mask_u8 > 0)
+    if len(xs) < 12:
+        return np.zeros((0, 2), dtype=np.float64)
+    pts = np.column_stack([xs.astype(np.float64), ys.astype(np.float64)])
+    center = np.mean(pts, axis=0)
+    cov = np.cov((pts - center).T)
+    try:
+        vals, vecs = np.linalg.eigh(cov)
+    except np.linalg.LinAlgError:
+        return np.zeros((0, 2), dtype=np.float64)
+    order = np.argsort(vals)
+    major = vecs[:, order[-1]]
+    minor = vecs[:, order[0]]
+    if abs(major[0]) < abs(major[1]):
+        if major[1] < 0:
+            major = -major
+    elif major[0] < 0:
+        major = -major
+    proj_major = (pts - center) @ major
+    proj_minor = (pts - center) @ minor
+    spread_major = float(np.percentile(proj_major, 95) - np.percentile(proj_major, 5))
+    spread_minor = float(np.percentile(proj_minor, 95) - np.percentile(proj_minor, 5))
+    if spread_minor <= 1e-6:
+        return np.zeros((0, 2), dtype=np.float64)
+    aspect = spread_major / spread_minor
+    if aspect < 2.1:
+        return np.zeros((0, 2), dtype=np.float64)
+    guide_pts: List[np.ndarray] = []
+    for q in (0.2, 0.5, 0.8):
+        target_proj = float(np.quantile(proj_major, q))
+        idx = int(np.argmin(np.abs(proj_major - target_proj)))
+        guide_pts.append(pts[idx])
+    return np.asarray(guide_pts, dtype=np.float64)
+
+
+def _seed_points_for_mask(mask_u8: np.ndarray) -> List[Tuple[float, float]]:
+    pts: List[Tuple[float, float]] = []
+    for p in _connected_component_centroids(mask_u8):
+        pts.append((float(p[0]), float(p[1])))
+    for p in _mask_principal_axis_guides(mask_u8):
+        pts.append((float(p[0]), float(p[1])))
+    return pts
 
 
 def _triangle_sample_points(tri: np.ndarray) -> np.ndarray:
@@ -308,6 +394,27 @@ def build_boundary_targets(partition: RegionPartition) -> BoundaryTargets:
     )
 
 
+def build_country_guides(partition: RegionPartition) -> Dict[int, CountryGuideSet]:
+    guides: Dict[int, CountryGuideSet] = {}
+    for owner_id, feature_key in enumerate(partition.feature_keys):
+        mask = (partition.owner == owner_id).astype(np.uint8)
+        component_guides = [
+            GuidePoint(point=p, weight=4.5 if len(_connected_component_centroids(mask)) > 1 else 3.0, kind="component")
+            for p in _connected_component_centroids(mask)
+        ]
+        axis_pts = _mask_principal_axis_guides(mask)
+        area = int(np.sum(mask > 0))
+        axis_weight = 2.5 if area < 3000 else 1.75
+        axis_guides = [GuidePoint(point=p, weight=axis_weight, kind="axis") for p in axis_pts]
+        guides[owner_id] = CountryGuideSet(
+            owner_id=owner_id,
+            feature_key=feature_key,
+            component_guides=component_guides,
+            axis_guides=axis_guides,
+        )
+    return guides
+
+
 def _unique_edges(mesh: PartitionMesh) -> np.ndarray:
     if len(mesh.triangles) == 0:
         return np.zeros((0, 2), dtype=np.int32)
@@ -325,6 +432,14 @@ def _neighbor_lists(mesh: PartitionMesh) -> List[np.ndarray]:
         neighbors[a].add(b)
         neighbors[b].add(a)
     return [np.asarray(sorted(v), dtype=np.int32) for v in neighbors]
+
+
+def _vertex_owner_lists(mesh: PartitionMesh) -> List[np.ndarray]:
+    owners: List[set] = [set() for _ in range(len(mesh.vertices))]
+    for tri, owner_id in zip(mesh.triangles.tolist(), mesh.triangle_owners.tolist()):
+        for vidx in tri:
+            owners[int(vidx)].add(int(owner_id))
+    return [np.asarray(sorted(v), dtype=np.int32) for v in owners]
 
 
 def _border_vertex_mask(mesh: PartitionMesh) -> np.ndarray:
@@ -382,6 +497,61 @@ def build_boundary_vertex_constraints(
         constrained[vidx] = True
         targets[vidx] = hit + np.array([target_partition.left, target_partition.top], dtype=np.float64)
     return constrained, targets
+
+
+def build_interior_guide_constraints(
+    *,
+    source_partition: RegionPartition,
+    target_partition: RegionPartition,
+    mesh: PartitionMesh,
+    init_vertices_global: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    source_guides = build_country_guides(source_partition)
+    target_guides = build_country_guides(target_partition)
+    vertex_owners = _vertex_owner_lists(mesh)
+    border_mask = _border_vertex_mask(mesh)
+
+    weights = np.zeros(len(mesh.vertices), dtype=np.float64)
+    targets = np.asarray(init_vertices_global, dtype=np.float64).copy()
+    accum = np.zeros_like(targets)
+
+    for owner_id in range(source_partition.country_count):
+        src_set = source_guides.get(owner_id)
+        tgt_set = target_guides.get(owner_id)
+        if src_set is None or tgt_set is None:
+            continue
+        src_guides = src_set.all_guides
+        tgt_guides = tgt_set.all_guides
+        if not src_guides or not tgt_guides:
+            continue
+        pairs = min(len(src_guides), len(tgt_guides))
+        candidate_vertices = [
+            vidx
+            for vidx, owners in enumerate(vertex_owners)
+            if (not border_mask[vidx]) and len(owners) == 1 and int(owners[0]) == owner_id
+        ]
+        if not candidate_vertices:
+            candidate_vertices = [
+                vidx
+                for vidx, owners in enumerate(vertex_owners)
+                if owner_id in owners.tolist()
+            ]
+        if not candidate_vertices:
+            continue
+        source_local = mesh.vertices[np.asarray(candidate_vertices, dtype=np.int32)]
+        for idx in range(pairs):
+            src_gp = src_guides[idx]
+            tgt_gp = tgt_guides[idx]
+            d2 = np.sum((source_local - src_gp.point[None, :]) ** 2, axis=1)
+            nearest = int(candidate_vertices[int(np.argmin(d2))])
+            target_global = tgt_gp.point + np.array([target_partition.left, target_partition.top], dtype=np.float64)
+            w = float(min(8.0, max(1.0, 0.5 * (src_gp.weight + tgt_gp.weight))))
+            accum[nearest] += w * target_global
+            weights[nearest] += w
+
+    used = weights > 0
+    targets[used] = accum[used] / weights[used, None]
+    return used, targets, weights
 
 
 def _estimate_vertex_rotations(
@@ -451,6 +621,16 @@ def arap_refine_partition_mesh(
     target_local[:, 1] -= float(source_partition.top)
     current[constrained] = target_local[constrained]
 
+    guide_used, guide_targets_global, guide_weights = build_interior_guide_constraints(
+        source_partition=source_partition,
+        target_partition=target_partition,
+        mesh=mesh,
+        init_vertices_global=np.asarray(init_vertices_global, dtype=np.float64),
+    )
+    guide_targets_local = guide_targets_global.copy()
+    guide_targets_local[:, 0] -= float(source_partition.left)
+    guide_targets_local[:, 1] -= float(source_partition.top)
+
     neighbors = _neighbor_lists(mesh)
     free = ~constrained
     for _ in range(max(1, int(iterations))):
@@ -467,6 +647,10 @@ def arap_refine_partition_mesh(
                 arap_term = 0.5 * (rotations[i] + rotations[j]) @ rest_edge
                 accum += current[j] + arap_term
                 weight_sum += 1.0
+            if guide_used[i]:
+                gw = float(guide_weights[i])
+                accum += gw * guide_targets_local[i]
+                weight_sum += gw
             if weight_sum <= 0:
                 continue
             proposal[i] = (accum + init_weight * init_local[i]) / (weight_sum + init_weight)
