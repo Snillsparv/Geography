@@ -649,3 +649,99 @@ cd /data/workspace/Geography
   --partition-raster-dir artifacts/globe_partition_raster_canary_auto_nordamerika \
   --no-previews
 ```
+
+### Implementation step 11: Oceanien archipelago rescue
+
+Files updated:
+
+- `tools/build_globe_global_warps.py`
+- `tests/test_globe_warp_tiny_selection.py`
+
+Problem:
+
+- `oceanien` still had island-chain failures under `partition-mesh-arap`
+- `KIR`, `WSM`, `FJI`, `SLB`, and `VUT` were the most obvious remaining bad
+  cases
+
+Change:
+
+- add a new tiny-country rescue candidate:
+  `country-archipelago-mask-lock`
+- render through the inverse map first, then lock alpha back to the target mask
+- broaden the trigger so island regions can take this path from `2` connected
+  components upward instead of waiting for the generic higher component count
+
+Observed effect in the direct candidate probe:
+
+- `WSM`: `0.9930`
+- `KIR`: `1.0000`
+- `FJI`: `1.0000`
+- `SLB`: `1.0000`
+- `VUT`: `1.0000`
+- `MHL`: `0.9756`
+
+Interpretation:
+
+- the old failure mode was not the partition mesh itself
+- it was the lack of a good automatic rescue for archipelago-like masks
+- mask-lock gives the right behavior for Oceanien without giving up the shared
+  partitioned region sheet
+
+### Implementation step 12: Oceanien review and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. snapshot current `legacy` results for `oceanien`
+2. rerun `oceanien` on `partition-mesh-arap` with the new archipelago rescue
+3. compare all countries directly against the legacy snapshot
+
+Region summary:
+
+- `legacy`: mean IoU `0.6257`, p10 `0.0992`
+- `partition-mesh-arap`: mean IoU `0.9874`, p10 `0.9471`
+
+Selected country changes (`partition` minus `legacy` IoU):
+
+- `KIR`: `+0.9750`
+- `WSM`: `+0.8296`
+- `FJI`: `+0.8474`
+- `SLB`: `+0.8679`
+- `VUT`: `+0.9008`
+- `NZL`: `+0.2373`
+- `AUS`: `+0.1237`
+- `MHL`: `-0.0244`
+- `TON`: `-0.0556`
+
+Interpretation:
+
+- the former island-chain collapse is gone
+- the lower tail is no longer the blocker for `oceanien`
+- `MHL` and `TON` regress slightly, but the region is now far stronger overall
+  and the regressions are small relative to the island gains
+
+Decision:
+
+- promote `oceanien` to `partition-mesh-arap`
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_solver_promotions.py \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region oceanien \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_oceanien \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_oceanien \
+  --no-previews
+```
