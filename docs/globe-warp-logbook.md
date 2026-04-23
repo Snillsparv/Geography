@@ -799,3 +799,61 @@ cd /data/workspace/Geography
   --partition-raster-dir artifacts/globe_partition_raster_canary_auto_vastindien \
   --no-previews
 ```
+
+### Implementation step 14: South America review and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. snapshot current `legacy` results for `sydamerika`
+2. rerun `sydamerika` on `partition-mesh-arap`
+3. compare all countries directly
+
+Region summary:
+
+- `legacy`: mean IoU `0.7231`, p10 `0.5229`
+- `partition-mesh-arap`: mean IoU `0.8766`, p10 `0.8610`
+
+Selected country changes (`partition` minus `legacy` IoU):
+
+- `ECU`: `+0.6041`
+- `PER`: `+0.3946`
+- `PRY`: `+0.1408`
+- `GUY`: `+0.1330`
+- `GUF`: `+0.1102`
+- `COL`: `+0.1058`
+- `ARG`: `+0.1165`
+- `CHL`: `-0.0176`
+
+Interpretation:
+
+- the lower tail is no longer dominated by the west-coast / small-country cases
+- `ECU` and `PER` are the biggest wins and remove the old region blocker
+- `CHL` regresses slightly, but remains acceptable and does not outweigh the
+  broad regional gain
+
+Decision:
+
+- promote `sydamerika` to `partition-mesh-arap`
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_solver_promotions.py \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region sydamerika \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_sydamerika \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_sydamerika \
+  --no-previews
+```

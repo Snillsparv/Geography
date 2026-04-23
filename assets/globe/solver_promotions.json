@@ -52,9 +52,15 @@
       "notes": "Promoted after the archipelago review. The new mask-lock rescue closes the island-chain failure mode while keeping the region-level partition mesh path."
     },
     "sydamerika": {
-      "solver": "legacy",
-      "status": "pending",
-      "notes": "No partition-mesh-arap canary promoted yet."
+      "solver": "partition-mesh-arap",
+      "status": "promoted",
+      "params": {
+        "partitionSolverBorderStep": 54,
+        "partitionSolverGridStep": 144,
+        "partitionArapIterations": 10,
+        "partitionArapInitWeight": 0.15
+      },
+      "notes": "Promoted after region review. The lower tail improved materially across the Andes / small-country cases, with only a slight Chile regression left as a follow-up item."
     },
     "vastindien": {
       "solver": "partition-mesh-arap",
