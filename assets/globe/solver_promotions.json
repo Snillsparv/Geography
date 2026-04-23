@@ -30,16 +30,15 @@
       "notes": "Best canary region so far; mean and lower-tail IoU are strong enough to promote first."
     },
     "nordamerika": {
-      "solver": "legacy",
-      "status": "canary",
-      "candidateSolver": "partition-mesh-arap",
+      "solver": "partition-mesh-arap",
+      "status": "promoted",
       "params": {
         "partitionSolverBorderStep": 54,
         "partitionSolverGridStep": 144,
         "partitionArapIterations": 10,
         "partitionArapInitWeight": 0.15
       },
-      "notes": "Promising canary, but still materially weaker than Europe in the lower tail."
+      "notes": "Promoted after region review. The lower tail improved materially over legacy, with broad gains across Central America and the large-country cases."
     },
     "oceanien": {
       "solver": "legacy",

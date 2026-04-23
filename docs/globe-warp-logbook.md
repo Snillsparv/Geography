@@ -588,3 +588,64 @@ cd /data/workspace/Geography
   --partition-raster-dir artifacts/globe_partition_raster_canary_auto_asien \
   --no-previews
 ```
+
+### Implementation step 10: North America review and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. snapshot current `legacy` results for `nordamerika`
+2. run current `partition-mesh-arap` canary
+3. compare all countries directly
+
+Region summary:
+
+- `legacy`: mean IoU `0.6489`, p10 `0.5508`
+- `partition-mesh-arap`: mean IoU `0.8012`, p10 `0.6571`
+
+Selected country gains (`partition` minus `legacy` IoU):
+
+- `JAM`: `+0.2042`
+- `SLV`: `+0.2513`
+- `BLZ`: `+0.3617`
+- `HTI`: `+0.1826`
+- `DOM`: `+0.1491`
+- `CRI`: `+0.1330`
+- `PAN`: `+0.0854`
+- `GTM`: `+0.1815`
+- `HND`: `+0.1924`
+- `NIC`: `+0.1324`
+- `MEX`: `+0.0737`
+- `USA`: `+0.1828`
+- `CAN`: `+0.0026`
+- `CUB`: `+0.0000`
+
+Interpretation:
+
+- broad gains across the whole region, not just one or two countries
+- large-country behavior improved enough to matter (`USA`, `MEX`)
+- `CUB` remains an unresolved specific outlier, but it does not regress
+- `CAN` only improves slightly, but again without regression
+
+Decision:
+
+- promote `nordamerika` to `partition-mesh-arap`
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest tests/test_globe_solver_promotions.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region nordamerika \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_nordamerika \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_nordamerika \
+  --no-previews
+```
