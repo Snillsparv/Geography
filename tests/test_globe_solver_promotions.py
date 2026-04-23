@@ -30,6 +30,16 @@ class GlobeSolverPromotionsTests(unittest.TestCase):
         self.assertEqual(solver, "partition-mesh-arap")
         self.assertEqual(promotion.status, "promoted")
 
+    def test_auto_resolves_asien_from_manifest(self) -> None:
+        manifest = load_solver_promotions(Path(__file__).resolve().parents[1] / "assets" / "globe" / "solver_promotions.json")
+        solver, promotion = resolve_region_solver(
+            requested_solver="auto",
+            region="asien",
+            manifest=manifest,
+        )
+        self.assertEqual(solver, "partition-mesh-arap")
+        self.assertEqual(promotion.status, "promoted")
+
     def test_explicit_solver_overrides_manifest(self) -> None:
         manifest = load_solver_promotions(Path(__file__).resolve().parents[1] / "assets" / "globe" / "solver_promotions.json")
         solver, promotion = resolve_region_solver(

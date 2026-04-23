@@ -529,3 +529,62 @@ Interpretation:
 - the remaining weakness is no longer “we have no compact tiny rescue path”, but
   whether this is good enough to promote `asien` or whether a few more tiny
   countries should still be reviewed first
+
+### Implementation step 9: Asia tiny-review and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. capture current `partition-mesh-arap` tiny-suite values for `asien`
+2. rerun `asien` on `legacy`
+3. compare the same tiny-country set against the current partition path
+
+Tiny-suite comparison highlights (`partition` minus `legacy` IoU):
+
+- `BRN`: `+0.1111`
+- `ADM0:PSX`: `+0.2972`
+- `LBN`: `+0.3319`
+- `QAT`: `+0.1317`
+- `TLS`: `+0.4541`
+- `KWT`: `+0.2083`
+- `ISR`: `+0.3904`
+- `BTN`: `+0.1911`
+- `JOR`: `+0.2285`
+- `AZE`: `+0.1836`
+
+Neutral tiny cases:
+
+- `MDV`: unchanged at `1.0`
+- `SGP`: unchanged at `1.0`
+- `BHR`: unchanged at `1.0`
+- `TWN`: unchanged at `0.8`
+
+Decision:
+
+- promote `asien` to `partition-mesh-arap`
+
+Reasoning:
+
+- lower tail improved from legacy `0.5264` to partition `0.7377`
+- the tiny-suite review shows broad gains rather than one or two cherry-picked
+  wins
+- `JPN` and `BRN` both now have viable automatic rescue strategies
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest tests/test_globe_solver_promotions.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region asien \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_asien \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_asien \
+  --no-previews
+```
