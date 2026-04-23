@@ -40,6 +40,7 @@ from globe_partition_model import (
     build_source_region_partition,
     build_target_region_partition,
 )
+from globe_solver_promotions import load_solver_promotions, resolve_region_solver
 
 
 # Raster/alpha handling
@@ -1530,6 +1531,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build globe warps using region-wide smooth transforms")
     parser.add_argument("--config", default="assets/globe/config.json")
     parser.add_argument("--geojson", default="assets/globe/world.geojson")
+    parser.add_argument("--solver-promotions", default="assets/globe/solver_promotions.json")
     parser.add_argument("--atlas-width", type=int, default=8192)
     parser.add_argument("--atlas-height", type=int, default=4096)
     parser.add_argument("--tps-reg", type=float, default=DEFAULT_TPS_REG)
@@ -1539,7 +1541,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-dir", default="artifacts/global_warp_previews")
     parser.add_argument("--no-previews", action="store_true")
     parser.add_argument("--region", action="append", default=[])
-    parser.add_argument("--solver", choices=["legacy", "partition-mesh-tps", "partition-mesh-arap"], default="legacy")
+    parser.add_argument("--solver", choices=["auto", "legacy", "partition-mesh-tps", "partition-mesh-arap"], default="auto")
     parser.add_argument("--partition-canary", action="store_true")
     parser.add_argument("--partition-debug-dir", default="artifacts/globe_partition_debug")
     parser.add_argument("--partition-raster-dir", default="artifacts/globe_partition_raster")
@@ -1567,6 +1569,7 @@ def main() -> None:
 
     config = load_json(config_path)
     geo = load_json(geo_path)
+    solver_promotions = load_solver_promotions(project_dir / args.solver_promotions)
 
     feature_by_key = {
         (f.get("properties") or {}).get("key"): f
@@ -1599,6 +1602,11 @@ def main() -> None:
     report_countries: List[Dict] = []
 
     for region, region_countries in sorted(countries_by_region.items()):
+        region_solver, region_promotion = resolve_region_solver(
+            requested_solver=args.solver,
+            region=region,
+            manifest=solver_promotions,
+        )
         region_params = REGION_PARAM_OVERRIDES.get(region.lower(), {})
         region_tps_reg = float(region_params.get("tps_reg", args.tps_reg))
         region_max_ctrl = int(region_params.get("max_control_points", args.max_control_points))
@@ -1732,17 +1740,32 @@ def main() -> None:
         target_mesh = None
         solver_border_step = args.partition_border_step
         solver_grid_step = args.partition_grid_step
-        if args.solver == "partition-mesh-arap":
-            solver_border_step = max(1, int(args.partition_solver_border_step))
-            solver_grid_step = max(1, int(args.partition_solver_grid_step))
-        if args.partition_canary or args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
+        solver_arap_iterations = max(1, int(args.partition_arap_iterations))
+        solver_arap_init_weight = float(args.partition_arap_init_weight)
+        if region_solver == "partition-mesh-arap":
+            solver_border_step = max(
+                1,
+                int(region_promotion.params.get("partitionSolverBorderStep", args.partition_solver_border_step)),
+            )
+            solver_grid_step = max(
+                1,
+                int(region_promotion.params.get("partitionSolverGridStep", args.partition_solver_grid_step)),
+            )
+            solver_arap_iterations = max(
+                1,
+                int(region_promotion.params.get("partitionArapIterations", solver_arap_iterations)),
+            )
+            solver_arap_init_weight = float(
+                region_promotion.params.get("partitionArapInitWeight", solver_arap_init_weight)
+            )
+        if args.partition_canary or region_solver in {"partition-mesh-tps", "partition-mesh-arap"}:
             source_partition = build_source_region_partition(jobs, alpha_threshold=ALPHA_THRESHOLD)
             source_mesh = build_partition_mesh(
                 source_partition,
                 border_step_px=solver_border_step,
                 grid_step_px=solver_grid_step,
             )
-        if args.partition_canary or args.solver == "partition-mesh-arap":
+        if args.partition_canary or region_solver == "partition-mesh-arap":
             target_partition = build_target_region_partition(
                 jobs,
                 unwrap_center_x=unwrap_center,
@@ -2001,7 +2024,7 @@ def main() -> None:
         tiny_fallback_count = 0
 
         partition_raster = None
-        if args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
+        if region_solver in {"partition-mesh-tps", "partition-mesh-arap"}:
             if source_partition is None or source_mesh is None:
                 raise RuntimeError("partition mesh path requires source partition mesh")
             target_mesh_vertices = map_partition_mesh_vertices(
@@ -2009,7 +2032,7 @@ def main() -> None:
                 source_mesh,
                 forward_map=model.forward,
             )
-            if args.solver == "partition-mesh-arap":
+            if region_solver == "partition-mesh-arap":
                 if target_partition is None:
                     raise RuntimeError("partition-mesh-arap requires target partition")
                 target_mesh_vertices = arap_refine_partition_mesh(
@@ -2017,8 +2040,8 @@ def main() -> None:
                     target_partition=target_partition,
                     mesh=source_mesh,
                     init_vertices_global=target_mesh_vertices,
-                    iterations=args.partition_arap_iterations,
-                    init_weight=args.partition_arap_init_weight,
+                    iterations=solver_arap_iterations,
+                    init_weight=solver_arap_init_weight,
                 )
             partition_raster = rasterize_partition_mesh(
                 source_partition=source_partition,
@@ -2045,7 +2068,7 @@ def main() -> None:
             feature_key = str(job.country.get("featureKey", ""))
             used_tiny_fallback = False
             warp_strategy = "country-inverse"
-            if args.solver in {"partition-mesh-tps", "partition-mesh-arap"}:
+            if region_solver in {"partition-mesh-tps", "partition-mesh-arap"}:
                 if partition_raster is None:
                     raise RuntimeError("partition rasterization result missing")
                 warped_rgba = partition_raster.country_rgba[idx].copy()
@@ -2060,7 +2083,7 @@ def main() -> None:
                 src_my1 = my1 - my0
                 if src_mx1 > 0 and src_my1 > 0:
                     mask_u8[my0:my1, mx0:mx1] = (job.target_shape.mask[:src_my1, :src_mx1] > 0).astype(np.uint8)
-                warp_strategy = args.solver
+                warp_strategy = region_solver
             elif not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
                 mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
@@ -2253,22 +2276,22 @@ def main() -> None:
                 "warpFile": f"assets/globe/warped/{file_name}",
                 "warpLeft": int(
                     partition_raster.region_left + partition_raster.country_boxes[idx].left
-                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
+                    if region_solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.left
                 ),
                 "warpTop": int(
                     partition_raster.region_top + partition_raster.country_boxes[idx].top
-                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
+                    if region_solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.top
                 ),
                 "warpWidth": int(
                     partition_raster.country_boxes[idx].width
-                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
+                    if region_solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.width
                 ),
                 "warpHeight": int(
                     partition_raster.country_boxes[idx].height
-                    if args.solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
+                    if region_solver in {"partition-mesh-tps", "partition-mesh-arap"} and partition_raster is not None
                     else job.target_shape.bbox.height
                 ),
                 "warpIoU": round(float(iou), 4),
@@ -2329,6 +2352,10 @@ def main() -> None:
                 "meanIoU": round(region_mean_iou, 4),
                 "p10IoU": round(region_p10_iou, 4),
                 "unwrapCenterX": round(float(unwrap_center), 4),
+                "solverUsed": region_solver,
+                "solverPromotionStatus": region_promotion.status,
+                "solverPromotionNotes": region_promotion.notes,
+                "solverCandidate": region_promotion.candidate_solver,
                 "tpsReg": region_tps_reg,
                 "maxControlPoints": region_max_ctrl,
                 "directionCount": region_dirs,
@@ -2337,7 +2364,7 @@ def main() -> None:
             }
         )
         print(
-            f"[{region}] countries={len(jobs)} meanIoU={region_mean_iou:.4f} "
+            f"[{region}] solver={region_solver} countries={len(jobs)} meanIoU={region_mean_iou:.4f} "
             f"p10IoU={region_p10_iou:.4f} anchorRMSE={fit_stats['anchorRmsePx']:.2f}px"
         )
 
@@ -2379,19 +2406,29 @@ def main() -> None:
             c["targetAreaPx"] = int(next((r["targetAreaPx"] for r in report_countries if r["featureKey"] == feature_key), 0))
             updated += 1
 
+    used_solvers = sorted({str(region.get("solverUsed", "legacy")) for region in report_regions})
+    if used_solvers == ["legacy"]:
+        report_method = "region-global-affine-tps-v1"
+    elif len(used_solvers) == 1:
+        report_method = f"{used_solvers[0]}-v1"
+    else:
+        report_method = "region-mixed-affine-tps-partition-v2"
+
     config["warpAtlasWidth"] = int(args.atlas_width)
     config["warpAtlasHeight"] = int(args.atlas_height)
-    config["warpMethod"] = "region-global-affine-tps-v1"
+    config["warpMethod"] = report_method
+    config["warpSolverPromotions"] = str(args.solver_promotions)
 
     save_json(config_path, config)
 
     report = {
-        "method": "region-global-affine-tps-v1",
+        "method": report_method,
         "atlasWidth": int(args.atlas_width),
         "atlasHeight": int(args.atlas_height),
         "tpsReg": float(args.tps_reg),
         "maxControlPoints": int(args.max_control_points),
         "directionCount": int(args.directions),
+        "solverPromotions": str(args.solver_promotions),
         "regions": sorted(report_regions, key=lambda x: x["region"]),
         "countries": sorted(report_countries, key=lambda x: (x["sourceRegion"], x["name"])),
         "summary": {

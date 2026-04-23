@@ -349,3 +349,63 @@ Interpretation:
   remaining weak spot
 - this is enough to keep the guide layer moving forward, but not enough to call
   the outliers solved
+
+### Implementation step 6: controlled region-by-region solver promotion
+
+Files added:
+
+- `tools/globe_solver_promotions.py`
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Files updated:
+
+- `tools/build_globe_global_warps.py`
+
+New behavior:
+
+- `--solver auto` now resolves per region from the promotion manifest instead of
+  forcing one global solver for every region
+- explicit `--solver legacy|partition-mesh-tps|partition-mesh-arap` still
+  overrides the manifest
+- builder reports now record:
+  - `solverUsed`
+  - promotion status / notes
+  - manifest path
+- output config/report metadata now reflect mixed-solver builds instead of
+  always claiming pure legacy TPS
+
+Initial promotion state:
+
+- `europa`: promoted to `partition-mesh-arap`
+- `asien`: stays on `legacy`, candidate is `partition-mesh-arap`
+- `nordamerika`: stays on `legacy`, candidate is `partition-mesh-arap`
+- remaining regions: still `legacy`
+
+Validation:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_solver_promotions.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region europa \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto \
+  --no-previews
+```
+
+Result:
+
+- `europa` resolved automatically to `partition-mesh-arap`
+- `europa`: mean IoU `0.8822`, p10 `0.7580`
+
+Interpretation:
+
+- the builder now has a real promotion path instead of a manual “remember to
+  pass this solver for this region” workflow
+- we can promote one region at a time without switching the whole globe build
