@@ -242,6 +242,46 @@ class GlobePartitionMeshTests(unittest.TestCase):
         self.assertIn(0, guides)
         self.assertGreaterEqual(len(guides[0].axis_guides), 3)
 
+    def test_build_country_guides_adds_chain_guides_for_island_chain(self) -> None:
+        owner = np.full((60, 120), -1, dtype=np.int32)
+        owner[10:20, 10:20] = 0
+        owner[24:34, 38:50] = 0
+        owner[38:48, 74:88] = 0
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=120,
+            height=60,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["CHAIN"],
+        )
+        guides = build_country_guides(partition)
+        self.assertIn(0, guides)
+        self.assertGreaterEqual(len(guides[0].chain_guides), 4)
+
+    def test_build_country_guides_adds_micro_guides_for_tiny_country(self) -> None:
+        owner = np.full((24, 24), -1, dtype=np.int32)
+        owner[8:14, 9:16] = 0
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=24,
+            height=24,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["TINY"],
+        )
+        guides = build_country_guides(partition)
+        self.assertIn(0, guides)
+        self.assertGreaterEqual(len(guides[0].micro_guides), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -58,11 +58,23 @@ class CountryGuideSet:
     owner_id: int
     feature_key: str
     component_guides: List[GuidePoint]
+    chain_guides: List[GuidePoint]
     axis_guides: List[GuidePoint]
+    micro_guides: List[GuidePoint]
 
     @property
     def all_guides(self) -> List[GuidePoint]:
-        return list(self.component_guides) + list(self.axis_guides)
+        return (
+            list(self.component_guides)
+            + list(self.chain_guides)
+            + list(self.axis_guides)
+            + list(self.micro_guides)
+        )
+
+
+SMALL_COUNTRY_GUIDE_AREA_PX = 2400
+TINY_COUNTRY_GUIDE_AREA_PX = 900
+CHAIN_GUIDE_SAMPLE_COUNT = 5
 
 
 def _sample_closed_polyline(points: np.ndarray, step_px: float) -> List[Tuple[float, float]]:
@@ -140,7 +152,7 @@ def _collect_seed_points(
     return _dedupe_points(points, partition.width, partition.height)
 
 
-def _connected_component_centroids(mask_u8: np.ndarray) -> np.ndarray:
+def _component_centroids(mask_u8: np.ndarray) -> np.ndarray:
     count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
     pts: List[np.ndarray] = []
     if count <= 1:
@@ -156,8 +168,78 @@ def _connected_component_centroids(mask_u8: np.ndarray) -> np.ndarray:
         pts = [np.asarray(centroids[idx], dtype=np.float64) for idx in range(1, count)]
     if not pts:
         return np.zeros((0, 2), dtype=np.float64)
-    arr = np.asarray(pts, dtype=np.float64)
-    order = np.lexsort((arr[:, 1], arr[:, 0]))
+    return np.asarray(pts, dtype=np.float64)
+
+
+def _principal_axes(points: np.ndarray) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, float, float]]:
+    pts = np.asarray(points, dtype=np.float64)
+    if len(pts) < 2:
+        return None
+    center = np.mean(pts, axis=0)
+    cov = np.cov((pts - center).T)
+    try:
+        vals, vecs = np.linalg.eigh(cov)
+    except np.linalg.LinAlgError:
+        return None
+    order = np.argsort(vals)
+    major = vecs[:, order[-1]]
+    minor = vecs[:, order[0]]
+    if abs(major[0]) < abs(major[1]):
+        if major[1] < 0:
+            major = -major
+            minor = -minor
+    elif major[0] < 0:
+        major = -major
+        minor = -minor
+    major_proj = (pts - center) @ major
+    minor_proj = (pts - center) @ minor
+    spread_major = float(np.percentile(major_proj, 95) - np.percentile(major_proj, 5))
+    spread_minor = float(np.percentile(minor_proj, 95) - np.percentile(minor_proj, 5))
+    return center, major, minor, spread_major, spread_minor
+
+
+def _ordered_component_centroids(mask_u8: np.ndarray) -> np.ndarray:
+    arr = _component_centroids(mask_u8)
+    if len(arr) <= 1:
+        return arr
+    axes = _principal_axes(arr)
+    if axes is None:
+        order = np.lexsort((arr[:, 1], arr[:, 0]))
+        return arr[order]
+    center, major, _, _, _ = axes
+    proj = (arr - center) @ major
+    order = np.argsort(proj)
+    return arr[order]
+
+
+def _chain_component_centroids(mask_u8: np.ndarray) -> np.ndarray:
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    if count <= 2:
+        return _ordered_component_centroids(mask_u8)
+    total = float(np.sum(stats[1:, cv2.CC_STAT_AREA]))
+    min_area = max(18.0, total * 0.0025)
+    rows: List[Tuple[float, np.ndarray]] = []
+    for idx in range(1, count):
+        area = float(stats[idx, cv2.CC_STAT_AREA])
+        if area < min_area:
+            continue
+        rows.append((area, np.asarray(centroids[idx], dtype=np.float64)))
+    if len(rows) < 2:
+        rows = [
+            (float(stats[idx, cv2.CC_STAT_AREA]), np.asarray(centroids[idx], dtype=np.float64))
+            for idx in range(1, count)
+        ]
+    rows = sorted(rows, key=lambda item: item[0], reverse=True)[:8]
+    if len(rows) < 2:
+        return np.zeros((0, 2), dtype=np.float64)
+    arr = np.asarray([pt for _, pt in rows], dtype=np.float64)
+    axes = _principal_axes(arr)
+    if axes is None:
+        order = np.lexsort((arr[:, 1], arr[:, 0]))
+        return arr[order]
+    center, major, _, _, _ = axes
+    proj = (arr - center) @ major
+    order = np.argsort(proj)
     return arr[order]
 
 
@@ -166,24 +248,11 @@ def _mask_principal_axis_guides(mask_u8: np.ndarray) -> np.ndarray:
     if len(xs) < 12:
         return np.zeros((0, 2), dtype=np.float64)
     pts = np.column_stack([xs.astype(np.float64), ys.astype(np.float64)])
-    center = np.mean(pts, axis=0)
-    cov = np.cov((pts - center).T)
-    try:
-        vals, vecs = np.linalg.eigh(cov)
-    except np.linalg.LinAlgError:
+    axes = _principal_axes(pts)
+    if axes is None:
         return np.zeros((0, 2), dtype=np.float64)
-    order = np.argsort(vals)
-    major = vecs[:, order[-1]]
-    minor = vecs[:, order[0]]
-    if abs(major[0]) < abs(major[1]):
-        if major[1] < 0:
-            major = -major
-    elif major[0] < 0:
-        major = -major
+    center, major, minor, spread_major, spread_minor = axes
     proj_major = (pts - center) @ major
-    proj_minor = (pts - center) @ minor
-    spread_major = float(np.percentile(proj_major, 95) - np.percentile(proj_major, 5))
-    spread_minor = float(np.percentile(proj_minor, 95) - np.percentile(proj_minor, 5))
     if spread_minor <= 1e-6:
         return np.zeros((0, 2), dtype=np.float64)
     aspect = spread_major / spread_minor
@@ -197,11 +266,103 @@ def _mask_principal_axis_guides(mask_u8: np.ndarray) -> np.ndarray:
     return np.asarray(guide_pts, dtype=np.float64)
 
 
+def _resample_polyline(points: np.ndarray, sample_count: int) -> np.ndarray:
+    pts = np.asarray(points, dtype=np.float64)
+    if len(pts) == 0 or sample_count <= 0:
+        return np.zeros((0, 2), dtype=np.float64)
+    if len(pts) == 1:
+        return np.repeat(pts, sample_count, axis=0)
+    seg = np.linalg.norm(pts[1:] - pts[:-1], axis=1)
+    cumulative = np.concatenate([[0.0], np.cumsum(seg)])
+    total = float(cumulative[-1])
+    if total <= 1e-6:
+        return np.repeat(pts[:1], sample_count, axis=0)
+    targets = np.linspace(0.0, total, sample_count)
+    out: List[np.ndarray] = []
+    edge_idx = 0
+    for t in targets:
+        while edge_idx + 1 < len(cumulative) and cumulative[edge_idx + 1] < t:
+            edge_idx += 1
+        if edge_idx + 1 >= len(cumulative):
+            out.append(pts[-1])
+            continue
+        span = float(cumulative[edge_idx + 1] - cumulative[edge_idx])
+        if span <= 1e-6:
+            out.append(pts[edge_idx].copy())
+            continue
+        frac = float((t - cumulative[edge_idx]) / span)
+        out.append(pts[edge_idx] * (1.0 - frac) + pts[edge_idx + 1] * frac)
+    return np.asarray(out, dtype=np.float64)
+
+
+def _mask_chain_guides(mask_u8: np.ndarray) -> np.ndarray:
+    centroids = _chain_component_centroids(mask_u8)
+    if len(centroids) < 2:
+        return np.zeros((0, 2), dtype=np.float64)
+    axes = _principal_axes(centroids)
+    if axes is None:
+        return np.zeros((0, 2), dtype=np.float64)
+    _, _, _, spread_major, spread_minor = axes
+    if spread_minor > 1e-6 and spread_major / max(spread_minor, 1e-6) < 1.45 and len(centroids) < 3:
+        return np.zeros((0, 2), dtype=np.float64)
+    return _resample_polyline(centroids, CHAIN_GUIDE_SAMPLE_COUNT)
+
+
+def _nearest_mask_points(mask_u8: np.ndarray, targets: np.ndarray) -> np.ndarray:
+    ys, xs = np.where(mask_u8 > 0)
+    if len(xs) == 0 or len(targets) == 0:
+        return np.zeros((0, 2), dtype=np.float64)
+    pts = np.column_stack([xs.astype(np.float64), ys.astype(np.float64)])
+    out: List[np.ndarray] = []
+    seen: set[Tuple[int, int]] = set()
+    for target in np.asarray(targets, dtype=np.float64):
+        d2 = np.sum((pts - target[None, :]) ** 2, axis=1)
+        idx = int(np.argmin(d2))
+        pt = pts[idx]
+        key = (int(round(float(pt[0]))), int(round(float(pt[1]))))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(pt)
+    if not out:
+        return np.zeros((0, 2), dtype=np.float64)
+    return np.asarray(out, dtype=np.float64)
+
+
+def _mask_micro_guides(mask_u8: np.ndarray) -> np.ndarray:
+    area = int(np.sum(mask_u8 > 0))
+    if area <= 0 or area > SMALL_COUNTRY_GUIDE_AREA_PX:
+        return np.zeros((0, 2), dtype=np.float64)
+    ys, xs = np.where(mask_u8 > 0)
+    x0 = float(np.min(xs))
+    x1 = float(np.max(xs))
+    y0 = float(np.min(ys))
+    y1 = float(np.max(ys))
+    dist = cv2.distanceTransform(mask_u8.astype(np.uint8), cv2.DIST_L2, 3)
+    max_idx = np.unravel_index(int(np.argmax(dist)), dist.shape)
+    core = np.array([float(max_idx[1]), float(max_idx[0])], dtype=np.float64)
+    targets = np.asarray(
+        [
+            core,
+            [x0 + 0.22 * (x1 - x0), y0 + 0.50 * (y1 - y0)],
+            [x0 + 0.50 * (x1 - x0), y0 + 0.24 * (y1 - y0)],
+            [x0 + 0.78 * (x1 - x0), y0 + 0.50 * (y1 - y0)],
+            [x0 + 0.50 * (x1 - x0), y0 + 0.76 * (y1 - y0)],
+        ],
+        dtype=np.float64,
+    )
+    return _nearest_mask_points(mask_u8, targets)
+
+
 def _seed_points_for_mask(mask_u8: np.ndarray) -> List[Tuple[float, float]]:
     pts: List[Tuple[float, float]] = []
-    for p in _connected_component_centroids(mask_u8):
+    for p in _ordered_component_centroids(mask_u8):
+        pts.append((float(p[0]), float(p[1])))
+    for p in _mask_chain_guides(mask_u8):
         pts.append((float(p[0]), float(p[1])))
     for p in _mask_principal_axis_guides(mask_u8):
+        pts.append((float(p[0]), float(p[1])))
+    for p in _mask_micro_guides(mask_u8):
         pts.append((float(p[0]), float(p[1])))
     return pts
 
@@ -398,19 +559,32 @@ def build_country_guides(partition: RegionPartition) -> Dict[int, CountryGuideSe
     guides: Dict[int, CountryGuideSet] = {}
     for owner_id, feature_key in enumerate(partition.feature_keys):
         mask = (partition.owner == owner_id).astype(np.uint8)
-        component_guides = [
-            GuidePoint(point=p, weight=4.5 if len(_connected_component_centroids(mask)) > 1 else 3.0, kind="component")
-            for p in _connected_component_centroids(mask)
-        ]
-        axis_pts = _mask_principal_axis_guides(mask)
         area = int(np.sum(mask > 0))
-        axis_weight = 2.5 if area < 3000 else 1.75
+        component_pts = _ordered_component_centroids(mask)
+        component_guides = [
+            GuidePoint(
+                point=p,
+                weight=5.25 if len(component_pts) > 1 else (4.5 if area <= TINY_COUNTRY_GUIDE_AREA_PX else 3.5),
+                kind="component",
+            )
+            for p in component_pts
+        ]
+        chain_pts = _mask_chain_guides(mask)
+        chain_weight = 6.0 if len(component_pts) >= 3 else 4.75
+        chain_guides = [GuidePoint(point=p, weight=chain_weight, kind="chain") for p in chain_pts]
+        axis_pts = _mask_principal_axis_guides(mask)
+        axis_weight = 3.0 if len(component_pts) > 1 else (2.75 if area < 3000 else 1.75)
         axis_guides = [GuidePoint(point=p, weight=axis_weight, kind="axis") for p in axis_pts]
+        micro_pts = _mask_micro_guides(mask)
+        micro_weight = 7.0 if area <= TINY_COUNTRY_GUIDE_AREA_PX else 5.5
+        micro_guides = [GuidePoint(point=p, weight=micro_weight, kind="micro") for p in micro_pts]
         guides[owner_id] = CountryGuideSet(
             owner_id=owner_id,
             feature_key=feature_key,
             component_guides=component_guides,
+            chain_guides=chain_guides,
             axis_guides=axis_guides,
+            micro_guides=micro_guides,
         )
     return guides
 
@@ -515,39 +689,78 @@ def build_interior_guide_constraints(
     targets = np.asarray(init_vertices_global, dtype=np.float64).copy()
     accum = np.zeros_like(targets)
 
+    def rank_pairs(src_guides: List[GuidePoint], tgt_guides: List[GuidePoint], *, center_single: bool = False) -> List[Tuple[GuidePoint, GuidePoint]]:
+        if not src_guides or not tgt_guides:
+            return []
+        if len(tgt_guides) == 1:
+            return [(src_gp, tgt_guides[0]) for src_gp in src_guides]
+        if len(src_guides) == 1:
+            idx = len(tgt_guides) // 2 if center_single else 0
+            return [(src_guides[0], tgt_guides[idx])]
+        pairs: List[Tuple[GuidePoint, GuidePoint]] = []
+        for idx, src_gp in enumerate(src_guides):
+            frac = float(idx) / float(max(1, len(src_guides) - 1))
+            tgt_idx = int(round(frac * float(max(1, len(tgt_guides) - 1))))
+            pairs.append((src_gp, tgt_guides[tgt_idx]))
+        return pairs
+
     for owner_id in range(source_partition.country_count):
         src_set = source_guides.get(owner_id)
         tgt_set = target_guides.get(owner_id)
         if src_set is None or tgt_set is None:
             continue
-        src_guides = src_set.all_guides
-        tgt_guides = tgt_set.all_guides
-        if not src_guides or not tgt_guides:
-            continue
-        pairs = min(len(src_guides), len(tgt_guides))
-        candidate_vertices = [
+        interior_vertices = [
             vidx
             for vidx, owners in enumerate(vertex_owners)
             if (not border_mask[vidx]) and len(owners) == 1 and int(owners[0]) == owner_id
         ]
-        if not candidate_vertices:
-            candidate_vertices = [
-                vidx
-                for vidx, owners in enumerate(vertex_owners)
-                if owner_id in owners.tolist()
-            ]
-        if not candidate_vertices:
+        all_owner_vertices = [
+            vidx
+            for vidx, owners in enumerate(vertex_owners)
+            if owner_id in owners.tolist()
+        ]
+        if not all_owner_vertices:
             continue
-        source_local = mesh.vertices[np.asarray(candidate_vertices, dtype=np.int32)]
-        for idx in range(pairs):
-            src_gp = src_guides[idx]
-            tgt_gp = tgt_guides[idx]
-            d2 = np.sum((source_local - src_gp.point[None, :]) ** 2, axis=1)
-            nearest = int(candidate_vertices[int(np.argmin(d2))])
-            target_global = tgt_gp.point + np.array([target_partition.left, target_partition.top], dtype=np.float64)
-            w = float(min(8.0, max(1.0, 0.5 * (src_gp.weight + tgt_gp.weight))))
-            accum[nearest] += w * target_global
-            weights[nearest] += w
+        used_vertices: set[int] = set()
+
+        def apply_family(
+            family_pairs: List[Tuple[GuidePoint, GuidePoint]],
+            *,
+            prefer_all_owner: bool,
+        ) -> None:
+            if not family_pairs:
+                return
+            candidate_vertices = (
+                all_owner_vertices
+                if prefer_all_owner or len(interior_vertices) < len(family_pairs)
+                else interior_vertices
+            )
+            if not candidate_vertices:
+                candidate_vertices = all_owner_vertices
+            if not candidate_vertices:
+                return
+            source_local = mesh.vertices[np.asarray(candidate_vertices, dtype=np.int32)]
+            for src_gp, tgt_gp in family_pairs:
+                d2 = np.sum((source_local - src_gp.point[None, :]) ** 2, axis=1)
+                order = np.argsort(d2)
+                nearest = None
+                for cand_idx in order.tolist():
+                    vidx = int(candidate_vertices[int(cand_idx)])
+                    if vidx not in used_vertices:
+                        nearest = vidx
+                        break
+                if nearest is None:
+                    nearest = int(candidate_vertices[int(order[0])])
+                used_vertices.add(nearest)
+                target_global = tgt_gp.point + np.array([target_partition.left, target_partition.top], dtype=np.float64)
+                w = float(min(12.0, max(1.0, 0.5 * (src_gp.weight + tgt_gp.weight))))
+                accum[nearest] += w * target_global
+                weights[nearest] += w
+
+        apply_family(rank_pairs(src_set.component_guides, tgt_set.component_guides), prefer_all_owner=False)
+        apply_family(rank_pairs(src_set.chain_guides, tgt_set.chain_guides), prefer_all_owner=True)
+        apply_family(rank_pairs(src_set.axis_guides, tgt_set.axis_guides, center_single=True), prefer_all_owner=False)
+        apply_family(rank_pairs(src_set.micro_guides, tgt_set.micro_guides), prefer_all_owner=True)
 
     used = weights > 0
     targets[used] = accum[used] / weights[used, None]

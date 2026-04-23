@@ -296,3 +296,56 @@ Next likely work after this step:
 - more explicit island-group guide pairing for small disconnected countries
 - compare `partition-mesh-arap` against legacy on a curated country set rather
   than mean IoU alone
+
+### Implementation step 5: stronger chain pairing + tiny-country guide path
+
+Files updated:
+
+- `tools/globe_partition_mesh.py`
+- `tests/test_globe_partition_mesh.py`
+
+Changes:
+
+- chain guides now use a more inclusive component set than ordinary component
+  guides, so island chains can keep smaller but still structurally important
+  components in the guide path
+- added fixed-count polyline chain guides sampled along ordered component
+  centroids
+- added tiny-country micro guides based on canonical interior targets
+- chain and micro guide families can now bind against all owner vertices, not
+  only strictly interior vertices, when that is necessary
+- interior guide pairing is now family-aware instead of one flat list
+
+Validation:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest tests/test_globe_partition_mesh.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region asien \
+  --solver partition-mesh-arap \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_guides_v3 \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_guides_v3 \
+  --partition-solver-border-step 54 \
+  --partition-solver-grid-step 144 \
+  --partition-arap-iterations 10 \
+  --no-previews
+```
+
+Result for `asien`:
+
+- mean IoU: `0.8444`
+- p10 IoU: `0.7119`
+- selected countries:
+  - `JPN`: `0.3448`
+  - `BRN`: `0.3121`
+
+Interpretation:
+
+- the stronger chain path moved `JPN` slightly in the right direction
+- `BRN` remains effectively flat, so tiny-country behavior is still a separate
+  remaining weak spot
+- this is enough to keep the guide layer moving forward, but not enough to call
+  the outliers solved
