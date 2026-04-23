@@ -8,7 +8,11 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from build_globe_global_warps import render_country_with_compact_tiny_fit, should_prefer_tiny_candidate
+from build_globe_global_warps import (
+    render_country_with_archipelago_mask_lock,
+    render_country_with_compact_tiny_fit,
+    should_prefer_tiny_candidate,
+)
 
 
 class DummyBBox:
@@ -28,10 +32,13 @@ class DummyShape:
 class DummyJob:
     def __init__(self, src_rgba: np.ndarray, mask: np.ndarray):
         self.render_rgba = src_rgba
+        self.source_rgba = src_rgba
         self.target_shape = DummyShape(mask)
         self.target_area = int(np.sum(mask > 0))
         self.source_region = "dummy"
         self.country = {"featureKey": "TINY"}
+        self.source_left = 0
+        self.source_top = 0
 
 
 class GlobeWarpTinySelectionTests(unittest.TestCase):
@@ -67,6 +74,24 @@ class GlobeWarpTinySelectionTests(unittest.TestCase):
         out = render_country_with_compact_tiny_fit(job)
         self.assertEqual(out.shape, (18, 20, 4))
         self.assertGreater(int(np.sum(out[:, :, 3] > 0)), 0)
+
+    def test_archipelago_mask_lock_fills_target_components(self) -> None:
+        src = np.zeros((20, 40, 4), dtype=np.uint8)
+        src[5:15, 5:35, :3] = 255
+        src[5:15, 5:35, 3] = 255
+        mask = np.zeros((18, 28), dtype=np.uint8)
+        mask[2:4, 2:4] = 255
+        mask[8:10, 10:12] = 255
+        mask[12:14, 20:22] = 255
+        job = DummyJob(src, mask)
+
+        class IdentityModel:
+            def inverse(self, query):
+                return query
+
+        out = render_country_with_archipelago_mask_lock(job, IdentityModel())
+        self.assertEqual(out.shape, (18, 28, 4))
+        self.assertEqual(int(np.sum(out[:, :, 3] > 0)), int(np.sum(mask > 0)))
 
 
 if __name__ == "__main__":

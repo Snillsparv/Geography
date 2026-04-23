@@ -1381,6 +1381,18 @@ def choose_tiny_country_rescue(
     candidates: List[Tuple[str, np.ndarray]] = [
         ("country-inverse", render_country_with_inverse_map(job, model)),
     ]
+    component_count = mask_component_count(mask_u8)
+    region_name = str(job.source_region).lower()
+    if (
+        component_count >= (
+            2 if region_name in TINY_ISLAND_REGIONS else COMPONENT_FALLBACK_MIN_COMPONENTS
+        )
+        and (
+            int(job.target_area) <= COMPONENT_FALLBACK_MAX_TARGET_AREA_PX
+            or region_name in TINY_ISLAND_REGIONS
+        )
+    ):
+        candidates.append(("country-archipelago-mask-lock", render_country_with_archipelago_mask_lock(job, model)))
     if mask_component_count(mask_u8) <= 1 and int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
         candidates.append(("country-compact-tiny-fit", render_country_with_compact_tiny_fit(job)))
     if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
@@ -1687,6 +1699,14 @@ def render_country_with_compact_tiny_fit(job: RegionCountryJob) -> np.ndarray:
             best_score = score
     best_rgba[best_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return best_rgba
+
+
+def render_country_with_archipelago_mask_lock(job: RegionCountryJob, model: RegionWarpModel) -> np.ndarray:
+    mask = (job.target_shape.mask > 0).astype(np.uint8)
+    base = render_country_with_inverse_map(job, model)
+    locked = lock_alpha_to_mask(base, mask, pad_radius=1)
+    locked[locked[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
+    return locked
 
 
 def iou_from_alpha(alpha: np.ndarray, target_mask: np.ndarray) -> float:
