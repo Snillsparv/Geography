@@ -1381,6 +1381,8 @@ def choose_tiny_country_rescue(
     candidates: List[Tuple[str, np.ndarray]] = [
         ("country-inverse", render_country_with_inverse_map(job, model)),
     ]
+    if mask_component_count(mask_u8) <= 1 and int(job.target_area) <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
+        candidates.append(("country-compact-tiny-fit", render_country_with_compact_tiny_fit(job)))
     if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
         candidates.append(("country-rigid-bbox", render_country_with_bbox_fit(job)))
 
@@ -1606,6 +1608,85 @@ def render_country_with_bbox_fit(job: RegionCountryJob) -> np.ndarray:
         ).astype(np.uint8)
     fitted[fitted[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
     return fitted
+
+
+def _crop_to_alpha_bounds(rgba: np.ndarray) -> np.ndarray:
+    ys, xs = np.where(rgba[:, :, 3] > ALPHA_THRESHOLD)
+    if len(xs) == 0 or len(ys) == 0:
+        return rgba.copy()
+    x0 = int(np.min(xs))
+    x1 = int(np.max(xs)) + 1
+    y0 = int(np.min(ys))
+    y1 = int(np.max(ys)) + 1
+    return rgba[y0:y1, x0:x1].copy()
+
+
+def _similarity_fit_rgba_to_canvas(
+    src_rgba: np.ndarray,
+    *,
+    out_w: int,
+    out_h: int,
+    scale_mult: float,
+) -> np.ndarray:
+    crop = _crop_to_alpha_bounds(src_rgba)
+    src_h, src_w = crop.shape[:2]
+    if src_w <= 0 or src_h <= 0:
+        return np.zeros((out_h, out_w, 4), dtype=np.uint8)
+    contain_scale = min(out_w / max(src_w, 1), out_h / max(src_h, 1))
+    scale = max(0.05, float(contain_scale) * float(scale_mult))
+    tw = max(1, int(round(src_w * scale)))
+    th = max(1, int(round(src_h * scale)))
+    resized = np.array(
+        Image.fromarray(crop, mode="RGBA").resize((tw, th), resample=Image.Resampling.LANCZOS),
+        dtype=np.uint8,
+    )
+    canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+    ox = (out_w - tw) // 2
+    oy = (out_h - th) // 2
+    x0 = max(0, ox)
+    y0 = max(0, oy)
+    x1 = min(out_w, ox + tw)
+    y1 = min(out_h, oy + th)
+    if x0 < x1 and y0 < y1:
+        sx0 = x0 - ox
+        sy0 = y0 - oy
+        sx1 = sx0 + (x1 - x0)
+        sy1 = sy0 + (y1 - y0)
+        canvas[y0:y1, x0:x1] = resized[sy0:sy1, sx0:sx1]
+    return canvas
+
+
+def render_country_with_compact_tiny_fit(job: RegionCountryJob) -> np.ndarray:
+    mask = (job.target_shape.mask > 0).astype(np.uint8)
+    out_h, out_w = mask.shape
+    best_rgba = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+    best_score = -1.0
+    for scale_mult in (0.72, 0.78, 0.84, 0.90):
+        candidate = _similarity_fit_rgba_to_canvas(
+            job.render_rgba,
+            out_w=out_w,
+            out_h=out_h,
+            scale_mult=scale_mult,
+        )
+        if USE_WARP_ALPHA_SHAPE:
+            candidate = prune_alpha_components_by_geo_proximity(candidate, mask)
+        else:
+            candidate[:, :, 3] = (
+                (candidate[:, :, 3].astype(np.uint16) * mask.astype(np.uint16)) // 255
+            ).astype(np.uint8)
+        candidate = stabilize_tiny_island_rgba(
+            candidate,
+            mask,
+            target_area=int(job.target_area),
+            source_region=job.source_region,
+            feature_key=str(job.country.get("featureKey", "")),
+        )
+        score = tiny_quality_score(candidate[:, :, 3], mask)
+        if score > best_score:
+            best_rgba = candidate
+            best_score = score
+    best_rgba[best_rgba[:, :, 3] <= OUTPUT_ALPHA_THRESHOLD, :3] = 0
+    return best_rgba
 
 
 def iou_from_alpha(alpha: np.ndarray, target_mask: np.ndarray) -> float:

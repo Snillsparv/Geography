@@ -467,3 +467,65 @@ Interpretation:
   automatically recognizes that per-country inverse rendering is better there
 - `BRN` improved only slightly, so the smallest compact-country cases are still
   not fully solved even after the stronger mesh and rescue path
+
+### Implementation step 8: compact tiny-country similarity candidate
+
+Files updated:
+
+- `tools/build_globe_global_warps.py`
+- `tests/test_globe_warp_tiny_selection.py`
+
+New behavior:
+
+- tiny rescue can now also evaluate a compact-country candidate:
+  - uniform similarity fit
+  - preserve source aspect ratio
+  - choose the best from a small contain-scale sweep
+- this path is only considered for compact tiny countries
+- automatic tiny rescue now compares:
+  - partition-solver output
+  - `country-inverse`
+  - `country-compact-tiny-fit`
+  - optional rigid bbox candidate if explicitly enabled for the feature
+
+Validation:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region asien \
+  --solver partition-mesh-arap \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_tiny_v3 \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_tiny_v3 \
+  --partition-solver-border-step 54 \
+  --partition-solver-grid-step 144 \
+  --partition-arap-iterations 10 \
+  --no-previews
+```
+
+Result for `asien`:
+
+- mean IoU: `0.8546`
+- p10 IoU: `0.7377`
+
+Selected countries:
+
+- `JPN`: `0.5584`
+  - strategy: `partition-mesh-arap+tiny-fallback-country-inverse`
+- `BRN`: `0.4197`
+  - strategy: `partition-mesh-arap+tiny-fallback-country-compact-tiny-fit`
+
+Interpretation:
+
+- this is the first step that materially improved the compact tiny-country
+  class, not just the chain/island class
+- `BRN` is now no longer stuck near `0.31`; the compact similarity candidate is
+  doing real work there
+- the remaining weakness is no longer “we have no compact tiny rescue path”, but
+  whether this is good enough to promote `asien` or whether a few more tiny
+  countries should still be reviewed first
