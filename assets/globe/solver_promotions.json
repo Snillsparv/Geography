@@ -57,9 +57,15 @@
       "notes": "No partition-mesh-arap canary promoted yet."
     },
     "vastindien": {
-      "solver": "legacy",
-      "status": "pending",
-      "notes": "No partition-mesh-arap canary promoted yet."
+      "solver": "partition-mesh-arap",
+      "status": "promoted",
+      "params": {
+        "partitionSolverBorderStep": 54,
+        "partitionSolverGridStep": 144,
+        "partitionArapIterations": 10,
+        "partitionArapInitWeight": 0.15
+      },
+      "notes": "Promoted after regional review. The archipelago rescue closes the Bahamas and Trinidad/Tobago failure modes while preserving the shared partition-mesh path."
     }
   }
 }

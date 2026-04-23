@@ -745,3 +745,57 @@ cd /data/workspace/Geography
   --partition-raster-dir artifacts/globe_partition_raster_canary_auto_oceanien \
   --no-previews
 ```
+
+### Implementation step 13: West Indies review and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. snapshot current `legacy` results for `vastindien`
+2. rerun `vastindien` on `partition-mesh-arap`
+3. compare all countries directly
+
+Region summary:
+
+- `legacy`: mean IoU `0.8349`, p10 `0.1374`
+- `partition-mesh-arap`: mean IoU `0.9950`, p10 `0.9630`
+
+Selected country changes (`partition` minus `legacy` IoU):
+
+- `BHS`: `+0.8626`
+- `TTO`: `+0.6153`
+- `VCT`: `-0.0370`
+- all other countries stayed flat at `1.0`
+
+Interpretation:
+
+- the old lower-tail failure mode in the Bahamas / island-cluster cases is gone
+- the region is now effectively saturated
+- `VCT` regresses slightly, but remains very high and is not enough to block
+  promotion
+
+Decision:
+
+- promote `vastindien` to `partition-mesh-arap`
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_solver_promotions.py \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region vastindien \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_vastindien \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_vastindien \
+  --no-previews
+```
