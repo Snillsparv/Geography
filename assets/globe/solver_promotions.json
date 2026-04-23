@@ -3,9 +3,15 @@
   "defaultSolver": "legacy",
   "regions": {
     "afrika": {
-      "solver": "legacy",
-      "status": "baseline",
-      "notes": "Keep the current path until the partition solver is validated on the same source assets."
+      "solver": "partition-mesh-arap",
+      "status": "promoted",
+      "params": {
+        "partitionSolverBorderStep": 54,
+        "partitionSolverGridStep": 144,
+        "partitionArapIterations": 10,
+        "partitionArapInitWeight": 0.15
+      },
+      "notes": "Promoted after direct validation on the same source assets. The partition solver materially improves the lower tail, including island and compact-country cases."
     },
     "asien": {
       "solver": "partition-mesh-arap",

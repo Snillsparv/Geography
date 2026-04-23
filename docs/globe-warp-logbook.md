@@ -857,3 +857,62 @@ cd /data/workspace/Geography
   --partition-raster-dir artifacts/globe_partition_raster_canary_auto_sydamerika \
   --no-previews
 ```
+
+### Implementation step 15: Africa validation and promotion
+
+Files updated:
+
+- `assets/globe/solver_promotions.json`
+- `tests/test_globe_solver_promotions.py`
+
+Review procedure:
+
+1. snapshot current `legacy` results for `afrika`
+2. rerun `afrika` on `partition-mesh-arap` using the same source assets
+3. compare the region summary and inspect the main gains/regressions
+
+Region summary:
+
+- `legacy`: mean IoU `0.7787`, p10 `0.5443`
+- `partition-mesh-arap`: mean IoU `0.9165`, p10 `0.8276`
+
+Selected country changes (`partition` minus `legacy` IoU):
+
+- `CPV`: `+0.9411`
+- `MUS`: `+0.5675`
+- `GNB`: `+0.4557`
+- `DJI`: `+0.2967`
+- `ESH`: `+0.2637`
+- `RWA`: `+0.2380`
+- `TZA`: `-0.0423`
+
+Interpretation:
+
+- the original reason to hold Africa on baseline no longer applies
+- the partition solver is now directly validated on the same source assets
+- lower-tail behavior improves dramatically, especially for the small-island and
+  compact-country cases
+- `TZA` regresses slightly, but the overall region gain is far too large to
+  justify staying on baseline
+
+Decision:
+
+- promote `afrika` to `partition-mesh-arap`
+
+Post-promotion validation command:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_solver_promotions.py \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region afrika \
+  --solver auto \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_auto_afrika \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_auto_afrika \
+  --no-previews
+```
