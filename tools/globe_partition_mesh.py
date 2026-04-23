@@ -75,6 +75,7 @@ class CountryGuideSet:
 SMALL_COUNTRY_GUIDE_AREA_PX = 2400
 TINY_COUNTRY_GUIDE_AREA_PX = 900
 CHAIN_GUIDE_SAMPLE_COUNT = 5
+TINY_COUNTRY_LOCAL_DENSIFY_AREA_PX = 1600
 
 
 def _sample_closed_polyline(points: np.ndarray, step_px: float) -> List[Tuple[float, float]]:
@@ -117,6 +118,42 @@ def _dedupe_points(points: Iterable[Tuple[float, float]], width: int, height: in
     return pts
 
 
+def _tiny_country_dense_points(mask_u8: np.ndarray, *, grid_step_px: int) -> List[Tuple[float, float]]:
+    area = int(np.sum(mask_u8 > 0))
+    if area <= 0 or area > TINY_COUNTRY_LOCAL_DENSIFY_AREA_PX:
+        return []
+    ys, xs = np.where(mask_u8 > 0)
+    if len(xs) == 0:
+        return []
+    x0 = int(np.min(xs))
+    x1 = int(np.max(xs))
+    y0 = int(np.min(ys))
+    y1 = int(np.max(ys))
+    w = max(1, x1 - x0 + 1)
+    h = max(1, y1 - y0 + 1)
+    local_step = max(4, min(12, int(round(min(w, h) / 3.0)), max(4, grid_step_px // 8)))
+    half = max(2, local_step // 2)
+    pts: List[Tuple[float, float]] = []
+    for y in range(y0 + half, y1 + 1, local_step):
+        for x in range(x0 + half, x1 + 1, local_step):
+            if mask_u8[y, x] > 0:
+                pts.append((float(x), float(y)))
+    if len(pts) < 4:
+        extra_targets = np.asarray(
+            [
+                [x0 + 0.25 * (x1 - x0), y0 + 0.25 * (y1 - y0)],
+                [x0 + 0.75 * (x1 - x0), y0 + 0.25 * (y1 - y0)],
+                [x0 + 0.25 * (x1 - x0), y0 + 0.75 * (y1 - y0)],
+                [x0 + 0.75 * (x1 - x0), y0 + 0.75 * (y1 - y0)],
+                [x0 + 0.50 * (x1 - x0), y0 + 0.50 * (y1 - y0)],
+            ],
+            dtype=np.float64,
+        )
+        for p in _nearest_mask_points(mask_u8, extra_targets):
+            pts.append((float(p[0]), float(p[1])))
+    return pts
+
+
 def _collect_seed_points(
     partition: RegionPartition,
     border_step_px: int,
@@ -128,9 +165,13 @@ def _collect_seed_points(
 
     for owner_id in range(partition.country_count):
         mask = (owner == owner_id).astype(np.uint8)
+        area = int(np.sum(mask > 0))
+        local_border_step = border_step_px
+        if area <= TINY_COUNTRY_LOCAL_DENSIFY_AREA_PX:
+            local_border_step = max(4, min(border_step_px, int(round(max(6.0, math.sqrt(area) / 2.0)))))
         for contour in _partition_contours(mask):
-            points.extend(_sample_closed_polyline(contour, step_px=float(border_step_px)))
-        points.extend(_seed_points_for_mask(mask))
+            points.extend(_sample_closed_polyline(contour, step_px=float(local_border_step)))
+        points.extend(_seed_points_for_mask(mask, grid_step_px=grid_step_px))
 
     for contour in _partition_contours(partition.union_mask):
         points.extend(_sample_closed_polyline(contour, step_px=float(border_step_px)))
@@ -354,7 +395,7 @@ def _mask_micro_guides(mask_u8: np.ndarray) -> np.ndarray:
     return _nearest_mask_points(mask_u8, targets)
 
 
-def _seed_points_for_mask(mask_u8: np.ndarray) -> List[Tuple[float, float]]:
+def _seed_points_for_mask(mask_u8: np.ndarray, *, grid_step_px: int) -> List[Tuple[float, float]]:
     pts: List[Tuple[float, float]] = []
     for p in _ordered_component_centroids(mask_u8):
         pts.append((float(p[0]), float(p[1])))
@@ -364,6 +405,7 @@ def _seed_points_for_mask(mask_u8: np.ndarray) -> List[Tuple[float, float]]:
         pts.append((float(p[0]), float(p[1])))
     for p in _mask_micro_guides(mask_u8):
         pts.append((float(p[0]), float(p[1])))
+    pts.extend(_tiny_country_dense_points(mask_u8, grid_step_px=grid_step_px))
     return pts
 
 

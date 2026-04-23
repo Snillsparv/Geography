@@ -14,7 +14,12 @@ from globe_partition_mesh import (
     build_country_guides,
     build_partition_mesh,
 )
-from globe_partition_mesh import map_partition_mesh_vertices, rasterize_partition_mesh
+from globe_partition_mesh import (
+    _border_vertex_mask,
+    _vertex_owner_lists,
+    map_partition_mesh_vertices,
+    rasterize_partition_mesh,
+)
 from globe_partition_model import (
     RegionPartition,
     build_source_region_partition,
@@ -281,6 +286,37 @@ class GlobePartitionMeshTests(unittest.TestCase):
         guides = build_country_guides(partition)
         self.assertIn(0, guides)
         self.assertGreaterEqual(len(guides[0].micro_guides), 3)
+
+    def test_tiny_country_mesh_is_locally_densified(self) -> None:
+        owner = np.full((120, 120), -1, dtype=np.int32)
+        owner[10:100, 10:100] = 0
+        owner[48:56, 92:101] = 1
+        union = np.where(owner >= 0, 255, 0).astype(np.uint8)
+        partition = RegionPartition(
+            region_name="dummy",
+            space_name="source",
+            left=0,
+            top=0,
+            width=120,
+            height=120,
+            owner=owner,
+            union_mask=union,
+            feature_keys=["BIG", "TINY"],
+        )
+        mesh = build_partition_mesh(partition, border_step_px=54, grid_step_px=144)
+        vertex_owners = _vertex_owner_lists(mesh)
+        border = _border_vertex_mask(mesh)
+        tiny_owner = 1
+        tiny_all = [vidx for vidx, owners in enumerate(vertex_owners) if tiny_owner in owners.tolist()]
+        tiny_interior = [
+            vidx
+            for vidx, owners in enumerate(vertex_owners)
+            if (not border[vidx]) and len(owners) == 1 and int(owners[0]) == tiny_owner
+        ]
+        tiny_tris = int(np.sum(mesh.triangle_owners == tiny_owner))
+        self.assertGreaterEqual(len(tiny_all), 18)
+        self.assertGreaterEqual(len(tiny_interior), 4)
+        self.assertGreaterEqual(tiny_tris, 18)
 
 
 if __name__ == "__main__":

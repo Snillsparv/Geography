@@ -1330,6 +1330,97 @@ def should_try_tiny_fallback(job: RegionCountryJob) -> bool:
     return False
 
 
+def should_prefer_tiny_candidate(
+    *,
+    base_iou: float,
+    base_score: float,
+    candidate_iou: float,
+    candidate_score: float,
+    target_area: int,
+) -> bool:
+    min_gain = TINY_FALLBACK_MIN_SCORE_GAIN
+    if target_area <= GLOBAL_TINY_FALLBACK_MAX_TARGET_AREA_PX:
+        min_gain = 0.0015
+    elif target_area <= 800:
+        min_gain = 0.004
+    elif target_area <= SMALL_COUNTRY_FALLBACK_MAX_TARGET_AREA_PX:
+        min_gain = 0.003
+    if candidate_score > base_score + min_gain:
+        return True
+    if (
+        target_area <= LOW_IOU_RESCUE_MAX_TARGET_AREA_PX
+        and base_iou < LOW_IOU_RESCUE_THRESHOLD
+        and candidate_iou > base_iou + 0.0005
+    ):
+        return True
+    return False
+
+
+def choose_tiny_country_rescue(
+    *,
+    base_rgba: np.ndarray,
+    job: RegionCountryJob,
+    model: RegionWarpModel,
+    mask_u8: np.ndarray,
+    current_strategy: str,
+    target_offset_xy: Optional[Tuple[int, int]] = None,
+) -> Tuple[np.ndarray, str]:
+    feature_key = str(job.country.get("featureKey", ""))
+    base_rgba = stabilize_tiny_island_rgba(
+        base_rgba,
+        mask_u8,
+        target_area=int(job.target_area),
+        source_region=job.source_region,
+        feature_key=feature_key,
+    )
+    best_rgba = base_rgba
+    best_strategy = current_strategy
+    best_iou = iou_from_alpha(best_rgba[:, :, 3], mask_u8)
+    best_score = tiny_quality_score(best_rgba[:, :, 3], mask_u8)
+
+    candidates: List[Tuple[str, np.ndarray]] = [
+        ("country-inverse", render_country_with_inverse_map(job, model)),
+    ]
+    if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:
+        candidates.append(("country-rigid-bbox", render_country_with_bbox_fit(job)))
+
+    for candidate_name, candidate_rgba in candidates:
+        if target_offset_xy is not None:
+            ox, oy = target_offset_xy
+            candidate_canvas = np.zeros_like(base_rgba)
+            x0 = max(0, int(ox))
+            y0 = max(0, int(oy))
+            x1 = min(candidate_canvas.shape[1], x0 + candidate_rgba.shape[1])
+            y1 = min(candidate_canvas.shape[0], y0 + candidate_rgba.shape[0])
+            if x0 < x1 and y0 < y1:
+                sx1 = x1 - x0
+                sy1 = y1 - y0
+                candidate_canvas[y0:y1, x0:x1] = candidate_rgba[:sy1, :sx1]
+            candidate_rgba = candidate_canvas
+        candidate_rgba = stabilize_tiny_island_rgba(
+            candidate_rgba,
+            mask_u8,
+            target_area=int(job.target_area),
+            source_region=job.source_region,
+            feature_key=feature_key,
+        )
+        candidate_iou = iou_from_alpha(candidate_rgba[:, :, 3], mask_u8)
+        candidate_score = tiny_quality_score(candidate_rgba[:, :, 3], mask_u8)
+        if should_prefer_tiny_candidate(
+            base_iou=best_iou,
+            base_score=best_score,
+            candidate_iou=candidate_iou,
+            candidate_score=candidate_score,
+            target_area=int(job.target_area),
+        ):
+            best_rgba = candidate_rgba
+            best_strategy = f"{current_strategy}+tiny-fallback-{candidate_name}"
+            best_iou = candidate_iou
+            best_score = candidate_score
+
+    return best_rgba, best_strategy
+
+
 def use_nearest_region_split(job: RegionCountryJob) -> bool:
     feature_key = str(job.country.get("featureKey", ""))
     if job.target_area < NEAREST_REGION_SPLIT_AREA_PX:
@@ -2084,6 +2175,15 @@ def main() -> None:
                 if src_mx1 > 0 and src_my1 > 0:
                     mask_u8[my0:my1, mx0:mx1] = (job.target_shape.mask[:src_my1, :src_mx1] > 0).astype(np.uint8)
                 warp_strategy = region_solver
+                if should_try_tiny_fallback(job):
+                    warped_rgba, warp_strategy = choose_tiny_country_rescue(
+                        base_rgba=warped_rgba,
+                        job=job,
+                        model=model,
+                        mask_u8=mask_u8,
+                        current_strategy=warp_strategy,
+                        target_offset_xy=(mx0, my0),
+                    )
             elif not USE_REGION_SHARED_SHEET_LABEL_SPLIT:
                 mask_u8 = (job.target_shape.mask > 0).astype(np.uint8)
                 if feature_key in RIGID_ART_FALLBACK_FEATURE_KEYS:

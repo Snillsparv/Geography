@@ -409,3 +409,61 @@ Interpretation:
 - the builder now has a real promotion path instead of a manual “remember to
   pass this solver for this region” workflow
 - we can promote one region at a time without switching the whole globe build
+
+### Implementation step 7: tiny-country mesh densification + candidate rescue
+
+Files updated:
+
+- `tools/globe_partition_mesh.py`
+- `tools/build_globe_global_warps.py`
+- `tests/test_globe_partition_mesh.py`
+- `tests/test_globe_warp_tiny_selection.py`
+
+New behavior:
+
+- tiny countries now get:
+  - tighter local border sampling
+  - local interior seed densification inside the shared partition mesh
+- partition-solver outputs for tiny countries can now automatically fall back
+  to a per-country candidate when that candidate scores better
+- this is still automatic strategy selection, not a manual per-country override
+
+Validation:
+
+```bash
+cd /data/workspace/Geography
+.venv/bin/python -m unittest \
+  tests/test_globe_partition_mesh.py \
+  tests/test_globe_warp_tiny_selection.py
+
+.venv/bin/python tools/build_globe_global_warps.py \
+  --region asien \
+  --solver partition-mesh-arap \
+  --partition-canary \
+  --partition-debug-dir artifacts/globe_partition_debug_canary_tiny_v2 \
+  --partition-raster-dir artifacts/globe_partition_raster_canary_tiny_v2 \
+  --partition-solver-border-step 54 \
+  --partition-solver-grid-step 144 \
+  --partition-arap-iterations 10 \
+  --no-previews
+```
+
+Result for `asien`:
+
+- mean IoU: `0.8524`
+- p10 IoU: `0.7377`
+
+Selected countries:
+
+- `JPN`: `0.5584`
+  - strategy: `partition-mesh-arap+tiny-fallback-country-inverse`
+- `BRN`: `0.3086`
+  - strategy: `partition-mesh-arap+tiny-fallback-country-inverse`
+
+Interpretation:
+
+- tiny-country candidate rescue materially improved the lower tail for `asien`
+- `JPN` moved from a clear outlier to a workable score because the builder now
+  automatically recognizes that per-country inverse rendering is better there
+- `BRN` improved only slightly, so the smallest compact-country cases are still
+  not fully solved even after the stronger mesh and rescue path
