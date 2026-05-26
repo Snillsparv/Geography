@@ -421,6 +421,76 @@
       color: #5bbfff;
     }
 
+    .seterra-hint-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hint-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(232, 197, 71, 0.45);
+      background: rgba(232, 197, 71, 0.12);
+      color: #f0d264;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    }
+
+    .hint-btn svg { flex-shrink: 0; }
+
+    .hint-btn:hover {
+      background: rgba(232, 197, 71, 0.22);
+      border-color: rgba(232, 197, 71, 0.7);
+    }
+
+    .hint-btn:active { transform: scale(0.96); }
+
+    .hint-btn.used {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .hint-btn.used:hover {
+      background: rgba(232, 197, 71, 0.12);
+      border-color: rgba(232, 197, 71, 0.45);
+    }
+
+    .seterra-hint {
+      width: 100%;
+      background: rgba(232, 197, 71, 0.1);
+      border: 1px solid rgba(232, 197, 71, 0.3);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #f0d98a;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-align: center;
+      line-height: 1.45;
+      animation: hintPop 0.3s ease;
+    }
+
+    @keyframes hintPop {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .confetti-burst-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 250;
+    }
+
     .seterra-stats {
       display: grid;
       grid-template-columns: 1fr 1fr;

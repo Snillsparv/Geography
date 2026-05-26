@@ -38,6 +38,8 @@ const seterraProgressLabel = document.getElementById('seterra-progress-label');
 const seterraFeedback = document.getElementById('seterra-feedback');
 const seterraDone = document.getElementById('seterra-done');
 const seterraGame = document.getElementById('seterra-game');
+const seterraHintBtn = document.getElementById('seterra-hint-btn');
+const seterraHintBox = document.getElementById('seterra-hint');
 
 // Shared state
 const hitCanvases = {};
@@ -73,6 +75,7 @@ let seterraTargetMisses = 0;
 let seterraElapsed = 0;
 let seterraMissedCountries = new Set();
 let seterraIsRetry = false;
+let currentHintText = '';
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -621,6 +624,34 @@ function nextSeterraTarget() {
   cursorLabel.textContent = seterraTarget.name;
   seterraFeedback.className = 'seterra-feedback';
   seterraFeedback.innerHTML = '';
+  setHint(IMAGE_ASSOCIATIONS[seterraTarget.filename] || '');
+}
+
+// ══════════════════════
+// Hint ("Visa ledtråd")
+// ══════════════════════
+function setHint(text) {
+  currentHintText = text || '';
+  resetHint();
+}
+
+function resetHint() {
+  if (!seterraHintBtn) return;
+  seterraHintBox.style.display = 'none';
+  seterraHintBox.textContent = '';
+  seterraHintBtn.classList.remove('used');
+  seterraHintBtn.style.display = currentHintText ? '' : 'none';
+}
+
+function showHint() {
+  if (!currentHintText) return;
+  seterraHintBox.textContent = currentHintText;
+  seterraHintBox.style.display = '';
+  seterraHintBtn.classList.add('used');
+}
+
+if (seterraHintBtn) {
+  seterraHintBtn.addEventListener('click', showHint);
 }
 
 function seterraClick(c) {
@@ -634,6 +665,7 @@ function seterraClick(c) {
     seterraFeedback.className = 'seterra-feedback correct-fb';
     const correctAssoc = IMAGE_ASSOCIATIONS[c.filename];
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div>${correctAssoc ? `<div class="assoc-box">${escHtml(correctAssoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    burstConfetti();
     updateSeterraUI();
     nextSeterraTarget();
   } else {
@@ -1299,10 +1331,12 @@ function sampleWorldQuestions(total) {
     for (let i = 0; i < Math.min(r.count, r.countries.length); i++) {
       const country = r.countries[i];
       const altRegions = CROSS_REGION_COUNTRIES[country.filename];
+      const assoc = (worldConfigs[r.slug].imageAssociations || {})[country.filename] || '';
       questions.push({
         country,
         region: r.slug,
         altRegions: altRegions || null,
+        assoc,
         wrongCounted: false,
         found: false
       });
@@ -1842,6 +1876,7 @@ function nextWorldQuestion() {
   seterraFeedback.className = 'seterra-feedback';
   seterraFeedback.innerHTML = '';
   seterraTargetMisses = 0;
+  setHint(worldTarget.assoc || '');
   updateWorldUI();
 }
 
@@ -1864,6 +1899,7 @@ function worldSeterraClick(c) {
     const assoc = IMAGE_ASSOCIATIONS[c.filename];
     seterraFeedback.className = 'seterra-feedback correct-fb';
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div>${assoc ? `<div class="assoc-box">${escHtml(assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    burstConfetti();
 
     worldQueueIndex++;
     updateWorldUI();
@@ -2008,6 +2044,73 @@ function startConfetti(canvas) {
   }
   draw();
   return () => { running = false; ctx.clearRect(0, 0, canvas.width, canvas.height); };
+}
+
+// ── Small celebratory confetti burst (fired after each correct answer) ──
+function burstConfetti() {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti-burst-canvas';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = window.innerWidth, H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+
+  const colors = ['#ff4444', '#ffdd00', '#44bb44', '#4488ff', '#ff44ff', '#ff8800', '#00ddff', '#ffd700'];
+  const pieces = [];
+  const perCannon = 45;
+  // Two cannons firing inward/upward from the bottom corners
+  const cannons = [
+    { x: 0, y: H, aMin: -1.35, aMax: -0.35 },   // bottom-left → up-right
+    { x: W, y: H, aMin: Math.PI + 0.35, aMax: Math.PI + 1.35 }, // bottom-right → up-left
+  ];
+  for (const cannon of cannons) {
+    for (let i = 0; i < perCannon; i++) {
+      const angle = cannon.aMin + Math.random() * (cannon.aMax - cannon.aMin);
+      const speed = 11 + Math.random() * 11;
+      pieces.push({
+        x: cannon.x,
+        y: cannon.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        w: 6 + Math.random() * 7,
+        h: 4 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.3,
+      });
+    }
+  }
+
+  const gravity = 0.32;
+  const duration = 1300;
+  const start = performance.now();
+
+  function frame(now) {
+    const t = now - start;
+    ctx.clearRect(0, 0, W, H);
+    const fade = Math.max(0, 1 - t / duration);
+    for (const p of pieces) {
+      p.vy += gravity;
+      p.vx *= 0.99;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.rotSpeed;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, fade * 1.6);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (t < duration) {
+      requestAnimationFrame(frame);
+    } else {
+      canvas.remove();
+    }
+  }
+  requestAnimationFrame(frame);
 }
 
 function showCelebration(elapsed, m, s) {
