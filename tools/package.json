@@ -1,0 +1,14 @@
+{
+  "name": "jonasgeografi-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline tooling for jonasgeografi.se (raster → SVG vectorization).",
+  "scripts": {
+    "vectorize": "node vectorize.mjs"
+  },
+  "dependencies": {
+    "@neplex/vectorizer": "^0.1.0",
+    "svgo": "^4.0.1"
+  }
+}
