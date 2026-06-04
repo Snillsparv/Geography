@@ -35,6 +35,7 @@ for (const f of world.features) {
 }
 
 // Match each illustration file to a country feature and attach its svg path.
+const shapeStats = JSON.parse(readFileSync(path.join(here, 'shape-stats.json'), 'utf8'));
 const used = new Set();
 const features = [];
 for (const region of REGIONS) {
@@ -49,10 +50,16 @@ for (const region of REGIONS) {
     const iso = feat.properties.ISO_A3;
     if (used.has(iso)) continue;            // one illustration per country
     used.add(iso);
+    const stats = shapeStats[`${region}/${base}`];
+    if (!stats) continue;                   // need shape stats for placement
     features.push({
       type: 'Feature',
       geometry: feat.geometry,
-      properties: { name: feat.properties.NAME_SV, svg: `assets/${region}/countries/${fn}` },
+      properties: {
+        name: feat.properties.NAME_SV,
+        svg: `assets/${region}/countries/${fn}`,
+        ill: stats,
+      },
     });
   }
 }
@@ -139,19 +146,72 @@ let projection = makeProjection();
 let geoPath = d3.geoPath(projection);
 
 // Build per-country DOM once.
+// Each country = <g clip-path="poly"> containing a transformed <image>.
+// The transform rotates+scales the illustration to align with the polygon's
+// principal axis (computed at render time from the projected screen coords).
 const items = DATA.features.map((f, i) => {
   const id = 'clip' + i;
   const cp = defs.append('clipPath').attr('id', id);
   const cpPath = cp.append('path');
-  const img = gFill.append('image')
+  const wrap = gFill.append('g');                     // clip wrapper
+  const img = wrap.append('image')
     .attr('href', f.properties.svg)
-    .attr('preserveAspectRatio', 'none')
-    .attr('clip-path', 'url(#' + id + ')');
+    .attr('x', 0).attr('y', 0)
+    .attr('width', f.properties.ill.w)
+    .attr('height', f.properties.ill.h);
   const border = gBord.append('path').attr('class', 'ill-border');
-  return { f, id, cpPath, img, border };
+  return { f, id, cpPath, wrap, img, border };
 });
 
 function applyRoot() { root.attr('transform', 'translate('+tx+','+ty+') scale('+k+')'); }
+
+// Principal-component analysis on the polygon's projected screen coords.
+// Returns {cx, cy, vx, vy (unit), len_p, len_s} or null. Disambiguated the
+// same way as the illustration side (farthest point lies in +v direction).
+function polyPCA(feature) {
+  const pts = [];
+  const g = feature.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  // pick the largest sub-polygon by outer-ring point count (mainland)
+  let best = polys[0], bestN = polys[0][0].length;
+  for (const p of polys) if (p[0].length > bestN) { best = p; bestN = p[0].length; }
+  for (const [lng, lat] of best[0]) {
+    const sp = projection([lng, lat]);
+    if (sp && isFinite(sp[0]) && isFinite(sp[1])) pts.push(sp);
+  }
+  if (pts.length < 5) return null;
+  let cx = 0, cy = 0;
+  for (const p of pts) { cx += p[0]; cy += p[1]; }
+  cx /= pts.length; cy /= pts.length;
+  let sxx = 0, sxy = 0, syy = 0;
+  for (const p of pts) {
+    const dx = p[0] - cx, dy = p[1] - cy;
+    sxx += dx*dx; sxy += dx*dy; syy += dy*dy;
+  }
+  sxx /= pts.length; sxy /= pts.length; syy /= pts.length;
+  const tr = sxx + syy, det = sxx*syy - sxy*sxy;
+  const disc = Math.sqrt(Math.max(0, tr*tr/4 - det));
+  const eig = tr/2 + disc;
+  let vx = sxy, vy = eig - sxx;
+  if (Math.hypot(vx, vy) < 1e-9) { vx = eig - syy; vy = sxy; }
+  const L = Math.hypot(vx, vy) || 1; vx /= L; vy /= L;
+  // disambiguate using farthest-point rule
+  let farProj = 0;
+  for (const p of pts) {
+    const pr = (p[0] - cx) * vx + (p[1] - cy) * vy;
+    if (Math.abs(pr) > Math.abs(farProj)) farProj = pr;
+  }
+  if (farProj < 0) { vx = -vx; vy = -vy; }
+  // axis-aligned lengths
+  let pmin = Infinity, pmax = -Infinity, smin = Infinity, smax = -Infinity;
+  for (const p of pts) {
+    const pr = (p[0]-cx)*vx + (p[1]-cy)*vy;
+    const sc = (p[0]-cx)*(-vy) + (p[1]-cy)*vx;
+    if (pr < pmin) pmin = pr; if (pr > pmax) pmax = pr;
+    if (sc < smin) smin = sc; if (sc > smax) smax = sc;
+  }
+  return { cx, cy, vx, vy, len_p: pmax - pmin, len_s: smax - smin };
+}
 
 function render() {
   gOcean.attr('d', projName === 'globe' ? geoPath({type:'Sphere'}) : null)
@@ -159,15 +219,29 @@ function render() {
   gGrat.attr('d', geoPath(graticule));
   for (const it of items) {
     const d = geoPath(it.f);
-    if (!d) { it.cpPath.attr('d', null); it.img.style('display','none'); it.border.attr('d', null); continue; }
-    const b = geoPath.bounds(it.f);
-    const x0=b[0][0], y0=b[0][1], w=b[1][0]-x0, h=b[1][1]-y0;
-    if (!isFinite(w) || !isFinite(h) || w<=0 || h<=0) { it.img.style('display','none'); it.cpPath.attr('d',null); it.border.attr('d',null); continue; }
+    const ill = it.f.properties.ill;
+    const pol = polyPCA(it.f);
+    if (!d || !pol || ill.len_p <= 0 || ill.len_s <= 0) {
+      it.cpPath.attr('d', null);
+      it.wrap.style('display', 'none');
+      it.border.attr('d', null);
+      continue;
+    }
     it.cpPath.attr('d', d);
     it.border.attr('d', d).style('display', clip ? null : 'none');
-    it.img.style('display', null)
-      .attr('x', x0).attr('y', y0).attr('width', w).attr('height', h)
+    it.wrap.style('display', null)
       .attr('clip-path', clip ? 'url(#' + it.id + ')' : null);
+    // Non-uniform scale: match the polygon's bbox along its principal axes.
+    // Cap aspect ratio change so very long/thin polygons don't squash the art.
+    let scaleP = pol.len_p / ill.len_p;
+    let scaleS = pol.len_s / ill.len_s;
+    const ratio = scaleP / scaleS;
+    const maxRatio = 1.6;
+    if (ratio > maxRatio) scaleS = scaleP / maxRatio;
+    else if (ratio < 1/maxRatio) scaleP = scaleS / maxRatio;
+    const polAngleDeg = Math.atan2(pol.vy, pol.vx) * 180 / Math.PI;
+    const tf = `translate(${pol.cx},${pol.cy}) rotate(${polAngleDeg}) scale(${scaleP},${scaleS}) rotate(${-ill.angle}) translate(${-ill.cx},${-ill.cy})`;
+    it.img.attr('transform', tf);
   }
 }
 
