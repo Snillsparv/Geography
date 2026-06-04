@@ -3,6 +3,21 @@
 Offline helper scripts. None of this runs in the browser or ships to users —
 it only generates assets that get committed.
 
+## Map demo (illustrations on real geography)
+
+`tools/make-map-demo.mjs` builds a self-contained `map-demo.html` that places
+the country illustrations on real borders (Natural Earth, matched by Swedish
+name `NAME_SV`) with a projection switcher — flat Mercator, Equal Earth, and a
+draggable 3D globe. d3 is inlined so the page works offline.
+
+```bash
+# needs a Natural Earth countries GeoJSON (110m is enough), e.g.:
+curl -o /tmp/world.geojson \
+  https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson
+cd tools && npm install            # also installs the d3 packages
+node make-map-demo.mjs /tmp/world.geojson
+```
+
 ## Vectorize country images → SVG
 
 Converts the hand-drawn country images (`assets/**/countries/*.webp|png|jpg`)
