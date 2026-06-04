@@ -38,10 +38,10 @@ node tools/vectorize.mjs assets --force     # rebuild everything
 
 | Var                  | Default | Meaning                                             |
 |----------------------|---------|-----------------------------------------------------|
-| `VEC_COLORS`         | 16      | Palette size after quantization (higher = more detail) |
+| `VEC_COLORS`         | 0       | Palette quantization (0 = off; >0 shrinks files but can drop small-region colours) |
 | `VEC_MEDIAN`         | 3       | Median-filter size for denoising (1 = off)          |
 | `VEC_ALPHA`          | 128     | Alpha cut-off for crisp edges (0–255)               |
-| `VEC_COLOR_PRECISION`| 6       | VTracer colour precision                            |
+| `VEC_COLOR_PRECISION`| 8       | VTracer colour precision (higher = more faithful colours) |
 | `VEC_FILTER_SPECKLE` | 6       | VTracer speckle removal                             |
 
 > **Tip:** for maximum fidelity, run the pipeline on your original

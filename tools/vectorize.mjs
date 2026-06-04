@@ -35,7 +35,7 @@ const EXTS = new Set(['.webp', '.png', '.jpg', '.jpeg']);
 
 const VEC_CFG = {
   colorMode: ColorMode.Color,
-  colorPrecision: +(process.env.VEC_COLOR_PRECISION || 6),
+  colorPrecision: +(process.env.VEC_COLOR_PRECISION || 8),
   filterSpeckle: +(process.env.VEC_FILTER_SPECKLE || 6),
   spliceThreshold: 45,
   cornerThreshold: 60,
