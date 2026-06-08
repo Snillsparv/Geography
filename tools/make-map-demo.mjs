@@ -67,6 +67,15 @@ console.error(`Matched ${features.length} countries onto the map.`);
 
 const matched = { type: 'FeatureCollection', features };
 
+// Strip heavy properties from the world feature collection — we only need
+// geometry. Keeps the embedded payload manageable; borders are drawn for ALL
+// countries (including those without an illustration) for full-world context.
+const allBorders = {
+  type: 'FeatureCollection',
+  features: world.features.map(f => ({ type: 'Feature', geometry: f.geometry })),
+};
+
+
 // Inline d3 (order matters: array → geo, then selection, drag).
 const d3src = ['d3-array', 'd3-geo', 'd3-dispatch', 'd3-selection', 'd3-drag']
   .map(p => readFileSync(path.join(here, 'node_modules', p, 'dist', `${p}.min.js`), 'utf8'))
@@ -85,8 +94,15 @@ const html = `<!DOCTYPE html>
   #map.dragging { cursor: grabbing; }
   .ocean { fill: #0e2438; }
   .graticule { fill: none; stroke: #1b3a52; stroke-width: .5; }
-  .border { fill: none; stroke: #2f5b78; stroke-width: .6; vector-effect: non-scaling-stroke; }
-  .ill-border { fill: none; stroke: #14304a; stroke-width: .8; vector-effect: non-scaling-stroke; }
+  /* country contour lines, drawn on top of the illustrations */
+  .borders { pointer-events: none; }
+  .country-border { fill: none; stroke: #0a0a0a; stroke-width: 1.4;
+    vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+  .borders.thin .country-border { stroke-width: .7; }
+  .borders.bold .country-border { stroke-width: 2.4; }
+  .borders.light .country-border { stroke: #f5f5f5; }
+  .borders.gold  .country-border { stroke: #f0c64a; }
+  .borders.off { display: none; }
   #panel { position: fixed; top: 14px; left: 14px; background: rgba(10,22,38,.92);
     border: 1px solid rgba(91,191,255,.25); border-radius: 12px; padding: 14px 16px;
     backdrop-filter: blur(4px); max-width: 280px; }
@@ -97,6 +113,10 @@ const html = `<!DOCTYPE html>
     border: 1px solid rgba(91,191,255,.3); background: rgba(255,255,255,.04);
     color: #cde; font-size: .82rem; cursor: pointer; }
   button.proj.active { background: #2980b9; border-color: #5bbfff; color: #fff; font-weight: 600; }
+  button.bord, button.bordcol { flex: 1; min-width: 50px; padding: 6px 8px; border-radius: 7px;
+    border: 1px solid rgba(91,191,255,.25); background: rgba(255,255,255,.04);
+    color: #cde; font-size: .78rem; cursor: pointer; }
+  button.bord.active, button.bordcol.active { background: #234058; border-color: #5bbfff; color: #fff; }
   label.chk { display: flex; align-items: center; gap: 7px; font-size: .82rem; color: #acc; cursor: pointer; }
   .hint { font-size: .72rem; color: #5a7e98; margin-top: 8px; }
 </style></head>
@@ -111,12 +131,25 @@ const html = `<!DOCTYPE html>
     <button class="proj" data-proj="globe">Glob 🌍</button>
   </div>
   <label class="chk"><input type="checkbox" id="clip" checked> Klipp till landgräns</label>
-  <div class="hint">Avbockad = visa hela teckningen</div>
+  <div class="hint" style="margin-bottom:10px">Avbockad = visa hela teckningen</div>
+  <div style="font-size:.78rem;color:#7ea6c4;margin-bottom:6px">Konturer (riktiga landgränser ovanp&aring;):</div>
+  <div class="row">
+    <button class="bord" data-bord="off">Av</button>
+    <button class="bord" data-bord="thin">Tunn</button>
+    <button class="bord active" data-bord="">Normal</button>
+    <button class="bord" data-bord="bold">Tjock</button>
+  </div>
+  <div class="row">
+    <button class="bordcol active" data-bordcol="">M&ouml;rk</button>
+    <button class="bordcol" data-bordcol="light">Ljus</button>
+    <button class="bordcol" data-bordcol="gold">Guld</button>
+  </div>
 </div>
 
 <script>${d3src}</script>
 <script>
 const DATA = ${JSON.stringify(matched)};
+const ALL_BORDERS = ${JSON.stringify(allBorders)};
 const svg = d3.select('#map');
 let W = innerWidth, H = innerHeight;
 let projName = 'mercator';
@@ -128,9 +161,14 @@ const gOcean = svg.append('path').attr('class', 'ocean');
 const gGrat  = svg.append('path').attr('class', 'graticule');
 const root   = svg.append('g');       // zoom/pan container
 const gFill  = root.append('g');      // illustrations (clipped)
-const gBord  = root.append('g');      // illustration outlines / fallback borders
+const gBord  = root.append('g').attr('class', 'borders'); // real country contours, on top
 const defs   = svg.append('defs');
 const graticule = d3.geoGraticule10();
+let bordStyle = '';   // '', 'thin', 'bold', 'off'
+let bordColor = '';   // '', 'light', 'gold'
+function applyBordClass() {
+  gBord.attr('class', 'borders ' + bordStyle + ' ' + bordColor);
+}
 
 function makeProjection() {
   let p;
@@ -146,7 +184,7 @@ let projection = makeProjection();
 let geoPath = d3.geoPath(projection);
 
 // Build per-country DOM once.
-// Each country = <g clip-path="poly"> containing a transformed <image>.
+// Each illustrated country = <g clip-path="poly"> containing a transformed <image>.
 // The transform rotates+scales the illustration to align with the polygon's
 // principal axis (computed at render time from the projected screen coords).
 const items = DATA.features.map((f, i) => {
@@ -159,9 +197,11 @@ const items = DATA.features.map((f, i) => {
     .attr('x', 0).attr('y', 0)
     .attr('width', f.properties.ill.w)
     .attr('height', f.properties.ill.h);
-  const border = gBord.append('path').attr('class', 'ill-border');
-  return { f, id, cpPath, wrap, img, border };
+  return { f, id, cpPath, wrap, img };
 });
+// One border path per world country (drawn on top of all fills).
+const borderPaths = ALL_BORDERS.features.map(f =>
+  gBord.append('path').attr('class', 'country-border').datum(f));
 
 function applyRoot() { root.attr('transform', 'translate('+tx+','+ty+') scale('+k+')'); }
 
@@ -217,6 +257,7 @@ function render() {
   gOcean.attr('d', projName === 'globe' ? geoPath({type:'Sphere'}) : null)
         .style('display', projName === 'globe' ? null : 'none');
   gGrat.attr('d', geoPath(graticule));
+  for (const bp of borderPaths) bp.attr('d', geoPath(bp.datum()));
   for (const it of items) {
     const d = geoPath(it.f);
     const ill = it.f.properties.ill;
@@ -224,11 +265,9 @@ function render() {
     if (!d || !pol || ill.len_p <= 0 || ill.len_s <= 0) {
       it.cpPath.attr('d', null);
       it.wrap.style('display', 'none');
-      it.border.attr('d', null);
       continue;
     }
     it.cpPath.attr('d', d);
-    it.border.attr('d', d).style('display', clip ? null : 'none');
     it.wrap.style('display', null)
       .attr('clip-path', clip ? 'url(#' + it.id + ')' : null);
     // Non-uniform scale: match the polygon's bbox along its principal axes.
@@ -240,7 +279,9 @@ function render() {
     if (ratio > maxRatio) scaleS = scaleP / maxRatio;
     else if (ratio < 1/maxRatio) scaleP = scaleS / maxRatio;
     const polAngleDeg = Math.atan2(pol.vy, pol.vx) * 180 / Math.PI;
-    const tf = `translate(${pol.cx},${pol.cy}) rotate(${polAngleDeg}) scale(${scaleP},${scaleS}) rotate(${-ill.angle}) translate(${-ill.cx},${-ill.cy})`;
+    const tf = 'translate(' + pol.cx + ',' + pol.cy + ') rotate(' + polAngleDeg
+      + ') scale(' + scaleP + ',' + scaleS + ') rotate(' + (-ill.angle)
+      + ') translate(' + (-ill.cx) + ',' + (-ill.cy) + ')';
     it.img.attr('transform', tf);
   }
 }
@@ -256,6 +297,20 @@ d3.selectAll('button.proj').on('click', function() {
   projection = makeProjection(); geoPath = d3.geoPath(projection); render();
 });
 document.getElementById('clip').addEventListener('change', e => { clip = e.target.checked; render(); });
+
+// Border style / colour buttons
+d3.selectAll('button.bord').on('click', function() {
+  d3.selectAll('button.bord').classed('active', false);
+  d3.select(this).classed('active', true);
+  bordStyle = this.dataset.bord;
+  applyBordClass();
+});
+d3.selectAll('button.bordcol').on('click', function() {
+  d3.selectAll('button.bordcol').classed('active', false);
+  d3.select(this).classed('active', true);
+  bordColor = this.dataset.bordcol;
+  applyBordClass();
+});
 
 // Drag: rotate globe, pan flat maps
 let raf = null;
