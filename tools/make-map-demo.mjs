@@ -34,10 +34,23 @@ for (const f of world.features) {
   byIso[f.properties.ISO_A3] = f;
 }
 
-// Match each illustration file to a country feature and attach its svg path.
-const shapeStats = JSON.parse(readFileSync(path.join(here, 'shape-stats.json'), 'utf8'));
+// Read each region's config.json so we know each country's local position
+// (left, top, width, height) inside its source region canvas.
+const regionConfigs = {};
+for (const region of REGIONS) {
+  try {
+    const cfg = JSON.parse(readFileSync(path.join(repo, 'assets', region, 'config.json'), 'utf8'));
+    const m = {};
+    for (const c of cfg.countries) m[c.filename] = c;
+    regionConfigs[region] = { canvasW: cfg.canvasWidth, canvasH: cfg.canvasHeight, countries: m };
+  } catch {}
+}
+
+// Group matched countries by their source region so each continent can be
+// placed as a single unit (preserves the relative positions you drew).
+const regions = REGIONS.map(slug => ({ slug, countries: [] }));
+const regionBySlug = Object.fromEntries(regions.map(r => [r.slug, r]));
 const used = new Set();
-const features = [];
 for (const region of REGIONS) {
   const dir = path.join(repo, 'assets', region, 'countries');
   let files;
@@ -48,25 +61,20 @@ for (const region of REGIONS) {
     const feat = bySv[norm(base)] || (ALIAS[base] && byIso[ALIAS[base]]);
     if (!feat) continue;
     const iso = feat.properties.ISO_A3;
-    if (used.has(iso)) continue;            // one illustration per country
+    if (used.has(iso)) continue;
+    const pos = regionConfigs[region]?.countries[base];
+    if (!pos) continue;
     used.add(iso);
-    const stats = shapeStats[`${region}/${base}`];
-    if (!stats) continue;                   // need shape stats for placement
-    features.push({
-      type: 'Feature',
+    regionBySlug[region].countries.push({
+      iso, name: feat.properties.NAME_SV,
+      svg: `assets/${region}/countries/${fn}`,
+      left: pos.left, top: pos.top, width: pos.width, height: pos.height,
       geometry: feat.geometry,
-      properties: {
-        name: feat.properties.NAME_SV,
-        svg: `assets/${region}/countries/${fn}`,
-        ill: stats,
-      },
     });
   }
 }
-console.error(`Matched ${features.length} countries onto the map.`);
-
-const matched = { type: 'FeatureCollection', features };
-
+const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
+console.error(`Matched ${nMatched} countries grouped into ${regions.filter(r=>r.countries.length).length} regions.`);
 // Strip heavy properties from the world feature collection — we only need
 // geometry. Keeps the embedded payload manageable; borders are drawn for ALL
 // countries (including those without an illustration) for full-world context.
@@ -124,14 +132,12 @@ const html = `<!DOCTYPE html>
 <svg id="map"></svg>
 <div id="panel">
   <h1>Jonas geografi på kartan</h1>
-  <p>${features.length} länder placerade på sin riktiga plats. Dra för att snurra/panorera, scrolla för att zooma.</p>
+  <p>${nMatched} länder placerade per kontinent. Dra för att snurra/panorera, scrolla för att zooma.</p>
   <div class="row">
     <button class="proj active" data-proj="mercator">Mercator</button>
     <button class="proj" data-proj="equalEarth">Equal Earth</button>
     <button class="proj" data-proj="globe">Glob 🌍</button>
   </div>
-  <label class="chk"><input type="checkbox" id="clip" checked> Klipp till landgräns</label>
-  <div class="hint" style="margin-bottom:10px">Avbockad = visa hela teckningen</div>
   <div style="font-size:.78rem;color:#7ea6c4;margin-bottom:6px">Konturer (riktiga landgränser ovanp&aring;):</div>
   <div class="row">
     <button class="bord" data-bord="off">Av</button>
@@ -148,12 +154,11 @@ const html = `<!DOCTYPE html>
 
 <script>${d3src}</script>
 <script>
-const DATA = ${JSON.stringify(matched)};
+const REGIONS_DATA = ${JSON.stringify(regions.filter(r => r.countries.length))};
 const ALL_BORDERS = ${JSON.stringify(allBorders)};
 const svg = d3.select('#map');
 let W = innerWidth, H = innerHeight;
 let projName = 'mercator';
-let clip = true;
 let k = 1, tx = 0, ty = 0;            // screen-space zoom/pan
 let rotate = [-10, -20];              // globe rotation
 
@@ -176,81 +181,62 @@ function makeProjection() {
   else if (projName === 'equalEarth') p = d3.geoEqualEarth();
   else { p = d3.geoOrthographic().clipAngle(90).rotate(rotate); }
   if (projName === 'globe') p.fitExtent([[20,20],[W-20,H-20]], {type:'Sphere'});
-  else p.fitExtent([[10,10],[W-10,H-10]], DATA);
+  else p.fitExtent([[10,10],[W-10,H-10]], ALL_BORDERS);
   return p;
 }
 
 let projection = makeProjection();
 let geoPath = d3.geoPath(projection);
 
-// Build per-country DOM once.
-// Each illustrated country = <g clip-path="poly"> containing a transformed <image>.
-// The transform rotates+scales the illustration to align with the polygon's
-// principal axis (computed at render time from the projected screen coords).
-const items = DATA.features.map((f, i) => {
-  const id = 'clip' + i;
-  const cp = defs.append('clipPath').attr('id', id);
-  const cpPath = cp.append('path');
-  const wrap = gFill.append('g');                     // clip wrapper
-  const img = wrap.append('image')
-    .attr('href', f.properties.svg)
-    .attr('x', 0).attr('y', 0)
-    .attr('width', f.properties.ill.w)
-    .attr('height', f.properties.ill.h);
-  return { f, id, cpPath, wrap, img };
-});
-// One border path per world country (drawn on top of all fills).
+// Build per-region DOM. Each region is one <g> containing every illustrated
+// country at its position from the source region map (config.json). The region
+// group then gets a single similarity transform per render that lines its
+// countries' centroids up with where the matching real countries land on the
+// current projection. This preserves the relative composition you drew while
+// rotating, scaling and translating the whole continent into place.
+for (const r of REGIONS_DATA) {
+  r._centroids = r.countries.map(c => d3.geoCentroid({type:'Feature', geometry: c.geometry}));
+  r._regionPts = r.countries.map(c => [c.left + c.width/2, c.top + c.height/2]);
+  r._group = gFill.append('g').attr('class', 'region-' + r.slug);
+  for (const c of r.countries) {
+    r._group.append('image')
+      .attr('href', c.svg)
+      .attr('x', c.left).attr('y', c.top)
+      .attr('width', c.width).attr('height', c.height);
+  }
+}
+// One border path per world country, drawn on top of every fill.
 const borderPaths = ALL_BORDERS.features.map(f =>
   gBord.append('path').attr('class', 'country-border').datum(f));
 
 function applyRoot() { root.attr('transform', 'translate('+tx+','+ty+') scale('+k+')'); }
 
-// Principal-component analysis on the polygon's projected screen coords.
-// Returns {cx, cy, vx, vy (unit), len_p, len_s} or null. Disambiguated the
-// same way as the illustration side (farthest point lies in +v direction).
-function polyPCA(feature) {
-  const pts = [];
-  const g = feature.geometry;
-  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
-  // pick the largest sub-polygon by outer-ring point count (mainland)
-  let best = polys[0], bestN = polys[0][0].length;
-  for (const p of polys) if (p[0].length > bestN) { best = p; bestN = p[0].length; }
-  for (const [lng, lat] of best[0]) {
-    const sp = projection([lng, lat]);
-    if (sp && isFinite(sp[0]) && isFinite(sp[1])) pts.push(sp);
+// 2D similarity transform fit (least squares):
+// minimise |s·R·a_i + t − b_i|^2 over rotation R, scale s, translation t.
+// Returns matrix coefficients (a, b, tx, ty) for SVG matrix(a, b, -b, a, tx, ty),
+// i.e. x' = a·x − b·y + tx,  y' = b·x + a·y + ty.
+function fitSimilarity(srcPts, dstPts) {
+  const n = srcPts.length;
+  if (n < 2) return null;
+  let mSx = 0, mSy = 0, mDx = 0, mDy = 0;
+  for (let i = 0; i < n; i++) {
+    mSx += srcPts[i][0]; mSy += srcPts[i][1];
+    mDx += dstPts[i][0]; mDy += dstPts[i][1];
   }
-  if (pts.length < 5) return null;
-  let cx = 0, cy = 0;
-  for (const p of pts) { cx += p[0]; cy += p[1]; }
-  cx /= pts.length; cy /= pts.length;
-  let sxx = 0, sxy = 0, syy = 0;
-  for (const p of pts) {
-    const dx = p[0] - cx, dy = p[1] - cy;
-    sxx += dx*dx; sxy += dx*dy; syy += dy*dy;
+  mSx /= n; mSy /= n; mDx /= n; mDy /= n;
+  let varS = 0, cAA = 0, cAB = 0;
+  for (let i = 0; i < n; i++) {
+    const sx = srcPts[i][0] - mSx, sy = srcPts[i][1] - mSy;
+    const dx = dstPts[i][0] - mDx, dy = dstPts[i][1] - mDy;
+    varS += sx*sx + sy*sy;
+    cAA  += sx*dx + sy*dy;
+    cAB  += sx*dy - sy*dx;
   }
-  sxx /= pts.length; sxy /= pts.length; syy /= pts.length;
-  const tr = sxx + syy, det = sxx*syy - sxy*sxy;
-  const disc = Math.sqrt(Math.max(0, tr*tr/4 - det));
-  const eig = tr/2 + disc;
-  let vx = sxy, vy = eig - sxx;
-  if (Math.hypot(vx, vy) < 1e-9) { vx = eig - syy; vy = sxy; }
-  const L = Math.hypot(vx, vy) || 1; vx /= L; vy /= L;
-  // disambiguate using farthest-point rule
-  let farProj = 0;
-  for (const p of pts) {
-    const pr = (p[0] - cx) * vx + (p[1] - cy) * vy;
-    if (Math.abs(pr) > Math.abs(farProj)) farProj = pr;
-  }
-  if (farProj < 0) { vx = -vx; vy = -vy; }
-  // axis-aligned lengths
-  let pmin = Infinity, pmax = -Infinity, smin = Infinity, smax = -Infinity;
-  for (const p of pts) {
-    const pr = (p[0]-cx)*vx + (p[1]-cy)*vy;
-    const sc = (p[0]-cx)*(-vy) + (p[1]-cy)*vx;
-    if (pr < pmin) pmin = pr; if (pr > pmax) pmax = pr;
-    if (sc < smin) smin = sc; if (sc > smax) smax = sc;
-  }
-  return { cx, cy, vx, vy, len_p: pmax - pmin, len_s: smax - smin };
+  if (varS < 1e-9) return null;
+  const a = cAA / varS, b = cAB / varS;
+  const tx = mDx - a*mSx + b*mSy;
+  const ty = mDy - b*mSx - a*mSy;
+  return { a, b, tx, ty };
 }
 
 function render() {
@@ -258,31 +244,20 @@ function render() {
         .style('display', projName === 'globe' ? null : 'none');
   gGrat.attr('d', geoPath(graticule));
   for (const bp of borderPaths) bp.attr('d', geoPath(bp.datum()));
-  for (const it of items) {
-    const d = geoPath(it.f);
-    const ill = it.f.properties.ill;
-    const pol = polyPCA(it.f);
-    if (!d || !pol || ill.len_p <= 0 || ill.len_s <= 0) {
-      it.cpPath.attr('d', null);
-      it.wrap.style('display', 'none');
-      continue;
+  for (const r of REGIONS_DATA) {
+    const dst = [];
+    const src = [];
+    for (let i = 0; i < r.countries.length; i++) {
+      const sp = projection(r._centroids[i]);
+      if (sp && isFinite(sp[0]) && isFinite(sp[1])) {
+        dst.push(sp);
+        src.push(r._regionPts[i]);
+      }
     }
-    it.cpPath.attr('d', d);
-    it.wrap.style('display', null)
-      .attr('clip-path', clip ? 'url(#' + it.id + ')' : null);
-    // Non-uniform scale: match the polygon's bbox along its principal axes.
-    // Cap aspect ratio change so very long/thin polygons don't squash the art.
-    let scaleP = pol.len_p / ill.len_p;
-    let scaleS = pol.len_s / ill.len_s;
-    const ratio = scaleP / scaleS;
-    const maxRatio = 1.6;
-    if (ratio > maxRatio) scaleS = scaleP / maxRatio;
-    else if (ratio < 1/maxRatio) scaleP = scaleS / maxRatio;
-    const polAngleDeg = Math.atan2(pol.vy, pol.vx) * 180 / Math.PI;
-    const tf = 'translate(' + pol.cx + ',' + pol.cy + ') rotate(' + polAngleDeg
-      + ') scale(' + scaleP + ',' + scaleS + ') rotate(' + (-ill.angle)
-      + ') translate(' + (-ill.cx) + ',' + (-ill.cy) + ')';
-    it.img.attr('transform', tf);
+    const T = fitSimilarity(src, dst);
+    if (!T) { r._group.style('display', 'none'); continue; }
+    r._group.style('display', null)
+      .attr('transform', 'matrix(' + T.a + ',' + T.b + ',' + (-T.b) + ',' + T.a + ',' + T.tx + ',' + T.ty + ')');
   }
 }
 
@@ -296,8 +271,6 @@ d3.selectAll('button.proj').on('click', function() {
   projName = this.dataset.proj; k=1; tx=0; ty=0; applyRoot();
   projection = makeProjection(); geoPath = d3.geoPath(projection); render();
 });
-document.getElementById('clip').addEventListener('change', e => { clip = e.target.checked; render(); });
-
 // Border style / colour buttons
 d3.selectAll('button.bord').on('click', function() {
   d3.selectAll('button.bord').classed('active', false);
