@@ -89,6 +89,18 @@ const d3src = ['d3-array', 'd3-geo', 'd3-dispatch', 'd3-selection', 'd3-drag']
   .map(p => readFileSync(path.join(here, 'node_modules', p, 'dist', `${p}.min.js`), 'utf8'))
   .join('\n');
 
+// Inline three.js (bundled with esbuild) as a base64 data URL referenced from
+// an importmap, so the globe view can render on a real 3D sphere via WebGL.
+// We bundle because the upstream three.module.min.js imports from a sibling
+// file via a relative path that data URLs can't resolve.
+import { execSync } from 'node:child_process';
+const threeBundle = path.join(here, 'three.bundle.min.js');
+const esbuild = path.join(here, 'node_modules', '.bin', 'esbuild');
+execSync(`${esbuild} three --bundle --format=esm --minify --outfile=${threeBundle}`,
+  { stdio: ['ignore', 'ignore', 'inherit'], cwd: here });
+const threeDataUrl = 'data:text/javascript;base64,' +
+  readFileSync(threeBundle).toString('base64');
+
 const html = `<!DOCTYPE html>
 <html lang="sv"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -98,8 +110,10 @@ const html = `<!DOCTYPE html>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden;
     font-family: system-ui, sans-serif; background: #081320; color: #cde; }
-  #map { width: 100vw; height: 100vh; display: block; cursor: grab; }
-  #map.dragging { cursor: grabbing; }
+  #map, #globe { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+    display: block; cursor: grab; }
+  #map.dragging, #globe.dragging { cursor: grabbing; }
+  #globe { display: none; }
   .ocean { fill: #0e2438; }
   .graticule { fill: none; stroke: #1b3a52; stroke-width: .5;
     vector-effect: non-scaling-stroke; }
@@ -131,6 +145,10 @@ const html = `<!DOCTYPE html>
 </style></head>
 <body>
 <svg id="map"></svg>
+<canvas id="globe"></canvas>
+<script type="importmap">
+{ "imports": { "three": "${threeDataUrl}" } }
+</script>
 <div id="panel">
   <h1>Jonas geografi på kartan</h1>
   <p>${nMatched} länder placerade per kontinent. Dra för att snurra/panorera, scrolla för att zooma.</p>
@@ -322,12 +340,23 @@ function render() {
 function resize() { W = innerWidth; H = innerHeight; svg.attr('width', W).attr('height', H);
   projection = makeProjection(); geoPath = d3.geoPath(projection); render(); }
 
-// Projection buttons
+// Projection buttons. Flat projections render via the SVG above; the globe
+// switches to a real WebGL sphere (see the module script at the bottom of the
+// page).
 d3.selectAll('button.proj').on('click', function() {
   d3.selectAll('button.proj').classed('active', false);
   d3.select(this).classed('active', true);
   projName = this.dataset.proj; k=1; tx=0; ty=0; applyRoot();
-  projection = makeProjection(); geoPath = d3.geoPath(projection); render();
+  if (projName === 'globe') {
+    document.getElementById('map').style.display = 'none';
+    document.getElementById('globe').style.display = 'block';
+    window.dispatchEvent(new CustomEvent('show-globe'));
+  } else {
+    document.getElementById('map').style.display = 'block';
+    document.getElementById('globe').style.display = 'none';
+    window.dispatchEvent(new CustomEvent('show-flat'));
+    projection = makeProjection(); geoPath = d3.geoPath(projection); render();
+  }
 });
 // Fit-mode buttons (similarity vs affine)
 d3.selectAll('button.fit').on('click', function() {
@@ -335,6 +364,7 @@ d3.selectAll('button.fit').on('click', function() {
   d3.select(this).classed('active', true);
   fitMode = this.dataset.fit;
   render();
+  window.dispatchEvent(new CustomEvent('rebuild-texture'));
 });
 
 // Border style / colour buttons
@@ -343,12 +373,14 @@ d3.selectAll('button.bord').on('click', function() {
   d3.select(this).classed('active', true);
   bordStyle = this.dataset.bord;
   applyBordClass();
+  window.dispatchEvent(new CustomEvent('rebuild-texture'));
 });
 d3.selectAll('button.bordcol').on('click', function() {
   d3.selectAll('button.bordcol').classed('active', false);
   d3.select(this).classed('active', true);
   bordColor = this.dataset.bordcol;
   applyBordClass();
+  window.dispatchEvent(new CustomEvent('rebuild-texture'));
 });
 
 // Drag: rotate globe, pan flat maps
@@ -379,6 +411,166 @@ svg.on('wheel', (e) => {
 
 addEventListener('resize', resize);
 resize();
+</script>
+
+<script type="module">
+// ── 3D globe (WebGL) ─────────────────────────────────────────────────────────
+// The flat projections render into the SVG above; the globe view renders the
+// world as an equirectangular canvas texture and maps it onto a real
+// Three.js sphere. Drag rotates the sphere directly, wheel zooms the camera.
+import * as THREE from 'three';
+
+const globeCanvas = document.getElementById('globe');
+let renderer, scene, camera, sphere, animating = false;
+let texCanvas, texCtx, tex;
+
+// Preload all country illustrations as <img> elements so we can drawImage them.
+const countryImgs = {};
+async function preloadCountries() {
+  const all = [];
+  for (const r of REGIONS_DATA) for (const c of r.countries) all.push(c.svg);
+  await Promise.all(all.map(src => new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { countryImgs[src] = img; resolve(); };
+    img.onerror = resolve;  // skip silently
+    img.src = src;
+  })));
+}
+
+const TEX_W = 4096, TEX_H = 2048;
+const equirect = d3.geoEquirectangular()
+  .scale(TEX_W / (2 * Math.PI))
+  .translate([TEX_W / 2, TEX_H / 2]);
+
+// Run the same per-region affine fit as the SVG view, but in equirectangular
+// coordinates, and draw each country illustration into the texture canvas at
+// the transformed position.
+function buildTexture() {
+  if (!texCanvas) {
+    texCanvas = document.createElement('canvas');
+    texCanvas.width = TEX_W; texCanvas.height = TEX_H;
+    texCtx = texCanvas.getContext('2d');
+  }
+  texCtx.fillStyle = '#0e2438';
+  texCtx.fillRect(0, 0, TEX_W, TEX_H);
+
+  // continents
+  for (const r of REGIONS_DATA) {
+    const dst = [], src = [];
+    for (let i = 0; i < r.countries.length; i++) {
+      const sp = equirect(r._centroids[i]);
+      if (sp && isFinite(sp[0]) && isFinite(sp[1])) {
+        dst.push(sp); src.push(r._regionPts[i]);
+      }
+    }
+    if (src.length < 3) continue;
+    const T = (fitMode === 'affine' ? fitAffine : fitSimilarity)(src, dst);
+    if (!T) continue;
+    for (const c of r.countries) {
+      const img = countryImgs[c.svg];
+      if (!img) continue;
+      texCtx.save();
+      // Canvas transform(a,b,c,d,e,f): x' = a·x + c·y + e, matches our SVG matrix.
+      texCtx.transform(T.a, T.b, T.c, T.d, T.tx, T.ty);
+      texCtx.drawImage(img, c.left, c.top, c.width, c.height);
+      texCtx.restore();
+    }
+  }
+
+  // borders on top, mirroring the SVG style (skip if 'off')
+  if (bordStyle !== 'off') {
+    const widthMap = { thin: 1.2, '': 2.4, bold: 4.0 };
+    const colorMap = { '': '#0a0a0a', light: '#f5f5f5', gold: '#f0c64a' };
+    texCtx.strokeStyle = colorMap[bordColor];
+    texCtx.lineWidth = widthMap[bordStyle];
+    texCtx.lineJoin = 'round';
+    texCtx.lineCap = 'round';
+    const path = d3.geoPath(equirect, texCtx);
+    texCtx.beginPath();
+    for (const f of ALL_BORDERS.features) path(f);
+    texCtx.stroke();
+  }
+
+  if (tex) tex.needsUpdate = true;
+}
+
+function initGL() {
+  renderer = new THREE.WebGLRenderer({ canvas: globeCanvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 100);
+  camera.position.set(0, 0, 3);
+
+  tex = new THREE.CanvasTexture(texCanvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy?.() || 1;
+  sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 128, 64),
+    new THREE.MeshBasicMaterial({ map: tex })
+  );
+  // Default equirectangular textures put 0° lng at the centre of the canvas, but
+  // Three.js' SphereGeometry seam is at +X, so rotate -π/2 around Y to bring 0°
+  // lng to the front. Tilt -23° for a familiar globe feel.
+  sphere.rotation.y = -Math.PI / 2;
+  scene.add(sphere);
+
+  let dragging = false, lastX = 0, lastY = 0;
+  globeCanvas.addEventListener('pointerdown', e => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    globeCanvas.classList.add('dragging');
+    globeCanvas.setPointerCapture(e.pointerId);
+  });
+  globeCanvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    const s = 0.005;
+    sphere.rotation.y += dx * s;
+    sphere.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, sphere.rotation.x + dy * s));
+  });
+  globeCanvas.addEventListener('pointerup',     e => { dragging = false; globeCanvas.classList.remove('dragging'); });
+  globeCanvas.addEventListener('pointercancel', e => { dragging = false; globeCanvas.classList.remove('dragging'); });
+  globeCanvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const f = e.deltaY < 0 ? 1/1.1 : 1.1;
+    camera.position.z = Math.max(1.05, Math.min(8, camera.position.z * f));
+  }, { passive: false });
+
+  const onResize = () => {
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  };
+  addEventListener('resize', onResize);
+  onResize();
+}
+
+function loop() {
+  if (!animating) return;
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+let inited = false;
+async function show() {
+  if (!inited) {
+    await preloadCountries();
+    buildTexture();
+    initGL();
+    inited = true;
+  }
+  animating = true;
+  loop();
+}
+function hide() { animating = false; }
+
+window.addEventListener('show-globe', show);
+window.addEventListener('show-flat', hide);
+window.addEventListener('rebuild-texture', () => {
+  if (!inited) return;
+  buildTexture();
+});
 </script>
 </body></html>`;
 
