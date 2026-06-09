@@ -44,6 +44,11 @@ const OUT = path.resolve(repo, arg('out', 'tiles/world.pmtiles'));
 // Geographic pinning strength: 0 = pure region affine (hand-drawn composition
 // exactly), 1 = countries pulled fully onto their real projected bboxes.
 const GEO = Math.max(0, Math.min(1, +arg('geo', 0.5)));
+// Resumable mode: --save DIR writes each tile to DIR/z/x/y.webp and skips
+// tiles that already exist, so an interrupted build continues where it left
+// off on the next invocation. --assemble packs DIR into the PMTiles archive.
+const SAVE = arg('save', null);
+const ASSEMBLE = argv.includes('--assemble');
 
 const TILE = 512;
 const RASTER_CAP = 8192;            // max raster width per country (memory)
@@ -289,6 +294,7 @@ function drawTriangle(ctx, img, s, d) {
 }
 
 async function main() {
+  if (ASSEMBLE) { await assemble([]); return; }
   const regions = matchRegions();
   const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
   console.log(`Matched ${nMatched} countries in ${regions.length} regions.`);
@@ -352,8 +358,13 @@ async function main() {
       .map(k => { const [x, y] = k.split(',').map(Number); return { k, x, y, id: zxyToTileId(z, x, y) }; })
       .sort((a, b) => a.id - b.id);
 
-    let written = 0, bytes = 0;
+    let written = 0, bytes = 0, skipped = 0;
     for (const { k, x: tx, y: ty } of keys) {
+      let savePath = null;
+      if (SAVE) {
+        savePath = path.join(repo, SAVE, String(z), String(tx), ty + '.webp');
+        if (existsSync(savePath)) { skipped++; continue; }    // resume support
+      }
       const canvas = createCanvas(TILE, TILE);
       const ctx = canvas.getContext('2d');
       for (const d of draws.get(k)) {
@@ -382,12 +393,37 @@ async function main() {
         }
       }
       const buf = await canvas.encode('webp', 82);
-      allTiles.push({ z, x: tx, y: ty, data: buf });
+      if (SAVE) {
+        mkdirSync(path.dirname(savePath), { recursive: true });
+        writeFileSync(savePath, buf);
+      } else {
+        allTiles.push({ z, x: tx, y: ty, data: buf });
+      }
       written++; bytes += buf.length;
     }
-    console.log(`z${z}: ${written} tiles, ${(bytes / 1048576).toFixed(1)} MB (cache ${(cacheBytes / 1048576) | 0} MB)`);
+    console.log(`z${z}: ${written} tiles${skipped ? ` (+${skipped} fanns redan)` : ''}, ${(bytes / 1048576).toFixed(1)} MB (cache ${(cacheBytes / 1048576) | 0} MB)`);
   }
 
+  if (SAVE) {
+    console.log('\nTile files saved. Run with --assemble to pack the archive.');
+    return;
+  }
+  await assemble(allTiles);
+}
+
+async function assemble(allTiles) {
+  if (ASSEMBLE) {
+    const { readdirSync } = await import('node:fs');
+    const dir = path.join(repo, SAVE);
+    allTiles = [];
+    for (const z of readdirSync(dir)) {
+      for (const x of readdirSync(path.join(dir, z))) {
+        for (const f of readdirSync(path.join(dir, z, x))) {
+          allTiles.push({ z: +z, x: +x, y: +f.replace('.webp', ''), data: readFileSync(path.join(dir, z, x, f)) });
+        }
+      }
+    }
+  }
   const total = allTiles.reduce((s, t) => s + t.data.length, 0);
   console.log(`\nTotal: ${allTiles.length} tiles, ${(total / 1048576).toFixed(1)} MB payload.`);
 
