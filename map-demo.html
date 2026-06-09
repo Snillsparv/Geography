@@ -334,6 +334,17 @@ import * as THREE from 'three';
 const globeCanvas = document.getElementById('globe');
 let renderer, scene, camera, sphere, animating = false;
 let texCanvas, texCtx, tex;
+// Texture LOD: start at 8K, upgrade to whatever the GPU allows when zoomed in.
+// Equirectangular textures are 2:1, so TEX_W controls both axes.
+let TEX_W = 8192, TEX_H = TEX_W / 2;
+let HI_TEX_W = 16384;     // recomputed from renderer.capabilities once we have it
+let equirect;
+function makeEquirect() {
+  equirect = d3.geoEquirectangular()
+    .scale(TEX_W / (2 * Math.PI))
+    .translate([TEX_W / 2, TEX_H / 2]);
+}
+makeEquirect();
 
 // Preload all country illustrations as <img> elements so we can drawImage them.
 const countryImgs = {};
@@ -349,19 +360,17 @@ async function preloadCountries() {
   })));
 }
 
-const TEX_W = 4096, TEX_H = 2048;
-const equirect = d3.geoEquirectangular()
-  .scale(TEX_W / (2 * Math.PI))
-  .translate([TEX_W / 2, TEX_H / 2]);
-
 // Run the same per-region affine fit as the SVG view, but in equirectangular
 // coordinates, and draw each country illustration into the texture canvas at
 // the transformed position.
 function buildTexture() {
   if (!texCanvas) {
     texCanvas = document.createElement('canvas');
-    texCanvas.width = TEX_W; texCanvas.height = TEX_H;
     texCtx = texCanvas.getContext('2d');
+  }
+  if (texCanvas.width !== TEX_W) {
+    texCanvas.width = TEX_W; texCanvas.height = TEX_H;
+    makeEquirect();
   }
   texCtx.fillStyle = '#0e2438';
   texCtx.fillRect(0, 0, TEX_W, TEX_H);
@@ -389,12 +398,14 @@ function buildTexture() {
     }
   }
 
-  // borders on top, mirroring the SVG style (skip if 'off')
+  // borders on top, mirroring the SVG style (skip if 'off').
+  // Scale stroke width with texture resolution so they stay visible at any LOD.
   if (bordStyle !== 'off') {
     const widthMap = { thin: 1.2, '': 2.4, bold: 4.0 };
     const colorMap = { '': '#0a0a0a', light: '#f5f5f5', gold: '#f0c64a' };
+    const k = TEX_W / 4096;
     texCtx.strokeStyle = colorMap[bordColor];
-    texCtx.lineWidth = widthMap[bordStyle];
+    texCtx.lineWidth = widthMap[bordStyle] * k;
     texCtx.lineJoin = 'round';
     texCtx.lineCap = 'round';
     const path = d3.geoPath(equirect, texCtx);
@@ -412,6 +423,10 @@ function initGL() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 100);
   camera.position.set(0, 0, 3);
+
+  // Cap the upgrade resolution at whatever the GPU supports (cards on phones
+  // often max out at 4096 or 8192; desktop usually goes to 16384+).
+  HI_TEX_W = Math.min(16384, renderer.capabilities.maxTextureSize || 8192);
 
   tex = new THREE.CanvasTexture(texCanvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -442,10 +457,20 @@ function initGL() {
   });
   globeCanvas.addEventListener('pointerup',     e => { dragging = false; globeCanvas.classList.remove('dragging'); });
   globeCanvas.addEventListener('pointercancel', e => { dragging = false; globeCanvas.classList.remove('dragging'); });
+  let lodTimer = null;
   globeCanvas.addEventListener('wheel', e => {
     e.preventDefault();
     const f = e.deltaY < 0 ? 1/1.1 : 1.1;
     camera.position.z = Math.max(1.05, Math.min(8, camera.position.z * f));
+    // Bump texture LOD when the user lingers at a zoom level. Closer = higher res.
+    clearTimeout(lodTimer);
+    lodTimer = setTimeout(() => {
+      const want = camera.position.z < 1.7 ? HI_TEX_W : 8192;
+      if (want !== TEX_W) {
+        TEX_W = want; TEX_H = TEX_W / 2;
+        buildTexture();
+      }
+    }, 200);
   }, { passive: false });
 
   const onResize = () => {
