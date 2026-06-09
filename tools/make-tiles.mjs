@@ -2,19 +2,24 @@
 // ──────────────────────────────────────────────────────────────────────────
 // Bake the hand-drawn world into a Web-Mercator raster tile pyramid (PMTiles).
 //
-// Per zoom level, every country illustration is drawn through a Moving Least
-// Squares warp: control points are each country's centre in the hand-drawn
-// region canvas → the country's true projected centroid. The warp interpolates
-// every control point exactly (each country lands on its real location) while
-// deforming the space between smoothly, so the composition's neighbourhoods
-// survive. Each country is drawn as a triangle mesh (up to 16×16 cells) so the
-// warp bends *within* large countries too — a single affine cannot follow
-// Mercator's nonlinearity across e.g. Canada or Russia.
+// Each hand-drawn region is warped as ONE rubber sheet: a single fixed grid
+// over the region canvas, deformed by a Moving Least Squares field, shared by
+// every country in the region. Because neighbouring countries sample the
+// exact same grid nodes, the jigsaw the maps were drawn as stays glued —
+// no cracks, no overlaps. The grid lives in region-canvas space and its
+// warped node positions are computed once in unit-Mercator coordinates, then
+// only scaled per zoom, so geometry is IDENTICAL at every zoom level (shapes
+// never change as you zoom — deeper tiles are just sharper).
+//
+// The MLS control targets blend two anchors per country corner (--geo 0..1):
+//   geo 0  →  the region's least-squares affine (the hand-drawn composition
+//             reproduced exactly, like the old per-continent demo)
+//   geo 1  →  the country's true projected bbox (max geographic accuracy)
 //
 // Tiles are 512×512 WebP, skipped where no artwork lands, packed into a single
 // PMTiles archive servable from any static host with HTTP range requests.
 //
-// Usage:  node tools/make-tiles.mjs [--maxzoom 7] [--out tiles/world.pmtiles]
+// Usage:  node tools/make-tiles.mjs [--maxzoom 7] [--geo 0.5] [--out tiles/world.pmtiles]
 // ──────────────────────────────────────────────────────────────────────────
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -36,12 +41,14 @@ const arg = (name, dflt) => {
 };
 const MAXZOOM = +arg('maxzoom', 7);
 const OUT = path.resolve(repo, arg('out', 'tiles/world.pmtiles'));
+// Geographic pinning strength: 0 = pure region affine (hand-drawn composition
+// exactly), 1 = countries pulled fully onto their real projected bboxes.
+const GEO = Math.max(0, Math.min(1, +arg('geo', 0.5)));
 
 const TILE = 512;
 const RASTER_CAP = 8192;            // max raster width per country (memory)
 const CACHE_BUDGET = 1.5e9;         // LRU raster cache, bytes
-const MESH_CELL_PX = 256;           // target dst px per mesh cell
-const MESH_MAX = 16;                // max cells per axis
+const GRID_STEP = 80;               // region-canvas px between shared warp-grid nodes
 
 const REGIONS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 // filename → Natural Earth A3 for spellings the name match can't bridge
@@ -150,22 +157,81 @@ function projectedBbox(anchor, refLng) {
   return { minX, minY, maxX, maxY };
 }
 
+// Least-squares 2D affine (6 dof) src→dst, closed form via normal equations.
+function fitAffine(srcPts, dstPts) {
+  const n = srcPts.length;
+  let Sxx = 0, Sxy = 0, Syy = 0, Sx = 0, Sy = 0;
+  let SxX = 0, SyX = 0, SX = 0, SxY = 0, SyY = 0, SY = 0;
+  for (let i = 0; i < n; i++) {
+    const [x, y] = srcPts[i], [X, Y] = dstPts[i];
+    Sxx += x * x; Sxy += x * y; Syy += y * y; Sx += x; Sy += y;
+    SxX += x * X; SyX += y * X; SX += X;
+    SxY += x * Y; SyY += y * Y; SY += Y;
+  }
+  const det = Sxx * (Syy * n - Sy * Sy) - Sxy * (Sxy * n - Sy * Sx) + Sx * (Sxy * Sy - Syy * Sx);
+  const solve = (r0, r1, r2) => {
+    const da = r0 * (Syy * n - Sy * Sy) - Sxy * (r1 * n - Sy * r2) + Sx * (r1 * Sy - Syy * r2);
+    const dc = Sxx * (r1 * n - Sy * r2) - r0 * (Sxy * n - Sy * Sx) + Sx * (Sxy * r2 - r1 * Sx);
+    const dt = Sxx * (Syy * r2 - r1 * Sy) - Sxy * (Sxy * r2 - r1 * Sx) + r0 * (Sxy * Sy - Syy * Sx);
+    return [da / det, dc / det, dt / det];
+  };
+  const [a, c, tx] = solve(SxX, SyX, SX);
+  const [b, d, ty] = solve(SxY, SyY, SY);
+  return v => [a * v[0] + c * v[1] + tx, b * v[0] + d * v[1] + ty];
+}
+
 function buildWarps(regions) {
   for (const r of regions) {
     const ref = r.countries[0].centroid[0];
+    const unwrap = lng => {
+      while (lng - ref > 180) lng -= 360;
+      while (lng - ref < -180) lng += 360;
+      return lng;
+    };
+    // region-wide compositional anchor: affine over centres → true centroids
+    const A = fitAffine(
+      r.countries.map(c => [c.left + c.width / 2, c.top + c.height / 2]),
+      r.countries.map(c => [mercX(unwrap(c.centroid[0])), mercY(c.centroid[1])]),
+    );
+    // blended corner controls
     const controls = [];
     for (const c of r.countries) {
       const b = projectedBbox(c.anchor, ref);
-      const x0 = c.left, x1 = c.left + c.width;
-      const y0 = c.top, y1 = c.top + c.height;
-      controls.push(
-        { p: [x0, y0], q: [b.minX, b.minY] },
-        { p: [x1, y0], q: [b.maxX, b.minY] },
-        { p: [x1, y1], q: [b.maxX, b.maxY] },
-        { p: [x0, y1], q: [b.minX, b.maxY] },
-      );
+      const corners = [
+        [c.left, c.top], [c.left + c.width, c.top],
+        [c.left + c.width, c.top + c.height], [c.left, c.top + c.height],
+      ];
+      const bq = [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY]];
+      corners.forEach((p, i) => {
+        const qa = A(p);
+        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
+      });
     }
-    r.warp = mlsAffine(controls);
+    const warp = mlsAffine(controls);
+
+    // ONE fixed grid over the whole region canvas, shared by all countries.
+    // Node positions are evaluated once in unit Mercator: identical geometry
+    // at every zoom (scaled only), and neighbours share nodes exactly.
+    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    for (const c of r.countries) {
+      if (c.left < minL) minL = c.left;
+      if (c.top < minT) minT = c.top;
+      if (c.left + c.width > maxR) maxR = c.left + c.width;
+      if (c.top + c.height > maxB) maxB = c.top + c.height;
+    }
+    const x0 = Math.floor(minL / GRID_STEP - 1) * GRID_STEP;
+    const y0 = Math.floor(minT / GRID_STEP - 1) * GRID_STEP;
+    const nx = Math.ceil((maxR - x0) / GRID_STEP) + 1;
+    const ny = Math.ceil((maxB - y0) / GRID_STEP) + 1;
+    const u = new Float64Array((nx + 1) * (ny + 1) * 2);
+    for (let gy = 0; gy <= ny; gy++) {
+      for (let gx = 0; gx <= nx; gx++) {
+        const [ux, uy] = warp([x0 + gx * GRID_STEP, y0 + gy * GRID_STEP]);
+        const i = (gy * (nx + 1) + gx) * 2;
+        u[i] = ux; u[i + 1] = uy;
+      }
+    }
+    r.grid = { x0, y0, step: GRID_STEP, nx, ny, u };
   }
 }
 
@@ -234,38 +300,29 @@ async function main() {
     const world = TILE * (1 << z);
     const nTiles = 1 << z;
 
-    // dst mesh per country at this zoom
-    const draws = new Map();   // tileKey → [{country, mesh, raster info…}]
+    // Per country: its cell range in the region's shared grid, dst bbox at
+    // this zoom (grid nodes × world), and the tiles it touches.
+    const draws = new Map();   // tileKey → [drawRec]
     for (const r of regions) {
+      const g = r.grid;
+      const node = (gx, gy) => {
+        const i = (gy * (g.nx + 1) + gx) * 2;
+        return [g.u[i] * world, g.u[i + 1] * world];
+      };
       for (const c of r.countries) {
-        // coarse bbox from 3×3 samples
+        const gx0 = Math.max(0, Math.floor((c.left - g.x0) / g.step));
+        const gx1 = Math.min(g.nx, Math.ceil((c.left + c.width - g.x0) / g.step));
+        const gy0 = Math.max(0, Math.floor((c.top - g.y0) / g.step));
+        const gy1 = Math.min(g.ny, Math.ceil((c.top + c.height - g.y0) / g.step));
+        if (gx1 <= gx0 || gy1 <= gy0) continue;
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (let gy = 0; gy <= 2; gy++) for (let gx = 0; gx <= 2; gx++) {
-          const [ux, uy] = r.warp([c.left + gx / 2 * c.width, c.top + gy / 2 * c.height]);
-          const x = ux * world, y = uy * world;
+        for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+          const [x, y] = node(gx, gy);
           if (x < minX) minX = x; if (x > maxX) maxX = x;
           if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
-        const dstW = maxX - minX, dstH = maxY - minY;
-        if (!(dstW > 0 && dstH > 0)) continue;
-        const nx = Math.max(1, Math.min(MESH_MAX, Math.round(dstW / MESH_CELL_PX)));
-        const ny = Math.max(1, Math.min(MESH_MAX, Math.round(dstH / MESH_CELL_PX)));
-        // full mesh corners
-        const mesh = [];
-        for (let gy = 0; gy <= ny; gy++) {
-          const row = [];
-          for (let gx = 0; gx <= nx; gx++) {
-            const [ux, uy] = r.warp([c.left + gx / nx * c.width, c.top + gy / ny * c.height]);
-            row.push([ux * world, uy * world]);
-          }
-          mesh.push(row);
-        }
-        // refresh bbox from full mesh (warp can bow outside corner samples)
-        minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
-        for (const row of mesh) for (const [x, y] of row) {
-          if (x < minX) minX = x; if (x > maxX) maxX = x;
-          if (y < minY) minY = y; if (y > maxY) maxY = y;
-        }
+        const dstW = maxX - minX;
+        if (!(dstW > 0)) continue;
         // world copies for antimeridian-crossing regions
         const offsets = [0];
         if (maxX > world) offsets.push(-world);
@@ -278,8 +335,8 @@ async function main() {
           if (tx1 < tx0 || ty1 < ty0) continue;
           const drawRec = {
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
-            mesh, off, nx, ny, dstW,
-            srcW: c.width, srcH: c.height,
+            grid: g, node, off, gx0, gx1, gy0, gy1, dstW,
+            left: c.left, top: c.top, srcW: c.width, srcH: c.height,
           };
           for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
             const k = tx + ',' + ty;
@@ -304,21 +361,24 @@ async function main() {
         const sx = raster.w / d.srcW;     // region-canvas units → raster px
         const sy = raster.h / d.srcH;
         const ox = -tx * TILE + d.off, oy = -ty * TILE;
-        for (let gy = 0; gy < d.ny; gy++) for (let gx = 0; gx < d.nx; gx++) {
-          const sA = [gx / d.nx * d.srcW * sx, gy / d.ny * d.srcH * sy];
-          const sB = [(gx + 1) / d.nx * d.srcW * sx, gy / d.ny * d.srcH * sy];
-          const sC = [(gx + 1) / d.nx * d.srcW * sx, (gy + 1) / d.ny * d.srcH * sy];
-          const sD = [gx / d.nx * d.srcW * sx, (gy + 1) / d.ny * d.srcH * sy];
-          const m = d.mesh;
-          const dA = [m[gy][gx][0] + ox, m[gy][gx][1] + oy];
-          const dB = [m[gy][gx + 1][0] + ox, m[gy][gx + 1][1] + oy];
-          const dC = [m[gy + 1][gx + 1][0] + ox, m[gy + 1][gx + 1][1] + oy];
-          const dD = [m[gy + 1][gx][0] + ox, m[gy + 1][gx][1] + oy];
+        const g = d.grid;
+        // src position of a grid node, in the country's raster pixels
+        const srcAt = (gx, gy) => [
+          (g.x0 + gx * g.step - d.left) * sx,
+          (g.y0 + gy * g.step - d.top) * sy,
+        ];
+        for (let gy = d.gy0; gy < d.gy1; gy++) for (let gx = d.gx0; gx < d.gx1; gx++) {
+          const dA = d.node(gx, gy), dB = d.node(gx + 1, gy);
+          const dC = d.node(gx + 1, gy + 1), dD = d.node(gx, gy + 1);
+          const tA = [dA[0] + ox, dA[1] + oy], tB = [dB[0] + ox, dB[1] + oy];
+          const tC = [dC[0] + ox, dC[1] + oy], tD = [dD[0] + ox, dD[1] + oy];
           // skip cells fully outside this tile
-          const xs = [dA[0], dB[0], dC[0], dD[0]], ys = [dA[1], dB[1], dC[1], dD[1]];
+          const xs = [tA[0], tB[0], tC[0], tD[0]], ys = [tA[1], tB[1], tC[1], tD[1]];
           if (Math.max(...xs) < 0 || Math.min(...xs) > TILE || Math.max(...ys) < 0 || Math.min(...ys) > TILE) continue;
-          drawTriangle(ctx, raster.img, [sA, sB, sC], [dA, dB, dC]);
-          drawTriangle(ctx, raster.img, [sA, sC, sD], [dA, dC, dD]);
+          const sA = srcAt(gx, gy), sB = srcAt(gx + 1, gy);
+          const sC = srcAt(gx + 1, gy + 1), sD = srcAt(gx, gy + 1);
+          drawTriangle(ctx, raster.img, [sA, sB, sC], [tA, tB, tC]);
+          drawTriangle(ctx, raster.img, [sA, sC, sD], [tA, tC, tD]);
         }
       }
       const buf = await canvas.encode('webp', 82);

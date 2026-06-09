@@ -7,12 +7,14 @@ it only generates assets that get committed.
 
 `make-tiles.mjs` bakes the hand-drawn world into a Web-Mercator raster
 pyramid (512 px WebP tiles, z0–7) packed as a single `tiles/world.pmtiles`
-archive (Git LFS). Placement uses a Moving Least Squares warp with four
-control points per country (art-quad corners → the country's true projected
-bbox corners), so every country lands on — and fills — its real footprint
-while the hand-drawn composition deforms smoothly in between. Each country is
-drawn as a triangle mesh so the warp bends within large countries too
-(Mercator's polar stretch across Canada/Russia).
+archive. Each region is warped as ONE rubber sheet: a fixed grid over the
+region canvas, deformed by a Moving Least Squares field shared by every
+country, so the jigsaw the maps were drawn as stays glued (no cracks or
+overlaps between neighbours) and geometry is identical at every zoom level
+(deeper tiles are just sharper — shapes never morph). `--geo 0..1` blends the
+warp targets between the region's least-squares affine (0 = the hand-drawn
+composition exactly) and each country's true projected bbox (1 = max
+geographic accuracy). Default 0.5.
 
 `make-globe-demo.mjs` builds `globe-demo.html`: MapLibre GL (globe + mercator
 projections) reading the PMTiles via HTTP range requests, with a Natural
@@ -20,7 +22,7 @@ Earth border line layer (vector → crisp at every zoom, styleable live).
 
 ```bash
 cd tools && npm install
-node make-tiles.mjs --maxzoom 7        # ⇒ tiles/world.pmtiles (~10–20 min)
+node make-tiles.mjs --maxzoom 7 --geo 0.5   # ⇒ tiles/world.pmtiles (~10–20 min)
 node make-globe-demo.mjs               # ⇒ globe-demo.html
 ```
 
