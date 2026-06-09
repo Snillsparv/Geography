@@ -3,6 +3,31 @@
 Offline helper scripts. None of this runs in the browser or ships to users —
 it only generates assets that get committed.
 
+## World tile pyramid + globe (the fast path)
+
+`make-tiles.mjs` bakes the hand-drawn world into a Web-Mercator raster
+pyramid (512 px WebP tiles, z0–7) packed as a single `tiles/world.pmtiles`
+archive (Git LFS). Placement uses a Moving Least Squares warp with four
+control points per country (art-quad corners → the country's true projected
+bbox corners), so every country lands on — and fills — its real footprint
+while the hand-drawn composition deforms smoothly in between. Each country is
+drawn as a triangle mesh so the warp bends within large countries too
+(Mercator's polar stretch across Canada/Russia).
+
+`make-globe-demo.mjs` builds `globe-demo.html`: MapLibre GL (globe + mercator
+projections) reading the PMTiles via HTTP range requests, with a Natural
+Earth border line layer (vector → crisp at every zoom, styleable live).
+
+```bash
+cd tools && npm install
+node make-tiles.mjs --maxzoom 7        # ⇒ tiles/world.pmtiles (~10–20 min)
+node make-globe-demo.mjs               # ⇒ globe-demo.html
+```
+
+Needs `tools/data/ne_50m_countries.geojson` and
+`tools/data/ne_50m_map_units.geojson` (committed; originally from the
+Natural Earth GitHub mirror).
+
 ## Map demo (illustrations on real geography)
 
 `tools/make-map-demo.mjs` builds a self-contained `map-demo.html` that places
