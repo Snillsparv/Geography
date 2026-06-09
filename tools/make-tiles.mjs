@@ -390,8 +390,10 @@ async function renderLocked(ctx, d, world, tx, ty) {
   // overscan to swallow small misalignments — the clip hides the excess.
   const over = LOCK_OVERSCAN;
   const spanX = g.maxX - g.minX, spanY = g.maxY - g.minY;
-  const artBounds = g.mode === 'perpiece'
-    ? await getPieceArtBounds(d.key, d.svgPath, g) : null;
+  // Tight opaque-art bounds for every mode: 'whole' gets one piece (= the
+  // art's full opaque bbox stretched edge-to-edge over the true footprint,
+  // so narrow-drawn art still covers e.g. easternmost Russia).
+  const artBounds = await getPieceArtBounds(d.key, d.svgPath, g);
 
   for (let pi = 0; pi < g.pieces.length; pi++) {
     const piece = g.pieces[pi];
