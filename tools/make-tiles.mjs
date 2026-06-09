@@ -68,6 +68,26 @@ const ALIAS = {
 
 const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 
+// Countries whose hand-drawn shape comes from another projection and can
+// never match Mercator at high latitudes (Russia/Canada/USA are "true shape
+// + flag/pattern" art). These are SHAPE-LOCKED: skipped by the rubber sheet
+// and instead drawn clipped to their true projected polygons, with the art
+// stretched over the true footprint (their art already includes Alaska and
+// the arctic islands) and the outline stroked in the artwork's style. They
+// render UNDER the region sheets, so continent seams can show a little
+// overlap but never an ocean gap.
+// mode 'whole': one art stretch over the full true footprint (art drawn with
+// islands/outliers in matching relative positions). mode 'perpiece': art is
+// stretched into each major polygon separately (USA: mainland gets the flag,
+// Alaska gets its own flag fill — complete coverage, no underlay patches).
+const SHAPE_LOCK = new Map([
+  ['asien/ryssland', 'whole'],
+  ['nordamerika/kanada', 'whole'],
+  ['nordamerika/usa', 'perpiece'],
+]);
+const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
+const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
+
 // ── Web Mercator (unit square) ──
 const MAX_LAT = 85.051128779807;
 function mercX(lng) { return lng / 360 + 0.5; }
@@ -130,9 +150,12 @@ function matchRegions() {
       const key = f.properties.GU_A3 || f.properties.ISO_A3 || f.properties.NAME;
       if (used.has(key)) continue;
       used.add(key);
-      const anchor = anchorGeometry(f.geometry);
+      const lock = SHAPE_LOCK.get(`${slug}/${base}`) || null;
+      // Locked art includes the outlying parts (Alaska, arctic islands), so it
+      // anchors against the FULL geometry instead of the largest polygon.
+      const anchor = lock ? f.geometry : anchorGeometry(f.geometry);
       countries.push({
-        base, svgPath,
+        base, svgPath, lock,
         left: c.left, top: c.top, width: c.width, height: c.height,
         centroid: geoCentroid(anchor),
         anchor,
@@ -198,7 +221,8 @@ function buildWarps(regions) {
       r.countries.map(c => [c.left + c.width / 2, c.top + c.height / 2]),
       r.countries.map(c => [mercX(unwrap(c.centroid[0])), mercY(c.centroid[1])]),
     );
-    // blended corner controls
+    // blended corner controls; shape-locked countries pin at full strength so
+    // their sheet neighbours deform toward the TRUE footprint (closes seams)
     const controls = [];
     for (const c of r.countries) {
       const b = projectedBbox(c.anchor, ref);
@@ -206,13 +230,62 @@ function buildWarps(regions) {
         [c.left, c.top], [c.left + c.width, c.top],
         [c.left + c.width, c.top + c.height], [c.left, c.top + c.height],
       ];
+      const geo = c.lock ? 1 : GEO;
       const bq = [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY]];
       corners.forEach((p, i) => {
         const qa = A(p);
-        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
+        controls.push({ p, q: [qa[0] * (1 - geo) + bq[i][0] * geo, qa[1] * (1 - geo) + bq[i][1] * geo] });
       });
     }
     const warp = mlsAffine(controls);
+
+    // Precompute shape-lock geometry: polygon rings in unit Mercator
+    // (longitude-unwrapped around the country), big polygons only, grouped
+    // into draw pieces ('whole' = one piece, 'perpiece' = one per polygon).
+    for (const c of r.countries) {
+      if (!c.lock) continue;
+      const cLng = c.centroid[0];
+      const polys = c.anchor.type === 'Polygon' ? [c.anchor.coordinates] : c.anchor.coordinates;
+      const polyPieces = [];
+      for (const poly of polys) {
+        if (geoArea({ type: 'Polygon', coordinates: poly }) < LOCK_MIN_RING_AREA) continue;
+        const rings = [];
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const ring of poly) {
+          const pts = new Float64Array(ring.length * 2);
+          for (let i = 0; i < ring.length; i++) {
+            let lng = ring[i][0];
+            while (lng - cLng > 180) lng -= 360;
+            while (lng - cLng < -180) lng += 360;
+            const x = mercX(lng), y = mercY(ring[i][1]);
+            pts[i * 2] = x; pts[i * 2 + 1] = y;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+          rings.push(pts);
+        }
+        polyPieces.push({ rings, minX, minY, maxX, maxY });
+      }
+      let pieces;
+      if (c.lock === 'perpiece') {
+        pieces = polyPieces;
+      } else {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const rings = [];
+        for (const p of polyPieces) {
+          rings.push(...p.rings);
+          if (p.minX < minX) minX = p.minX; if (p.maxX > maxX) maxX = p.maxX;
+          if (p.minY < minY) minY = p.minY; if (p.maxY > maxY) maxY = p.maxY;
+        }
+        pieces = [{ rings, minX, minY, maxX, maxY }];
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of pieces) {
+        if (p.minX < minX) minX = p.minX; if (p.maxX > maxX) maxX = p.maxX;
+        if (p.minY < minY) minY = p.minY; if (p.maxY > maxY) maxY = p.maxY;
+      }
+      c.lockGeom = { pieces, minX, minY, maxX, maxY, mode: c.lock };
+    }
 
     // ONE fixed grid over the whole region canvas, shared by all countries.
     // Node positions are evaluated once in unit Mercator: identical geometry
@@ -262,6 +335,130 @@ async function getRaster(key, svgPath, width) {
     cache.delete(lruKey);
   }
   return entry;
+}
+
+// Average colour of an artwork's opaque pixels — used as underlay inside the
+// true polygon of shape-locked countries, plugging any alpha holes where the
+// drawn shape doesn't quite reach the real coastline.
+const avgColorCache = new Map();
+async function getAvgColor(key, svgPath) {
+  if (avgColorCache.has(key)) return avgColorCache.get(key);
+  const png = new Resvg(readFileSync(svgPath, 'utf8'), { fitTo: { mode: 'width', value: 64 } }).render().asPng();
+  const img = await loadImage(png);
+  const c = createCanvas(img.width, img.height);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const d = ctx.getImageData(0, 0, img.width, img.height).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] > 200) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  }
+  const col = n ? `rgb(${(r / n) | 0},${(g / n) | 0},${(b / n) | 0})` : '#888';
+  avgColorCache.set(key, col);
+  return col;
+}
+
+// Render a shape-locked country into a tile. Per piece: build the true
+// polygon path, clip, lay down the artwork's average colour (plugs alpha
+// holes), stretch the art over the piece's footprint with slight overscan,
+// then stroke the outline in the artwork's own style.
+async function renderLocked(ctx, d, world, tx, ty) {
+  const g = d.geom;
+  const ox = -tx * TILE + d.off, oy = -ty * TILE;
+  const tileMinX = -d.off + tx * TILE, tileMaxX = tileMinX + TILE;
+  const tileMinY = ty * TILE, tileMaxY = tileMinY + TILE;
+  const visiblePieces = g.pieces.filter(p =>
+    p.maxX * world >= tileMinX && p.minX * world <= tileMaxX &&
+    p.maxY * world >= tileMinY && p.minY * world <= tileMaxY);
+  if (!visiblePieces.length) return;
+
+  const trace = piece => {
+    ctx.beginPath();
+    for (const pts of piece.rings) {
+      ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
+      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+      ctx.closePath();
+    }
+  };
+  // raster sized for the country's full footprint (largest piece dominates)
+  const fullW = (g.maxX - g.minX) * world;
+  const raster = await getRaster(d.key, d.svgPath, Math.min(RASTER_CAP, fullW * LOCK_OVERSCAN));
+  const underlay = await getAvgColor(d.key, d.svgPath);
+  // Per piece: grab the art sub-rect at the piece's relative position within
+  // the full footprint (the artist drew Alaska/mainland in roughly correct
+  // relative positions) and stretch it over the piece. perpiece uses a large
+  // overscan to swallow small misalignments — the clip hides the excess.
+  const over = LOCK_OVERSCAN;
+  const spanX = g.maxX - g.minX, spanY = g.maxY - g.minY;
+  const artBounds = g.mode === 'perpiece'
+    ? await getPieceArtBounds(d.key, d.svgPath, g) : null;
+
+  for (let pi = 0; pi < g.pieces.length; pi++) {
+    const piece = g.pieces[pi];
+    if (!visiblePieces.includes(piece)) continue;
+    const bx = piece.minX * world + ox, by = piece.minY * world + oy;
+    const bw = (piece.maxX - piece.minX) * world, bh = (piece.maxY - piece.minY) * world;
+    // art sub-rect: tight opaque bbox for perpiece, relative bbox otherwise
+    let sx, sy, sw, sh;
+    const ab = artBounds && artBounds[pi];
+    if (ab) {
+      sx = ab[0] * raster.w; sy = ab[1] * raster.h;
+      sw = (ab[2] - ab[0]) * raster.w; sh = (ab[3] - ab[1]) * raster.h;
+    } else {
+      sx = (piece.minX - g.minX) / spanX * raster.w;
+      sy = (piece.minY - g.minY) / spanY * raster.h;
+      sw = (piece.maxX - piece.minX) / spanX * raster.w;
+      sh = (piece.maxY - piece.minY) / spanY * raster.h;
+    }
+    const ow = bw * over, oh = bh * over;
+    ctx.save();
+    trace(piece);
+    ctx.clip('evenodd');
+    ctx.fillStyle = underlay;
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.drawImage(raster.img, sx, sy, sw, sh,
+      bx - (ow - bw) / 2, by - (oh - bh) / 2, ow, oh);
+    ctx.restore();
+    trace(piece);
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.2, Math.min(12, fullW / 400));
+    ctx.stroke();
+  }
+}
+
+// For perpiece shape-locks: find the art's tight opaque-pixel bbox inside
+// each piece's relative sub-rect (probed once on a 512 px raster), so the
+// drawn Alaska stretches exactly onto true Alaska even when the artist's
+// relative layout is a bit off. Returns per-piece [x0,y0,x1,y1] in 0..1
+// relative art coordinates, or null when the sub-rect holds no opaque art.
+const pieceArtCache = new Map();
+async function getPieceArtBounds(key, svgPath, geom) {
+  if (pieceArtCache.has(key)) return pieceArtCache.get(key);
+  const png = new Resvg(readFileSync(svgPath, 'utf8'), { fitTo: { mode: 'width', value: 512 } }).render().asPng();
+  const img = await loadImage(png);
+  const c = createCanvas(img.width, img.height);
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0);
+  const data = cx.getImageData(0, 0, img.width, img.height).data;
+  const spanX = geom.maxX - geom.minX, spanY = geom.maxY - geom.minY;
+  const bounds = geom.pieces.map(p => {
+    const px0 = Math.max(0, Math.floor((p.minX - geom.minX) / spanX * img.width));
+    const px1 = Math.min(img.width, Math.ceil((p.maxX - geom.minX) / spanX * img.width));
+    const py0 = Math.max(0, Math.floor((p.minY - geom.minY) / spanY * img.height));
+    const py1 = Math.min(img.height, Math.ceil((p.maxY - geom.minY) / spanY * img.height));
+    let ax0 = Infinity, ay0 = Infinity, ax1 = -Infinity, ay1 = -Infinity;
+    for (let y = py0; y < py1; y++) for (let x = px0; x < px1; x++) {
+      if (data[(y * img.width + x) * 4 + 3] > 60) {
+        if (x < ax0) ax0 = x; if (x > ax1) ax1 = x;
+        if (y < ay0) ay0 = y; if (y > ay1) ay1 = y;
+      }
+    }
+    if (!(ax1 >= ax0)) return null;
+    return [ax0 / img.width, ay0 / img.height, (ax1 + 1) / img.width, (ay1 + 1) / img.height];
+  });
+  pieceArtCache.set(key, bounds);
+  return bounds;
 }
 
 // Affine from 3 src→dst points; draw img clipped to (slightly expanded) dst tri.
@@ -316,6 +513,34 @@ async function main() {
         return [g.u[i] * world, g.u[i + 1] * world];
       };
       for (const c of r.countries) {
+        if (c.lock) {
+          // Shape-locked: draw clipped to the true polygons (order 0 = under
+          // the region sheets). Geometry is unit-Mercator, scaled per zoom.
+          const lg = c.lockGeom;
+          const minX = lg.minX * world, maxX = lg.maxX * world;
+          const minY = lg.minY * world, maxY = lg.maxY * world;
+          const offsets = [0];
+          if (maxX > world) offsets.push(-world);
+          if (minX < 0) offsets.push(world);
+          for (const off of offsets) {
+            const tx0 = Math.max(0, Math.floor((minX + off) / TILE));
+            const tx1 = Math.min(nTiles - 1, Math.floor((maxX + off) / TILE));
+            const ty0 = Math.max(0, Math.floor(minY / TILE));
+            const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE));
+            if (tx1 < tx0 || ty1 < ty0) continue;
+            const drawRec = {
+              lock: true, order: 0,
+              key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
+              geom: lg, off, dstW: maxX - minX,
+            };
+            for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+              const kk = tx + ',' + ty;
+              if (!draws.has(kk)) draws.set(kk, []);
+              draws.get(kk).push(drawRec);
+            }
+          }
+          continue;
+        }
         const gx0 = Math.max(0, Math.floor((c.left - g.x0) / g.step));
         const gx1 = Math.min(g.nx, Math.ceil((c.left + c.width - g.x0) / g.step));
         const gy0 = Math.max(0, Math.floor((c.top - g.y0) / g.step));
@@ -340,6 +565,7 @@ async function main() {
           const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE));
           if (tx1 < tx0 || ty1 < ty0) continue;
           const drawRec = {
+            order: 1,
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
             grid: g, node, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
@@ -367,7 +593,12 @@ async function main() {
       }
       const canvas = createCanvas(TILE, TILE);
       const ctx = canvas.getContext('2d');
-      for (const d of draws.get(k)) {
+      const tileDraws = draws.get(k).slice().sort((a, b) => (a.order - b.order));
+      for (const d of tileDraws) {
+        if (d.lock) {
+          await renderLocked(ctx, d, world, tx, ty);
+          continue;
+        }
         const raster = await getRaster(d.key, d.svgPath, d.dstW);
         const sx = raster.w / d.srcW;     // region-canvas units → raster px
         const sy = raster.h / d.srcH;
