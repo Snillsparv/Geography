@@ -423,6 +423,15 @@ import * as THREE from 'three';
 const globeCanvas = document.getElementById('globe');
 let renderer, scene, camera, sphere, animating = false;
 let texCanvas, texCtx, tex;
+// High-resolution focus patch: a small flat plane positioned just in front of
+// the sphere on the camera-facing side. When the user zooms in close, we
+// render a 4096×4096 orthographic projection centred on whatever lat/lng the
+// camera is currently pointing at, and slap that on the plane. Effective
+// resolution at the patch is ~9× the main equirectangular texture because we
+// spend the same number of texels on a far smaller angular area.
+let patchCanvas, patchCtx, patchTex, patchPlane, patchTimer = null;
+const PATCH_TEX = 4096;
+const PATCH_HALF_FOV_DEG = 18;
 // Texture LOD: start at 8K, upgrade to whatever the GPU allows when zoomed in.
 // Equirectangular textures are 2:1, so TEX_W controls both axes.
 let TEX_W = 8192, TEX_H = TEX_W / 2;
@@ -506,6 +515,97 @@ function buildTexture() {
   if (tex) tex.needsUpdate = true;
 }
 
+// Read the current view direction (the lat/lng on the sphere that's directly
+// under the camera) given the sphere's current rotation matrix.
+function getViewLngLat() {
+  const v = new THREE.Vector3(0, 0, 1);
+  v.applyMatrix4(new THREE.Matrix4().copy(sphere.matrixWorld).invert()).normalize();
+  // Default SphereGeometry vertex: x = -cos(θ)·sin(φ), y = cos(φ), z = sin(θ)·sin(φ),
+  // with UV u = θ/2π, v = φ/π. Equirect texture: u=0.5 → lng=0, v=0.5 → lat=0.
+  const phi = Math.acos(Math.max(-1, Math.min(1, v.y)));
+  let theta = Math.atan2(v.z, -v.x);
+  if (theta < 0) theta += 2 * Math.PI;
+  const lng = (theta / (2 * Math.PI) - 0.5) * 360;
+  const lat = (0.5 - phi / Math.PI) * 180;
+  return [lng, lat];
+}
+
+function drawWorldInto(ctx, proj, sizeFactor, viewCentre, maxAngularDist) {
+  // For the equirectangular world texture we use every country in every region.
+  // For a focused patch (small angular window around viewCentre), only fit
+  // against countries that fall reasonably close to the centre — otherwise far-
+  // away projected points dominate the affine fit and push the artwork
+  // completely off-canvas.
+  for (const r of REGIONS_DATA) {
+    const dst = [], src = [];
+    for (let i = 0; i < r.countries.length; i++) {
+      if (viewCentre && d3.geoDistance(viewCentre, r._centroids[i]) > maxAngularDist) continue;
+      const sp = proj(r._centroids[i]);
+      if (sp && isFinite(sp[0]) && isFinite(sp[1])) {
+        dst.push(sp); src.push(r._regionPts[i]);
+      }
+    }
+    if (src.length < 3) continue;
+    const T = (fitMode === 'affine' ? fitAffine : fitSimilarity)(src, dst);
+    if (!T) continue;
+    for (const c of r.countries) {
+      const img = countryImgs[c.svg];
+      if (!img) continue;
+      ctx.save();
+      ctx.transform(T.a, T.b, T.c, T.d, T.tx, T.ty);
+      ctx.drawImage(img, c.left, c.top, c.width, c.height);
+      ctx.restore();
+    }
+  }
+  if (bordStyle !== 'off') {
+    const widthMap = { thin: 1.2, '': 2.4, bold: 4.0 };
+    const colorMap = { '': '#0a0a0a', light: '#f5f5f5', gold: '#f0c64a' };
+    ctx.strokeStyle = colorMap[bordColor];
+    ctx.lineWidth = widthMap[bordStyle] * sizeFactor;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    const p = d3.geoPath(proj, ctx);
+    ctx.beginPath();
+    for (const f of ALL_BORDERS.features) p(f);
+    ctx.stroke();
+  }
+}
+
+function renderPatch() {
+  const [lng, lat] = getViewLngLat();
+  patchCtx.fillStyle = '#0e2438';
+  patchCtx.fillRect(0, 0, PATCH_TEX, PATCH_TEX);
+  // d3's third rotate param is the roll γ — feed in the sphere's tilt so the
+  // patch's "up" matches the main globe's "up" at this view direction.
+  const rollDeg = sphere.rotation.x * 180 / Math.PI;
+  const halfFovRad = PATCH_HALF_FOV_DEG * Math.PI / 180;
+  const proj = d3.geoOrthographic()
+    .rotate([-lng, -lat, rollDeg])
+    .translate([PATCH_TEX / 2, PATCH_TEX / 2])
+    .scale(PATCH_TEX / 2 / Math.sin(halfFovRad));
+  // Only consider countries within 35° of the view centre — the patch covers
+  // 36° (2 × 18°), so 35° gives a small overlap buffer at the edges.
+  drawWorldInto(patchCtx, proj, PATCH_TEX / 1600,
+                [lng, lat], 35 * Math.PI / 180);
+  patchTex.needsUpdate = true;
+}
+
+function schedulePatch() {
+  clearTimeout(patchTimer);
+  patchTimer = setTimeout(() => { if (patchPlane && patchPlane.visible) renderPatch(); }, 120);
+}
+
+function setPatchVisibility() {
+  if (!patchPlane) return;
+  const close = camera.position.z < 1.6;
+  if (close && !patchPlane.visible) {
+    patchPlane.visible = true;
+    renderPatch();
+  } else if (!close && patchPlane.visible) {
+    patchPlane.visible = false;
+  }
+}
+
 function initGL() {
   renderer = new THREE.WebGLRenderer({ canvas: globeCanvas, antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
@@ -530,6 +630,25 @@ function initGL() {
   sphere.rotation.y = -Math.PI / 2;
   scene.add(sphere);
 
+  // Focus patch: a small plane in front of the sphere, rendered on top of the
+  // main sphere with depth-test off.
+  patchCanvas = document.createElement('canvas');
+  patchCanvas.width = PATCH_TEX; patchCanvas.height = PATCH_TEX;
+  patchCtx = patchCanvas.getContext('2d');
+  patchTex = new THREE.CanvasTexture(patchCanvas);
+  patchTex.colorSpace = THREE.SRGBColorSpace;
+  patchTex.anisotropy = renderer.capabilities.getMaxAnisotropy?.() || 1;
+  const halfRad = PATCH_HALF_FOV_DEG * Math.PI / 180;
+  const chord = 2 * Math.sin(halfRad);
+  patchPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(chord, chord),
+    new THREE.MeshBasicMaterial({ map: patchTex, depthTest: false, depthWrite: false })
+  );
+  patchPlane.position.set(0, 0, Math.cos(halfRad));
+  patchPlane.renderOrder = 1;
+  patchPlane.visible = false;
+  scene.add(patchPlane);
+
   let dragging = false, lastX = 0, lastY = 0;
   globeCanvas.addEventListener('pointerdown', e => {
     dragging = true; lastX = e.clientX; lastY = e.clientY;
@@ -543,14 +662,16 @@ function initGL() {
     const s = 0.005;
     sphere.rotation.y += dx * s;
     sphere.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, sphere.rotation.x + dy * s));
+    schedulePatch();
   });
-  globeCanvas.addEventListener('pointerup',     e => { dragging = false; globeCanvas.classList.remove('dragging'); });
+  globeCanvas.addEventListener('pointerup',     e => { dragging = false; globeCanvas.classList.remove('dragging'); if (patchPlane.visible) renderPatch(); });
   globeCanvas.addEventListener('pointercancel', e => { dragging = false; globeCanvas.classList.remove('dragging'); });
   let lodTimer = null;
   globeCanvas.addEventListener('wheel', e => {
     e.preventDefault();
     const f = e.deltaY < 0 ? 1/1.1 : 1.1;
     camera.position.z = Math.max(1.05, Math.min(8, camera.position.z * f));
+    setPatchVisibility();
     // Bump texture LOD when the user lingers at a zoom level. Closer = higher res.
     clearTimeout(lodTimer);
     lodTimer = setTimeout(() => {
@@ -559,6 +680,7 @@ function initGL() {
         TEX_W = want; TEX_H = TEX_W / 2;
         buildTexture();
       }
+      if (patchPlane.visible) renderPatch();
     }, 200);
   }, { passive: false });
 
@@ -595,6 +717,7 @@ window.addEventListener('show-flat', hide);
 window.addEventListener('rebuild-texture', () => {
   if (!inited) return;
   buildTexture();
+  if (patchPlane && patchPlane.visible) renderPatch();
 });
 </script>
 </body></html>`;
