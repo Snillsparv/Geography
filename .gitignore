@@ -67,3 +67,7 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Staging artifacts for the PSD → SVG pipeline (tools/)
+tools/psd-extracted/
+tools/three.bundle.min.js
