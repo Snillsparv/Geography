@@ -88,6 +88,17 @@ const SHAPE_LOCK = new Map([
 const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
 const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
 
+// Countries that share a land border with a locked country sit at FULL
+// geographic position (geo 1): their own top edge is then already at the true
+// border, so the edge pins barely move anything — the stretch that used to
+// concentrate in an ugly curtain zone is instead spread evenly across the
+// whole country (a uniform bbox fit, like the early geo-1 comparison).
+const ADJ_GEO1 = new Set([
+  'asien/kazakstan', 'asien/mongoliet', 'asien/kina', 'asien/nordkorea',
+  'asien/georgien', 'asien/azerbajdzjan',
+  'nordamerika/mexiko',
+]);
+
 // Landmasses with no artwork, drawn as flat fills with the artwork-style
 // outline so the world map is complete (true shapes from Natural Earth).
 const EXTRA_FILLS = [
@@ -433,7 +444,8 @@ function buildWarps(regions) {
           }
         }
         const qa = A(p);
-        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
+        const geo = ADJ_GEO1.has(`${r.slug}/${c.base}`) ? 1 : GEO;
+        controls.push({ p, q: [qa[0] * (1 - geo) + bq[i][0] * geo, qa[1] * (1 - geo) + bq[i][1] * geo] });
       });
     }
     const warp = mlsAffine(controls);
