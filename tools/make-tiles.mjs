@@ -424,7 +424,7 @@ async function renderLocked(ctx, d, world, tx, ty) {
   // raster sized for the country's full footprint (largest piece dominates)
   const fullW = (g.maxX - g.minX) * world;
   const raster = await getRaster(d.key, d.svgPath, Math.min(RASTER_CAP, fullW * LOCK_OVERSCAN));
-  const underlay = await getUnderlay(d.key, d.svgPath);
+  const underlay = await getUnderlayScaled(d.key, d.svgPath, fullW);
   // Per piece: grab the art sub-rect at the piece's relative position within
   // the full footprint (the artist drew Alaska/mainland in roughly correct
   // relative positions) and stretch it over the piece. perpiece uses a large
@@ -538,6 +538,26 @@ async function getUnderlay(key, svgPath) {
   const img2 = await loadImage(await blurred.encode('png'));
   underlayCache.set(key, img2);
   return img2;
+}
+
+// Power-of-two downscaled underlay buckets: at low zooms the mesh draws the
+// underlay thousands of times per tile, and sampling a full 1024 px image
+// down to sub-pixel triangles is what made z0 take minutes. Match the source
+// size to the destination instead.
+const underlayScaledCache = new Map();
+async function getUnderlayScaled(key, svgPath, width) {
+  const base = await getUnderlay(key, svgPath);
+  let bucket = 64;
+  while (bucket < width && bucket < base.width) bucket *= 2;
+  bucket = Math.min(bucket, base.width);
+  if (bucket === base.width) return base;
+  const ck = key + '@' + bucket;
+  if (underlayScaledCache.has(ck)) return underlayScaledCache.get(ck);
+  const c = createCanvas(bucket, Math.max(2, Math.round(base.height * bucket / base.width)));
+  c.getContext('2d').drawImage(base, 0, 0, c.width, c.height);
+  const img = await loadImage(await c.encode('png'));
+  underlayScaledCache.set(ck, img);
+  return img;
 }
 
 // For perpiece shape-locks: find the art's tight opaque-pixel bbox inside
@@ -705,7 +725,7 @@ async function main() {
     // BFS-filled underlay for locked countries' bottom layer.
     const renderSheet = async (ctx, d, tx, ty) => {
       const raster = d.useUnderlay
-        ? await (async () => { const u = await getUnderlay(d.key, d.svgPath); return { img: u, w: u.width, h: u.height }; })()
+        ? await (async () => { const u = await getUnderlayScaled(d.key, d.svgPath, d.dstW); return { img: u, w: u.width, h: u.height }; })()
         : await getRaster(d.key, d.svgPath, d.dstW);
       const sx = raster.w / d.srcW;     // region-canvas units → raster px
       const sy = raster.h / d.srcH;
@@ -779,9 +799,15 @@ async function main() {
         }
         if (any) {
           ctx.clip('evenodd');
+          // The wash is blurry by design — one bbox-stretched drawImage per
+          // locked country is enough, and thousands of mesh triangles drawn
+          // against a 4000-ring clip is what made low zooms take minutes.
           for (const d of tileDraws) {
             if (d.order !== 0) continue;
-            await renderSheet(ctx, d, tx, ty);
+            const u = await getUnderlayScaled(d.key, d.svgPath, d.dstW);
+            ctx.drawImage(u,
+              d.u0x * world - tx * TILE, d.u0y * world - ty * TILE,
+              (d.u1x - d.u0x) * world, (d.u1y - d.u0y) * world);
           }
         }
         ctx.restore();
