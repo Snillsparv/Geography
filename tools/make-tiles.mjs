@@ -292,6 +292,7 @@ function buildWarps(regions) {
         if (geoArea({ type: 'Polygon', coordinates: poly }) < LOCK_MIN_RING_AREA) continue;
         const rings = [];
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let latMin = Infinity, latMax = -Infinity;
         for (const ring of poly) {
           const pts = new Float64Array(ring.length * 2);
           for (let i = 0; i < ring.length; i++) {
@@ -302,23 +303,27 @@ function buildWarps(regions) {
             pts[i * 2] = x; pts[i * 2 + 1] = y;
             if (x < minX) minX = x; if (x > maxX) maxX = x;
             if (y < minY) minY = y; if (y > maxY) maxY = y;
+            const la = ring[i][1];
+            if (la < latMin) latMin = la; if (la > latMax) latMax = la;
           }
           rings.push(pts);
         }
-        polyPieces.push({ rings, minX, minY, maxX, maxY });
+        polyPieces.push({ rings, minX, minY, maxX, maxY, latMin, latMax });
       }
       let pieces;
       if (c.lock === 'perpiece') {
         pieces = polyPieces;
       } else {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let latMin = Infinity, latMax = -Infinity;
         const rings = [];
         for (const p of polyPieces) {
           rings.push(...p.rings);
           if (p.minX < minX) minX = p.minX; if (p.maxX > maxX) maxX = p.maxX;
           if (p.minY < minY) minY = p.minY; if (p.maxY > maxY) maxY = p.maxY;
+          if (p.latMin < latMin) latMin = p.latMin; if (p.latMax > latMax) latMax = p.latMax;
         }
-        pieces = [{ rings, minX, minY, maxX, maxY }];
+        pieces = [{ rings, minX, minY, maxX, maxY, latMin, latMax }];
       }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const p of pieces) {
@@ -453,16 +458,30 @@ async function renderLocked(ctx, d, world, tx, ty) {
       sw = (piece.maxX - piece.minX) / spanX * raster.w;
       sh = (piece.maxY - piece.minY) / spanY * raster.h;
     }
-    const ow = bw * over, oh = bh * over;
+    const ow = bw * over;
+    const dx0 = bx - (ow - bw) / 2;
     ctx.save();
     trace(piece);
     ctx.clip('evenodd');
-    // BFS-filled underlay first (same sub-rect mapping, underlay resolution)
+    // The drawings use roughly LINEAR latitude, but Mercator doesn't: a
+    // single vertical stretch can't put both the south coast and the arctic
+    // in the right place (Chukotka ended up showing only the wash). Draw in
+    // horizontal strips instead — strip s covers an equal latitude band of
+    // the artwork and lands at that band's true Mercator y.
+    const NS = 32;
     const ku = underlay.width / raster.w;
-    ctx.drawImage(underlay, sx * ku, sy * ku, sw * ku, sh * ku,
-      bx - (ow - bw) / 2, by - (oh - bh) / 2, ow, oh);
-    ctx.drawImage(raster.img, sx, sy, sw, sh,
-      bx - (ow - bw) / 2, by - (oh - bh) / 2, ow, oh);
+    const latSpan = piece.latMax - piece.latMin;
+    for (let s = 0; s < NS; s++) {
+      const t0 = s / NS, t1 = (s + 1) / NS;
+      const lat0 = piece.latMax - t0 * latSpan;       // art top = north
+      const lat1 = piece.latMax - t1 * latSpan;
+      const dy0 = mercY(lat0) * world + oy;
+      const dy1 = mercY(lat1) * world + oy;
+      const dh = dy1 - dy0 + 0.6;                     // slight overlap, no hairlines
+      const sy0 = sy + t0 * sh, sh0 = sh / NS;
+      ctx.drawImage(underlay, sx * ku, sy0 * ku, sw * ku, sh0 * ku, dx0, dy0, ow, dh);
+      ctx.drawImage(raster.img, sx, sy0, sw, sh0, dx0, dy0, ow, dh);
+    }
     ctx.restore();
     trace(piece);
     ctx.strokeStyle = '#0a0a0a';
