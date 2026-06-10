@@ -88,6 +88,13 @@ const SHAPE_LOCK = new Map([
 const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
 const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
 
+// Landmasses with no artwork, drawn as flat fills with the artwork-style
+// outline so the world map is complete (true shapes from Natural Earth).
+const EXTRA_FILLS = [
+  { a3: 'GRL', color: '#f2f4f6' },   // Grönland — vit
+  { a3: 'ATA', color: '#e7eaee' },   // Antarktis — ljusgrå
+];
+
 // ── Web Mercator (unit square) ──
 const MAX_LAT = 85.051128779807;
 function mercX(lng) { return lng / 360 + 0.5; }
@@ -134,46 +141,50 @@ function anchorGeometry(geometry) {
   return geometry;
 }
 
-// All matched countries' true polygons in unit Mercator — used as a global
-// land clip so the locked countries' underlay wash can fill seam gaps on
-// land but never paint over open ocean. Rings get per-ring longitude unwrap
-// plus world copies when they cross the antimeridian.
-function buildWorldLand(regions) {
-  const rings = [];
-  const pushRing = (pts, minX, minY, maxX, maxY) => {
-    rings.push({ pts, minX, minY, maxX, maxY });
-    if (minX < 0) {
-      const s = Float64Array.from(pts); for (let i = 0; i < s.length; i += 2) s[i] += 1;
-      rings.push({ pts: s, minX: minX + 1, minY, maxX: maxX + 1, maxY });
-    }
-    if (maxX > 1) {
-      const s = Float64Array.from(pts); for (let i = 0; i < s.length; i += 2) s[i] -= 1;
-      rings.push({ pts: s, minX: minX - 1, minY, maxX: maxX - 1, maxY });
-    }
-  };
-  for (const r of regions) {
-    for (const c of r.countries) {
-      const polys = c.anchor.type === 'Polygon' ? [c.anchor.coordinates] : c.anchor.coordinates;
-      for (const poly of polys) {
-        for (const ring of poly) {
-          const ref = ring[0][0];
-          const pts = new Float64Array(ring.length * 2);
-          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          for (let i = 0; i < ring.length; i++) {
-            let lng = ring[i][0];
-            while (lng - ref > 180) lng -= 360;
-            while (lng - ref < -180) lng += 360;
-            const x = mercX(lng), y = mercY(ring[i][1]);
-            pts[i * 2] = x; pts[i * 2 + 1] = y;
-            if (x < minX) minX = x; if (x > maxX) maxX = x;
-            if (y < minY) minY = y; if (y > maxY) maxY = y;
-          }
-          pushRing(pts, minX, minY, maxX, maxY);
+// Build draw geometry for the artwork-less flat fills (Grönland, Antarktis).
+// Raw longitudes — NE's Antarctica ring closes along the antimeridian itself,
+// and Mercator's ±85° clamp gives it the usual flat bottom edge.
+function buildFills(byA3) {
+  const fills = [];
+  for (const spec of EXTRA_FILLS) {
+    const f = byA3[spec.a3];
+    if (!f) continue;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const rings = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const poly of polys) {
+      if (geoArea({ type: 'Polygon', coordinates: poly }) < LOCK_MIN_RING_AREA) continue;
+      for (const ring of poly) {
+        const pts = new Float64Array(ring.length * 2);
+        for (let i = 0; i < ring.length; i++) {
+          const x = mercX(ring[i][0]), y = mercY(ring[i][1]);
+          pts[i * 2] = x; pts[i * 2 + 1] = y;
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
+        rings.push(pts);
       }
     }
+    fills.push({ a3: spec.a3, color: spec.color, rings, minX, minY, maxX, maxY });
   }
-  return rings;
+  return fills;
+}
+
+// Flat fill + outline for an artwork-less landmass.
+function renderFill(ctx, d, world, tx, ty) {
+  const ox = -tx * TILE, oy = -ty * TILE;
+  ctx.beginPath();
+  for (const pts of d.geom.rings) {
+    ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
+    for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+    ctx.closePath();
+  }
+  ctx.fillStyle = d.fill;
+  ctx.fill('evenodd');
+  ctx.strokeStyle = '#0a0a0a';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(1.2, Math.min(12, (d.geom.maxX - d.geom.minX) * world / 400));
+  ctx.stroke();
 }
 
 function matchRegions() {
@@ -263,23 +274,6 @@ function buildWarps(regions) {
       r.countries.map(c => [c.left + c.width / 2, c.top + c.height / 2]),
       r.countries.map(c => [mercX(unwrap(c.centroid[0])), mercY(c.centroid[1])]),
     );
-    // blended corner controls (same gentle blend for everyone — full-strength
-    // pinning of the huge locked countries would smear their neighbours)
-    const controls = [];
-    for (const c of r.countries) {
-      const b = projectedBbox(c.anchor, ref);
-      const corners = [
-        [c.left, c.top], [c.left + c.width, c.top],
-        [c.left + c.width, c.top + c.height], [c.left, c.top + c.height],
-      ];
-      const bq = [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY]];
-      corners.forEach((p, i) => {
-        const qa = A(p);
-        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
-      });
-    }
-    const warp = mlsAffine(controls);
-
     // Precompute shape-lock geometry: polygon rings in unit Mercator
     // (longitude-unwrapped around the country), big polygons only, grouped
     // into draw pieces ('whole' = one piece, 'perpiece' = one per polygon).
@@ -326,12 +320,123 @@ function buildWarps(regions) {
         pieces = [{ rings, minX, minY, maxX, maxY, latMin, latMax }];
       }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let latMinAll = Infinity, latMaxAll = -Infinity;
       for (const p of pieces) {
         if (p.minX < minX) minX = p.minX; if (p.maxX > maxX) maxX = p.maxX;
         if (p.minY < minY) minY = p.minY; if (p.maxY > maxY) maxY = p.maxY;
+        if (p.latMin < latMinAll) latMinAll = p.latMin;
+        if (p.latMax > latMaxAll) latMaxAll = p.latMax;
       }
-      c.lockGeom = { pieces, minX, minY, maxX, maxY, mode: c.lock };
+      c.lockGeom = { pieces, minX, minY, maxX, maxY, latMin: latMinAll, latMax: latMaxAll, mode: c.lock };
+
+      // Border bins for edge pins: per x-column the true south/north border y,
+      // per y-row the true west/east border x. Small islands are excluded so
+      // e.g. the Kurils don't drag the "southern border" out to sea.
+      const big = pieces.flatMap(p => p.rings.map(pts => ({ pts, area: 0 })));
+      // ring bbox area as island filter
+      let maxArea = 0;
+      for (const rg of big) {
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        for (let i = 0; i < rg.pts.length; i += 2) {
+          if (rg.pts[i] < mnx) mnx = rg.pts[i]; if (rg.pts[i] > mxx) mxx = rg.pts[i];
+          if (rg.pts[i + 1] < mny) mny = rg.pts[i + 1]; if (rg.pts[i + 1] > mxy) mxy = rg.pts[i + 1];
+        }
+        rg.area = (mxx - mnx) * (mxy - mny);
+        if (rg.area > maxArea) maxArea = rg.area;
+      }
+      const NB = 64;
+      const g0 = c.lockGeom;
+      const southY = new Array(NB).fill(NaN), northY = new Array(NB).fill(NaN);
+      const westX = new Array(NB).fill(NaN), eastX = new Array(NB).fill(NaN);
+      for (const rg of big) {
+        if (rg.area < maxArea * 0.1) continue;
+        for (let i = 0; i < rg.pts.length; i += 2) {
+          const x = rg.pts[i], y = rg.pts[i + 1];
+          const bx = Math.max(0, Math.min(NB - 1, Math.floor((x - g0.minX) / (g0.maxX - g0.minX) * NB)));
+          const by = Math.max(0, Math.min(NB - 1, Math.floor((y - g0.minY) / (g0.maxY - g0.minY) * NB)));
+          if (!(southY[bx] >= y)) southY[bx] = Math.max(southY[bx] || -Infinity, y);
+          if (!(northY[bx] <= y)) northY[bx] = Math.min(northY[bx] || Infinity, y);
+          if (!(westX[by] <= x)) westX[by] = Math.min(westX[by] || Infinity, x);
+          if (!(eastX[by] >= x)) eastX[by] = Math.max(eastX[by] || -Infinity, x);
+        }
+      }
+      const fillGaps = a => {
+        for (let i = 0; i < NB; i++) {
+          if (Number.isNaN(a[i])) {
+            let j = 1;
+            while (j < NB && Number.isNaN(a[(i + j) % NB]) && Number.isNaN(a[(i - j + NB) % NB])) j++;
+            a[i] = !Number.isNaN(a[(i - j + NB) % NB]) ? a[(i - j + NB) % NB] : a[(i + j) % NB];
+          }
+        }
+      };
+      fillGaps(southY); fillGaps(northY); fillGaps(westX); fillGaps(eastX);
+      c.borderBins = { southY, northY, westX, eastX, NB };
     }
+
+    // Controls. Non-locked countries: geo-blended bbox corners as before.
+    // Locked countries contribute NO interior corners — instead, pins along
+    // their art-quad edges map straight onto the TRUE border, so neighbours
+    // (Kazakstan/Mongoliet/Kina mot Ryssland, Mexiko mot USA …) get pulled all
+    // the way to the real boundary: crisp seams, no filler band needed.
+    const lockTarget = (c, px, py) => {
+      const g0 = c.lockGeom, bins = c.borderBins;
+      const u = Math.max(0, Math.min(1, (px - c.left) / c.width));
+      const v = Math.max(0, Math.min(1, (py - c.top) / c.height));
+      // latitude is linear in the drawings → strip mapping for y
+      const lat = g0.latMax + v * (g0.latMin - g0.latMax);
+      const yLin = mercY(lat);
+      const x = g0.minX + u * (g0.maxX - g0.minX);
+      const bx = Math.max(0, Math.min(bins.NB - 1, Math.floor(u * bins.NB)));
+      const by = Math.max(0, Math.min(bins.NB - 1, Math.floor((yLin - g0.minY) / (g0.maxY - g0.minY) * bins.NB)));
+      // pick the nearest quad edge
+      const dEdge = Math.min(v, 1 - v, u, 1 - u);
+      if (dEdge === 1 - v) return [x, bins.southY[bx]];
+      if (dEdge === v) return [x, bins.northY[bx]];
+      if (dEdge === u) return [bins.westX[by], yLin];
+      return [bins.eastX[by], yLin];
+    };
+
+    const controls = [];
+    const lockedCs = r.countries.filter(c => c.lock);
+    for (const c of r.countries) {
+      if (c.lock) {
+        // pins along all four edges (interior samples; corners excluded)
+        for (let i = 1; i <= 9; i++) {
+          const t = i / 10;
+          const ex = c.left + t * c.width, ey = c.top + t * c.height;
+          controls.push({ p: [ex, c.top], q: lockTarget(c, ex, c.top) });
+          controls.push({ p: [ex, c.top + c.height], q: lockTarget(c, ex, c.top + c.height) });
+          controls.push({ p: [c.left, ey], q: lockTarget(c, c.left, ey) });
+          controls.push({ p: [c.left + c.width, ey], q: lockTarget(c, c.left + c.width, ey) });
+        }
+        continue;
+      }
+      const b = projectedBbox(c.anchor, ref);
+      const corners = [
+        [c.left, c.top], [c.left + c.width, c.top],
+        [c.left + c.width, c.top + c.height], [c.left, c.top + c.height],
+      ];
+      const bq = [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY]];
+      corners.forEach((p, i) => {
+        // corners that touch a locked country's quad edge snap to its TRUE
+        // border instead of the geo blend — agreement kills the pinch zone
+        const TOL = 50;
+        for (const lc of lockedCs) {
+          const nearX = p[0] > lc.left - TOL && p[0] < lc.left + lc.width + TOL;
+          const nearY = p[1] > lc.top - TOL && p[1] < lc.top + lc.height + TOL;
+          const onEdge = nearX && nearY && (
+            Math.abs(p[1] - (lc.top + lc.height)) < TOL || Math.abs(p[1] - lc.top) < TOL ||
+            Math.abs(p[0] - (lc.left + lc.width)) < TOL || Math.abs(p[0] - lc.left) < TOL);
+          if (onEdge) {
+            controls.push({ p, q: lockTarget(lc, p[0], p[1]) });
+            return;
+          }
+        }
+        const qa = A(p);
+        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
+      });
+    }
+    const warp = mlsAffine(controls);
 
     // ONE fixed grid over the whole region canvas, shared by all countries.
     // Node positions are evaluated once in unit Mercator: identical geometry
@@ -546,15 +651,12 @@ async function getUnderlay(key, svgPath) {
     }
   }
   ctx.putImageData(id, 0, 0);
-  // Strong blur (32× down/up-scale): the underlay is a broad colour wash under
-  // everything — flag stripes BFS:ed into columns and fake coast detail vanish.
-  const small = createCanvas(Math.max(2, W >> 5), Math.max(2, H >> 5));
-  small.getContext('2d').drawImage(c, 0, 0, small.width, small.height);
-  const blurred = createCanvas(W, H);
-  blurred.getContext('2d').drawImage(small, 0, 0, W, H);
+  // No blur: the fill is only ever visible INSIDE the true polygon where the
+  // art is transparent, and crisp nearest-colour extension matches the art
+  // style ("södra Ryssland ska bara vara rött") — blur gave smudged shadows.
   // Round-trip to a real Image: canvases as drawImage sources segfault
   // intermittently in @napi-rs/canvas when combined with clip + transform.
-  const img2 = await loadImage(await blurred.encode('png'));
+  const img2 = await loadImage(await c.encode('png'));
   underlayCache.set(key, img2);
   return img2;
 }
@@ -648,7 +750,8 @@ async function main() {
   const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
   console.log(`Matched ${nMatched} countries in ${regions.length} regions.`);
   buildWarps(regions);
-  const worldLand = buildWorldLand(regions);
+  const fills = buildFills(loadFeatures().byA3);
+  console.log(`Flat fills: ${fills.map(f => f.a3).join(', ')}`);
 
   const allTiles = [];
 
@@ -692,11 +795,8 @@ async function main() {
               draws.get(kk).push(drawRec);
             }
           }
-          // … and fall through: the country ALSO gets a normal sheet draw,
-          // but sourcing the BFS-filled underlay (order 0, bottom layer).
-          // The rubber sheet glues it to the neighbours by construction, so
-          // the band between the true shape and the neighbours can never
-          // show ocean — it shows warped flag colours under the borders.
+          continue;   // edge pins pull the neighbours to the true border —
+                      // no filler band needed, the seams meet crisply
         }
         const gx0 = Math.max(0, Math.floor((c.left - g.x0) / g.step));
         const gx1 = Math.min(g.nx, Math.ceil((c.left + c.width - g.x0) / g.step));
@@ -722,14 +822,10 @@ async function main() {
           const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE));
           if (tx1 < tx0 || ty1 < ty0) continue;
           const drawRec = {
-            order: c.lock ? 0 : 2,
-            useUnderlay: !!c.lock,
+            order: 2,
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
             grid: g, node, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
-            // unit-merc dst bbox (för land-klippets ringfilter)
-            u0x: (minX + off) / world, u1x: (maxX + off) / world,
-            u0y: minY / world, u1y: maxY / world,
           };
           for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
             const k = tx + ',' + ty;
@@ -740,12 +836,9 @@ async function main() {
       }
     }
 
-    // Mesh draw through the shared grid: sharp raster for normal sheet draws,
-    // BFS-filled underlay for locked countries' bottom layer.
+    // Mesh draw through the shared grid.
     const renderSheet = async (ctx, d, tx, ty) => {
-      const raster = d.useUnderlay
-        ? await (async () => { const u = await getUnderlayScaled(d.key, d.svgPath, d.dstW); return { img: u, w: u.width, h: u.height }; })()
-        : await getRaster(d.key, d.svgPath, d.dstW);
+      const raster = await getRaster(d.key, d.svgPath, d.dstW);
       const sx = raster.w / d.srcW;     // region-canvas units → raster px
       const sy = raster.h / d.srcH;
       const ox = -tx * TILE + d.off, oy = -ty * TILE;
@@ -768,6 +861,20 @@ async function main() {
       }
     };
 
+    // flat-fill landmasses (Grönland, Antarktis) — order 0, under everything
+    for (const fl of fills) {
+      const tx0 = Math.max(0, Math.floor(fl.minX * world / TILE));
+      const tx1 = Math.min(nTiles - 1, Math.floor(fl.maxX * world / TILE));
+      const ty0 = Math.max(0, Math.floor(fl.minY * world / TILE));
+      const ty1 = Math.min(nTiles - 1, Math.floor(fl.maxY * world / TILE));
+      const drawRec = { fill: fl.color, geom: fl, order: 0 };
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+        const kk = tx + ',' + ty;
+        if (!draws.has(kk)) draws.set(kk, []);
+        draws.get(kk).push(drawRec);
+      }
+    }
+
     // render tiles in Hilbert order (clustered archive + raster cache locality)
     const keys = [...draws.keys()]
       .map(k => { const [x, y] = k.split(',').map(Number); return { k, x, y, id: zxyToTileId(z, x, y) }; })
@@ -783,56 +890,11 @@ async function main() {
       const canvas = createCanvas(TILE, TILE);
       const ctx = canvas.getContext('2d');
       const tileDraws = draws.get(k).slice().sort((a, b) => (a.order - b.order));
-      // Underlay layer (order 0) is clipped to the world's true land mass, so
-      // seam-gap fill never paints over open ocean.
-      const hasUnderlay = tileDraws.some(d => d.order === 0);
-      if (hasUnderlay) {
-        // Ring filter: tile ∩ union of the underlay draws' own bboxes — the
-        // wash only ever lands there, so far-away land is irrelevant.
-        let uMinX = Infinity, uMinY = Infinity, uMaxX = -Infinity, uMaxY = -Infinity;
-        for (const d of tileDraws) {
-          if (d.order !== 0) continue;
-          if (d.u0x < uMinX) uMinX = d.u0x; if (d.u1x > uMaxX) uMaxX = d.u1x;
-          if (d.u0y < uMinY) uMinY = d.u0y; if (d.u1y > uMaxY) uMaxY = d.u1y;
-        }
-        const tMinX = Math.max(tx / nTiles, uMinX), tMaxX = Math.min((tx + 1) / nTiles, uMaxX);
-        const tMinY = Math.max(ty / nTiles, uMinY), tMaxY = Math.min((ty + 1) / nTiles, uMaxY);
-        ctx.save();
-        ctx.beginPath();
-        let any = false;
-        for (const ring of worldLand) {
-          if (ring.maxX < tMinX || ring.minX > tMaxX || ring.maxY < tMinY || ring.minY > tMaxY) continue;
-          const p = ring.pts;
-          // decimate to ~0.75 px at tile scale — the clip only needs
-          // tile-resolution fidelity, and full 50m rings are brutal at low z
-          let lx = p[0] * world - tx * TILE, ly = p[1] * world - ty * TILE;
-          ctx.moveTo(lx, ly);
-          for (let i = 2; i < p.length; i += 2) {
-            const x = p[i] * world - tx * TILE, y = p[i + 1] * world - ty * TILE;
-            if (Math.abs(x - lx) + Math.abs(y - ly) < 0.75 && i < p.length - 2) continue;
-            ctx.lineTo(x, y);
-            lx = x; ly = y;
-          }
-          ctx.closePath();
-          any = true;
-        }
-        if (any) {
-          ctx.clip('evenodd');
-          // The wash is blurry by design — one bbox-stretched drawImage per
-          // locked country is enough, and thousands of mesh triangles drawn
-          // against a 4000-ring clip is what made low zooms take minutes.
-          for (const d of tileDraws) {
-            if (d.order !== 0) continue;
-            const u = await getUnderlayScaled(d.key, d.svgPath, d.dstW);
-            ctx.drawImage(u,
-              d.u0x * world - tx * TILE, d.u0y * world - ty * TILE,
-              (d.u1x - d.u0x) * world, (d.u1y - d.u0y) * world);
-          }
-        }
-        ctx.restore();
-      }
       for (const d of tileDraws) {
-        if (d.order === 0) continue;
+        if (d.fill) {
+          renderFill(ctx, d, world, tx, ty);
+          continue;
+        }
         if (d.lock) {
           await renderLocked(ctx, d, world, tx, ty);
           continue;
