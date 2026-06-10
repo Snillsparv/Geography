@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laddare – förslag för Jonas geografi</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #081320; color: #cde; font-family: system-ui, sans-serif; }
+  header { padding: 24px 28px 8px; }
+  h1 { margin: 0 0 6px; font-size: 1.4rem; }
+  .sub { color: #7ea6c4; font-size: .9rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px; padding: 20px 28px 60px; }
+  .card { background: #0e2438; border: 1px solid rgba(91,191,255,.18); border-radius: 16px;
+    padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .stage { width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
+  .name { font-weight: 700; font-size: 1rem; color: #aee; }
+  .num { color: #5bbfff; margin-right: 6px; }
+  .note { font-size: .78rem; color: #6a93b0; text-align: center; line-height: 1.4; margin-top: -6px; }
+  .ladd { font-size: .8rem; color: #5a8aaa; letter-spacing: 2px; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* 1 ── Snurrande globen */
+  .globe { width: 110px; height: 110px; border-radius: 50%; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%);
+    box-shadow: inset -12px -8px 24px rgba(0,0,0,.4), 0 0 24px rgba(91,191,255,.25); }
+  .globe .land { position: absolute; background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%;
+    animation: drift 3.2s linear infinite; }
+  .globe .l1 { width: 55px; height: 38px; top: 18px; }
+  .globe .l2 { width: 42px; height: 30px; top: 66px; animation-delay: -1.6s; background: #e8c547; }
+  .globe .l3 { width: 30px; height: 22px; top: 44px; animation-delay: -2.4s; background: #ff8a65; }
+  @keyframes drift { from { left: -70px; } to { left: 120px; } }
+  .globe .shine { position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 32% 26%, rgba(255,255,255,.35), transparent 40%); }
+
+  /* 2 ── Studsande nålen */
+  .pinwrap { position: relative; width: 110px; height: 130px; }
+  .pin { position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+    animation: pinhop .9s cubic-bezier(.45,0,.55,1) infinite alternate; }
+  @keyframes pinhop { from { top: 4px; } to { top: 46px; } }
+  .pin svg { display: block; }
+  .pinshadow { position: absolute; left: 50%; bottom: 10px; width: 44px; height: 12px;
+    transform: translateX(-50%); background: rgba(0,0,0,.45); border-radius: 50%;
+    animation: shadowpulse .9s cubic-bezier(.45,0,.55,1) infinite alternate; }
+  @keyframes shadowpulse { from { transform: translateX(-50%) scale(.55); opacity: .3; }
+    to { transform: translateX(-50%) scale(1); opacity: .6; } }
+
+  /* 3 ── Pusslet */
+  .puzzle { display: grid; grid-template-columns: 52px 52px; gap: 6px; }
+  .piece { width: 52px; height: 52px; border-radius: 12px; animation: pop 1.6s ease-in-out infinite; }
+  .p1 { background: #ff6b6b; border-top-left-radius: 26px; }
+  .p2 { background: #ffd93d; border-top-right-radius: 26px; animation-delay: .2s; }
+  .p3 { background: #6bcb77; border-bottom-left-radius: 26px; animation-delay: .4s; }
+  .p4 { background: #4d96ff; border-bottom-right-radius: 26px; animation-delay: .6s; }
+  @keyframes pop { 0%, 100% { transform: scale(1); } 18% { transform: scale(.72) rotate(-7deg); } 36% { transform: scale(1.06); } }
+
+  /* 4 ── Kompassen */
+  .compass { width: 110px; height: 110px; border-radius: 50%; background: #10293f;
+    border: 5px solid #2c5a7c; position: relative; box-shadow: 0 0 18px rgba(91,191,255,.2); }
+  .compass i { position: absolute; color: #5a8aaa; font-style: normal; font-size: .7rem; font-weight: 700; }
+  .compass .n { top: 5px; left: 50%; transform: translateX(-50%); color: #ffd93d; }
+  .compass .s { bottom: 5px; left: 50%; transform: translateX(-50%); }
+  .compass .e { right: 8px; top: 50%; transform: translateY(-50%); }
+  .compass .w { left: 8px; top: 50%; transform: translateY(-50%); }
+  .needle { position: absolute; left: 50%; top: 50%; width: 10px; height: 78px;
+    transform-origin: 50% 50%; translate: -50% -50%;
+    animation: seekN 2.6s cubic-bezier(.34,1.56,.64,1) infinite; }
+  .needle::before, .needle::after { content: ''; position: absolute; left: 0; width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; }
+  .needle::before { top: 0; border-bottom: 39px solid #ff5252; }
+  .needle::after { bottom: 0; border-top: 39px solid #e8eef2; }
+  @keyframes seekN { 0% { rotate: 0deg; } 25% { rotate: 160deg; } 50% { rotate: 310deg; } 75% { rotate: 345deg; } 100% { rotate: 360deg; } }
+  .compass .hub { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px;
+    background: #ffd93d; border-radius: 50%; translate: -50% -50%; box-shadow: 0 0 6px rgba(0,0,0,.5); }
+
+  /* 5 ── Jorden runt */
+  .orbitwrap { position: relative; width: 130px; height: 130px; }
+  .orbitwrap .mini { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px;
+    translate: -50% -50%; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%); }
+  .orbitwrap .mini::after { content: ''; position: absolute; width: 26px; height: 18px; left: 8px; top: 14px;
+    background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%; }
+  .orbit { position: absolute; inset: 0; border: 2px dashed rgba(91,191,255,.35); border-radius: 50%;
+    animation: spin 5s linear infinite; }
+  .plane { position: absolute; left: 50%; top: -13px; translate: -50%; font-size: 22px;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,.5)); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 6 ── Landet ritas */
+  .draw svg { display: block; }
+  .draw .outline { fill: none; stroke: #5bbfff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 420; stroke-dashoffset: 420; animation: drawpath 3s ease-in-out infinite; }
+  .draw .fillin { fill: #57c785; opacity: 0; animation: fillin 3s ease-in-out infinite; }
+  @keyframes drawpath { 0% { stroke-dashoffset: 420; } 55%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+  @keyframes fillin { 0%, 55% { opacity: 0; } 75%, 88% { opacity: .85; } 100% { opacity: 0; } }
+  .draw .pen { font-size: 20px; position: absolute; left: 0; top: 0;
+    offset-path: path('M20 95 Q15 60 30 40 Q45 18 70 22 Q98 26 105 50 Q112 72 95 92 Q75 112 45 108 Q25 105 20 95');
+    offset-rotate: 0deg; animation: penmove 3s ease-in-out infinite; }
+  @keyframes penmove { 0% { offset-distance: 0%; opacity: 1; } 55% { offset-distance: 100%; opacity: 1; }
+    62%, 100% { offset-distance: 100%; opacity: 0; } }
+  .drawwrap { position: relative; }
+
+  /* 7 ── Radarn */
+  .radar { width: 116px; height: 116px; border-radius: 50%; position: relative;
+    background: repeating-radial-gradient(circle, transparent 0 24px, rgba(91,191,255,.12) 24px 25px),
+      radial-gradient(circle, #0c2236, #081726); border: 2px solid #2c5a7c; overflow: hidden; }
+  .sweep { position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(87,231,149,.55), transparent 70deg, transparent 360deg);
+    animation: spin 2.4s linear infinite; }
+  .blip { position: absolute; width: 9px; height: 9px; background: #57e795; border-radius: 50%;
+    animation: blip 2.4s linear infinite; }
+  .b1 { left: 28px; top: 36px; } .b2 { left: 74px; top: 62px; animation-delay: .7s; }
+  .b3 { left: 50px; top: 88px; animation-delay: 1.5s; }
+  @keyframes blip { 0%, 12% { opacity: 1; box-shadow: 0 0 10px #57e795; } 45%, 100% { opacity: .12; box-shadow: none; } }
+
+  /* 8 ── Studs-kontinenterna */
+  .bouncers { display: flex; gap: 14px; align-items: flex-end; height: 90px; }
+  .blob { width: 34px; height: 34px; animation: bounce 1.1s ease-in-out infinite; }
+  .blob.a { background: #ff6b6b; border-radius: 50% 45% 60% 40%/55% 50% 45% 50%; }
+  .blob.b { background: #ffd93d; border-radius: 40% 60% 45% 55%/50% 40% 60% 50%; animation-delay: .18s; }
+  .blob.c { background: #4d96ff; border-radius: 55% 45% 50% 50%/45% 60% 40% 55%; animation-delay: .36s; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1, .92); } 35% { transform: translateY(-44px) scale(.95, 1.05) rotate(8deg); } 70% { transform: translateY(0) scale(1.05, .85); } }
+
+  /* 9 ── Satelliten */
+  .satwrap { position: relative; width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
+  .satwrap .mini { width: 64px; height: 64px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%); position: relative; }
+  .satwrap .mini::after { content: ''; position: absolute; width: 30px; height: 20px; left: 10px; top: 18px;
+    background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%; }
+  .satorbit { position: absolute; inset: 6px; animation: spin 3.4s linear infinite; }
+  .sat { position: absolute; left: 50%; top: -4px; translate: -50%; font-size: 19px;
+    animation: counterspin 3.4s linear infinite; }
+  @keyframes counterspin { to { transform: rotate(-360deg); } }
+
+  /* 10 ── Jonas high five */
+  .jonas { width: 110px; height: 110px; border-radius: 18px; overflow: hidden; background: #10293f;
+    display: flex; align-items: center; justify-content: center; }
+  .jonas img { width: 96px; height: 96px; object-fit: contain; }
+  .jonas .j2 { display: none; }
+  .jonaswrap { position: relative; animation: jiggle .6s steps(1) infinite; }
+  @keyframes jiggle { 50% { transform: rotate(0deg); } }
+  /* bildväxlingen sköts av en liten skript-rad längst ner */
+</style>
+</head>
+<body>
+<header>
+  <h1>Laddare för Jonas geografi — 10 förslag</h1>
+  <div class="sub">Alla i ren CSS/SVG (utom nr 10 som använder Jonas-bilderna). S&auml;g vilka du gillar!</div>
+</header>
+<div class="grid">
+
+  <div class="card">
+    <div class="stage"><div class="globe"><div class="land l1"></div><div class="land l2"></div><div class="land l3"></div><div class="shine"></div></div></div>
+    <div class="name"><span class="num">1</span>Snurrande globen</div>
+    <div class="note">Kontinenter som glider förbi — klassikern.</div>
+    <div class="ladd">LADDAR VÄRLDEN…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="pinwrap">
+      <div class="pin"><svg width="44" height="60" viewBox="0 0 44 60"><path d="M22 2C11 2 3 10 3 21c0 13 19 37 19 37s19-24 19-37C41 10 33 2 22 2z" fill="#ff5252" stroke="#7a1f1f" stroke-width="2"/><circle cx="22" cy="20" r="8" fill="#fff"/></svg></div>
+      <div class="pinshadow"></div>
+    </div></div>
+    <div class="name"><span class="num">2</span>Studsande nålen</div>
+    <div class="note">Kartnålen letar efter rätt plats.</div>
+    <div class="ladd">HITTAR PLATSEN…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="puzzle"><div class="piece p1"></div><div class="piece p2"></div><div class="piece p3"></div><div class="piece p4"></div></div></div>
+    <div class="name"><span class="num">3</span>Pusslet</div>
+    <div class="note">Länderna pusslas ihop — precis som dina kartor.</div>
+    <div class="ladd">PUSSLAR IHOP…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="compass"><i class="n">N</i><i class="s">S</i><i class="e">Ö</i><i class="w">V</i><div class="needle"></div><div class="hub"></div></div></div>
+    <div class="name"><span class="num">4</span>Kompassen</div>
+    <div class="note">Nålen svänger och hittar norr med en studs.</div>
+    <div class="ladd">HITTAR NORR…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="orbitwrap"><div class="mini"></div><div class="orbit"><div class="plane">✈️</div></div></div></div>
+    <div class="name"><span class="num">5</span>Jorden runt</div>
+    <div class="note">Flygplanet hinner runt innan kartan laddat.</div>
+    <div class="ladd">FLYGER RUNT…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="drawwrap draw">
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <path class="fillin" d="M20 95 Q15 60 30 40 Q45 18 70 22 Q98 26 105 50 Q112 72 95 92 Q75 112 45 108 Q25 105 20 95Z"/>
+        <path class="outline" d="M20 95 Q15 60 30 40 Q45 18 70 22 Q98 26 105 50 Q112 72 95 92 Q75 112 45 108 Q25 105 20 95Z"/>
+      </svg>
+      <div class="pen">✏️</div>
+    </div></div>
+    <div class="name"><span class="num">6</span>Landet ritas</div>
+    <div class="note">En ö ritas och färgläggs — som dina teckningar.</div>
+    <div class="ladd">RITAR KARTAN…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="radar"><div class="sweep"></div><div class="blip b1"></div><div class="blip b2"></div><div class="blip b3"></div></div></div>
+    <div class="name"><span class="num">7</span>Radarn</div>
+    <div class="note">Letar upp länderna, pling pling!</div>
+    <div class="ladd">SÖKER LÄNDER…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="bouncers"><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div></div>
+    <div class="name"><span class="num">8</span>Studs-kontinenterna</div>
+    <div class="note">Tre småländer som studsar otåligt.</div>
+    <div class="ladd">SNART KLART…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="satwrap"><div class="mini"></div><div class="satorbit"><div class="sat">🛰️</div></div></div></div>
+    <div class="name"><span class="num">9</span>Satelliten</div>
+    <div class="note">Satelliten fotar jorden åt dig.</div>
+    <div class="ladd">TAR SATELLITBILD…</div>
+  </div>
+
+  <div class="card">
+    <div class="stage"><div class="jonaswrap"><div class="jonas">
+      <img class="j1" src="Jonas_1.webp" alt="Jonas">
+      <img class="j2" src="Jonas_2.webp" alt="Jonas high five">
+    </div></div></div>
+    <div class="name"><span class="num">10</span>Jonas high five</div>
+    <div class="note">Jonas peppar medan du väntar — appens egna bilder!</div>
+    <div class="ladd">HIGH FIVE OM EN SEKUND…</div>
+  </div>
+
+</div>
+<script>
+  // nr 10: växla Jonas-bilderna i takt
+  const j1 = document.querySelector('.j1'), j2 = document.querySelector('.j2');
+  let flip = false;
+  setInterval(() => {
+    flip = !flip;
+    j1.style.display = flip ? 'none' : '';
+    j2.style.display = flip ? '' : 'none';
+  }, 450);
+</script>
+</body>
+</html>
