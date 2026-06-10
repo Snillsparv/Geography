@@ -41,9 +41,12 @@ const arg = (name, dflt) => {
 };
 const MAXZOOM = +arg('maxzoom', 7);
 const OUT = path.resolve(repo, arg('out', 'tiles/world.pmtiles'));
-// Geographic pinning strength: 0 = pure region affine (hand-drawn composition
-// exactly), 1 = countries pulled fully onto their real projected bboxes.
-const GEO = Math.max(0, Math.min(1, +arg('geo', 0.5)));
+// Geographic pinning strength. Default 1: every country at its true projected
+// bbox. Mixed levels concentrate all adjustment at the boundary between
+// levels (the "curtain" zones below Russia/USA, then around Uzbekistan/Indien
+// when only the first ring was promoted) — uniform geo 1 spreads it evenly
+// and the shared grid keeps the jigsaw glued.
+const GEO = Math.max(0, Math.min(1, +arg('geo', 1)));
 // Resumable mode: --save DIR writes each tile to DIR/z/x/y.webp and skips
 // tiles that already exist, so an interrupted build continues where it left
 // off on the next invocation. --assemble packs DIR into the PMTiles archive.
@@ -88,16 +91,6 @@ const SHAPE_LOCK = new Map([
 const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
 const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
 
-// Countries that share a land border with a locked country sit at FULL
-// geographic position (geo 1): their own top edge is then already at the true
-// border, so the edge pins barely move anything — the stretch that used to
-// concentrate in an ugly curtain zone is instead spread evenly across the
-// whole country (a uniform bbox fit, like the early geo-1 comparison).
-const ADJ_GEO1 = new Set([
-  'asien/kazakstan', 'asien/mongoliet', 'asien/kina', 'asien/nordkorea',
-  'asien/georgien', 'asien/azerbajdzjan',
-  'nordamerika/mexiko',
-]);
 
 // Landmasses with no artwork, drawn as flat fills with the artwork-style
 // outline so the world map is complete (true shapes from Natural Earth).
@@ -444,8 +437,7 @@ function buildWarps(regions) {
           }
         }
         const qa = A(p);
-        const geo = ADJ_GEO1.has(`${r.slug}/${c.base}`) ? 1 : GEO;
-        controls.push({ p, q: [qa[0] * (1 - geo) + bq[i][0] * geo, qa[1] * (1 - geo) + bq[i][1] * geo] });
+        controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
       });
     }
     const warp = mlsAffine(controls);
