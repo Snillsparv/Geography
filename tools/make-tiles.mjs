@@ -688,6 +688,9 @@ async function main() {
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
             grid: g, node, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
+            // unit-merc dst bbox (för land-klippets ringfilter)
+            u0x: (minX + off) / world, u1x: (maxX + off) / world,
+            u0y: minY / world, u1y: maxY / world,
           };
           for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
             const k = tx + ',' + ty;
@@ -745,8 +748,16 @@ async function main() {
       // seam-gap fill never paints over open ocean.
       const hasUnderlay = tileDraws.some(d => d.order === 0);
       if (hasUnderlay) {
-        const tMinX = tx / nTiles, tMaxX = (tx + 1) / nTiles;
-        const tMinY = ty / nTiles, tMaxY = (ty + 1) / nTiles;
+        // Ring filter: tile ∩ union of the underlay draws' own bboxes — the
+        // wash only ever lands there, so far-away land is irrelevant.
+        let uMinX = Infinity, uMinY = Infinity, uMaxX = -Infinity, uMaxY = -Infinity;
+        for (const d of tileDraws) {
+          if (d.order !== 0) continue;
+          if (d.u0x < uMinX) uMinX = d.u0x; if (d.u1x > uMaxX) uMaxX = d.u1x;
+          if (d.u0y < uMinY) uMinY = d.u0y; if (d.u1y > uMaxY) uMaxY = d.u1y;
+        }
+        const tMinX = Math.max(tx / nTiles, uMinX), tMaxX = Math.min((tx + 1) / nTiles, uMaxX);
+        const tMinY = Math.max(ty / nTiles, uMinY), tMaxY = Math.min((ty + 1) / nTiles, uMaxY);
         ctx.save();
         ctx.beginPath();
         let any = false;
