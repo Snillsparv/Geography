@@ -22,16 +22,16 @@
   .ladd { font-size: .8rem; color: #5a8aaa; letter-spacing: 2px; animation: blink 1.4s ease-in-out infinite; }
   @keyframes blink { 50% { opacity: .35; } }
 
-  /* 1 ── Snurrande globen */
+  /* 1 ── Snurrande globen (riktiga kontinenter) */
+  /* En 2×bredd-strip av equirectangular kontinenter pannas sidledes —
+     upprepningen ger illusion av evig rotation. continents.svg ligger i repot. */
   .globe { width: 110px; height: 110px; border-radius: 50%; position: relative; overflow: hidden;
     background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%);
     box-shadow: inset -12px -8px 24px rgba(0,0,0,.4), 0 0 24px rgba(91,191,255,.25); }
-  .globe .land { position: absolute; background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%;
-    animation: drift 3.2s linear infinite; }
-  .globe .l1 { width: 55px; height: 38px; top: 18px; }
-  .globe .l2 { width: 42px; height: 30px; top: 66px; animation-delay: -1.6s; background: #e8c547; }
-  .globe .l3 { width: 30px; height: 22px; top: 44px; animation-delay: -2.4s; background: #ff8a65; }
-  @keyframes drift { from { left: -70px; } to { left: 120px; } }
+  .globe .strip { position: absolute; top: 8%; left: 0; height: 84%; width: 200%;
+    background: url('continents.svg') repeat-x; background-size: 50% 100%;
+    animation: pan 14s linear infinite; opacity: .92; }
+  @keyframes pan { to { transform: translateX(-50%); } }
   .globe .shine { position: absolute; inset: 0; border-radius: 50%;
     background: radial-gradient(circle at 32% 26%, rgba(255,255,255,.35), transparent 40%); }
 
@@ -75,13 +75,14 @@
   .compass .hub { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px;
     background: #ffd93d; border-radius: 50%; translate: -50% -50%; box-shadow: 0 0 6px rgba(0,0,0,.5); }
 
-  /* 5 ── Jorden runt */
+  /* 5 ── Jorden runt (riktiga kontinenter) */
   .orbitwrap { position: relative; width: 130px; height: 130px; }
   .orbitwrap .mini { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px;
-    translate: -50% -50%; border-radius: 50%;
+    translate: -50% -50%; border-radius: 50%; overflow: hidden;
     background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%); }
-  .orbitwrap .mini::after { content: ''; position: absolute; width: 26px; height: 18px; left: 8px; top: 14px;
-    background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%; }
+  .orbitwrap .mini .strip { position: absolute; top: 12%; left: 0; height: 76%; width: 200%;
+    background: url('continents.svg') repeat-x; background-size: 50% 100%;
+    animation: pan 12s linear infinite; opacity: .92; }
   .orbit { position: absolute; inset: 0; border: 2px dashed rgba(91,191,255,.35); border-radius: 50%;
     animation: spin 5s linear infinite; }
   .plane { position: absolute; left: 50%; top: -13px; translate: -50%; font-size: 22px;
@@ -123,12 +124,13 @@
   .blob.c { background: #4d96ff; border-radius: 55% 45% 50% 50%/45% 60% 40% 55%; animation-delay: .36s; }
   @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1, .92); } 35% { transform: translateY(-44px) scale(.95, 1.05) rotate(8deg); } 70% { transform: translateY(0) scale(1.05, .85); } }
 
-  /* 9 ── Satelliten */
+  /* 9 ── Satelliten (riktiga kontinenter) */
   .satwrap { position: relative; width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
-  .satwrap .mini { width: 64px; height: 64px; border-radius: 50%;
+  .satwrap .mini { width: 64px; height: 64px; border-radius: 50%; overflow: hidden;
     background: radial-gradient(circle at 35% 30%, #3a9ad9, #1b5e8e 70%); position: relative; }
-  .satwrap .mini::after { content: ''; position: absolute; width: 30px; height: 20px; left: 10px; top: 18px;
-    background: #57c785; border-radius: 45% 55% 60% 40%/50% 45% 55% 50%; }
+  .satwrap .mini .strip { position: absolute; top: 12%; left: 0; height: 76%; width: 200%;
+    background: url('continents.svg') repeat-x; background-size: 50% 100%;
+    animation: pan 13s linear infinite; opacity: .92; }
   .satorbit { position: absolute; inset: 6px; animation: spin 3.4s linear infinite; }
   .sat { position: absolute; left: 50%; top: -4px; translate: -50%; font-size: 19px;
     animation: counterspin 3.4s linear infinite; }
@@ -152,7 +154,7 @@
 <div class="grid">
 
   <div class="card">
-    <div class="stage"><div class="globe"><div class="land l1"></div><div class="land l2"></div><div class="land l3"></div><div class="shine"></div></div></div>
+    <div class="stage"><div class="globe"><div class="strip"></div><div class="shine"></div></div></div>
     <div class="name"><span class="num">1</span>Snurrande globen</div>
     <div class="note">Kontinenter som glider förbi — klassikern.</div>
     <div class="ladd">LADDAR VÄRLDEN…</div>
@@ -183,7 +185,7 @@
   </div>
 
   <div class="card">
-    <div class="stage"><div class="orbitwrap"><div class="mini"></div><div class="orbit"><div class="plane">✈️</div></div></div></div>
+    <div class="stage"><div class="orbitwrap"><div class="mini"><div class="strip"></div></div><div class="orbit"><div class="plane">✈️</div></div></div></div>
     <div class="name"><span class="num">5</span>Jorden runt</div>
     <div class="note">Flygplanet hinner runt innan kartan laddat.</div>
     <div class="ladd">FLYGER RUNT…</div>
@@ -217,7 +219,7 @@
   </div>
 
   <div class="card">
-    <div class="stage"><div class="satwrap"><div class="mini"></div><div class="satorbit"><div class="sat">🛰️</div></div></div></div>
+    <div class="stage"><div class="satwrap"><div class="mini"><div class="strip"></div></div><div class="satorbit"><div class="sat">🛰️</div></div></div></div>
     <div class="name"><span class="num">9</span>Satelliten</div>
     <div class="note">Satelliten fotar jorden åt dig.</div>
     <div class="ladd">TAR SATELLITBILD…</div>
