@@ -84,7 +84,7 @@ const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '
 // stretched into each major polygon separately (USA: mainland gets the flag,
 // Alaska gets its own flag fill — complete coverage, no underlay patches).
 const SHAPE_LOCK = new Map([
-  ['asien/ryssland', 'whole'],
+  ['asien/ryssland', 'exact'],
   ['nordamerika/kanada', 'whole'],
   ['nordamerika/usa', 'perpiece'],
 ]);
@@ -538,6 +538,45 @@ async function renderLocked(ctx, d, world, tx, ty) {
   // raster sized for the country's full footprint (largest piece dominates)
   const fullW = (g.maxX - g.minX) * world;
   const raster = await getRaster(d.key, d.svgPath, Math.min(RASTER_CAP, fullW * LOCK_OVERSCAN));
+
+  // 'exact' mode: the art was drawn ON the Mercator template, so its latitude
+  // is already non-linear Mercator. No strip remap, no underlay — just map the
+  // art's tight opaque bbox 1:1 onto the country's true projected bbox and clip
+  // to the polygon. Zero distortion; this is the mode for redrawn countries.
+  if (g.mode === 'exact') {
+    const ab = (await getPieceArtBounds(d.key, d.svgPath, g))[0];
+    const sx = ab[0] * raster.w, sy = ab[1] * raster.h;
+    const sw = (ab[2] - ab[0]) * raster.w, sh = (ab[3] - ab[1]) * raster.h;
+    const bx = g.minX * world + ox, by = g.minY * world + oy;
+    const bw = (g.maxX - g.minX) * world, bh = (g.maxY - g.minY) * world;
+    ctx.save();
+    ctx.beginPath();
+    for (const piece of g.pieces) {
+      for (const pts of piece.rings) {
+        ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
+        for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+        ctx.closePath();
+      }
+    }
+    ctx.clip('evenodd');
+    ctx.drawImage(raster.img, sx, sy, sw, sh, bx, by, bw, bh);
+    ctx.restore();
+    // crisp true-polygon outline on top (matches the art's own contour)
+    ctx.beginPath();
+    for (const piece of g.pieces) {
+      for (const pts of piece.rings) {
+        ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
+        for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+        ctx.closePath();
+      }
+    }
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.2, Math.min(12, fullW / 400));
+    ctx.stroke();
+    return;
+  }
+
   const underlay = await getUnderlayScaled(d.key, d.svgPath, fullW);
   // Per piece: grab the art sub-rect at the piece's relative position within
   // the full footprint (the artist drew Alaska/mainland in roughly correct
