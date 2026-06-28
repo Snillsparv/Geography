@@ -85,8 +85,8 @@ const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '
 // Alaska gets its own flag fill — complete coverage, no underlay patches).
 const SHAPE_LOCK = new Map([
   ['asien/ryssland', 'exact'],
-  ['nordamerika/kanada', 'whole'],
-  ['nordamerika/usa', 'perpiece'],
+  ['nordamerika/kanada', 'exact'],
+  ['nordamerika/usa', 'exact'],
 ]);
 const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
 const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
