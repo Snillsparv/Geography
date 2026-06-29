@@ -332,89 +332,17 @@ function buildWarps(regions) {
         if (p.latMax > latMaxAll) latMaxAll = p.latMax;
       }
       c.lockGeom = { pieces, minX, minY, maxX, maxY, latMin: latMinAll, latMax: latMaxAll, mode: c.lock };
-
-      // Border bins for edge pins: per x-column the true south/north border y,
-      // per y-row the true west/east border x. Small islands are excluded so
-      // e.g. the Kurils don't drag the "southern border" out to sea.
-      const big = pieces.flatMap(p => p.rings.map(pts => ({ pts, area: 0 })));
-      // ring bbox area as island filter
-      let maxArea = 0;
-      for (const rg of big) {
-        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
-        for (let i = 0; i < rg.pts.length; i += 2) {
-          if (rg.pts[i] < mnx) mnx = rg.pts[i]; if (rg.pts[i] > mxx) mxx = rg.pts[i];
-          if (rg.pts[i + 1] < mny) mny = rg.pts[i + 1]; if (rg.pts[i + 1] > mxy) mxy = rg.pts[i + 1];
-        }
-        rg.area = (mxx - mnx) * (mxy - mny);
-        if (rg.area > maxArea) maxArea = rg.area;
-      }
-      const NB = 64;
-      const g0 = c.lockGeom;
-      const southY = new Array(NB).fill(NaN), northY = new Array(NB).fill(NaN);
-      const westX = new Array(NB).fill(NaN), eastX = new Array(NB).fill(NaN);
-      for (const rg of big) {
-        if (rg.area < maxArea * 0.1) continue;
-        for (let i = 0; i < rg.pts.length; i += 2) {
-          const x = rg.pts[i], y = rg.pts[i + 1];
-          const bx = Math.max(0, Math.min(NB - 1, Math.floor((x - g0.minX) / (g0.maxX - g0.minX) * NB)));
-          const by = Math.max(0, Math.min(NB - 1, Math.floor((y - g0.minY) / (g0.maxY - g0.minY) * NB)));
-          if (!(southY[bx] >= y)) southY[bx] = Math.max(southY[bx] || -Infinity, y);
-          if (!(northY[bx] <= y)) northY[bx] = Math.min(northY[bx] || Infinity, y);
-          if (!(westX[by] <= x)) westX[by] = Math.min(westX[by] || Infinity, x);
-          if (!(eastX[by] >= x)) eastX[by] = Math.max(eastX[by] || -Infinity, x);
-        }
-      }
-      const fillGaps = a => {
-        for (let i = 0; i < NB; i++) {
-          if (Number.isNaN(a[i])) {
-            let j = 1;
-            while (j < NB && Number.isNaN(a[(i + j) % NB]) && Number.isNaN(a[(i - j + NB) % NB])) j++;
-            a[i] = !Number.isNaN(a[(i - j + NB) % NB]) ? a[(i - j + NB) % NB] : a[(i + j) % NB];
-          }
-        }
-      };
-      fillGaps(southY); fillGaps(northY); fillGaps(westX); fillGaps(eastX);
-      c.borderBins = { southY, northY, westX, eastX, NB };
     }
 
-    // Controls. Non-locked countries: geo-blended bbox corners as before.
-    // Locked countries contribute NO interior corners — instead, pins along
-    // their art-quad edges map straight onto the TRUE border, so neighbours
-    // (Kazakstan/Mongoliet/Kina mot Ryssland, Mexiko mot USA …) get pulled all
-    // the way to the real boundary: crisp seams, no filler band needed.
-    const lockTarget = (c, px, py) => {
-      const g0 = c.lockGeom, bins = c.borderBins;
-      const u = Math.max(0, Math.min(1, (px - c.left) / c.width));
-      const v = Math.max(0, Math.min(1, (py - c.top) / c.height));
-      // latitude is linear in the drawings → strip mapping for y
-      const lat = g0.latMax + v * (g0.latMin - g0.latMax);
-      const yLin = mercY(lat);
-      const x = g0.minX + u * (g0.maxX - g0.minX);
-      const bx = Math.max(0, Math.min(bins.NB - 1, Math.floor(u * bins.NB)));
-      const by = Math.max(0, Math.min(bins.NB - 1, Math.floor((yLin - g0.minY) / (g0.maxY - g0.minY) * bins.NB)));
-      // pick the nearest quad edge
-      const dEdge = Math.min(v, 1 - v, u, 1 - u);
-      if (dEdge === 1 - v) return [x, bins.southY[bx]];
-      if (dEdge === v) return [x, bins.northY[bx]];
-      if (dEdge === u) return [bins.westX[by], yLin];
-      return [bins.eastX[by], yLin];
-    };
-
     const controls = [];
-    const lockedCs = r.countries.filter(c => c.lock);
     for (const c of r.countries) {
-      if (c.lock) {
-        // pins along all four edges (interior samples; corners excluded)
-        for (let i = 1; i <= 9; i++) {
-          const t = i / 10;
-          const ex = c.left + t * c.width, ey = c.top + t * c.height;
-          controls.push({ p: [ex, c.top], q: lockTarget(c, ex, c.top) });
-          controls.push({ p: [ex, c.top + c.height], q: lockTarget(c, ex, c.top + c.height) });
-          controls.push({ p: [c.left, ey], q: lockTarget(c, c.left, ey) });
-          controls.push({ p: [c.left + c.width, ey], q: lockTarget(c, c.left + c.width, ey) });
-        }
-        continue;
-      }
+      // Shape-locked countries (Russia/Canada/USA) are drawn separately, clipped
+      // to their true polygons, and contribute NOTHING to the rubber sheet.
+      // (They used to inject edge pins from their old hand-drawn region-canvas
+      // quads, which sheared every neighbour — Iran in Asia, Mexico by the USA.)
+      // Their true polygons coincide with where the neighbours' own geo-1 pins
+      // place them, so the seams still meet without any pins.
+      if (c.lock) continue;
       const b = projectedBbox(c.anchor, ref);
       const corners = [
         [c.left, c.top], [c.left + c.width, c.top],
@@ -422,20 +350,6 @@ function buildWarps(regions) {
       ];
       const bq = [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY]];
       corners.forEach((p, i) => {
-        // corners that touch a locked country's quad edge snap to its TRUE
-        // border instead of the geo blend — agreement kills the pinch zone
-        const TOL = 50;
-        for (const lc of lockedCs) {
-          const nearX = p[0] > lc.left - TOL && p[0] < lc.left + lc.width + TOL;
-          const nearY = p[1] > lc.top - TOL && p[1] < lc.top + lc.height + TOL;
-          const onEdge = nearX && nearY && (
-            Math.abs(p[1] - (lc.top + lc.height)) < TOL || Math.abs(p[1] - lc.top) < TOL ||
-            Math.abs(p[0] - (lc.left + lc.width)) < TOL || Math.abs(p[0] - lc.left) < TOL);
-          if (onEdge) {
-            controls.push({ p, q: lockTarget(lc, p[0], p[1]) });
-            return;
-          }
-        }
         const qa = A(p);
         controls.push({ p, q: [qa[0] * (1 - GEO) + bq[i][0] * GEO, qa[1] * (1 - GEO) + bq[i][1] * GEO] });
       });
