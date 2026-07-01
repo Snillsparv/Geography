@@ -11,10 +11,28 @@ archive. Each region is warped as ONE rubber sheet: a fixed grid over the
 region canvas, deformed by a Moving Least Squares field shared by every
 country, so the jigsaw the maps were drawn as stays glued (no cracks or
 overlaps between neighbours) and geometry is identical at every zoom level
-(deeper tiles are just sharper — shapes never morph). `--geo 0..1` blends the
-warp targets between the region's least-squares affine (0 = the hand-drawn
-composition exactly) and each country's true projected bbox (1 = max
-geographic accuracy). Default 0.5.
+(deeper tiles are just sharper — shapes never morph).
+
+Every country pins the warp with five control points ON its artwork's
+opaque mass (centroid + principal axes — never the empty quad corners, which
+overlap neighbours and used to fold the field around interlocking shapes
+like Peru/Ecuador/Chile). `--geo 0..1` blends the pin targets between the
+region's least-squares affine (0 = the hand-drawn composition exactly) and
+the moment-transport affine onto the true projected polygon (1 = right
+place, size and tilt). Default 1. Isolated island nations drawn far larger
+than life (Pacific/Caribbean micro-states, Maldiverna …) are detected
+automatically and always keep the composition placement ("badges").
+
+The sheets render per pixel (inverse-bilinear per warp cell — exact
+coverage, so no hairline mesh seams). Neighbours of the shape-locked
+countries (Ryssland/Kanada/USA, drawn clipped to their true Natural Earth
+polygons) get art shortfall near the locked border filled with their own
+colour-extended, blurred underlay; sheets are clipped out of the locked
+polygons and the locked outlines re-stroke on top — crisp borders, no
+ocean slivers.
+
+Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
+(combine with `--save DIR` and inspect the webp files directly).
 
 `make-globe-demo.mjs` builds `globe-demo.html`: MapLibre GL (globe + mercator
 projections) reading the PMTiles via HTTP range requests, with a Natural
