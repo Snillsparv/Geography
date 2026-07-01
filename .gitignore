@@ -72,3 +72,6 @@ node_modules/
 tools/psd-extracted/
 tools/three.bundle.min.js
 tilecache/
+
+# make-tiles.mjs scratch output (debug windows, resumable tile dirs)
+/tmp-*/
