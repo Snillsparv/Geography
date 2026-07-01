@@ -69,7 +69,12 @@ const WINDOW = (() => {
   const w = arg('window', null);
   if (!w) return null;
   const [z, x0, y0, x1, y1] = w.split(':').map(Number);
-  return { z, x0, y0, x1: x1 ?? x0, y1: y1 ?? y0 };
+  const win = { z, x0, y0, x1: x1 ?? x0, y1: y1 ?? y0 };
+  if (![win.z, win.x0, win.y0, win.x1, win.y1].every(Number.isInteger)) {
+    throw new Error(`ogiltigt --window "${w}" (förväntar z:x0:y0[:x1:y1])`);
+  }
+  if (win.z > MAXZOOM) throw new Error(`--window z${win.z} > --maxzoom ${MAXZOOM}`);
+  return win;
 })();
 
 const TILE = 512;
@@ -393,6 +398,10 @@ function computeAdjacency(regions) {
   });
   for (const c of all) { c.hasLandBorder = false; c.gapAdj = false; }
   for (const [sk, n] of shared) {
+    // <8 shared vertices = micro-border (San Marino/Monaco/Vatikanen have
+    // 5-6 in ne_50m). Deliberately NOT counted: oversized enclave art works
+    // far better as a composition-placed badge than moment-pinned into a
+    // dot inside its host, which would pinch the host's field violently.
     if (n < 8) continue;
     const a = all[(sk / 4096) | 0], b = all[sk % 4096];
     a.hasLandBorder = b.hasLandBorder = true;
@@ -1005,6 +1014,7 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // exist by construction. All math runs in premultiplied alpha.
 const sheetBuf = new Uint8ClampedArray(TILE * TILE * 4);   // tile's sheet layer
 const scratch = new Uint8ClampedArray(TILE * TILE * 4);    // one country's art
+const artCov = new Uint8Array(TILE * TILE);                // art alpha per pixel
 const blitCanvas = createCanvas(TILE, TILE);               // sheetBuf → tile ctx
 
 // Rasterize polygon rings (unit merc × world, tile-relative) → 0/1 mask.
@@ -1111,8 +1121,9 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand) {
             if (Math.abs(qb) < 1e-12) continue;
             v = -qc / qb;
           } else {
-            const disc = qb * qb - 4 * qa * qc;
-            if (disc < 0) continue;
+            // disc < 0 only happens in folded/degenerate cells; clamp to the
+            // nearest real solution instead of dropping the pixel (pinholes)
+            const disc = Math.max(0, qb * qb - 4 * qa * qc);
             const sq = Math.sqrt(disc);
             v = (-qb + sq) / (2 * qa);
             if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * qa);
@@ -1135,6 +1146,7 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand) {
             r += rd[si] * w; gr += rd[si + 1] * w; b += rd[si + 2] * w; a += rd[si + 3] * w;
           }
           const gi = py * TILE + px;
+          const aArt = a;   // art alpha before any underlay is mixed in
           if (gapMask && gapMask[gi]) {
             // underlay beneath the art: clamped sample of the extended colours
             const ux = Math.min(un.w - 1, Math.max(0, (sx + 0.5) * ku - 0.5));
@@ -1152,6 +1164,10 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand) {
             const inv = 1 - a / 255;
             r += ur * inv; gr += ug * inv; b += ub * inv; a += ua * inv;
           } else if (a < 1) continue;
+          // overlapping cells (folds, or the gap-widened grid loop): a write
+          // carrying MORE art must never be replaced by a fill-only write
+          if (aArt < artCov[gi]) continue;
+          artCov[gi] = aArt;
           const pi = gi * 4;
           scratch[pi] = r; scratch[pi + 1] = gr; scratch[pi + 2] = b; scratch[pi + 3] = a;
         }
@@ -1180,6 +1196,7 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand) {
       }
     }
     scratch.fill(0, (rowBase + tminx) * 4, (rowBase + tmaxx + 1) * 4);
+    artCov.fill(0, rowBase + tminx, rowBase + tmaxx + 1);
   }
 }
 
@@ -1187,10 +1204,12 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand) {
 // region sheets so neighbouring art can never paint over the border line.
 function strokeLocked(ctx, d, world, tx, ty) {
   const ox = -tx * TILE + d.off, oy = -ty * TILE;
+  const lw = Math.max(1.2, Math.min(12, d.dstW / 400));
+  const pad = lw / 2 + 1;   // stroke bleeds half its width past the bbox
   ctx.beginPath();
   for (const piece of d.geom.pieces) {
-    if (piece.maxX * world + ox < 0 || piece.minX * world + ox > TILE ||
-        piece.maxY * world + oy < 0 || piece.minY * world + oy > TILE) continue;
+    if (piece.maxX * world + ox < -pad || piece.minX * world + ox > TILE + pad ||
+        piece.maxY * world + oy < -pad || piece.minY * world + oy > TILE + pad) continue;
     for (const pts of piece.rings) {
       ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
       for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
@@ -1199,7 +1218,7 @@ function strokeLocked(ctx, d, world, tx, ty) {
   }
   ctx.strokeStyle = '#0a0a0a';
   ctx.lineJoin = 'round';
-  ctx.lineWidth = Math.max(1.2, Math.min(12, d.dstW / 400));
+  ctx.lineWidth = lw;
   ctx.stroke();
 }
 
@@ -1238,11 +1257,15 @@ async function main() {
           const offsets = [0];
           if (maxX > world) offsets.push(-world);
           if (minX < 0) offsets.push(world);
+          // the neighbours' gap-fill band and the outline stroke bleed past
+          // the polygon bbox — register those margin tiles too (fully empty
+          // tiles are dropped again before encoding)
+          const pad = Math.ceil((world * 0.0125 + 12) / TILE);
           for (const off of offsets) {
-            const tx0 = Math.max(0, Math.floor((minX + off) / TILE));
-            const tx1 = Math.min(nTiles - 1, Math.floor((maxX + off) / TILE));
-            const ty0 = Math.max(0, Math.floor(minY / TILE));
-            const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE));
+            const tx0 = Math.max(0, Math.floor((minX + off) / TILE) - pad);
+            const tx1 = Math.min(nTiles - 1, Math.floor((maxX + off) / TILE) + pad);
+            const ty0 = Math.max(0, Math.floor(minY / TILE) - pad);
+            const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE) + pad);
             if (tx1 < tx0 || ty1 < ty0) continue;
             const drawRec = {
               lock: true, order: 1,
@@ -1273,6 +1296,15 @@ async function main() {
         }
         const dstW = maxX - minX;
         if (!(dstW > 0)) continue;
+        // gap-fill countries paint up to their true polygon, which can jut
+        // past the warped art bbox — register those tiles too, or the fill
+        // would stop dead at a tile boundary
+        if (c.gapAdj) {
+          if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
+          if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
+          if (c.mercGeom.minY * world < minY) minY = c.mercGeom.minY * world;
+          if (c.mercGeom.maxY * world > maxY) maxY = c.mercGeom.maxY * world;
+        }
         // world copies for antimeridian-crossing regions
         const offsets = [0];
         if (maxX > world) offsets.push(-world);
@@ -1373,6 +1405,14 @@ async function main() {
           strokeLocked(ctx, d, world, tx, ty);
         }
       }
+      // registration bboxes overshoot the artwork (locked pads, badge quads) —
+      // drop tiles where nothing actually landed
+      const px = ctx.getImageData(0, 0, TILE, TILE).data;
+      let painted = false;
+      for (let i = 3; i < px.length; i += 4) {
+        if (px[i]) { painted = true; break; }
+      }
+      if (!painted) continue;
       const buf = await canvas.encode('webp', 82);
       if (SAVE) {
         mkdirSync(path.dirname(savePath), { recursive: true });
@@ -1387,6 +1427,10 @@ async function main() {
 
   if (SAVE) {
     console.log('\nTile files saved. Run with --assemble to pack the archive.');
+    return;
+  }
+  if (WINDOW) {
+    console.log('\n--window utan --save: hoppar över assemble så det riktiga arkivet inte skrivs över.');
     return;
   }
   await assemble(allTiles);
