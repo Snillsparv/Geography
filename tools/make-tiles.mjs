@@ -1011,6 +1011,24 @@ async function extendArt(svgPath, capFrac) {
         rim[ni] = 1; rdist[ni] = rdist[i] + 1; q[t++] = ni;
       }
     }
+    // dilate 2 px: the line's antialiasing ring (grey blends between ink and
+    // fill, too light for the dark test) must go too, or it survives as an
+    // opaque grey ghost in the extension
+    const rim0 = rim.slice();
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!rim0[y * W + x]) continue;
+        for (let dy = -2; dy <= 2; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= H) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const xx = x + dx;
+            if (xx < 0 || xx >= W) continue;
+            rim[yy * W + xx] = 1;
+          }
+        }
+      }
+    }
   }
   const nearDark = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) {
@@ -1734,6 +1752,23 @@ async function main() {
             else for (let i = 0; i < m.length; i++) band[i] |= m[i];
           }
           if (!band) continue;
+          // 2 px collar outside the polygon: the mask rasterization's own
+          // antialiasing leaves the outermost pixel ring unowned, and the
+          // art contour's residue survived there as a dotted ghost line
+          const collar = new Uint8Array(TG * TG);
+          for (let py = 1; py < TG - 1; py++) {
+            for (let px = 1; px < TG - 1; px++) {
+              const i = py * TG + px;
+              if (!lockedMask[i]) continue;
+              if (lockedMask[i - 1] && lockedMask[i + 1] && lockedMask[i - TG] && lockedMask[i + TG]) continue;
+              for (let dy = -2; dy <= 2; dy++) {
+                for (let dx = -2; dx <= 2; dx++) {
+                  const j = i + dy * TG + dx;
+                  if (!lockedMask[j]) collar[j] = 1;
+                }
+              }
+            }
+          }
           const un = await getUnderlayFullData(key, rec.svgPath, 1024);
           const ab = (await getPieceArtBounds(key, rec.svgPath, rec.geom))[0];
           const raster = await getRaster(key, rec.svgPath, rec.dstW);
@@ -1742,22 +1777,41 @@ async function main() {
           for (let py = 0; py < TG; py++) {
             for (let px = 0; px < TG; px++) {
               const i = py * TG + px;
-              if (!band[i] || !lockedMask[i] || ownerBuf[i] !== ownerId) continue;
+              if (!band[i]) continue;
+              // inside: only our own pixels; collar: never over neighbour art
+              if (lockedMask[i]) {
+                if (ownerBuf[i] !== ownerId) continue;
+              } else {
+                if (!collar[i] || (ownerBuf[i] !== ownerId && ownerBuf[i] !== 0)) continue;
+              }
               const fu = Math.min(1, Math.max(0, (tx * TILE + px - G + 0.5 - x0) / (x1 - x0)));
               const fv = Math.min(1, Math.max(0, (ty * TILE + py - G + 0.5 - y0) / (y1 - y0)));
               const au = ab[0] + fu * (ab[2] - ab[0]), av = ab[1] + fv * (ab[3] - ab[1]);
               const rx = Math.min(raster.w - 1, Math.max(0, Math.round(au * raster.w - 0.5)));
               const ry = Math.min(raster.h - 1, Math.max(0, Math.round(av * raster.h - 0.5)));
-              const rsi = (ry * raster.w + rx) * 4;
-              // keep crisp art wherever it is NOT the dark contour line
-              if (raster.data[rsi + 3] > 60 &&
-                  Math.max(raster.data[rsi], raster.data[rsi + 1], raster.data[rsi + 2]) > 140) continue;
+              // keep crisp art only where NO dark contour ink exists in the
+              // 5×5 raster neighbourhood: the upscale smears the line's
+              // darkness between raster pixels, so a single-pixel test left
+              // half-erased grey ghosts along the old border
+              let darkNear = false;
+              for (let ny = Math.max(0, ry - 2); ny <= Math.min(raster.h - 1, ry + 2) && !darkNear; ny++) {
+                for (let nx = Math.max(0, rx - 2); nx <= Math.min(raster.w - 1, rx + 2); nx++) {
+                  const ti = (ny * raster.w + nx) * 4;
+                  if (raster.data[ti + 3] <= 60 ||
+                      Math.max(raster.data[ti], raster.data[ti + 1], raster.data[ti + 2]) <= 160) {
+                    darkNear = true;
+                    break;
+                  }
+                }
+              }
+              if (!darkNear) continue;
               const ux = Math.min(un.w - 1, Math.max(0, Math.round(au * un.w - 0.5)));
               const uy = Math.min(un.h - 1, Math.max(0, Math.round(av * un.h - 0.5)));
               const usi = (uy * un.w + ux) * 4;
               const j = i * 4;
               sheetBuf[j] = un.data[usi]; sheetBuf[j + 1] = un.data[usi + 1];
               sheetBuf[j + 2] = un.data[usi + 2]; sheetBuf[j + 3] = 255;
+              if (!ownerBuf[i]) ownerBuf[i] = ownerId;
             }
           }
         }
