@@ -1468,9 +1468,45 @@ function writeRegions(regions, fills) {
   for (const r of regions) for (const c of r.countries) meta.set(c.gid, { key: c.key, name: c.name });
 
   const features = [];
-  let nRings = 0, nDropped = 0, nOpen = 0;
+  let nRings = 0, nDropped = 0, nOpen = 0, nRepair = 0;
   for (const [gid, segs] of [...regionSegs.entries()].sort((a, b) => a[0] - b[0])) {
     const openPts = [];
+    // REPAIR pass: rare cross-tile rasterization mismatches leave a few
+    // nodes with unequal in/out degree, and ONE such defect breaks the whole
+    // ring that walks through it (the mainland rings, always). Pair every
+    // deficit node with the nearest surplus node — defects are 1–2 px
+    // ownership flips, so the pair sits at the same spot — and bridge them
+    // with a synthetic segment: a tiny detour, invisible after
+    // simplification. Distant pairs are left alone (cap below) so a real
+    // data hole can never be "repaired" with a line across the map.
+    {
+      const deg = new Map();               // node → in − out
+      const nn = segs.length / 4;
+      for (let s = 0; s < nn; s++) {
+        const a = nk(segs[s * 4], segs[s * 4 + 1]), b = nk(segs[s * 4 + 2], segs[s * 4 + 3]);
+        deg.set(a, (deg.get(a) || 0) - 1);
+        deg.set(b, (deg.get(b) || 0) + 1);
+      }
+      const sinks = [], sources = [];      // in>out → needs an OUT; out>in → needs an IN
+      for (const [k, d] of deg) {
+        for (let i = 0; i < d; i++) sinks.push(k);
+        for (let i = 0; i < -d; i++) sources.push(k);
+      }
+      for (const a of sinks) {
+        const ax = a % W1, ay = (a / W1) | 0;
+        let best = -1, bd = 64 * 64;       // max bridge: 64 px (~40 km at z6)
+        for (let j = 0; j < sources.length; j++) {
+          if (sources[j] < 0) continue;
+          const dx = ax - sources[j] % W1, dy = ay - ((sources[j] / W1) | 0);
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bd) { bd = d2; best = j; }
+        }
+        if (best < 0) continue;
+        segs.push(ax, ay, sources[best] % W1, (sources[best] / W1) | 0);
+        sources[best] = -1;
+        nRepair++;
+      }
+    }
     const n = segs.length / 4;
     const bySt = new Map();          // start node → outgoing segment indices
     for (let s = 0; s < n; s++) {
@@ -1478,6 +1514,31 @@ function writeRegions(regions, fills) {
       let a = bySt.get(k);
       if (!a) { a = []; bySt.set(k, a); }
       a.push(s);
+    }
+    if (process.env.DEBUG_DUMP && +process.env.DEBUG_DUMP === gid) {
+      writeFileSync('/tmp/claude-0/-home-user-Geography/cc4911bd-37bf-5544-ab54-0d3712a1f51f/scratchpad/segdump.json', JSON.stringify([...segs]));
+      console.log(`  dumpade ${n} segment för gid ${gid}`);
+    }
+    if (process.env.DEBUG_DEGREE) {
+      const deg = new Map();                  // node → [in, out]
+      const dup = new Map();                  // exact directed seg → count
+      for (let s = 0; s < n; s++) {
+        const a = nk(segs[s * 4], segs[s * 4 + 1]), b = nk(segs[s * 4 + 2], segs[s * 4 + 3]);
+        if (!deg.has(a)) deg.set(a, [0, 0]);
+        if (!deg.has(b)) deg.set(b, [0, 0]);
+        deg.get(a)[1]++; deg.get(b)[0]++;
+        const dk = a + ':' + b;
+        dup.set(dk, (dup.get(dk) || 0) + 1);
+      }
+      let bad = 0, dups = 0;
+      for (const [k, [di, dout]] of deg) {
+        if (di !== dout) {
+          if (bad < 8) console.log(`  gid ${gid} OBALANS nod ${k % W1},${(k / W1) | 0}: in ${di} ut ${dout}`);
+          bad++;
+        }
+      }
+      for (const [dk, cnt] of dup) if (cnt > 1) { dups += cnt - 1; if (dups <= 4) console.log(`  gid ${gid} DUBBLETT ${dk}`); }
+      if (bad || dups) console.log(`  gid ${gid}: ${bad} obalanserade noder, ${dups} dubbletter, ${n} segment`);
     }
     const used = new Uint8Array(n);
     const rings = [];
@@ -1575,7 +1636,7 @@ function writeRegions(regions, fills) {
   const out = path.resolve(repo, REGIONS_OUT);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify({ type: 'FeatureCollection', features }));
-  console.log(`Skrev ${out}: ${features.length} länder, ${nRings} ringar (${nDropped} småfragment släppta, ${nOpen} öppna).`);
+  console.log(`Skrev ${out}: ${features.length} länder, ${nRings} ringar (${nDropped} småfragment släppta, ${nOpen} öppna, ${nRepair} lagade skarvar).`);
 }
 
 // Warp one country's art into `scratch`, then source-over onto `sheetBuf`.
