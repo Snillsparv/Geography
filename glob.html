@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jonas geografi – jordglob</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="vendor/maplibre-gl.css">
+  <style>
+    /* ── glob-sidans tillägg: kartpanelen är en MapLibre-glob / platt canvas ── */
+    #spel-map { position: absolute; inset: 0; background: #0e2438; }
+    #flat-wrap { position: absolute; inset: 0; display: none; align-items: center;
+      justify-content: center; background: #0e2438; }
+    #flat-wrap canvas { max-width: 100%; max-height: 100%; cursor: pointer; }
+    .map-panel.platt #spel-map { visibility: hidden; }
+    .map-panel.platt #flat-wrap { display: flex; }
+    .view-toggle { position: absolute; left: 12px; bottom: 12px; z-index: 5;
+      display: flex; gap: 6px; }
+    .view-toggle button { padding: 8px 14px; border-radius: 10px; cursor: pointer;
+      border: 2px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9);
+      font-weight: 700; font-size: .85rem; color: #234; }
+    .view-toggle button.active { background: #2980b9; border-color: #1c5a80; color: #fff; }
+    #spel-load { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+      z-index: 6; background: rgba(10,22,38,.94); border-radius: 12px; padding: 14px 22px;
+      color: #cde; font-size: .9rem; min-width: 240px; text-align: center; }
+    #spel-load .track { height: 6px; border-radius: 3px; background: rgba(255,255,255,.15);
+      margin-top: 10px; overflow: hidden; }
+    #spel-load .fill { height: 100%; width: 0%; background: #5bbfff; transition: width .15s; }
+    .region-card.glob-card span { background: #1d3a57; }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
+  <h1>Jonas geografi</h1>
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="explore">Utforska</button>
+    <button class="mode-btn" data-mode="seterra">Klassiskt Quiz</button>
+  </div>
+  <span class="header-hint" id="header-hint">Klicka p&aring; ett land</span>
+</header>
+
+<div class="region-selector" id="region-selector" style="display:none">
+  <h2>V&auml;lj en v&auml;rldsdel &#127757;</h2>
+  <div class="region-grid">
+    <a class="region-card world-card" href="?region=world">
+      <img src="world_cover.webp" alt="V&Auml;RLDSTEST" loading="lazy">
+      <span>V&Auml;RLDSTEST</span>
+    </a>
+    <a class="region-card" href="?region=europa">
+      <img src="assets/covers/europa.webp" alt="Europa" loading="lazy">
+      <span>Europa</span>
+    </a>
+    <a class="region-card" href="?region=afrika">
+      <img src="assets/covers/afrika.webp" alt="Afrika" loading="lazy">
+      <span>Afrika</span>
+    </a>
+    <a class="region-card" href="?region=asien">
+      <img src="assets/covers/asien.webp" alt="Asien" loading="lazy">
+      <span>Asien</span>
+    </a>
+    <a class="region-card" href="?region=nordamerika">
+      <img src="assets/covers/nordamerika.webp" alt="Nordamerika" loading="lazy">
+      <span>Nordamerika</span>
+    </a>
+    <a class="region-card" href="?region=sydamerika">
+      <img src="assets/covers/sydamerika.webp" alt="Sydamerika" loading="lazy">
+      <span>Sydamerika</span>
+    </a>
+    <a class="region-card" href="?region=oceanien">
+      <img src="assets/covers/oceanien.webp" alt="Oceanien" loading="lazy">
+      <span>Oceanien</span>
+    </a>
+    <a class="region-card" href="?region=vastindien">
+      <img src="assets/covers/vastindien.webp" alt="V&auml;stindien" loading="lazy">
+      <span>V&auml;stindien</span>
+    </a>
+  </div>
+</div>
+
+<div class="game-container">
+  <div class="map-panel" id="map-panel">
+    <div id="spel-map"></div>
+    <div id="flat-wrap"><canvas id="flat-canvas"></canvas></div>
+    <div id="spel-load"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
+      <div class="track"><div class="fill" id="spel-load-bar"></div></div></div>
+    <div class="view-toggle">
+      <button id="view-glob" class="active">Glob &#127757;</button>
+      <button id="view-platt">Platt karta</button>
+    </div>
+    <div class="explore-toggle-buttons" id="explore-toggle-buttons">
+      <button class="explore-toggle-btn" id="show-all-btn" title="Visa alla l&auml;nder">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button class="explore-toggle-btn" id="hide-all-btn" title="D&ouml;lj alla l&auml;nder">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="info-panel" id="info-panel">
+    <div class="info-panel-content">
+    <!-- EXPLORE MODE -->
+    <div id="explore-ui">
+      <div class="info-header"><h2>Landinformation</h2></div>
+
+      <div class="info-default" id="info-default">
+        <div class="arrow-icon">&larr;</div>
+        <p>Klicka p&aring; ett land p&aring; globen<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
+      </div>
+
+      <div class="info-card" id="info-card">
+        <div class="country-name" id="info-name"></div>
+        <div class="country-shape-preview">
+          <img id="info-shape" src="" alt="">
+        </div>
+        <div class="description" id="info-desc"></div>
+        <div class="close-hint">Klicka p&aring; landet igen f&ouml;r att d&ouml;lja</div>
+      </div>
+
+      <div class="counter">
+        Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> l&auml;nder
+      </div>
+    </div>
+
+    <!-- SETERRA MODE -->
+    <div id="seterra-ui" style="display:none;">
+      <div class="info-header"><h2>Klassiskt Quiz</h2></div>
+
+      <div class="seterra-panel active" id="seterra-game">
+        <div class="seterra-target">
+          <div class="label">Hitta detta land:</div>
+          <div class="target-name" id="seterra-target-name">---</div>
+        </div>
+
+        <div class="seterra-hint-row">
+          <button class="hint-btn" id="seterra-hint-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+            <span>Visa ledtr&aring;d</span>
+          </button>
+          <div class="seterra-hint" id="seterra-hint" style="display:none"></div>
+        </div>
+
+        <div class="seterra-stats">
+          <div class="stat-box">
+            <div class="stat-label">Po&auml;ng</div>
+            <div class="stat-value score" id="seterra-score">100%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Tid</div>
+            <div class="stat-value time" id="seterra-time">0:00</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">R&auml;tt</div>
+            <div class="stat-value correct" id="seterra-correct">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Fel</div>
+            <div class="stat-value wrong" id="seterra-wrong">0</div>
+          </div>
+        </div>
+
+        <div class="seterra-progress">
+          <div class="bar" id="seterra-bar" style="width:0%"></div>
+        </div>
+        <div class="seterra-progress-label" id="seterra-progress-label">0 / 13</div>
+
+        <div class="seterra-feedback" id="seterra-feedback"></div>
+      </div>
+
+      <div class="seterra-done" id="seterra-done">
+        <h2>Klart!</h2>
+        <div class="big-score" id="seterra-final-score"></div>
+        <div class="done-detail" id="seterra-final-detail"></div>
+
+        <div class="hs-form" id="hs-form">
+          <input type="text" id="hs-name" placeholder="Ditt namn" maxlength="20">
+          <button id="hs-save">Spara</button>
+        </div>
+        <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
+
+        <div class="highscore-list" id="highscore-list"></div>
+
+        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
+        <button class="restart-btn" id="seterra-restart">Spela igen</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="jonas-section">
+      <img id="jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+      <div class="highfive-counter">High fives: <strong id="highfive-count">0</strong></div>
+    </div>
+  </div>
+</div>
+
+<div class="world-setup-overlay" id="world-setup-overlay">
+  <div class="world-setup-modal">
+    <h2>V&Auml;RLDSTEST</h2>
+    <div class="world-setup-desc">
+      <p><strong>V&auml;lkommen globetrotter!</strong></p>
+      <p>Du f&aring;r ett antal l&auml;nder fr&aring;n hela v&auml;rlden.</p>
+      <p>Snurra p&aring; jordgloben och klicka p&aring; r&auml;tt land!</p>
+      <p>Lycka till!</p>
+    </div>
+    <div class="world-setup-loading" id="world-setup-loading">
+      <p>V&auml;rlden laddas...</p>
+      <div class="world-loading-bar-wrap"><div class="world-loading-bar" id="world-loading-bar"></div></div>
+    </div>
+    <div class="world-setup-ready" id="world-setup-ready" style="display:none">
+      <div class="world-setup-count">
+        <label>Antal l&auml;nder:</label>
+        <div class="count-buttons" id="world-count-buttons">
+          <button data-count="10">10</button>
+          <button data-count="20">20</button>
+          <button data-count="30">30</button>
+          <button data-count="50" class="active">50</button>
+          <button data-count="100">100</button>
+        </div>
+      </div>
+      <button class="restart-btn" id="world-start-btn">Starta!</button>
+    </div>
+  </div>
+</div>
+
+<div class="celebration-overlay" id="celebration-overlay">
+  <canvas id="confetti-canvas"></canvas>
+  <div class="celebration-content">
+    <div class="medal">&#127942;</div>
+    <h2>PERFEKT!</h2>
+    <p class="celebration-score">100%</p>
+    <p class="celebration-detail" id="celebration-detail"></p>
+    <div class="celebration-jonas">
+      <img id="celebration-jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+    </div>
+    <button class="restart-btn" id="celebration-close">Forts&auml;tt</button>
+  </div>
+</div>
+
+<div class="cursor-label" id="cursor-label"></div>
+
+<div class="name-modal-overlay" id="name-modal-overlay">
+  <div class="name-modal">
+    <h3>Snyggt spelat!</h3>
+    <div class="modal-score" id="modal-score"></div>
+    <div class="modal-detail" id="modal-detail"></div>
+    <div class="modal-input-row">
+      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20">
+      <button id="modal-save">Spara</button>
+    </div>
+    <button class="modal-skip" id="modal-skip">Hoppa &ouml;ver</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
+<script src="glob-spel.js"></script>
+
+</body>
+</html>
