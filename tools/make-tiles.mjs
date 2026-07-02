@@ -122,6 +122,11 @@ const SHAPE_LOCK = new Map([
 const LOCK_MIN_RING_AREA = 5e-7;    // skip micro-island rings (steradians)
 const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alpha holes at edges
 
+// Countries whose art must keep upright axes in the moment fit: their true
+// covariance is tilted, and the resulting shear skews the drawing badly
+// (Bolivias hjärna). Scale x/y only, no cross term.
+const PIN_UPRIGHT = new Set(['sydamerika/bolivia']);
+
 
 // Landmasses with no artwork, drawn as flat fills with the artwork-style
 // outline so the world map is complete (true shapes from Natural Earth).
@@ -152,6 +157,35 @@ function loadFeatures() {
         const a3 = f.properties[k];
         if (a3 && a3 !== '-99' && !(a3 in byA3)) byA3[a3] = f;
       }
+    }
+  }
+  // Krim: Natural Earth lägger halvön som en egen bit i Rysslands polygon.
+  // Kartan ska visa den som en del av Ukrainas yta (under den gula
+  // teckningen), så flytta biten dit innan något annat räknas. Båda
+  // dataseten har egna RUS/UKR-features — operera på varje par (namn-
+  // matchningen använder map_units-versionen, A3-vägarna countries).
+  for (const fc of [countries, units]) {
+    let rus = null, ukr = null;
+    for (const f of fc.features) {
+      const a3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
+      if (a3 === 'RUS') rus = f;
+      if (a3 === 'UKR') ukr = f;
+    }
+    if (!rus || !ukr || rus.geometry.type !== 'MultiPolygon') continue;
+    const keep = [], crimea = [];
+    for (const poly of rus.geometry.coordinates) {
+      let inCrimea = true;
+      for (const [lng, lat] of poly[0]) {
+        if (lng < 31.5 || lng > 37.5 || lat < 43.8 || lat > 46.5) { inCrimea = false; break; }
+      }
+      (inCrimea ? crimea : keep).push(poly);
+    }
+    if (!crimea.length) continue;
+    rus.geometry.coordinates = keep;
+    if (ukr.geometry.type === 'Polygon') {
+      ukr.geometry = { type: 'MultiPolygon', coordinates: [ukr.geometry.coordinates, ...crimea] };
+    } else {
+      ukr.geometry.coordinates.push(...crimea);
     }
   }
   return { bySv, byA3 };
@@ -243,7 +277,7 @@ function matchRegions() {
       // anchors against the FULL geometry instead of the largest polygon.
       const anchor = lock ? f.geometry : anchorGeometry(f.geometry);
       countries.push({
-        base, svgPath, lock,
+        base, svgPath, lock, key: `${slug}/${base}`,
         left: c.left, top: c.top, width: c.width, height: c.height,
         centroid: geoCentroid(anchor),
         anchor, fullGeom: f.geometry,
@@ -451,8 +485,29 @@ function computeAdjacency(regions) {
     if (n < 8) continue;
     const a = all[(sk / 4096) | 0], b = all[sk % 4096];
     a.hasLandBorder = b.hasLandBorder = true;
-    if (a.lock && !b.lock) b.gapAdj = true;
-    if (b.lock && !a.lock) a.gapAdj = true;
+    // remember WHICH locked country a neighbour borders (longest border wins)
+    if (a.lock && !b.lock && n > (b.gapLockN || 0)) { b.gapAdj = true; b.gapLock = a; b.gapLockN = n; }
+    if (b.lock && !a.lock && n > (a.gapLockN || 0)) { a.gapAdj = true; a.gapLock = b; a.gapLockN = n; }
+  }
+  // For each locked neighbour: collect the SHARED border segments (both
+  // endpoints on both countries' rings). The seam fill acts only along
+  // these — never along unrelated stretches of the locked outline (Krim
+  // must not catch Russia colour just because Kertj is nearby).
+  for (const c of all) {
+    if (!c.gapAdj) continue;
+    const own = new Set();
+    const polysC = c.fullGeom.type === 'Polygon' ? [c.fullGeom.coordinates] : c.fullGeom.coordinates;
+    for (const poly of polysC) for (const [lng, lat] of poly[0]) own.add(lng + ',' + lat);
+    const segs = [];
+    const polysL = c.gapLock.fullGeom.type === 'Polygon' ? [c.gapLock.fullGeom.coordinates] : c.gapLock.fullGeom.coordinates;
+    for (const poly of polysL) {
+      const ring = poly[0];
+      for (let i = 0; i < ring.length - 1; i++) {
+        const p = ring[i], q = ring[i + 1];
+        if (own.has(p[0] + ',' + p[1]) && own.has(q[0] + ',' + q[1])) segs.push(p, q);
+      }
+    }
+    c.gapSegsRaw = segs;
   }
 }
 
@@ -574,6 +629,21 @@ async function buildWarps(regions) {
         continue;
       }
       c.mercGeom = ringsToMerc(c.anchor, ref);
+      // shared-border segments → unit merc, for the seam-fill band
+      if (c.gapSegsRaw && c.gapSegsRaw.length) {
+        const pts = new Float64Array(c.gapSegsRaw.length * 2);
+        let sminX = Infinity, sminY = Infinity, smaxX = -Infinity, smaxY = -Infinity;
+        c.gapSegsRaw.forEach(([lngRaw, lat], i) => {
+          let lng = lngRaw;
+          while (lng - ref > 180) lng -= 360;
+          while (lng - ref < -180) lng += 360;
+          const x = mercX(lng), y = mercY(lat);
+          pts[i * 2] = x; pts[i * 2 + 1] = y;
+          if (x < sminX) sminX = x; if (x > smaxX) smaxX = x;
+          if (y < sminY) sminY = y; if (y > smaxY) smaxY = y;
+        });
+        c.gapSegs = { pts, minX: sminX, minY: sminY, maxX: smaxX, maxY: smaxY };
+      }
       const pm = polyMoments(c.mercGeom.rings);
       const mask = await getArtMask(`${r.slug}/${c.base}`, c.svgPath);
       // Many artworks carry memory-aid decorations OUTSIDE the country body
@@ -584,19 +654,20 @@ async function buildWarps(regions) {
       const regC = (0.02 * Math.hypot(c.width, c.height)) ** 2;
       const regQ = (0.02 * Math.hypot(c.mercGeom.maxX - c.mercGeom.minX, c.mercGeom.maxY - c.mercGeom.minY)) ** 2;
       const lookup = pm ? polygonLookup(c.mercGeom) : null;
+      const upright = PIN_UPRIGHT.has(c.key);
       let weights = null;
       let am = maskMoments(mask, null);
       let mx = c.left + am.cx * c.width, my = c.top + am.cy * c.height;
       let Cm = [
         am.cxx * c.width * c.width + regC,
-        am.cxy * c.width * c.height,
+        upright ? 0 : am.cxy * c.width * c.height,
         am.cyy * c.height * c.height + regC,
       ];
       let toTrue = null;
       if (pm && lookup) {
         const total = am.n;
         for (let it = 0; it < 3; it++) {
-          const Cq = [pm.cxx + regQ, pm.cxy, pm.cyy + regQ];
+          const Cq = [pm.cxx + regQ, upright ? 0 : pm.cxy, pm.cyy + regQ];
           const T = transport2(Cm, Cq);
           const map = p => [
             pm.cx + T[0] * (p[0] - mx) + T[1] * (p[1] - my),
@@ -619,7 +690,7 @@ async function buildWarps(regions) {
           mx = c.left + am.cx * c.width; my = c.top + am.cy * c.height;
           Cm = [
             am.cxx * c.width * c.width + regC,
-            am.cxy * c.width * c.height,
+            upright ? 0 : am.cxy * c.width * c.height,
             am.cyy * c.height * c.height + regC,
           ];
         }
@@ -778,19 +849,22 @@ async function renderLocked(ctx, d, world, tx, ty) {
     ctx.drawImage(un, sx * kuw, sy * kuh, sw * kuw, sh * kuh, bx, by, bw, bh);
     ctx.drawImage(raster.img, sx, sy, sw, sh, bx, by, bw, bh);
     ctx.restore();
-    // crisp true-polygon outline on top (matches the art's own contour)
-    ctx.beginPath();
-    for (const piece of g.pieces) {
-      for (const pts of piece.rings) {
-        ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
-        for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
-        ctx.closePath();
+    // the uniform ownership outline draws the border; only stroke here as
+    // fallback when it is disabled
+    if (!OUTLINE) {
+      ctx.beginPath();
+      for (const piece of g.pieces) {
+        for (const pts of piece.rings) {
+          ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
+          for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+          ctx.closePath();
+        }
       }
+      ctx.strokeStyle = '#0a0a0a';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(1.2, Math.min(12, fullW / 400));
+      ctx.stroke();
     }
-    ctx.strokeStyle = '#0a0a0a';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = OUTLINE || Math.max(1.2, Math.min(12, fullW / 400));
-    ctx.stroke();
     return;
   }
 
@@ -899,13 +973,36 @@ async function extendArt(svgPath, capFrac) {
   const car = new Uint8Array(W * H * 3);    // carried colour per node
   const filled = new Uint8Array(W * H);     // pixels the BFS painted
   let qh = 0, qt = 0;
+  // dark pixels (contour lines) dilated by 2: the antialiasing between a
+  // black line and its fill makes a ring of OPAQUE grey blends, and those
+  // greys always sit closest to the outside — without the erosion they win
+  // the nearest-seed race and the whole extension turns smudge grey
+  const dark = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) {
-    // seed only from real FILL colours: saturated or light pixels — never
-    // black contours or dark shading, whose carried colour reads as smudge
-    // in the visible gap fill (a pure flag red still passes via max-channel)
+    if (d[i * 4 + 3] > 60 && Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) <= 110) dark[i] = 1;
+  }
+  const nearDark = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!dark[i]) continue;
+      for (let dy = -2; dy <= 2; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= H) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= W) continue;
+          nearDark[yy * W + xx] = 1;
+        }
+      }
+    }
+  }
+  for (let i = 0; i < W * H; i++) {
+    // seed only from real FILL colours: saturated or light pixels well clear
+    // of any contour line — never the grey contour blends
     const a = d[i * 4 + 3];
     const mx = Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]);
-    if (a > 200 && mx > 110) {
+    if (a > 200 && mx > 110 && !nearDark[i]) {
       car[i * 3] = d[i * 4]; car[i * 3 + 1] = d[i * 4 + 1]; car[i * 3 + 2] = d[i * 4 + 2];
       seen[i] = 1; queue[qt++] = i;
     }
@@ -934,69 +1031,16 @@ async function extendArt(svgPath, capFrac) {
   return { canvas: c, filled };
 }
 
-// Soften the BFS extension: nearest-neighbour colour carry produces stripes
-// of whatever single pixel happened to be closest. Box-blur the image and
-// write the blurred values back ONLY into BFS-painted pixels, so the visible
-// gap fill is a smooth local average while the artwork itself stays crisp.
-function blurFilled(canvas, filled, radius, passes) {
-  const W = canvas.width, H = canvas.height;
-  const ctx = canvas.getContext('2d');
-  const id = ctx.getImageData(0, 0, W, H);
-  let src = id.data;
-  // horizontal then vertical pass, RGB only (alpha is 255 everywhere here);
-  // two ping-pong buffers hoisted out of the pass loop
-  const bufA = new Uint8ClampedArray(src.length);
-  const bufB = new Uint8ClampedArray(src.length);
-  const tmp = new Float32Array(src.length);
-  for (let p = 0; p < passes; p++) {
-    const out = p % 2 === 0 ? bufA : bufB;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        let r = 0, g = 0, b = 0, n = 0;
-        for (let k = -radius; k <= radius; k++) {
-          const xx = x + k;
-          if (xx < 0 || xx >= W) continue;
-          const i = (y * W + xx) * 4;
-          r += src[i]; g += src[i + 1]; b += src[i + 2]; n++;
-        }
-        const o = (y * W + x) * 4;
-        tmp[o] = r / n; tmp[o + 1] = g / n; tmp[o + 2] = b / n;
-      }
-    }
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        let r = 0, g = 0, b = 0, n = 0;
-        for (let k = -radius; k <= radius; k++) {
-          const yy = y + k;
-          if (yy < 0 || yy >= H) continue;
-          const i = (yy * W + x) * 4;
-          r += tmp[i]; g += tmp[i + 1]; b += tmp[i + 2]; n++;
-        }
-        const o = (y * W + x) * 4;
-        out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = src[o + 3];
-      }
-    }
-    src = out;
-  }
-  for (let i = 0; i < W * H; i++) {
-    if (!filled[i]) continue;
-    const j = i * 4;
-    id.data[j] = src[j]; id.data[j + 1] = src[j + 1]; id.data[j + 2] = src[j + 2];
-  }
-  ctx.putImageData(id, 0, 0);
-}
-
-// Fully colour-extended artwork as premultiplied pixels, bucketed to roughly
-// the requested width. Used by the seam gap fill: any pixel inside a
-// neighbour-of-locked country's true polygon that its warped art misses gets
-// the nearest artwork colour instead of an ocean hole.
-const underlayFullCache = new Map();       // key → canvas (1024, fully extended)
+// Fully colour-extended artwork (crisp nearest-colour continuation, contour-
+// AA greys eroded from the seeds), shared by the seam gap fill and
+// the shape-locked 'exact' underlay.
+const underlayFullCache = new Map();       // key → canvas (1024, extended)
 const underlayFullDataCache = new Map();   // key@bucket → {data, w, h}
+
 async function getUnderlayFullBase(key, svgPath) {
   let base = underlayFullCache.get(key);
   if (!base) {
     const ext = await extendArt(svgPath, Infinity);
-    blurFilled(ext.canvas, ext.filled, 10, 2);
     base = ext.canvas;
     underlayFullCache.set(key, base);
   }
@@ -1123,6 +1167,16 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
         grp.maxY * world + oy < -pad || grp.minY * world + oy > TG + pad) continue;
     any = true;
     ctx.beginPath();
+    if (mode === 'segments') {
+      // grp.pts = flat [x0,y0,x1,y1, …] pairs — open polyline segments
+      ctx.lineCap = 'round';
+      for (let i = 0; i < grp.pts.length; i += 4) {
+        ctx.moveTo(grp.pts[i] * world + ox, grp.pts[i + 1] * world + oy);
+        ctx.lineTo(grp.pts[i + 2] * world + ox, grp.pts[i + 3] * world + oy);
+      }
+      ctx.stroke();
+      continue;
+    }
     for (const pts of grp.rings) {
       ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
       for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
@@ -1141,11 +1195,11 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
   return cnt ? m : null;
 }
 
-// The uniform outline: after all sheet countries are composited, find every
-// pixel where the visible OWNER changes (country↔country or country↔ocean),
-// and stamp a black disc of ⌀ OUTLINE on it. Seams against shape-locked
-// polygons are skipped — their vector stroke draws the line instead.
-function outlineSheet(lockedMask) {
+// The uniform outline: after all countries are composited, find every pixel
+// where the visible OWNER changes (country↔country, country↔ocean, or
+// against a shape-locked polygon/its seam fill) and stamp a black disc of
+// ⌀ OUTLINE on it. One mechanism draws every border and coast on the map.
+function outlineSheet() {
   if (!OUTLINE) return;
   const R = OUTLINE / 2;
   const ri = Math.ceil(R);
@@ -1161,14 +1215,8 @@ function outlineSheet(lockedMask) {
     for (let x = 0; x < TG; x++) {
       const i = rowBase + x;
       const o = ownerBuf[i];
-      if (x < TG - 1) {
-        const j = i + 1;
-        if (ownerBuf[j] !== o && !(lockedMask && (lockedMask[i] || lockedMask[j]))) seeds.push(i);
-      }
-      if (y < TG - 1) {
-        const j = i + TG;
-        if (ownerBuf[j] !== o && !(lockedMask && (lockedMask[i] || lockedMask[j]))) seeds.push(i);
-      }
+      if (x < TG - 1 && ownerBuf[i + 1] !== o) seeds.push(i);
+      if (y < TG - 1 && ownerBuf[i + TG] !== o) seeds.push(i);
     }
   }
   for (const s of seeds) {
@@ -1184,25 +1232,35 @@ function outlineSheet(lockedMask) {
 
 // Warp one country's art into `scratch`, then source-over onto `sheetBuf`
 // (skipping pixels inside locked-country polygons). With gap fill active,
-// pixels inside the country's true polygon near a locked border sample the
-// colour-extended underlay beneath the art, so art shortfall against the
-// locked country's true border shows local artwork colour instead of ocean.
-async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand, ownerIdx) {
+// pixels inside the country's true polygon near a locked border show the
+// LOCKED country's colour-extended artwork beneath the art: white southern
+// Russia (or the USA's stripes) runs seamlessly all the way to the
+// neighbour's drawn edge, where the uniform outline draws the border.
+async function renderSheetPx(d, world, tx, ty, lockedMask, ownerIdx, lockedByKey) {
   const raster = await getRaster(d.key, d.svgPath, d.dstW);
   const rw = raster.w, rh = raster.h, rd = raster.data;
   const sxs = rw / d.srcW, sys = rh / d.srcH;
   const ox = -tx * TILE + d.off + G, oy = -ty * TILE + G;
   const g = d.grid;
 
-  let gapMask = null, un = null, ku = 1;
-  if (d.gapGeom && lockedBand) {
-    gapMask = buildMask([{ ...d.gapGeom, off: d.off }], world, tx, ty, 'fill');
+  let gapMask = null, lf = null;
+  if (d.gapGeom && d.gapSegs && d.gapLockKey && lockedByKey && lockedByKey.has(d.gapLockKey)) {
+    // fill zone: own true polygon ∩ a band along the SHARED border segments
+    const band = buildMask([{ ...d.gapSegs, off: d.off }], world, tx, ty, 'segments', Math.max(8, world * 0.025));
+    gapMask = band ? buildMask([{ ...d.gapGeom, off: d.off }], world, tx, ty, 'fill') : null;
     if (gapMask) {
       let cnt = 0;
-      for (let i = 0; i < gapMask.length; i++) { gapMask[i] &= lockedBand[i]; cnt += gapMask[i]; }
+      for (let i = 0; i < gapMask.length; i++) { gapMask[i] &= band[i]; cnt += gapMask[i]; }
       if (cnt) {
-        un = await getUnderlayFullData(d.key, d.svgPath, rw);
-        ku = un.w / rw;
+        const { rec, ownerId } = lockedByKey.get(d.gapLockKey);
+        const un = await getUnderlayFullData(d.gapLockKey, d.gapLockSvg, 1024);
+        const ab = (await getPieceArtBounds(d.gapLockKey, d.gapLockSvg, rec.geom))[0];
+        lf = {
+          ownerId, data: un.data, w: un.w, h: un.h,
+          x0: rec.geom.minX * world + rec.off, x1: rec.geom.maxX * world + rec.off,
+          y0: rec.geom.minY * world, y1: rec.geom.maxY * world,
+          ax0: ab[0], ay0: ab[1], ax1: ab[2], ay1: ab[3],
+        };
       } else gapMask = null;
     }
   }
@@ -1274,20 +1332,23 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand, ownerIdx)
             r += rd[si] * w; gr += rd[si + 1] * w; b += rd[si + 2] * w; a += rd[si + 3] * w;
           }
           const gi = py * TG + px;
-          const aArt = a;   // art alpha before any underlay is mixed in
+          const aArt = a;   // art alpha before any locked fill is mixed in
           if (gapMask && gapMask[gi]) {
-            // underlay beneath the art: clamped sample of the extended colours
-            const ux = Math.min(un.w - 1, Math.max(0, (sx + 0.5) * ku - 0.5));
-            const uy = Math.min(un.h - 1, Math.max(0, (sy + 0.5) * ku - 0.5));
+            // the locked country's extended colours beneath the art, sampled
+            // by absolute position via its bbox↔art mapping
+            const fu = Math.min(1, Math.max(0, (tx * TILE + px - G + 0.5 - lf.x0) / (lf.x1 - lf.x0)));
+            const fv = Math.min(1, Math.max(0, (ty * TILE + py - G + 0.5 - lf.y0) / (lf.y1 - lf.y0)));
+            const ux = Math.min(lf.w - 1, Math.max(0, (lf.ax0 + fu * (lf.ax1 - lf.ax0)) * lf.w - 0.5));
+            const uy = Math.min(lf.h - 1, Math.max(0, (lf.ay0 + fv * (lf.ay1 - lf.ay0)) * lf.h - 0.5));
             const ufx = Math.floor(ux), ufy = Math.floor(uy);
             const uwx = ux - ufx, uwy = uy - ufy;
             let ur = 0, ug = 0, ub = 0, ua = 0;
             for (let t = 0; t < 4; t++) {
-              const tx2 = Math.min(un.w - 1, ufx + (t & 1)), ty2 = Math.min(un.h - 1, ufy + (t >> 1));
+              const tx2 = Math.min(lf.w - 1, ufx + (t & 1)), ty2 = Math.min(lf.h - 1, ufy + (t >> 1));
               const w = (t & 1 ? uwx : 1 - uwx) * (t >> 1 ? uwy : 1 - uwy);
               if (!w) continue;
-              const si = (ty2 * un.w + tx2) * 4;
-              ur += un.data[si] * w; ug += un.data[si + 1] * w; ub += un.data[si + 2] * w; ua += un.data[si + 3] * w;
+              const si = (ty2 * lf.w + tx2) * 4;
+              ur += lf.data[si] * w; ug += lf.data[si + 1] * w; ub += lf.data[si + 2] * w; ua += lf.data[si + 3] * w;
             }
             const inv = 1 - a / 255;
             r += ur * inv; gr += ug * inv; b += ub * inv; a += ua * inv;
@@ -1296,6 +1357,10 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand, ownerIdx)
           // carrying MORE art must never be replaced by a fill-only write
           if (aArt < artCov[gi]) continue;
           artCov[gi] = aArt;
+          if (!(lockedMask && lockedMask[gi])) {
+            if (aArt >= 128) ownerBuf[gi] = ownerIdx;
+            else if (lf && gapMask[gi] && a >= 128) ownerBuf[gi] = lf.ownerId;
+          }
           const pi = gi * 4;
           scratch[pi] = r; scratch[pi + 1] = gr; scratch[pi + 2] = b; scratch[pi + 3] = a;
         }
@@ -1312,7 +1377,6 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand, ownerIdx)
       const j = i * 4;
       const a = scratch[j + 3];
       if (!a || (lockedMask && lockedMask[i])) continue;
-      if (a >= 128) ownerBuf[i] = ownerIdx;
       if (a === 255) {
         sheetBuf[j] = scratch[j]; sheetBuf[j + 1] = scratch[j + 1];
         sheetBuf[j + 2] = scratch[j + 2]; sheetBuf[j + 3] = 255;
@@ -1329,27 +1393,6 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, lockedBand, ownerIdx)
   }
 }
 
-// Crisp true-polygon outline for a shape-locked country, drawn ABOVE the
-// region sheets so neighbouring art can never paint over the border line.
-function strokeLocked(ctx, d, world, tx, ty) {
-  const ox = -tx * TILE + d.off, oy = -ty * TILE;
-  const lw = OUTLINE || Math.max(1.2, Math.min(12, d.dstW / 400));
-  const pad = lw / 2 + 1;   // stroke bleeds half its width past the bbox
-  ctx.beginPath();
-  for (const piece of d.geom.pieces) {
-    if (piece.maxX * world + ox < -pad || piece.minX * world + ox > TILE + pad ||
-        piece.maxY * world + oy < -pad || piece.minY * world + oy > TILE + pad) continue;
-    for (const pts of piece.rings) {
-      ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
-      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
-      ctx.closePath();
-    }
-  }
-  ctx.strokeStyle = '#0a0a0a';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = lw;
-  ctx.stroke();
-}
 
 async function main() {
   if (ASSEMBLE) { await assemble([]); return; }
@@ -1398,16 +1441,13 @@ async function main() {
             if (tx1 < tx0 || ty1 < ty0) continue;
             const drawRec = {
               lock: true, order: 1,
-              key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
+              key: c.key, svgPath: c.svgPath,
               geom: lg, off, dstW: maxX - minX,
             };
-            // outline again ABOVE the sheets: neighbour art is clipped to the
-            // locked polygon but its gap fill must never swallow the border
-            const strokeRec = { strokeLock: true, order: 3, geom: lg, off, dstW: maxX - minX };
             for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
               const kk = tx + ',' + ty;
               if (!draws.has(kk)) draws.set(kk, []);
-              draws.get(kk).push(drawRec, strokeRec);
+              draws.get(kk).push(drawRec);
             }
           }
           continue;
@@ -1450,6 +1490,9 @@ async function main() {
             grid: g, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
             gapGeom: c.gapAdj ? c.mercGeom : null,
+            gapSegs: c.gapAdj ? c.gapSegs : null,
+            gapLockKey: c.gapAdj && c.gapLock ? c.gapLock.key : null,
+            gapLockSvg: c.gapAdj && c.gapLock ? c.gapLock.svgPath : null,
           };
           for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
             const k = tx + ',' + ty;
@@ -1492,31 +1535,41 @@ async function main() {
       const tileDraws = draws.get(k).slice().sort((a, b) => (a.order - b.order));
       const sheetDraws = tileDraws.filter(d => d.sheet);
       const lockedDraws = tileDraws.filter(d => d.lock);
-      // masks against the locked countries' true polygons: sheets never paint
-      // inside them, and the gap fill only acts near their borders
-      let lockedMask = null, lockedBand = null;
-      if (sheetDraws.length && lockedDraws.length) {
-        const groups = lockedDraws.flatMap(d => d.geom.pieces.map(p => ({ ...p, off: d.off })));
-        lockedMask = buildMask(groups, world, tx, ty, 'fill');
-        if (sheetDraws.some(d => d.gapGeom)) {
-          lockedBand = buildMask(groups, world, tx, ty, 'stroke', Math.max(8, world * 0.025));
-        }
-      }
-      let sheetDone = false;
+      // canvas layers first: flat fills, then the shape-locked artwork
       for (const d of tileDraws) {
-        if (d.fill) {
-          renderFill(ctx, d, world, tx, ty);
-        } else if (d.lock) {
-          await renderLocked(ctx, d, world, tx, ty);
-        } else if (d.sheet) {
-          if (sheetDone) continue;
-          sheetDone = true;
-          sheetBuf.fill(0);
-          ownerBuf.fill(0);
-          for (let si = 0; si < sheetDraws.length; si++) {
-            await renderSheetPx(sheetDraws[si], world, tx, ty, lockedMask, lockedBand, si + 1);
+        if (d.fill) renderFill(ctx, d, world, tx, ty);
+        else if (d.lock) await renderLocked(ctx, d, world, tx, ty);
+      }
+      // pixel buffer on top: sheets, the locked seam fill and the uniform
+      // outlines (locked-only tiles run it too, for coasts and USA/Kanada)
+      if (sheetDraws.length || (OUTLINE > 0 && lockedDraws.length)) {
+        sheetBuf.fill(0);
+        ownerBuf.fill(0);
+        // per-country locked masks: owner ids for the outline pass, their
+        // union clips the sheets
+        let lockedMask = null;
+        const lockedByKey = new Map();
+        if (lockedDraws.length) {
+          const byKey = new Map();
+          for (const d of lockedDraws) {
+            if (!byKey.has(d.key)) byKey.set(d.key, []);
+            byKey.get(d.key).push(d);
           }
-          outlineSheet(lockedMask);
+          let li = 0;
+          for (const [key, recs] of byKey) {
+            const ownerId = 0xF000 + li++;
+            lockedByKey.set(key, { rec: recs[0], ownerId });
+            const m = buildMask(recs.flatMap(d => d.geom.pieces.map(p => ({ ...p, off: d.off }))), world, tx, ty, 'fill');
+            if (!m) continue;
+            for (let i = 0; i < m.length; i++) if (m[i]) ownerBuf[i] = ownerId;
+            if (!lockedMask) lockedMask = m;
+            else for (let i = 0; i < m.length; i++) lockedMask[i] |= m[i];
+          }
+        }
+        for (let si = 0; si < sheetDraws.length; si++) {
+          await renderSheetPx(sheetDraws[si], world, tx, ty, lockedMask, si + 1, lockedByKey);
+        }
+        outlineSheet();
           // premultiplied → straight, composited over the locked layer
           const id = ctx.createImageData(TG, TG);
           const out = id.data;
@@ -1532,11 +1585,8 @@ async function main() {
               out[j + 2] = Math.min(255, sheetBuf[j + 2] * 255 / a);
             }
           }
-          blitCanvas.getContext('2d').putImageData(id, 0, 0);
-          ctx.drawImage(blitCanvas, G, G, TILE, TILE, 0, 0, TILE, TILE);
-        } else if (d.strokeLock) {
-          strokeLocked(ctx, d, world, tx, ty);
-        }
+        blitCanvas.getContext('2d').putImageData(id, 0, 0);
+        ctx.drawImage(blitCanvas, G, G, TILE, TILE, 0, 0, TILE, TILE);
       }
       // registration bboxes overshoot the artwork (locked pads, badge quads) —
       // drop tiles where nothing actually landed
