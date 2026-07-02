@@ -161,6 +161,10 @@ const map = new maplibregl.Map({
   center: [10, 30],
   zoom: 1.6,
   maxZoom: 9.5,
+  // standardtoleransen är 3 px: minsta darr under klicket räknas då som en
+  // dragning och klicket slukas. 10 px gör landval lätta även med pekplatta,
+  // pekskärm eller barnhänder — medvetna dragningar är ändå längre än så.
+  clickTolerance: 10,
   attributionControl: { compact: true },
   style: {
     version: 8,
