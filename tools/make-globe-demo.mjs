@@ -131,7 +131,9 @@ const map = new maplibregl.Map({
         tileSize: 512,
         attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
       },
-      borders: { type: 'geojson', data: 'assets/world-borders.json' },
+      // konstens egna gränser (exporterade ur tile-bygget): vektorlinjer =
+      // exakt samma tjocklek på ALLA zoomnivåer, även mellan heltalszoom
+      borders: { type: 'geojson', data: 'assets/art-borders.json' },
     },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#0e2438' } },

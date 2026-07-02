@@ -64,11 +64,17 @@ const GEO = Math.max(0, Math.min(1, +arg('geo', 1)));
 // off on the next invocation. --assemble packs DIR into the PMTiles archive.
 const SAVE = arg('save', null);
 const ASSEMBLE = argv.includes('--assemble');
-// Uniform country outline: a crisp black line of THIS width (px, identical
-// at every zoom level → constant on-screen thickness) drawn along every
-// country's rendered edge — coasts, land borders and the shape-locked
-// polygons alike. 0 keeps only the artwork's own hand-drawn contours.
+// Uniform country outline BAKED into the tiles: a black line of THIS width
+// (px per tile, identical at every zoom level) along every country's edge.
+// 0 bakes no lines — the intended mode together with --borders, where the
+// map app draws the exported vector borders at constant screen width at
+// EVERY zoom (including fractional ones, which baked lines cannot do).
 const OUTLINE = Math.max(0, +arg('outline', 2.5));
+// --borders FILE: render only z6 and export the visible country boundaries
+// (ownership cracks: art↔art, art↔ocean, art↔locked) as simplified GeoJSON
+// lines, plus the flat-fill landmass outlines. No tiles are written.
+const BORDERS = arg('borders', null);
+const BORDERS_Z = 6;
 // Debug: --window z:x0:y0[:x1:y1] renders ONLY that tile range at that zoom
 // (combine with --save DIR to inspect the webp files without a full build).
 const WINDOW = (() => {
@@ -250,10 +256,13 @@ function renderFill(ctx, d, world, tx, ty) {
   }
   ctx.fillStyle = d.fill;
   ctx.fill('evenodd');
-  ctx.strokeStyle = '#0a0a0a';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = OUTLINE || Math.max(1.2, Math.min(12, (d.geom.maxX - d.geom.minX) * world / 400));
-  ctx.stroke();
+  // with --outline 0 the vector border overlay draws the line instead
+  if (OUTLINE > 0) {
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = OUTLINE;
+    ctx.stroke();
+  }
 }
 
 function matchRegions() {
@@ -849,22 +858,8 @@ async function renderLocked(ctx, d, world, tx, ty) {
     ctx.drawImage(un, sx * kuw, sy * kuh, sw * kuw, sh * kuh, bx, by, bw, bh);
     ctx.drawImage(raster.img, sx, sy, sw, sh, bx, by, bw, bh);
     ctx.restore();
-    // the uniform ownership outline draws the border; only stroke here as
-    // fallback when it is disabled
-    if (!OUTLINE) {
-      ctx.beginPath();
-      for (const piece of g.pieces) {
-        for (const pts of piece.rings) {
-          ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
-          for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
-          ctx.closePath();
-        }
-      }
-      ctx.strokeStyle = '#0a0a0a';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = Math.max(1.2, Math.min(12, fullW / 400));
-      ctx.stroke();
-    }
+    // no baked stroke: the uniform ownership outline (--outline > 0) or the
+    // vector border overlay (--outline 0 + --borders) draws the line
     return;
   }
 
@@ -981,6 +976,42 @@ async function extendArt(svgPath, capFrac) {
   for (let i = 0; i < W * H; i++) {
     if (d[i * 4 + 3] > 60 && Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) <= 110) dark[i] = 1;
   }
+  // The artwork's own outer contour: dark pixels within a few steps of the
+  // transparent outside. These get OVERWRITTEN by the extension too, so the
+  // de-rimmed underlay continues the fill colour straight through the drawn
+  // border line — repainting a locked seam with it erases the double border.
+  const rim = new Uint8Array(W * H);
+  {
+    const q = new Int32Array(W * H);
+    const rdist = new Uint8Array(W * H);
+    let h = 0, t = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (!dark[i]) continue;
+        // dark pixel touching transparency (or the canvas edge) starts the rim
+        let touch = x === 0 || x === W - 1 || y === 0 || y === H - 1;
+        if (!touch) {
+          touch = d[(i - 1) * 4 + 3] <= 60 || d[(i + 1) * 4 + 3] <= 60 ||
+                  d[(i - W) * 4 + 3] <= 60 || d[(i + W) * 4 + 3] <= 60;
+        }
+        if (touch) { rim[i] = 1; rdist[i] = 1; q[t++] = i; }
+      }
+    }
+    const RIMDEPTH = 6;
+    while (h < t) {
+      const i = q[h++];
+      if (rdist[i] >= RIMDEPTH) continue;
+      const x = i % W, y = (i / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (rim[ni] || !dark[ni]) continue;
+        rim[ni] = 1; rdist[ni] = rdist[i] + 1; q[t++] = ni;
+      }
+    }
+  }
   const nearDark = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -1019,7 +1050,7 @@ async function extendArt(svgPath, capFrac) {
       seen[ni] = 1;
       dist[ni] = dist[i] + 1;
       car[ni * 3] = car[i * 3]; car[ni * 3 + 1] = car[i * 3 + 1]; car[ni * 3 + 2] = car[i * 3 + 2];
-      if (d[ni * 4 + 3] <= 200) {
+      if (d[ni * 4 + 3] <= 200 || rim[ni]) {
         d[ni * 4] = car[ni * 3]; d[ni * 4 + 1] = car[ni * 3 + 1]; d[ni * 4 + 2] = car[ni * 3 + 2];
         d[ni * 4 + 3] = 255;
         filled[ni] = 1;
@@ -1138,9 +1169,9 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // centre lies in exactly one cell, so coverage is exact and seams cannot
 // exist by construction. All math runs in premultiplied alpha.
 // The sheet layer renders into a buffer with a small GUTTER around the tile:
-// the uniform outline needs to see ownership just across the tile seam, or
-// borders would break (or double) exactly along the tile grid.
-const G = OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : 0;
+// the uniform outline (and the border export) needs to see ownership just
+// across the tile seam, or borders would break exactly along the tile grid.
+const G = OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
 const TG = TILE + 2 * G;
 const sheetBuf = new Uint8ClampedArray(TG * TG * 4);   // tile's sheet layer
 const scratch = new Uint8ClampedArray(TG * TG * 4);    // one country's art
@@ -1228,6 +1259,122 @@ function outlineSheet() {
       sheetBuf[j] = 10; sheetBuf[j + 1] = 10; sheetBuf[j + 2] = 10; sheetBuf[j + 3] = 255;
     }
   }
+}
+
+// ── Vector border export (--borders) ─────────────────────────────────────
+// The ownership boundaries as unit "cracks" between differing pixels, in
+// world px at BORDERS_Z. Only the tile interior is scanned; the gutter
+// supplies the neighbour side, so every crack is recorded exactly once.
+const borderSegs = [];
+function collectBorderCracks(tx, ty) {
+  const bx = tx * TILE - G, by = ty * TILE - G;
+  for (let py = G; py < G + TILE; py++) {
+    const row = py * TG;
+    for (let px = G; px < G + TILE; px++) {
+      const i = row + px;
+      const o = ownerBuf[i];
+      if (ownerBuf[i + 1] !== o) borderSegs.push(bx + px + 1, by + py, bx + px + 1, by + py + 1);
+      if (ownerBuf[i + TG] !== o) borderSegs.push(bx + px, by + py + 1, bx + px + 1, by + py + 1);
+    }
+  }
+}
+
+function douglasPeucker(pts, eps) {
+  if (pts.length <= 2) return pts;
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const ax = pts[a][0], ay = pts[a][1];
+    const dx = pts[b][0] - ax, dy = pts[b][1] - ay;
+    const len2 = dx * dx + dy * dy || 1;
+    let worst = -1, wd = eps * eps;
+    for (let i = a + 1; i < b; i++) {
+      const t = Math.max(0, Math.min(1, ((pts[i][0] - ax) * dx + (pts[i][1] - ay) * dy) / len2));
+      const ex = ax + t * dx - pts[i][0], ey = ay + t * dy - pts[i][1];
+      const d2 = ex * ex + ey * ey;
+      if (d2 > wd) { wd = d2; worst = i; }
+    }
+    if (worst >= 0) { keep[worst] = 1; stack.push([a, worst], [worst, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+// Chain the unit cracks into polylines (split at junctions), simplify with
+// Douglas-Peucker and write a GeoJSON MultiLineString. The flat-fill
+// landmasses (Grönland/Antarktis) contribute their true outlines directly.
+function writeBorders(fills) {
+  const world = TILE * (1 << BORDERS_Z);
+  const W1 = world + 1;
+  const nk = (x, y) => y * W1 + x;
+  const n = borderSegs.length / 4;
+  const adj = new Map();
+  const push = (k, s) => {
+    let a = adj.get(k);
+    if (!a) { a = []; adj.set(k, a); }
+    a.push(s);
+  };
+  for (let s = 0; s < n; s++) {
+    push(nk(borderSegs[s * 4], borderSegs[s * 4 + 1]), s);
+    push(nk(borderSegs[s * 4 + 2], borderSegs[s * 4 + 3]), s);
+  }
+  const used = new Uint8Array(n);
+  const other = (s, node) => {
+    const a = nk(borderSegs[s * 4], borderSegs[s * 4 + 1]);
+    const b = nk(borderSegs[s * 4 + 2], borderSegs[s * 4 + 3]);
+    return node === a ? b : a;
+  };
+  const paths = [];
+  const walk = (start, s0) => {
+    const path = [start];
+    let s = s0, node = start;
+    for (;;) {
+      used[s] = 1;
+      node = other(s, node);
+      path.push(node);
+      const list = adj.get(node);
+      if (list.length !== 2) break;
+      const nxt = list[0] === s ? list[1] : list[0];
+      if (used[nxt]) break;
+      s = nxt;
+    }
+    return path;
+  };
+  for (const [node, list] of adj) {
+    if (list.length === 2) continue;
+    for (const s of list) if (!used[s]) paths.push(walk(node, s));
+  }
+  for (let s = 0; s < n; s++) {
+    if (!used[s]) paths.push(walk(nk(borderSegs[s * 4], borderSegs[s * 4 + 1]), s));
+  }
+  const toLngLat = ([x, y]) => {
+    const lng = (x / world - 0.5) * 360;
+    const lat = (2 * Math.atan(Math.exp((0.5 - y / world) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
+    return [+lng.toFixed(5), +lat.toFixed(5)];
+  };
+  const lines = [];
+  let ptsIn = 0, ptsOut = 0;
+  for (const p of paths) {
+    const pts = p.map(k => [k % W1, (k / W1) | 0]);
+    ptsIn += pts.length;
+    const simp = douglasPeucker(pts, 1.3);
+    ptsOut += simp.length;
+    lines.push(simp.map(toLngLat));
+  }
+  for (const fl of fills) {
+    for (const rp of fl.rings) {
+      const arr = [];
+      for (let i = 0; i < rp.length; i += 2) arr.push([rp[i] * world, rp[i + 1] * world]);
+      arr.push(arr[0]);
+      lines.push(douglasPeucker(arr, 1.3).map(toLngLat));
+    }
+  }
+  const gj = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: lines } }] };
+  const out = path.resolve(repo, BORDERS);
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify(gj));
+  console.log(`Skrev ${out}: ${lines.length} linjer (${ptsOut} punkter, förenklat från ${ptsIn}).`);
 }
 
 // Warp one country's art into `scratch`, then source-over onto `sheetBuf`
@@ -1407,6 +1554,7 @@ async function main() {
 
   for (let z = 0; z <= MAXZOOM; z++) {
     if (WINDOW && z !== WINDOW.z) continue;
+    if (BORDERS && z !== BORDERS_Z) continue;
     const world = TILE * (1 << z);
     const nTiles = 1 << z;
 
@@ -1542,7 +1690,8 @@ async function main() {
       }
       // pixel buffer on top: sheets, the locked seam fill and the uniform
       // outlines (locked-only tiles run it too, for coasts and USA/Kanada)
-      if (sheetDraws.length || (OUTLINE > 0 && lockedDraws.length)) {
+      const bufferRan = sheetDraws.length > 0 || ((OUTLINE > 0 || BORDERS) && lockedDraws.length > 0);
+      if (bufferRan) {
         sheetBuf.fill(0);
         ownerBuf.fill(0);
         // per-country locked masks: owner ids for the outline pass, their
@@ -1569,6 +1718,49 @@ async function main() {
         for (let si = 0; si < sheetDraws.length; si++) {
           await renderSheetPx(sheetDraws[si], world, tx, ty, lockedMask, si + 1, lockedByKey);
         }
+        // Erase the locked art's own drawn contour along shared borders: in
+        // the seam band INSIDE the locked polygon, every DARK art pixel (the
+        // baked-in border line) is repainted with the de-rimmed underlay
+        // colour. The neighbour's contour becomes the only line — no doubles.
+        for (const [key, { rec, ownerId }] of lockedByKey) {
+          if (!lockedMask) break;
+          const segDraws = sheetDraws.filter(s => s.gapLockKey === key && s.gapSegs);
+          if (!segDraws.length) continue;
+          let band = null;
+          for (const s of segDraws) {
+            const m = buildMask([{ ...s.gapSegs, off: s.off }], world, tx, ty, 'segments', Math.max(8, world * 0.025));
+            if (!m) continue;
+            if (!band) band = m;
+            else for (let i = 0; i < m.length; i++) band[i] |= m[i];
+          }
+          if (!band) continue;
+          const un = await getUnderlayFullData(key, rec.svgPath, 1024);
+          const ab = (await getPieceArtBounds(key, rec.svgPath, rec.geom))[0];
+          const raster = await getRaster(key, rec.svgPath, rec.dstW);
+          const x0 = rec.geom.minX * world + rec.off, x1 = rec.geom.maxX * world + rec.off;
+          const y0 = rec.geom.minY * world, y1 = rec.geom.maxY * world;
+          for (let py = 0; py < TG; py++) {
+            for (let px = 0; px < TG; px++) {
+              const i = py * TG + px;
+              if (!band[i] || !lockedMask[i] || ownerBuf[i] !== ownerId) continue;
+              const fu = Math.min(1, Math.max(0, (tx * TILE + px - G + 0.5 - x0) / (x1 - x0)));
+              const fv = Math.min(1, Math.max(0, (ty * TILE + py - G + 0.5 - y0) / (y1 - y0)));
+              const au = ab[0] + fu * (ab[2] - ab[0]), av = ab[1] + fv * (ab[3] - ab[1]);
+              const rx = Math.min(raster.w - 1, Math.max(0, Math.round(au * raster.w - 0.5)));
+              const ry = Math.min(raster.h - 1, Math.max(0, Math.round(av * raster.h - 0.5)));
+              const rsi = (ry * raster.w + rx) * 4;
+              // keep crisp art wherever it is NOT the dark contour line
+              if (raster.data[rsi + 3] > 60 &&
+                  Math.max(raster.data[rsi], raster.data[rsi + 1], raster.data[rsi + 2]) > 140) continue;
+              const ux = Math.min(un.w - 1, Math.max(0, Math.round(au * un.w - 0.5)));
+              const uy = Math.min(un.h - 1, Math.max(0, Math.round(av * un.h - 0.5)));
+              const usi = (uy * un.w + ux) * 4;
+              const j = i * 4;
+              sheetBuf[j] = un.data[usi]; sheetBuf[j + 1] = un.data[usi + 1];
+              sheetBuf[j + 2] = un.data[usi + 2]; sheetBuf[j + 3] = 255;
+            }
+          }
+        }
         outlineSheet();
           // premultiplied → straight, composited over the locked layer
           const id = ctx.createImageData(TG, TG);
@@ -1587,6 +1779,10 @@ async function main() {
           }
         blitCanvas.getContext('2d').putImageData(id, 0, 0);
         ctx.drawImage(blitCanvas, G, G, TILE, TILE, 0, 0, TILE, TILE);
+      }
+      if (BORDERS) {
+        if (bufferRan) collectBorderCracks(tx, ty);
+        continue;
       }
       // registration bboxes overshoot the artwork (locked pads, badge quads) —
       // drop tiles where nothing actually landed
@@ -1608,6 +1804,10 @@ async function main() {
     console.log(`z${z}: ${written} tiles${skipped ? ` (+${skipped} fanns redan)` : ''}, ${(bytes / 1048576).toFixed(1)} MB (cache ${(cacheBytes / 1048576) | 0} MB)`);
   }
 
+  if (BORDERS) {
+    writeBorders(fills);
+    return;
+  }
   if (SAVE) {
     console.log('\nTile files saved. Run with --assemble to pack the archive.');
     return;

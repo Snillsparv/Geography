@@ -188,11 +188,41 @@ function render(name) {
     }
   }
   ctx.putImageData(id, 0, 0);
+  if (borderLines.length) drawBorders(proj, xm, ym, W, H);
+}
+
+// ── Vektorgränserna (samma linjer som globen) ritas ovanpå varpen ──
+let borderLines = [];
+async function loadBorders() {
+  try {
+    const gj = await (await fetch('assets/art-borders.json')).json();
+    borderLines = gj.features[0].geometry.coordinates;
+  } catch (e) { console.warn('kunde inte läsa art-borders.json', e); }
+}
+function drawBorders(proj, xm, ym, W, H) {
+  ctx.strokeStyle = '#0a0a0a';
+  ctx.lineWidth = 1.6;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const line of borderLines) {
+    let prev = null;
+    for (const [lng, lat] of line) {
+      const [x, y] = proj.forward(lng * D2R, lat * D2R);
+      const px = (x + xm) / (2 * xm) * W;
+      const py = (ym - y) / (2 * ym) * H;
+      // bryt vid antimeridianhopp
+      if (prev && Math.abs(px - prev) > W / 2) { ctx.moveTo(px, py); prev = px; continue; }
+      if (prev === null) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      prev = px;
+    }
+  }
+  ctx.stroke();
 }
 
 let current = 'robinson';
 status.textContent = 'Hämtar kartrutor …';
-await loadMosaic();
+await Promise.all([loadMosaic(), loadBorders()]);
 status.classList.add('hidden');
 render(current);
 
