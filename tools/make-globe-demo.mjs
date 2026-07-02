@@ -37,9 +37,16 @@ const html = `<!DOCTYPE html>
     border: 1px solid rgba(91,191,255,.3); background: rgba(255,255,255,.04);
     color: #cde; font-size: .8rem; cursor: pointer; }
   button.opt.active { background: #2980b9; border-color: #5bbfff; color: #fff; font-weight: 600; }
+  #load { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 6;
+    background: rgba(10,22,38,.94); border: 1px solid rgba(91,191,255,.3); border-radius: 10px;
+    padding: 10px 16px; color: #cde; font-size: .82rem; min-width: 260px; text-align: center; }
+  #load .track { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); margin-top: 8px; overflow: hidden; }
+  #load .fill { height: 100%; width: 0%; background: #5bbfff; transition: width .15s; }
 </style></head>
 <body>
 <div id="map"></div>
+<div id="load"><span id="loadtxt">Laddar hela kartan f&ouml;r s&ouml;ml&ouml;s snurr &hellip;</span>
+  <div class="track"><div class="fill" id="loadbar"></div></div></div>
 <div id="panel">
   <h1>Jonas geografi – jordglob</h1>
   <p>F&ouml;rbakade kartrutor + MLS-varp: varje land ligger p&aring; sin riktiga plats. Dra, zooma och utforska!</p>
@@ -64,9 +71,48 @@ const html = `<!DOCTYPE html>
 
 <script>${maplibreJs}</script>
 <script>${pmtilesJs}</script>
-<script>
+<script type="module">
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile);
+
+// Förladda hela arkivet till minnet (≈45 MB): varje rotation, panorering och
+// zoom blir därefter omedelbar — inga rutor som laddar i kanterna. Lägg till
+// ?stream=1 i adressen för att i stället strömma via range requests.
+const TILE_URL = 'tiles/world.pmtiles';
+async function preloadTiles() {
+  const loadEl = document.getElementById('load');
+  if (new URLSearchParams(location.search).has('stream')) { loadEl.remove(); return; }
+  try {
+    const resp = await fetch(TILE_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const total = +resp.headers.get('Content-Length') || 0;
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let got = 0;
+    const bar = document.getElementById('loadbar');
+    const txt = document.getElementById('loadtxt');
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      got += value.length;
+      if (total) bar.style.width = (got / total * 100).toFixed(1) + '%';
+      txt.textContent = 'Laddar hela kartan \\u2026 ' + (got / 1048576).toFixed(1) +
+        (total ? ' / ' + (total / 1048576).toFixed(0) + ' MB' : ' MB');
+    }
+    const buf = new Uint8Array(got);
+    let o = 0;
+    for (const c of chunks) { buf.set(c, o); o += c.length; }
+    protocol.add(new pmtiles.PMTiles({
+      getKey: () => TILE_URL,
+      getBytes: async (offset, length) => ({ data: buf.buffer.slice(offset, offset + length) }),
+    }));
+  } catch (e) {
+    console.warn('Förladdning misslyckades – strömmar via range requests i stället.', e);
+  }
+  loadEl.remove();
+}
+await preloadTiles();
 
 const map = new maplibregl.Map({
   container: 'map',
