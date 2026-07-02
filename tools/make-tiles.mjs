@@ -21,10 +21,11 @@
 // micro-states …) are "badges": they always keep the composition placement.
 //
 // Sheets are rasterized per pixel (inverse-bilinear per warp cell): exact
-// coverage, no mesh seams. Neighbours of shape-locked countries get any
-// art shortfall against the locked true border filled with their own
-// colour-extended underlay, and sheets are clipped out of locked polygons,
-// whose outlines re-stroke on top — crisp borders, no ocean slivers.
+// coverage, no mesh seams. The shape-locked countries render FIRST and the
+// region sheets composite on top of them, so every neighbour's drawn contour
+// stays complete (nothing of China/Ukraina is clipped away by Russia's fill);
+// where a neighbour's art falls short of the locked true border the gap is
+// filled with the LOCKED country's colour-extended underlay instead.
 //
 // Tiles are 512×512 WebP, skipped where no artwork lands, packed into a single
 // PMTiles archive servable from any static host with HTTP range requests.
@@ -75,6 +76,12 @@ const OUTLINE = Math.max(0, +arg('outline', 2.5));
 // lines, plus the flat-fill landmass outlines. No tiles are written.
 const BORDERS = arg('borders', null);
 const BORDERS_Z = 6;
+// --regions FILE (requires --borders): additionally chain the ownership
+// cracks into CLOSED per-country polygons — each country's visibly painted
+// area — and write them as a GeoJSON FeatureCollection (id = the country's
+// stable gid, properties {gid, key, namn}). This is the click layer: the
+// map app hit-tests taps against these polygons on both globe and flat map.
+const REGIONS_OUT = arg('regions', null);
 // Debug: --window z:x0:y0[:x1:y1] renders ONLY that tile range at that zoom
 // (combine with --save DIR to inspect the webp files without a full build).
 const WINDOW = (() => {
@@ -136,9 +143,10 @@ const PIN_UPRIGHT = new Set(['sydamerika/bolivia']);
 
 // Landmasses with no artwork, drawn as flat fills with the artwork-style
 // outline so the world map is complete (true shapes from Natural Earth).
+// gid: fixed region/click ids well above the country counter (~200).
 const EXTRA_FILLS = [
-  { a3: 'GRL', color: '#f2f4f6' },   // Grönland — vit
-  { a3: 'ATA', color: '#e7eaee' },   // Antarktis — ljusgrå
+  { a3: 'GRL', color: '#f2f4f6', gid: 901, name: 'Grönland' },   // vit
+  { a3: 'ATA', color: '#e7eaee', gid: 902, name: 'Antarktis' },  // ljusgrå
 ];
 
 // ── Web Mercator (unit square) ──
@@ -226,9 +234,11 @@ function buildFills(byA3) {
     if (!f) continue;
     const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
     const rings = [];
+    const polysMerc = [];   // outer/hole grouping kept, for the region export
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const poly of polys) {
       if (geoArea({ type: 'Polygon', coordinates: poly }) < LOCK_MIN_RING_AREA) continue;
+      const grp = [];
       for (const ring of poly) {
         const pts = new Float64Array(ring.length * 2);
         for (let i = 0; i < ring.length; i++) {
@@ -238,9 +248,11 @@ function buildFills(byA3) {
           if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
         rings.push(pts);
+        grp.push(pts);
       }
+      if (grp.length) polysMerc.push(grp);
     }
-    fills.push({ a3: spec.a3, color: spec.color, rings, minX, minY, maxX, maxY });
+    fills.push({ a3: spec.a3, color: spec.color, gid: spec.gid, name: spec.name, rings, polysMerc, minX, minY, maxX, maxY });
   }
   return fills;
 }
@@ -269,6 +281,10 @@ function matchRegions() {
   const { bySv, byA3 } = loadFeatures();
   const used = new Set();
   const regions = [];
+  // stable global id per country (1, 2, 3 … in region/config order): the
+  // per-pixel OWNER value in every tile, and the feature id in the exported
+  // border/region GeoJSON — the click layer keys on it.
+  let gid = 0;
   for (const slug of REGIONS) {
     const cfg = JSON.parse(readFileSync(path.join(repo, 'assets', slug, 'config.json'), 'utf8'));
     const countries = [];
@@ -286,7 +302,7 @@ function matchRegions() {
       // anchors against the FULL geometry instead of the largest polygon.
       const anchor = lock ? f.geometry : anchorGeometry(f.geometry);
       countries.push({
-        base, svgPath, lock, key: `${slug}/${base}`,
+        base, svgPath, lock, key: `${slug}/${base}`, gid: ++gid, name: c.name,
         left: c.left, top: c.top, width: c.width, height: c.height,
         centroid: geoCentroid(anchor),
         anchor, fullGeom: f.geometry,
@@ -1209,6 +1225,15 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
   ctx.lineJoin = 'round';
   if (lineWidth) ctx.lineWidth = lineWidth;
   const pad = (lineWidth || 0) / 2 + 1;
+  // Snap every coordinate to a 1/16-px grid IN WORLD SPACE (the tile offset
+  // is an exact integer, so snapping before or after it is equivalent).
+  // Rasterizers hold path coords as float32: unsnapped, a far-off-canvas
+  // vertex rounds differently under different tile translations, nudging the
+  // edge and flipping ~50 %-coverage pixels — the SAME world pixel then gets
+  // a different owner in one tile's interior than in its neighbour's gutter,
+  // and every region ring walking through breaks. 1/16-px values stay exact
+  // in float32 for |coord| < 2^19, so rasterization is identical everywhere.
+  const q = v => Math.round(v * 16) / 16;
   let any = false;
   for (const grp of groups) {
     const ox = -tx * TILE + (grp.off || 0) + G, oy = -ty * TILE + G;
@@ -1220,15 +1245,15 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
       // grp.pts = flat [x0,y0,x1,y1, …] pairs — open polyline segments
       ctx.lineCap = 'round';
       for (let i = 0; i < grp.pts.length; i += 4) {
-        ctx.moveTo(grp.pts[i] * world + ox, grp.pts[i + 1] * world + oy);
-        ctx.lineTo(grp.pts[i + 2] * world + ox, grp.pts[i + 3] * world + oy);
+        ctx.moveTo(q(grp.pts[i] * world) + ox, q(grp.pts[i + 1] * world) + oy);
+        ctx.lineTo(q(grp.pts[i + 2] * world) + ox, q(grp.pts[i + 3] * world) + oy);
       }
       ctx.stroke();
       continue;
     }
     for (const pts of grp.rings) {
-      ctx.moveTo(pts[0] * world + ox, pts[1] * world + oy);
-      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * world + ox, pts[i + 1] * world + oy);
+      ctx.moveTo(q(pts[0] * world) + ox, q(pts[1] * world) + oy);
+      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(q(pts[i] * world) + ox, q(pts[i + 1] * world) + oy);
       ctx.closePath();
     }
     if (mode === 'stroke') ctx.stroke();
@@ -1284,18 +1309,57 @@ function outlineSheet() {
 // world px at BORDERS_Z. Only the tile interior is scanned; the gutter
 // supplies the neighbour side, so every crack is recorded exactly once.
 const borderSegs = [];
+// Directed cracks per owner (--regions): each country's boundary with its
+// INTERIOR ON THE LEFT of the walking direction (screen coords, y south),
+// so chaining start→end always yields closed rings around its painted area.
+const regionSegs = new Map();   // gid → flat [x0,y0, x1,y1, …]
+function pushRegionSeg(gid, x0, y0, x1, y1) {
+  let a = regionSegs.get(gid);
+  if (!a) { a = []; regionSegs.set(gid, a); }
+  a.push(x0, y0, x1, y1);
+}
 function collectBorderCracks(tx, ty) {
   const bx = tx * TILE - G, by = ty * TILE - G;
+  const worldPx = TILE * (1 << BORDERS_Z);
   for (let py = G; py < G + TILE; py++) {
     const row = py * TG;
     for (let px = G; px < G + TILE; px++) {
       const i = row + px;
       const o = ownerBuf[i];
-      if (ownerBuf[i + 1] !== o) borderSegs.push(bx + px + 1, by + py, bx + px + 1, by + py + 1);
-      if (ownerBuf[i + TG] !== o) borderSegs.push(bx + px, by + py + 1, bx + px + 1, by + py + 1);
+      const oe = ownerBuf[i + 1];
+      if (oe !== o) borderSegs.push(bx + px + 1, by + py, bx + px + 1, by + py + 1);
+      if (REGIONS_OUT) {
+        // Regions cut hard at the world's EAST edge (x = world = lng 180):
+        // the antimeridian copy paints straight on into the gutter so no
+        // ownership crack appears there, but the polygon has to close.
+        const oeR = bx + px + 1 >= worldPx ? 0 : oe;
+        if (oeR !== o) {
+          if (o) pushRegionSeg(o, bx + px + 1, by + py + 1, bx + px + 1, by + py);
+          if (oeR) pushRegionSeg(oeR, bx + px + 1, by + py, bx + px + 1, by + py + 1);
+        }
+        // …and at the WEST edge (x = 0), where the wrapped copy starts and
+        // no tile scans the crack against the outside.
+        if (tx === 0 && px === G && o) {
+          pushRegionSeg(o, bx + px, by + py, bx + px, by + py + 1);
+        }
+      }
+      const os = ownerBuf[i + TG];
+      if (os !== o) {
+        borderSegs.push(bx + px, by + py + 1, bx + px + 1, by + py + 1);
+        if (REGIONS_OUT) {
+          if (o) pushRegionSeg(o, bx + px, by + py + 1, bx + px + 1, by + py + 1);
+          if (os) pushRegionSeg(os, bx + px + 1, by + py + 1, bx + px, by + py + 1);
+        }
+      }
     }
   }
 }
+
+const mercPxToLngLat = world => ([x, y]) => {
+  const lng = (x / world - 0.5) * 360;
+  const lat = (2 * Math.atan(Math.exp((0.5 - y / world) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
+  return [+lng.toFixed(5), +lat.toFixed(5)];
+};
 
 function douglasPeucker(pts, eps) {
   if (pts.length <= 2) return pts;
@@ -1366,11 +1430,7 @@ function writeBorders(fills) {
   for (let s = 0; s < n; s++) {
     if (!used[s]) paths.push(walk(nk(borderSegs[s * 4], borderSegs[s * 4 + 1]), s));
   }
-  const toLngLat = ([x, y]) => {
-    const lng = (x / world - 0.5) * 360;
-    const lat = (2 * Math.atan(Math.exp((0.5 - y / world) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
-    return [+lng.toFixed(5), +lat.toFixed(5)];
-  };
+  const toLngLat = mercPxToLngLat(world);
   const lines = [];
   let ptsIn = 0, ptsOut = 0;
   for (const p of paths) {
@@ -1395,13 +1455,138 @@ function writeBorders(fills) {
   console.log(`Skrev ${out}: ${lines.length} linjer (${ptsOut} punkter, förenklat från ${ptsIn}).`);
 }
 
-// Warp one country's art into `scratch`, then source-over onto `sheetBuf`
-// (skipping pixels inside locked-country polygons). With gap fill active,
-// pixels inside the country's true polygon near a locked border show the
-// LOCKED country's colour-extended artwork beneath the art: white southern
-// Russia (or the USA's stripes) runs seamlessly all the way to the
-// neighbour's drawn edge, where the uniform outline draws the border.
-async function renderSheetPx(d, world, tx, ty, lockedMask, ownerIdx, lockedByKey) {
+// Chain each country's directed cracks into closed rings, classify outer
+// rings vs holes by signed area, nest holes into their outers, simplify and
+// write one MultiPolygon feature per country (the click layer). Grönland/
+// Antarktis contribute their true Natural Earth polygons directly.
+function writeRegions(regions, fills) {
+  const world = TILE * (1 << BORDERS_Z);
+  const W1 = world + 1;
+  const nk = (x, y) => y * W1 + x;
+  const toLngLat = mercPxToLngLat(world);
+  const meta = new Map();
+  for (const r of regions) for (const c of r.countries) meta.set(c.gid, { key: c.key, name: c.name });
+
+  const features = [];
+  let nRings = 0, nDropped = 0, nOpen = 0;
+  for (const [gid, segs] of [...regionSegs.entries()].sort((a, b) => a[0] - b[0])) {
+    const openPts = [];
+    const n = segs.length / 4;
+    const bySt = new Map();          // start node → outgoing segment indices
+    for (let s = 0; s < n; s++) {
+      const k = nk(segs[s * 4], segs[s * 4 + 1]);
+      let a = bySt.get(k);
+      if (!a) { a = []; bySt.set(k, a); }
+      a.push(s);
+    }
+    const used = new Uint8Array(n);
+    const rings = [];
+    for (let s0 = 0; s0 < n; s0++) {
+      if (used[s0]) continue;
+      const ring = [[segs[s0 * 4], segs[s0 * 4 + 1]]];
+      let s = s0;
+      for (;;) {
+        used[s] = 1;
+        const x1 = segs[s * 4 + 2], y1 = segs[s * 4 + 3];
+        ring.push([x1, y1]);
+        if (x1 === ring[0][0] && y1 === ring[0][1]) break;    // closed
+        const cands = (bySt.get(nk(x1, y1)) || []).filter(t => !used[t]);
+        if (!cands.length) {                                  // open — a crack
+          nOpen++;                                            // mismatch; log it
+          if (openPts.length < 8) openPts.push(`${x1},${y1}`);
+          ring.length = 0;
+          break;
+        }
+        let next = cands[0];
+        if (cands.length > 1) {
+          // 4-way corner (two diagonal pieces of the SAME country touch):
+          // take the LEFT-most turn — hugs the interior corner tightest and
+          // keeps the two pieces as two separate simple rings
+          const dx = x1 - segs[s * 4], dy = y1 - segs[s * 4 + 1];
+          const pri = t => {
+            const cx = segs[t * 4 + 2] - segs[t * 4], cy = segs[t * 4 + 3] - segs[t * 4 + 1];
+            if (cx === dy && cy === -dx) return 0;   // left
+            if (cx === dx && cy === dy) return 1;    // straight
+            return 2;                                // right
+          };
+          cands.sort((a2, b2) => pri(a2) - pri(b2));
+          next = cands[0];
+        }
+        s = next;
+      }
+      if (ring.length < 4) continue;
+      // signed area, screen coords (y south): interior-on-left ⇒ OUTER < 0
+      let A2 = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        A2 += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+      }
+      const simp = douglasPeucker(ring, 1.3);
+      if (simp.length < 4 || Math.abs(A2) / 2 < 8) { nDropped++; continue; }  // art specks
+      rings.push({ area: A2 / 2, pts: simp });
+    }
+    // nest: holes (area > 0) go into the smallest outer that contains them
+    const outers = rings.filter(r => r.area < 0).sort((a, b) => Math.abs(a.area) - Math.abs(b.area));
+    const holes = rings.filter(r => r.area > 0);
+    for (const o of outers) o.holes = [];
+    const contains = (ring, x, y) => {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      return inside;
+    };
+    for (const h of holes) {
+      const home = outers.find(o => contains(o.pts, h.pts[0][0], h.pts[0][1] + 0.5));
+      if (home) home.holes.push(h);
+      else nDropped++;
+    }
+    if (openPts.length) {
+      const m0 = meta.get(gid) || {};
+      console.log(`  öppna ringar: gid ${gid} (${m0.key || '?'}) vid ${openPts.join('  ')}`);
+    }
+    if (!outers.length) continue;
+    nRings += rings.length;
+    const m = meta.get(gid) || {};
+    features.push({
+      type: 'Feature', id: gid,
+      properties: { gid, key: m.key || String(gid), namn: m.name || m.key || String(gid) },
+      geometry: {
+        type: 'MultiPolygon',
+        coordinates: outers.map(o => [o.pts.map(toLngLat), ...o.holes.map(h => h.pts.map(toLngLat))]),
+      },
+    });
+  }
+  // artwork-less flat fills: true polygons, already grouped outer-first
+  for (const fl of fills) {
+    const coords = fl.polysMerc.map(grp => grp.map(pts => {
+      const arr = [];
+      for (let i = 0; i < pts.length; i += 2) arr.push([pts[i] * world, pts[i + 1] * world]);
+      if (arr[0][0] !== arr[arr.length - 1][0] || arr[0][1] !== arr[arr.length - 1][1]) arr.push(arr[0]);
+      const simp = douglasPeucker(arr, 1.3);
+      return simp.map(toLngLat);
+    }).filter(ring => ring.length >= 4));
+    features.push({
+      type: 'Feature', id: fl.gid,
+      properties: { gid: fl.gid, key: 'fill/' + fl.a3.toLowerCase(), namn: fl.name },
+      geometry: { type: 'MultiPolygon', coordinates: coords },
+    });
+  }
+  const out = path.resolve(repo, REGIONS_OUT);
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify({ type: 'FeatureCollection', features }));
+  console.log(`Skrev ${out}: ${features.length} länder, ${nRings} ringar (${nDropped} småfragment släppta, ${nOpen} öppna).`);
+}
+
+// Warp one country's art into `scratch`, then source-over onto `sheetBuf`.
+// The sheets composite ABOVE the shape-locked countries: a neighbour whose
+// drawn contour straddles Russia's true border keeps the whole contour —
+// nothing is clipped away, so no white locked fill ever covers the black
+// line. With gap fill active, pixels inside the country's true polygon near
+// a locked border show the LOCKED country's colour-extended artwork beneath
+// the art: white southern Russia (or the USA's stripes) runs seamlessly all
+// the way to the neighbour's drawn edge, where the border line is drawn.
+async function renderSheetPx(d, world, tx, ty, lockedByKey) {
   const raster = await getRaster(d.key, d.svgPath, d.dstW);
   const rw = raster.w, rh = raster.h, rd = raster.data;
   const sxs = rw / d.srcW, sys = rh / d.srcH;
@@ -1522,10 +1707,10 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, ownerIdx, lockedByKey
           // carrying MORE art must never be replaced by a fill-only write
           if (aArt < artCov[gi]) continue;
           artCov[gi] = aArt;
-          if (!(lockedMask && lockedMask[gi])) {
-            if (aArt >= 128) ownerBuf[gi] = ownerIdx;
-            else if (lf && gapMask[gi] && a >= 128) ownerBuf[gi] = lf.ownerId;
-          }
+          // art wins ownership even over locked polygons (the sheet draws on
+          // top) — the border crack then follows the neighbour's drawn edge
+          if (aArt >= 128) ownerBuf[gi] = d.gid;
+          else if (lf && gapMask[gi] && a >= 128) ownerBuf[gi] = lf.ownerId;
           const pi = gi * 4;
           scratch[pi] = r; scratch[pi + 1] = gr; scratch[pi + 2] = b; scratch[pi + 3] = a;
         }
@@ -1533,15 +1718,15 @@ async function renderSheetPx(d, world, tx, ty, lockedMask, ownerIdx, lockedByKey
     }
   }
   if (tmaxx < 0) return;
-  // source-over scratch → sheetBuf (never inside locked-country polygons),
-  // zeroing scratch behind us so it is clean for the next draw
+  // source-over scratch → sheetBuf, zeroing scratch behind us so it is
+  // clean for the next draw
   for (let py = tminy; py <= tmaxy; py++) {
     const rowBase = py * TG;
     for (let px = tminx; px <= tmaxx; px++) {
       const i = rowBase + px;
       const j = i * 4;
       const a = scratch[j + 3];
-      if (!a || (lockedMask && lockedMask[i])) continue;
+      if (!a) continue;
       if (a === 255) {
         sheetBuf[j] = scratch[j]; sheetBuf[j + 1] = scratch[j + 1];
         sheetBuf[j + 2] = scratch[j + 2]; sheetBuf[j + 3] = 255;
@@ -1606,7 +1791,7 @@ async function main() {
             const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE) + pad);
             if (tx1 < tx0 || ty1 < ty0) continue;
             const drawRec = {
-              lock: true, order: 1,
+              lock: true, order: 1, gid: c.gid,
               key: c.key, svgPath: c.svgPath,
               geom: lg, off, dstW: maxX - minX,
             };
@@ -1633,25 +1818,31 @@ async function main() {
         if (!(dstW > 0)) continue;
         // gap-fill countries paint up to their true polygon, which can jut
         // past the warped art bbox — register those tiles too, or the fill
-        // would stop dead at a tile boundary
+        // would stop dead at a tile boundary. The seam band and its collar
+        // also reach ~world*0.0125 px past the shared border into the LOCKED
+        // side: pad the registration to match (same margin as the locked
+        // pads), or the collar repaint gets tile-boundary seams and the
+        // exported region rings break there.
+        let pad = 0;
         if (c.gapAdj) {
           if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
           if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
           if (c.mercGeom.minY * world < minY) minY = c.mercGeom.minY * world;
           if (c.mercGeom.maxY * world > maxY) maxY = c.mercGeom.maxY * world;
+          pad = Math.ceil((world * 0.0125 + 12) / TILE);
         }
         // world copies for antimeridian-crossing regions
         const offsets = [0];
         if (maxX > world) offsets.push(-world);
         if (minX < 0) offsets.push(world);
         for (const off of offsets) {
-          const tx0 = Math.max(0, Math.floor((minX + off) / TILE));
-          const tx1 = Math.min(nTiles - 1, Math.floor((maxX + off) / TILE));
-          const ty0 = Math.max(0, Math.floor(minY / TILE));
-          const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE));
+          const tx0 = Math.max(0, Math.floor((minX + off) / TILE) - pad);
+          const tx1 = Math.min(nTiles - 1, Math.floor((maxX + off) / TILE) + pad);
+          const ty0 = Math.max(0, Math.floor(minY / TILE) - pad);
+          const ty1 = Math.min(nTiles - 1, Math.floor(maxY / TILE) + pad);
           if (tx1 < tx0 || ty1 < ty0) continue;
           const drawRec = {
-            sheet: true, order: 2,
+            sheet: true, order: 2, gid: c.gid,
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
             grid: g, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
@@ -1712,8 +1903,9 @@ async function main() {
       if (bufferRan) {
         sheetBuf.fill(0);
         ownerBuf.fill(0);
-        // per-country locked masks: owner ids for the outline pass, their
-        // union clips the sheets
+        // per-country locked masks: baseline owner ids (the sheets composite
+        // on top and overwrite ownership wherever their art is opaque), and
+        // the union steers the seam collar repaint below
         let lockedMask = null;
         const lockedByKey = new Map();
         if (lockedDraws.length) {
@@ -1722,9 +1914,8 @@ async function main() {
             if (!byKey.has(d.key)) byKey.set(d.key, []);
             byKey.get(d.key).push(d);
           }
-          let li = 0;
           for (const [key, recs] of byKey) {
-            const ownerId = 0xF000 + li++;
+            const ownerId = recs[0].gid;
             lockedByKey.set(key, { rec: recs[0], ownerId });
             const m = buildMask(recs.flatMap(d => d.geom.pieces.map(p => ({ ...p, off: d.off }))), world, tx, ty, 'fill');
             if (!m) continue;
@@ -1733,8 +1924,8 @@ async function main() {
             else for (let i = 0; i < m.length; i++) lockedMask[i] |= m[i];
           }
         }
-        for (let si = 0; si < sheetDraws.length; si++) {
-          await renderSheetPx(sheetDraws[si], world, tx, ty, lockedMask, si + 1, lockedByKey);
+        for (const d of sheetDraws) {
+          await renderSheetPx(d, world, tx, ty, lockedByKey);
         }
         // Erase the locked art's own drawn contour along shared borders: in
         // the seam band INSIDE the locked polygon, every DARK art pixel (the
@@ -1860,6 +2051,7 @@ async function main() {
 
   if (BORDERS) {
     writeBorders(fills);
+    if (REGIONS_OUT) writeRegions(regions, fills);
     return;
   }
   if (SAVE) {

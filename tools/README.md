@@ -24,23 +24,37 @@ than life (Pacific/Caribbean micro-states, Maldiverna …) are detected
 automatically and always keep the composition placement ("badges").
 
 The sheets render per pixel (inverse-bilinear per warp cell — exact
-coverage, so no hairline mesh seams). Neighbours of the shape-locked
-countries (Ryssland/Kanada/USA, drawn clipped to their true Natural Earth
-polygons) get art shortfall near the locked border filled with their own
-colour-extended, blurred underlay; sheets are clipped out of the locked
-polygons and the locked outlines re-stroke on top — crisp borders, no
-ocean slivers.
+coverage, so no hairline mesh seams). The shape-locked countries
+(Ryssland/Kanada/USA, drawn clipped to their true Natural Earth polygons)
+render FIRST and the region sheets composite on top, so every neighbour's
+drawn contour stays complete; where a neighbour's art falls short of the
+locked true border, the gap fills with the locked country's colour-extended
+underlay instead (white southern Russia runs seamlessly to China's edge).
+
+`--borders FILE` exports the visible country boundaries (per-pixel
+ownership cracks at z6, chained + simplified) as GeoJSON lines; adding
+`--regions FILE` also chains them into closed per-country polygons — each
+country's actually painted area, with a stable feature id — which is what
+makes the countries clickable in the map app. Rebuild both whenever the
+tiles change:
+
+```bash
+node make-tiles.mjs --outline 0 --borders assets/art-borders.json \
+                    --regions assets/art-regions.json
+```
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
 
-`make-globe-demo.mjs` builds `globe-demo.html`: MapLibre GL (globe + mercator
-projections) reading the PMTiles via HTTP range requests, with a Natural
-Earth border line layer (vector → crisp at every zoom, styleable live).
+`make-globe-demo.mjs` builds `globe-demo.html` — the whole app in one file:
+MapLibre GL globe AND the flat "väggkarta" (Robinson/rektangulär/Miller/
+Equal Earth, warped per pixel from a z3 mosaic) with the vector border
+overlay, plus click-to-toggle: every country switches between its artwork
+and a solid green fill (`assets/art-regions.json`), in both views.
 
 ```bash
 cd tools && npm install
-node make-tiles.mjs --maxzoom 7 --geo 0.5   # ⇒ tiles/world.pmtiles (~10–20 min)
+node make-tiles.mjs --maxzoom 7 --outline 0   # ⇒ tiles/world.pmtiles (~10–20 min)
 node make-globe-demo.mjs               # ⇒ globe-demo.html
 ```
 
