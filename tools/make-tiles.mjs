@@ -140,6 +140,18 @@ const LOCK_OVERSCAN = 1.05;         // stretch art 5 % past the bbox → no alph
 // (Bolivias hjärna). Scale x/y only, no cross term.
 const PIN_UPRIGHT = new Set(['sydamerika/bolivia']);
 
+// Art with memory-aid decorations OUTSIDE the country body (Bolivias badboll
+// på pinne, Ecuadors vattenstråle). In the hand-drawn composition the
+// neighbours drawn later covered them; the warp pulls the countries apart
+// and exposes them. Clip: art pixels whose warped position lands outside the
+// country's true polygon (dilated by this fraction of its span) are dropped,
+// so the decorations never reach the tiles, borders or click regions. The
+// dilation keeps the normal drawn-contour overshoot along real borders.
+const CLIP_DECOR = new Map([
+  ['sydamerika/bolivia', 0.05],
+  ['sydamerika/eciador', 0.02],
+]);
+
 
 // Landmasses with no artwork, drawn as flat fills with the artwork-style
 // outline so the world map is complete (true shapes from Natural Earth).
@@ -476,6 +488,56 @@ function polygonLookup(geom, size = 256) {
   };
 }
 
+// Dilated point-in-polygon lookup for the decoration clip (CLIP_DECOR):
+// the FULL geometry (all islands) rasterized over an expanded bbox, then
+// dilated by `frac` of the country's span. contains(x, y) in unit Mercator.
+function buildDecorClip(geom, frac) {
+  const spanX = geom.maxX - geom.minX, spanY = geom.maxY - geom.minY;
+  if (!(spanX > 0) || !(spanY > 0)) return null;
+  const margin = Math.max(spanX, spanY) * frac;
+  const minX = geom.minX - margin * 1.5, maxX = geom.maxX + margin * 1.5;
+  const minY = geom.minY - margin * 1.5, maxY = geom.maxY + margin * 1.5;
+  const W = 384, H = Math.max(8, Math.min(1024, Math.round(W * (maxY - minY) / (maxX - minX))));
+  const c = createCanvas(W, H);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  for (const pts of geom.rings) {
+    ctx.moveTo((pts[0] - minX) / (maxX - minX) * W, (pts[1] - minY) / (maxY - minY) * H);
+    for (let i = 2; i < pts.length; i += 2) {
+      ctx.lineTo((pts[i] - minX) / (maxX - minX) * W, (pts[i + 1] - minY) / (maxY - minY) * H);
+    }
+    ctx.closePath();
+  }
+  ctx.fill('evenodd');
+  const d = ctx.getImageData(0, 0, W, H).data;
+  let m = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) m[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+  // dilate by the margin, expressed in lookup pixels
+  const rx = Math.max(1, Math.round(margin / (maxX - minX) * W));
+  for (let it = 0; it < rx; it++) {
+    const src = m;
+    m = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        m[i] = src[i] ||
+          (x > 0 && src[i - 1]) || (x < W - 1 && src[i + 1]) ||
+          (y > 0 && src[i - W]) || (y < H - 1 && src[i + W]) ? 1 : 0;
+      }
+    }
+  }
+  const mask = m;
+  return {
+    contains: (x, y) => {
+      const px = Math.floor((x - minX) / (maxX - minX) * W);
+      const py = Math.floor((y - minY) / (maxY - minY) * H);
+      if (px < 0 || px >= W || py < 0 || py >= H) return 0;
+      return mask[py * W + px];
+    },
+  };
+}
+
 // Which countries share a land border (identical Natural Earth vertices)?
 // Separates isolated island nations (badge candidates) from jigsaw members,
 // and flags neighbours of shape-locked countries for the seam gap fill.
@@ -654,6 +716,8 @@ async function buildWarps(regions) {
         continue;
       }
       c.mercGeom = ringsToMerc(c.anchor, ref);
+      const decorFrac = CLIP_DECOR.get(c.key);
+      if (decorFrac) c.decorClip = buildDecorClip(ringsToMerc(c.fullGeom, ref), decorFrac);
       // shared-border segments → unit merc, for the seam-fill band
       if (c.gapSegsRaw && c.gapSegsRaw.length) {
         const pts = new Float64Array(c.gapSegsRaw.length * 2);
@@ -1211,7 +1275,73 @@ const sheetBuf = new Uint8ClampedArray(TG * TG * 4);   // tile's sheet layer
 const scratch = new Uint8ClampedArray(TG * TG * 4);    // one country's art
 const artCov = new Uint8Array(TG * TG);                // art alpha per pixel
 const ownerBuf = new Uint16Array(TG * TG);             // visible country per pixel
+const decorBuf = new Uint8Array(TG * TG);              // clipped decoration zones
 const blitCanvas = createCanvas(TG, TG);               // sheetBuf → tile ctx
+
+// Mark the CLIP_DECOR country's decoration zone in decorBuf: every tile
+// pixel where its art is present but lands outside the dilated true polygon
+// (= what the clip in renderSheetPx will drop). Runs BEFORE the sheet loop,
+// so neighbours drawn earlier in the region order can fill the zone too:
+// pixels in the zone inside a neighbour's true polygon get the neighbour's
+// colour-extended underlay — Brasiliens gula fortsätter där Bolivias boll
+// låg i originalkompositionen, i stället för ett blekt hål.
+async function markDecorZones(d, world, tx, ty) {
+  const raster = await getRaster(d.key, d.svgPath, d.dstW);
+  const rw = raster.w, rh = raster.h, rd = raster.data;
+  const sxs = rw / d.srcW, sys = rh / d.srcH;
+  const ox = -tx * TILE + d.off + G, oy = -ty * TILE + G;
+  const g = d.grid;
+  const row = (g.nx + 1) * 2;
+  let marked = 0;
+  for (let gy = d.gy0; gy < d.gy1; gy++) {
+    for (let gx = d.gx0; gx < d.gx1; gx++) {
+      const i00 = (gy * (g.nx + 1) + gx) * 2;
+      const Ax = g.u[i00] * world + ox, Ay = g.u[i00 + 1] * world + oy;
+      const Bx = g.u[i00 + 2] * world + ox, By = g.u[i00 + 3] * world + oy;
+      const Dx = g.u[i00 + row] * world + ox, Dy = g.u[i00 + row + 1] * world + oy;
+      const Cx = g.u[i00 + row + 2] * world + ox, Cy = g.u[i00 + row + 3] * world + oy;
+      const minx = Math.min(Ax, Bx, Cx, Dx), maxx = Math.max(Ax, Bx, Cx, Dx);
+      const miny = Math.min(Ay, By, Cy, Dy), maxy = Math.max(Ay, By, Cy, Dy);
+      if (maxx < 0 || minx > TG || maxy < 0 || miny > TG) continue;
+      const px0 = Math.max(0, Math.floor(minx)), px1 = Math.min(TG - 1, Math.ceil(maxx));
+      const py0 = Math.max(0, Math.floor(miny)), py1 = Math.min(TG - 1, Math.ceil(maxy));
+      if (px1 < px0 || py1 < py0) continue;
+      const sX0 = (g.x0 + gx * g.step - d.left) * sxs;
+      const sY0 = (g.y0 + gy * g.step - d.top) * sys;
+      const sW = g.step * sxs, sH = g.step * sys;
+      const Ex = Bx - Ax, Ey = By - Ay;
+      const Fx = Dx - Ax, Fy = Dy - Ay;
+      const Gx = Cx - Bx - Dx + Ax, Gy = Cy - By - Dy + Ay;
+      const qa = Fy * Gx - Fx * Gy;
+      for (let py = py0; py <= py1; py++) {
+        for (let px = px0; px <= px1; px++) {
+          if (d.decorClip.contains((tx * TILE + px - G + 0.5 - d.off) / world, (ty * TILE + py - G + 0.5) / world)) continue;
+          const hx = px + 0.5 - Ax, hy = py + 0.5 - Ay;
+          const qb = hx * Gy - hy * Gx + Fy * Ex - Fx * Ey;
+          const qc = hx * Ey - hy * Ex;
+          let v;
+          if (Math.abs(qa) < 1e-9) {
+            if (Math.abs(qb) < 1e-12) continue;
+            v = -qc / qb;
+          } else {
+            const disc = Math.max(0, qb * qb - 4 * qa * qc);
+            const sq = Math.sqrt(disc);
+            v = (-qb + sq) / (2 * qa);
+            if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * qa);
+          }
+          if (v < -1e-4 || v > 1.0001) continue;
+          const den1 = Ex + v * Gx, den2 = Ey + v * Gy;
+          const u = Math.abs(den1) > Math.abs(den2) ? (hx - v * Fx) / den1 : (hy - v * Fy) / den2;
+          if (u < -1e-4 || u > 1.0001) continue;
+          const sx = Math.round(sX0 + u * sW - 0.5), sy = Math.round(sY0 + v * sH - 0.5);
+          if (sx < 0 || sx >= rw || sy < 0 || sy >= rh) continue;
+          if (rd[(sy * rw + sx) * 4 + 3] >= 64) { decorBuf[py * TG + px] = 1; marked++; }
+        }
+      }
+    }
+  }
+  return marked;
+}
 
 // Rasterize polygon rings (unit merc × world, gutter-buffer space) → 0/1 mask.
 // One shared canvas: ~16k tiles × several masks each would otherwise churn
@@ -1647,12 +1777,26 @@ function writeRegions(regions, fills) {
 // a locked border show the LOCKED country's colour-extended artwork beneath
 // the art: white southern Russia (or the USA's stripes) runs seamlessly all
 // the way to the neighbour's drawn edge, where the border line is drawn.
-async function renderSheetPx(d, world, tx, ty, lockedByKey) {
+async function renderSheetPx(d, world, tx, ty, lockedByKey, decorAny) {
   const raster = await getRaster(d.key, d.svgPath, d.dstW);
   const rw = raster.w, rh = raster.h, rd = raster.data;
   const sxs = rw / d.srcW, sys = rh / d.srcH;
   const ox = -tx * TILE + d.off + G, oy = -ty * TILE + G;
   const g = d.grid;
+
+  // decoration-zone backfill: where a CLIP_DECOR neighbour's decoration was
+  // clipped away (decorBuf) INSIDE this country's true polygon, this
+  // country's colour-extended underlay shows instead of a hole
+  let ownMask = null, ownUn = null;
+  if (decorAny && d.bodyGeom) {
+    ownMask = buildMask([{ ...d.bodyGeom, off: d.off }], world, tx, ty, 'fill');
+    if (ownMask) {
+      let any = false;
+      for (let i = 0; i < ownMask.length; i++) if (ownMask[i] && decorBuf[i]) { any = true; break; }
+      if (any) ownUn = await getUnderlayFullData(d.key, d.svgPath, 1024);
+      else ownMask = null;
+    }
+  }
 
   let gapMask = null, lf = null;
   if (d.gapGeom && d.gapSegs && d.gapLockKey && lockedByKey && lockedByKey.has(d.gapLockKey)) {
@@ -1742,8 +1886,27 @@ async function renderSheetPx(d, world, tx, ty, lockedByKey) {
             const si = (ty2 * rw + tx2) * 4;
             r += rd[si] * w; gr += rd[si + 1] * w; b += rd[si + 2] * w; a += rd[si + 3] * w;
           }
+          // decoration clip: art landing outside the (dilated) true polygon
+          // is dropped — Bolivias badboll och Ecuadors vattenstråle når
+          // aldrig kartan (grannarna täckte dem i originalkompositionen)
+          if (a > 0 && d.decorClip &&
+              !d.decorClip.contains((tx * TILE + px - G + 0.5 - d.off) / world, (ty * TILE + py - G + 0.5) / world)) {
+            r = 0; gr = 0; b = 0; a = 0;
+          }
           const gi = py * TG + px;
           const aArt = a;   // art alpha before any locked fill is mixed in
+          let ownFill = false;
+          if (ownUn && decorBuf[gi] && ownMask[gi] && a < 255) {
+            // own underlay at the same warped raster position — the fill
+            // continues this country's colours into the clipped zone
+            const kx = Math.min(ownUn.w - 1, Math.max(0, Math.round(sx / rw * ownUn.w)));
+            const ky = Math.min(ownUn.h - 1, Math.max(0, Math.round(sy / rh * ownUn.h)));
+            const si2 = (ky * ownUn.w + kx) * 4;
+            const inv = 1 - a / 255;
+            r += ownUn.data[si2] * inv; gr += ownUn.data[si2 + 1] * inv;
+            b += ownUn.data[si2 + 2] * inv; a += ownUn.data[si2 + 3] * inv;
+            ownFill = true;
+          }
           if (gapMask && gapMask[gi]) {
             // the locked country's extended colours beneath the art, sampled
             // by absolute position via its bbox↔art mapping
@@ -1771,7 +1934,8 @@ async function renderSheetPx(d, world, tx, ty, lockedByKey) {
           // art wins ownership even over locked polygons (the sheet draws on
           // top) — the border crack then follows the neighbour's drawn edge
           if (aArt >= 128) ownerBuf[gi] = d.gid;
-          else if (lf && gapMask[gi] && a >= 128) ownerBuf[gi] = lf.ownerId;
+          else if (lf && gapMask && gapMask[gi] && a >= 128) ownerBuf[gi] = lf.ownerId;
+          else if (ownFill && a >= 128) ownerBuf[gi] = d.gid;
           const pi = gi * 4;
           scratch[pi] = r; scratch[pi + 1] = gr; scratch[pi + 2] = b; scratch[pi + 3] = a;
         }
@@ -1905,6 +2069,7 @@ async function main() {
           const drawRec = {
             sheet: true, order: 2, gid: c.gid,
             key: `${r.slug}/${c.base}`, svgPath: c.svgPath,
+            decorClip: c.decorClip || null, bodyGeom: c.mercGeom,
             grid: g, off, gx0, gx1, gy0, gy1, dstW,
             left: c.left, top: c.top, srcW: c.width, srcH: c.height,
             gapGeom: c.gapAdj ? c.mercGeom : null,
@@ -1985,8 +2150,19 @@ async function main() {
             else for (let i = 0; i < m.length; i++) lockedMask[i] |= m[i];
           }
         }
+        // decoration zones first (Bolivias boll, Ecuadors vattenstråle):
+        // every sheet pass below can then backfill the zone inside its own
+        // true polygon with its extended colours
+        let decorAny = false;
+        const decorDraws = sheetDraws.filter(d => d.decorClip);
+        if (decorDraws.length) {
+          decorBuf.fill(0);
+          for (const d of decorDraws) {
+            if (await markDecorZones(d, world, tx, ty)) decorAny = true;
+          }
+        }
         for (const d of sheetDraws) {
-          await renderSheetPx(d, world, tx, ty, lockedByKey);
+          await renderSheetPx(d, world, tx, ty, lockedByKey, decorAny);
         }
         // Erase the locked art's own drawn contour along shared borders: in
         // the seam band INSIDE the locked polygon, every DARK art pixel (the

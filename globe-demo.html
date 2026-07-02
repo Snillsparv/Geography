@@ -200,6 +200,8 @@ const map = new maplibregl.Map({
   // dragning och klicket slukas. 10 px gör landval lätta även med pekplatta,
   // pekskärm eller barnhänder — medvetna dragningar är ändå längre än så.
   clickTolerance: 10,
+  // snabba landklick i rad ska inte tolkas som dubbelklick-zoom
+  doubleClickZoom: false,
   attributionControl: { compact: true },
   style: {
     version: 8,
