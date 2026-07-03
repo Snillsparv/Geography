@@ -95,6 +95,7 @@ function setLand(gid, patch) {
   tillstand.set(gid, t);
   if (map) map.setFeatureState({ source: 'regioner', id: gid }, t);
   flatDirty();
+  origApplyState(gid, t);
 }
 function landState(gid) { return tillstand.get(gid) || {}; }
 
@@ -282,9 +283,10 @@ function handleMapClick(gid, ev) {
 }
 
 // ══════════════════════════════════
-// Plattkartan (Robinson)
+// Väggkartan (Robinson) — zoombar
 // ══════════════════════════════════
 const D2R = Math.PI / 180;
+const MAXLAT = 85.051128779807 * D2R;
 const RX = [1.0000,0.9986,0.9954,0.9900,0.9822,0.9730,0.9600,0.9427,0.9216,0.8962,0.8679,0.8350,0.7986,0.7597,0.7186,0.6732,0.6213,0.5722,0.5322];
 const RY = [0.0000,0.0620,0.1240,0.1860,0.2480,0.3100,0.3720,0.4340,0.4958,0.5571,0.6176,0.6769,0.7346,0.7903,0.8435,0.8936,0.9394,0.9761,1.0000];
 const lerpTab = (tab, t) => {
@@ -315,11 +317,17 @@ const robinson = {
 const flatCanvas = document.getElementById('flat-canvas');
 const flatCtx = flatCanvas.getContext('2d');
 let flatVisible = false;
-let mdata = null;                 // mercator-mosaik (4096²)
-let flatBase = null;              // varpad bas-konst (offscreen)
-let flat = { xm: 1, ym: 1, W: 2, H: 2 };
+const MOSZ = 3, MOS = 512 << MOSZ;
+let mdata = null;                 // mercator-helmosaik (4096²)
+let flatBase = null;              // senaste fullrenderade utsnittet (offscreen)
+let flatBaseView = null;          // vyn {k,cx,cy,W,H} som flatBase gäller för
+let flat = { xm: 1, ym: 1, W: 2, H: 2, k: 1, cx: 0, cy: 0 };
+const FLAT_MAX = 16;
 let borderLines = [];
 let flatDirtyFlag = false;
+let flatSeq = 0;                  // gör pågående asynkrona renderingar föråldrade
+let flatTimer = null;
+let patch = null;                 // högupplöst tile-utsnitt {z,tx0,ty0,W,H,data}
 
 fetch('assets/art-borders.json').then(r => r.json())
   .then(gj => { borderLines = gj.features[0].geometry.coordinates; flatDirty(); })
@@ -333,7 +341,7 @@ function flatDirty() {
 
 async function loadMosaic() {
   if (mdata) return;
-  const Z = 3, N = 1 << Z, T = 512, MOS = N * T;
+  const N = 1 << MOSZ, T = 512;
   const pm = pmArchive || new pmtiles.PMTiles(TILE_URL);
   const mosaic = document.createElement('canvas');
   mosaic.width = MOS; mosaic.height = MOS;
@@ -341,7 +349,7 @@ async function loadMosaic() {
   const jobs = [];
   for (let x = 0; x < N; x++) {
     for (let y = 0; y < N; y++) {
-      jobs.push(pm.getZxy(Z, x, y).then(async t => {
+      jobs.push(pm.getZxy(MOSZ, x, y).then(async t => {
         if (!t || !t.data) return;
         const img = await createImageBitmap(new Blob([t.data], { type: 'image/webp' }));
         mctx.drawImage(img, x * T, y * T);
@@ -352,10 +360,86 @@ async function loadMosaic() {
   mdata = mctx.getImageData(0, 0, MOS, MOS).data;
 }
 
-// bas-varpen (dyr) renderas en gång per storlek; tillstånden komponeras ovanpå
-function renderFlatBase() {
-  const MOS = 4096;
-  const MAXLAT = 85.051128779807 * D2R;
+// ── vy-transformen: projektionskoordinater ↔ canvaspixlar ──
+function flatScale() { return flat.W / (2 * flat.xm) * flat.k; }   // px per projenhet
+function projToCanvas(x, y) {
+  const s = flatScale();
+  return [(x - flat.cx) * s + flat.W / 2, (flat.cy - y) * s + flat.H / 2];
+}
+function canvasToProj(px, py) {
+  const s = flatScale();
+  return [flat.cx + (px - flat.W / 2) / s, flat.cy - (py - flat.H / 2) / s];
+}
+function projPt(lng, lat) {
+  const f = robinson.forward(lng * D2R, lat * D2R);
+  return projToCanvas(f[0], f[1]);
+}
+function clampFlatView() {
+  flat.k = Math.max(1, Math.min(FLAT_MAX, flat.k));
+  const mx = flat.xm * (1 - 1 / flat.k), my = flat.ym * (1 - 1 / flat.k);
+  flat.cx = Math.max(-mx, Math.min(mx, flat.cx));
+  flat.cy = Math.max(-my, Math.min(my, flat.cy));
+}
+
+// Inzoomad vy samplar ett HÖGUPPLÖST tile-utsnitt (z4–z7) över det synliga
+// området i stället för helmosaiken — annars blir väggkartan suddig när man
+// zoomar. Utsnittet hämtas ur samma förladdade arkiv, max ~48 rutor.
+async function ensurePatch(seq) {
+  const zWant = MOSZ + Math.max(0, Math.floor(Math.log2(flat.k)));
+  if (zWant <= MOSZ) { patch = null; return; }
+  // synligt mercatorområde: sampla ett rutnät över canvasen
+  let m0x = Infinity, m1x = -Infinity, m0y = Infinity, m1y = -Infinity, any = false;
+  for (let iy = 0; iy <= 4; iy++) {
+    for (let ix = 0; ix <= 4; ix++) {
+      const pr = canvasToProj(flat.W * ix / 4, flat.H * iy / 4);
+      const ll = robinson.inverse(pr[0], pr[1]);
+      if (!ll) continue;
+      any = true;
+      const mx = ll[0] / (2 * Math.PI) + 0.5;
+      const phi = Math.max(-MAXLAT, Math.min(MAXLAT, ll[1]));
+      const my = 0.5 - Math.log(Math.tan(Math.PI / 4 + phi / 2)) / (2 * Math.PI);
+      if (mx < m0x) m0x = mx; if (mx > m1x) m1x = mx;
+      if (my < m0y) m0y = my; if (my > m1y) m1y = my;
+    }
+  }
+  if (!any) { patch = null; return; }
+  const marg = 0.03 / flat.k;
+  for (let zs = Math.min(7, zWant); zs > MOSZ; zs--) {
+    const n = 1 << zs;
+    const tx0 = Math.max(0, Math.floor((m0x - marg) * n));
+    const tx1 = Math.min(n - 1, Math.floor((m1x + marg) * n));
+    const ty0 = Math.max(0, Math.floor((m0y - marg) * n));
+    const ty1 = Math.min(n - 1, Math.floor((m1y + marg) * n));
+    const txn = tx1 - tx0 + 1, tyn = ty1 - ty0 + 1;
+    if (txn * tyn > 48) continue;                    // för stort — prova grövre z
+    if (patch && patch.z === zs && patch.tx0 === tx0 && patch.ty0 === ty0 &&
+        patch.W === txn * 512 && patch.H === tyn * 512) return;   // återanvänd
+    const pm = pmArchive || new pmtiles.PMTiles(TILE_URL);
+    const c = document.createElement('canvas');
+    c.width = txn * 512; c.height = tyn * 512;
+    const cx2 = c.getContext('2d');
+    const jobs = [];
+    for (let tx = tx0; tx <= tx1; tx++) {
+      for (let ty = ty0; ty <= ty1; ty++) {
+        jobs.push(pm.getZxy(zs, tx, ty).then(async t => {
+          if (!t || !t.data) return;
+          const img = await createImageBitmap(new Blob([t.data], { type: 'image/webp' }));
+          cx2.drawImage(img, (tx - tx0) * 512, (ty - ty0) * 512);
+        }).catch(() => {}));
+      }
+    }
+    await Promise.all(jobs);
+    if (seq !== flatSeq) return;                     // vyn hann ändras
+    patch = { z: zs, tx0, ty0, W: c.width, H: c.height,
+              data: cx2.getImageData(0, 0, c.width, c.height).data };
+    return;
+  }
+  patch = null;
+}
+
+// bas-varpen (dyr) renderas per vy; tillstånden komponeras ovanpå varje gång
+async function renderFlatBase() {
+  const seq = ++flatSeq;
   let xm = 0, ym = 0;
   for (let p = -90; p <= 90; p += 0.5) {
     const [x, y] = robinson.forward(Math.PI, p * D2R);
@@ -366,33 +450,44 @@ function renderFlatBase() {
   let W = Math.min(1600, Math.max(320, availW));
   let H = Math.round(W * ym / xm);
   if (H > availH) { H = Math.max(200, availH); W = Math.round(H * xm / ym); }
-  flat = { xm, ym, W, H };
-  flatBase = document.createElement('canvas');
-  flatBase.width = W; flatBase.height = H;
-  const bctx = flatBase.getContext('2d');
+  flat.xm = xm; flat.ym = ym; flat.W = W; flat.H = H;
+  clampFlatView();
+  await ensurePatch(seq);
+  if (seq !== flatSeq) return;
+  const base = document.createElement('canvas');
+  base.width = W; base.height = H;
+  const bctx = base.getContext('2d');
   const id = bctx.createImageData(W, H);
   const out = id.data;
-  const sx = 2 * xm / W, sy = 2 * ym / H;
+  const p2 = patch, pScale = p2 ? 512 << p2.z : 0;
   for (let py = 0; py < H; py++) {
-    const yv = ym - (py + 0.5) * sy;
     for (let px = 0; px < W; px++) {
-      const xv = (px + 0.5) * sx - xm;
-      const ll = robinson.inverse(xv, yv);
-      const o = (py * W + px) * 4;
+      const pr = canvasToProj(px + 0.5, py + 0.5);
+      const ll = robinson.inverse(pr[0], pr[1]);
       if (!ll) continue;
-      const [l, p] = ll;
-      const mx = (l / (2 * Math.PI) + 0.5) * MOS - 0.5;
-      const phi = Math.max(-MAXLAT, Math.min(MAXLAT, p));
-      const my = (0.5 - Math.log(Math.tan(Math.PI / 4 + phi / 2)) / (2 * Math.PI)) * MOS - 0.5;
+      const o = (py * W + px) * 4;
+      const m01x = ll[0] / (2 * Math.PI) + 0.5;
+      const phi = Math.max(-MAXLAT, Math.min(MAXLAT, ll[1]));
+      const m01y = 0.5 - Math.log(Math.tan(Math.PI / 4 + phi / 2)) / (2 * Math.PI);
+      // högupplösta utsnittet om pixeln täcks av det, annars helmosaiken
+      let data = mdata, SW = MOS, SH = MOS;
+      let mx = m01x * MOS - 0.5, my = m01y * MOS - 0.5;
+      if (p2) {
+        const hx = m01x * pScale - p2.tx0 * 512 - 0.5;
+        const hy = m01y * pScale - p2.ty0 * 512 - 0.5;
+        if (hx >= -0.5 && hy >= -0.5 && hx <= p2.W - 0.5 && hy <= p2.H - 0.5) {
+          data = p2.data; SW = p2.W; SH = p2.H; mx = hx; my = hy;
+        }
+      }
       const fx = Math.floor(mx), fy = Math.floor(my);
       let r2 = 0, g2 = 0, b2 = 0, a2 = 0;
       for (let t = 0; t < 4; t++) {
-        const tx2 = Math.min(MOS - 1, Math.max(0, fx + (t & 1)));
-        const ty2 = Math.min(MOS - 1, Math.max(0, fy + (t >> 1)));
+        const tx2 = Math.min(SW - 1, Math.max(0, fx + (t & 1)));
+        const ty2 = Math.min(SH - 1, Math.max(0, fy + (t >> 1)));
         const w = (t & 1 ? mx - fx : 1 - (mx - fx)) * (t >> 1 ? my - fy : 1 - (my - fy));
-        const si = (ty2 * MOS + tx2) * 4;
-        const wa = w * mdata[si + 3] / 255;
-        r2 += mdata[si] * wa; g2 += mdata[si + 1] * wa; b2 += mdata[si + 2] * wa;
+        const si = (ty2 * SW + tx2) * 4;
+        const wa = w * data[si + 3] / 255;
+        r2 += data[si] * wa; g2 += data[si + 1] * wa; b2 += data[si + 2] * wa;
         a2 += wa;
       }
       out[o] = r2 + 205 * (1 - a2);
@@ -402,11 +497,35 @@ function renderFlatBase() {
     }
   }
   bctx.putImageData(id, 0, 0);
+  flatBase = base;
+  flatBaseView = { k: flat.k, cx: flat.cx, cy: flat.cy, W, H };
 }
 
-function projPt(lng, lat) {
-  const [x, y] = robinson.forward(lng * D2R, lat * D2R);
-  return [(x + flat.xm) / (2 * flat.xm) * flat.W, (flat.ym - y) / (2 * flat.ym) * flat.H];
+function scheduleFlatRender() {
+  clearTimeout(flatTimer);
+  flatTimer = setTimeout(async () => {
+    await renderFlatBase();
+    composeFlat();
+  }, 160);
+}
+
+function updateZoomLabel() {
+  const el = document.getElementById('zoom-level');
+  if (mapPanel.classList.contains('orig')) el.textContent = Math.round(origZoom * 100) + '%';
+  else el.textContent = Math.round(flat.k * 100) + '%';
+}
+
+// zooma mot en canvaspunkt: punkten under pekaren står stilla
+function flatZoomTo(newK, px, py) {
+  const before = canvasToProj(px, py);
+  flat.k = Math.max(1, Math.min(FLAT_MAX, newK));
+  const after = canvasToProj(px, py);
+  flat.cx += before[0] - after[0];
+  flat.cy += before[1] - after[1];
+  clampFlatView();
+  updateZoomLabel();
+  composeFlat();
+  scheduleFlatRender();
 }
 
 function traceFeature(ctx, f) {
@@ -425,7 +544,17 @@ function traceFeature(ctx, f) {
 function composeFlat() {
   if (!flatBase || !regionsGj) return;
   flatCanvas.width = flat.W; flatCanvas.height = flat.H;
-  flatCtx.drawImage(flatBase, 0, 0);
+  flatCtx.fillStyle = '#0e2438';
+  flatCtx.fillRect(0, 0, flat.W, flat.H);
+  // rita basen transformerad från vyn den renderades för till den aktuella
+  // vyn — under en pågående gest är det en billig förhandsvisning, efter
+  // omrenderingen är transformen identitet och bilden knivskarp
+  const s = flatScale();
+  const sb = flatBaseView.W / (2 * flat.xm) * flatBaseView.k;
+  const sc = s / sb;
+  const ox = (flatBaseView.cx - flat.cx) * s + flat.W / 2 - sc * flatBaseView.W / 2;
+  const oy = (flat.cy - flatBaseView.cy) * s + flat.H / 2 - sc * flatBaseView.H / 2;
+  flatCtx.drawImage(flatBase, ox, oy, flatBaseView.W * sc, flatBaseView.H * sc);
   for (const f of regionsGj.features) {
     const t = landState(f.id);
     let color = null, alpha = 1;
@@ -464,7 +593,8 @@ function flatHit(ev) {
   const r = flatCanvas.getBoundingClientRect();
   const px = (ev.clientX - r.left) * flatCanvas.width / r.width;
   const py = (ev.clientY - r.top) * flatCanvas.height / r.height;
-  const ll = robinson.inverse((px / flat.W) * 2 * flat.xm - flat.xm, flat.ym - (py / flat.H) * 2 * flat.ym);
+  const pr = canvasToProj(px, py);
+  const ll = robinson.inverse(pr[0], pr[1]);
   if (!ll) return null;
   const lng = ll[0] / D2R, lat = ll[1] / D2R;
   for (const f of regionsGj.features) {
@@ -482,15 +612,37 @@ function flatHit(ev) {
   return null;
 }
 
-flatCanvas.addEventListener('click', ev => {
-  const f = flatHit(ev);
-  if (f) handleMapClick(f.id, ev);
-});
+// ── väggkartans gester: dra = panorera, hjul/pinch = zooma, stillaklick = spel ──
+let fDrag = null, fPinch = null;
 let flatHoverGid = null, flatHoverRaf = false;
+flatCanvas.addEventListener('pointerdown', ev => {
+  if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+  if (fPinch) return;
+  flatCanvas.setPointerCapture(ev.pointerId);
+  fDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
+            cx0: flat.cx, cy0: flat.cy, moved: false };
+});
 flatCanvas.addEventListener('pointermove', ev => {
   if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
+  }
+  if (fDrag && ev.pointerId === fDrag.id && !fPinch) {
+    const dx = ev.clientX - fDrag.sx, dy = ev.clientY - fDrag.sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      fDrag.moved = true;
+      flatCanvas.classList.add('dragging');
+    }
+    if (fDrag.moved) {
+      const r = flatCanvas.getBoundingClientRect();
+      const s = flatScale() * (r.width / flat.W);   // skärm-px per projenhet
+      flat.cx = fDrag.cx0 - dx / s;
+      flat.cy = fDrag.cy0 + dy / s;
+      clampFlatView();
+      composeFlat();
+      scheduleFlatRender();
+    }
+    return;
   }
   if (flatHoverRaf) return;
   flatHoverRaf = true;
@@ -505,28 +657,453 @@ flatCanvas.addEventListener('pointermove', ev => {
     }
   });
 });
+flatCanvas.addEventListener('pointerup', ev => {
+  if (!fDrag || ev.pointerId !== fDrag.id) return;
+  const moved = fDrag.moved;
+  fDrag = null;
+  flatCanvas.classList.remove('dragging');
+  if (moved) return;
+  const f = flatHit(ev);
+  if (f) handleMapClick(f.id, ev);
+});
+flatCanvas.addEventListener('pointercancel', () => {
+  fDrag = null;
+  flatCanvas.classList.remove('dragging');
+});
+flatCanvas.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = flatCanvas.getBoundingClientRect();
+  const px = (ev.clientX - r.left) * flat.W / r.width;
+  const py = (ev.clientY - r.top) * flat.H / r.height;
+  flatZoomTo(flat.k * (ev.deltaY > 0 ? 0.9 : 1.1), px, py);
+}, { passive: false });
+flatCanvas.addEventListener('touchstart', ev => {
+  if (ev.touches.length === 2) {
+    ev.preventDefault();
+    fDrag = null;
+    flatCanvas.classList.remove('dragging');
+    fPinch = { d: Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                             ev.touches[0].clientY - ev.touches[1].clientY),
+               k0: flat.k };
+  }
+}, { passive: false });
+flatCanvas.addEventListener('touchmove', ev => {
+  if (fPinch && ev.touches.length === 2) {
+    ev.preventDefault();
+    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                         ev.touches[0].clientY - ev.touches[1].clientY);
+    const cxs = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+    const cys = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+    const r = flatCanvas.getBoundingClientRect();
+    flatZoomTo(fPinch.k0 * d / fPinch.d,
+      (cxs - r.left) * flat.W / r.width, (cys - r.top) * flat.H / r.height);
+  }
+}, { passive: false });
+flatCanvas.addEventListener('touchend', ev => {
+  if (ev.touches.length < 2) fPinch = null;
+});
 
-async function setView(platt) {
-  document.getElementById('view-glob').classList.toggle('active', !platt);
-  document.getElementById('view-platt').classList.toggle('active', platt);
-  mapPanel.classList.toggle('platt', platt);
-  flatVisible = platt;
-  if (platt) {
-    if (!mdata) {
-      const load = document.getElementById('spel-load');
-      load.style.display = '';
-      document.getElementById('spel-load-txt').textContent = 'Bygger plattkartan …';
-      await loadMosaic();
-      renderFlatBase();
-      load.style.display = 'none';
-    } else if (!flatBase) renderFlatBase();
-    composeFlat();
+// ══════════════════════════════════
+// Originalkartan — regionens handritade karta precis som originalsidan:
+// map.webp + landbilderna på sina composition-koordinater, alfa-träffytor,
+// gula hover-bilder klippta vid gränserna, specialformer och zoom/panorering.
+// Drivs av samma speltillstånd som globen och väggkartan.
+// ══════════════════════════════════
+const origWrap = document.getElementById('orig-wrap');
+const origWrapper = document.getElementById('orig-wrapper');
+const origBase = document.getElementById('orig-base');
+let origInit = false, origLoading = false;
+let origSlug = null, origRaw = null;
+let ORIG = { L: 0, T: 0, W: 1, H: 1 };
+const origOverlayEls = {}, origHoverEls = {}, origMarkerEls = {};
+const origHitData = {}, origShapes = {};
+let origSorted = [];
+let aktivByFile = new Map();      // filnamn → aktivt land (för klick/hover)
+let origZoom = 1, origPanX = 0, origPanY = 0;
+const ORIG_MIN = 0.5, ORIG_MAX = 5;
+
+function origApplyTransform() {
+  origWrapper.style.transform = `translate(${origPanX}px, ${origPanY}px) scale(${origZoom})`;
+  updateZoomLabel();
+}
+function origClampPan() {
+  const bw = origBase.offsetWidth, bh = origBase.offsetHeight;
+  const pw = origWrap.clientWidth, ph = origWrap.clientHeight;
+  const maxX = Math.max(0, (bw * origZoom - pw) / 2 + pw * 0.5);
+  const maxY = Math.max(0, (bh * origZoom - ph) / 2 + ph * 0.5);
+  origPanX = Math.max(-maxX, Math.min(maxX, origPanX));
+  origPanY = Math.max(-maxY, Math.min(maxY, origPanY));
+}
+function origSetZoom(nz, cursorX, cursorY) {
+  const oz = origZoom;
+  origZoom = Math.max(ORIG_MIN, Math.min(ORIG_MAX, nz));
+  if (origZoom === oz) return;
+  if (cursorX !== undefined) {
+    const r = origWrap.getBoundingClientRect();
+    const px = cursorX - r.left - r.width / 2, py = cursorY - r.top - r.height / 2;
+    origPanX = px - ((px - origPanX) / oz) * origZoom;
+    origPanY = py - ((py - origPanY) / oz) * origZoom;
+  }
+  origClampPan();
+  origApplyTransform();
+}
+
+async function initOrig() {
+  const slug = origSlug, raw = origRaw;
+  origBase.src = `assets/${slug}/map.webp`;
+  await new Promise(res => {
+    if (origBase.complete && origBase.naturalWidth > 0) res();
+    else { origBase.onload = res; origBase.onerror = res; }
+  });
+  ORIG = { L: raw.mapOffset.left, T: raw.mapOffset.top, W: raw.mapWidth, H: raw.mapHeight };
+  for (const [key, sh] of Object.entries(raw.specialShapes || {})) {
+    origShapes[key] = { file: `assets/${slug}/${sh.file}`, left: sh.left, top: sh.top,
+      width: sh.width, height: sh.height, hitOnly: !!sh.hitOnly, data: null, canvas: null };
+  }
+  const list = raw.countries.map(c => ({
+    name: c.name,
+    filename: c.filename || c.file.replace('countries/', '').replace('.webp', ''),
+    left: c.left, top: c.top, width: c.width, height: c.height,
+  }));
+  origSorted = [...list].sort((a, b) => a.width * a.height - b.width * b.height);
+  for (const c of list) {
+    const img = document.createElement('img');
+    img.className = 'country-overlay';
+    img.src = `assets/${slug}/countries/${c.filename}.webp`;
+    img.draggable = false;
+    origWrapper.appendChild(img);
+    origOverlayEls[c.filename] = img;
+    const sh = origShapes[c.filename];
+    if (sh && sh.hitOnly) {
+      const marker = document.createElement('div');
+      marker.className = 'hit-marker';
+      origWrapper.appendChild(marker);
+      origMarkerEls[c.filename] = marker;
+    } else {
+      const hover = document.createElement('img');
+      hover.className = 'hover-highlight';
+      hover.draggable = false;
+      origWrapper.appendChild(hover);
+      origHoverEls[c.filename] = hover;
+    }
+  }
+  // konturöverlägg överst, om regionen har ett
+  const ov = document.createElement('img');
+  ov.className = 'map-overlay';
+  ov.id = 'orig-overlay';
+  ov.draggable = false;
+  ov.style.display = 'none';
+  ov.onload = () => { ov.style.display = ''; origPosition(); };
+  ov.onerror = () => ov.remove();
+  ov.src = `assets/${slug}/overlay.webp`;
+  origWrapper.appendChild(ov);
+
+  // träffdata: alfakanalen i varje landbild (och specialform)
+  const loadImg = src => new Promise(res => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => res(null);
+    i.src = src;
+  });
+  await Promise.all([
+    ...list.map(async c => {
+      const i = await loadImg(`assets/${slug}/countries/${c.filename}.webp`);
+      if (!i) return;
+      const cv = document.createElement('canvas');
+      cv.width = c.width; cv.height = c.height;
+      const cx2 = cv.getContext('2d');
+      cx2.drawImage(i, 0, 0, c.width, c.height);
+      origHitData[c.filename] = { data: cx2.getImageData(0, 0, c.width, c.height).data, canvas: cv };
+    }),
+    ...Object.values(origShapes).map(async sh => {
+      const i = await loadImg(sh.file);
+      if (!i) return;
+      const cv = document.createElement('canvas');
+      cv.width = sh.width; cv.height = sh.height;
+      const cx2 = cv.getContext('2d');
+      cx2.drawImage(i, 0, 0, sh.width, sh.height);
+      sh.data = cx2.getImageData(0, 0, sh.width, sh.height).data;
+      sh.canvas = cv;
+    }),
+  ]);
+  origHoverImages(list);
+  origPosition();
+  for (const [gid, t] of tillstand) origApplyState(gid, t);
+  origInit = true;
+}
+
+// gula hover-bilder: landbilden tonad gul, klippt vid baskartans konturer
+function origHoverImages(list) {
+  const HR = 255, HG = 220, HB = 50, TH = 150;
+  const mc = document.createElement('canvas');
+  mc.width = ORIG.W; mc.height = ORIG.H;
+  const mctx = mc.getContext('2d');
+  mctx.drawImage(origBase, 0, 0, ORIG.W, ORIG.H);
+  const md = mctx.getImageData(0, 0, ORIG.W, ORIG.H).data;
+  const raw = new Uint8Array(ORIG.W * ORIG.H);
+  for (let i = 0; i < ORIG.W * ORIG.H; i++) {
+    const mi = i * 4;
+    const b = (md[mi] + md[mi + 1] + md[mi + 2]) / 3;
+    if (b < TH || md[mi + 3] < 128) raw[i] = 1;
+  }
+  const border = new Uint8Array(raw);
+  for (let y = 0; y < ORIG.H; y++) {
+    for (let x = 0; x < ORIG.W; x++) {
+      const i = y * ORIG.W + x;
+      if (border[i]) continue;
+      if ((x > 0 && raw[i - 1]) || (x < ORIG.W - 1 && raw[i + 1]) ||
+          (y > 0 && raw[i - ORIG.W]) || (y < ORIG.H - 1 && raw[i + ORIG.W])) border[i] = 1;
+    }
+  }
+  for (const c of list) {
+    const sh = origShapes[c.filename];
+    if (sh && sh.hitOnly) continue;
+    let src, L, T, W2, H2;
+    if (sh && sh.canvas) { src = sh.canvas; L = sh.left; T = sh.top; W2 = sh.width; H2 = sh.height; }
+    else {
+      const hd = origHitData[c.filename];
+      if (!hd) continue;
+      src = hd.canvas; L = c.left; T = c.top; W2 = c.width; H2 = c.height;
+    }
+    const cv = document.createElement('canvas');
+    cv.width = W2; cv.height = H2;
+    const cx2 = cv.getContext('2d');
+    cx2.drawImage(src, 0, 0);
+    const pix = cx2.getImageData(0, 0, W2, H2);
+    const d = pix.data;
+    const sx = L - ORIG.L, sy = T - ORIG.T;
+    for (let y = 0; y < H2; y++) {
+      for (let x = 0; x < W2; x++) {
+        const mx = sx + x, my = sy + y;
+        const ci = (y * W2 + x) * 4;
+        if (mx < 0 || mx >= ORIG.W || my < 0 || my >= ORIG.H || border[my * ORIG.W + mx]) {
+          d[ci + 3] = 0;
+        } else if (d[ci + 3] > 0) {
+          d[ci] = HR; d[ci + 1] = HG; d[ci + 2] = HB;
+        }
+      }
+    }
+    cx2.putImageData(pix, 0, 0);
+    const el = origHoverEls[c.filename];
+    if (el) { el.src = cv.toDataURL(); el._rect = { L, T, W: W2, H: H2 }; }
   }
 }
-document.getElementById('view-glob').addEventListener('click', () => setView(false));
-document.getElementById('view-platt').addEventListener('click', () => setView(true));
+
+function origPosition() {
+  if (!origBase.naturalWidth) return;
+  const mapRect = origBase.getBoundingClientRect();
+  const wrapRect = origWrapper.getBoundingClientRect();
+  // rektanglarna är lästa GENOM wrapper-transformen — dela bort zoomen,
+  // stilarna sätts i wrapperns otransformerade koordinater
+  const scale = mapRect.width / origZoom / ORIG.W;
+  const offX = (mapRect.left - wrapRect.left) / origZoom;
+  const offY = (mapRect.top - wrapRect.top) / origZoom;
+  const place = (el, l, t, w, h) => {
+    el.style.left = (offX + (l - ORIG.L) * scale) + 'px';
+    el.style.top = (offY + (t - ORIG.T) * scale) + 'px';
+    el.style.width = (w * scale) + 'px';
+    el.style.height = (h * scale) + 'px';
+  };
+  for (const c of origSorted) {
+    const el = origOverlayEls[c.filename];
+    if (el) place(el, c.left, c.top, c.width, c.height);
+    const hv = origHoverEls[c.filename];
+    if (hv && hv._rect) place(hv, hv._rect.L, hv._rect.T, hv._rect.W, hv._rect.H);
+    else if (hv) place(hv, c.left, c.top, c.width, c.height);
+    const mk = origMarkerEls[c.filename];
+    if (mk) {
+      const sh = origShapes[c.filename];
+      mk.style.left = (offX + (sh.left + sh.width / 2 - ORIG.L) * scale) + 'px';
+      mk.style.top = (offY + (sh.top + sh.height / 2 - ORIG.T) * scale) + 'px';
+    }
+  }
+  const ov = document.getElementById('orig-overlay');
+  if (ov) {
+    ov.style.left = offX + 'px';
+    ov.style.top = offY + 'px';
+    ov.style.width = (mapRect.width / origZoom) + 'px';
+    ov.style.height = (mapRect.height / origZoom) + 'px';
+  }
+}
+
+function origHitTest(clientX, clientY) {
+  const mapRect = origBase.getBoundingClientRect();
+  if (!mapRect.width) return null;
+  const sc = ORIG.W / mapRect.width;          // skärm-px → kartpixlar (zoom ingår)
+  const mapX = (clientX - mapRect.left) * sc + ORIG.L;
+  const mapY = (clientY - mapRect.top) * sc + ORIG.T;
+  for (const c of origSorted) {
+    const sh = origShapes[c.filename];
+    if (sh) {
+      if (!sh.data) continue;
+      const lx = Math.round(mapX - sh.left), ly = Math.round(mapY - sh.top);
+      if (lx < 0 || ly < 0 || lx >= sh.width || ly >= sh.height) continue;
+      if (sh.data[(ly * sh.width + lx) * 4 + 3] > 30) return c;
+    } else {
+      const hd = origHitData[c.filename];
+      if (!hd) continue;
+      const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
+      if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
+      if (hd.data[(ly * c.width + lx) * 4 + 3] > 30) return c;
+    }
+  }
+  return null;
+}
+
+// spegla speltillståndet till originalvyns element
+function origApplyState(gid, t) {
+  const a = aktivByGid.get(gid);
+  if (!a) return;
+  const el = origOverlayEls[a.filename];
+  if (!el) return;
+  if (t.fel) el.classList.add('visible', 'flash-wrong');
+  else {
+    el.classList.remove('flash-wrong');
+    el.classList.toggle('visible', !t.tackt);
+  }
+  const glow = !t.fel && !!t.tackt && (!!t.hover || !!t.tips);
+  const hv = origHoverEls[a.filename];
+  if (hv) hv.classList.toggle('active', glow);
+  const mk = origMarkerEls[a.filename];
+  if (mk) mk.classList.toggle('active', glow);
+}
+
+// gester: dra = panorera, hjul/pinch = zooma, stillaklick = spel
+let oDrag = null, oPinch = null, origHoverFile = null, origHoverRaf = false;
+origWrap.addEventListener('pointerdown', ev => {
+  if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+  if (oPinch) return;
+  ev.preventDefault();
+  origWrap.setPointerCapture(ev.pointerId);
+  oDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
+            px0: origPanX, py0: origPanY, moved: false };
+  origWrapper.classList.add('dragging');
+});
+origWrap.addEventListener('pointermove', ev => {
+  if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
+    cursorLabel.style.left = ev.clientX + 'px';
+    cursorLabel.style.top = ev.clientY + 'px';
+  }
+  if (oDrag && ev.pointerId === oDrag.id && !oPinch) {
+    const dx = ev.clientX - oDrag.sx, dy = ev.clientY - oDrag.sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) oDrag.moved = true;
+    if (oDrag.moved) {
+      origPanX = oDrag.px0 + dx;
+      origPanY = oDrag.py0 + dy;
+      origClampPan();
+      origApplyTransform();
+    }
+    return;
+  }
+  if (origHoverRaf) return;
+  origHoverRaf = true;
+  requestAnimationFrame(() => {
+    origHoverRaf = false;
+    const hit = origHitTest(ev.clientX, ev.clientY);
+    const a = hit ? aktivByFile.get(hit.filename) : null;
+    const file = a && !revealed.has(a.gid) ? hit.filename : null;
+    if (file !== origHoverFile) {
+      if (origHoverFile) {
+        const prev = aktivByFile.get(origHoverFile);
+        if (prev) setLand(prev.gid, { hover: false });
+      }
+      if (file && !landState(a.gid).fel) setLand(a.gid, { hover: true });
+      origHoverFile = file;
+    }
+    origWrap.style.cursor = hit && a ? 'pointer' : '';
+  });
+});
+origWrap.addEventListener('pointerup', ev => {
+  origWrapper.classList.remove('dragging');
+  if (!oDrag || ev.pointerId !== oDrag.id) return;
+  const moved = oDrag.moved;
+  oDrag = null;
+  if (moved) return;
+  const hit = origHitTest(ev.clientX, ev.clientY);
+  const a = hit ? aktivByFile.get(hit.filename) : null;
+  if (a) handleMapClick(a.gid, ev);
+});
+origWrap.addEventListener('pointercancel', () => {
+  oDrag = null;
+  origWrapper.classList.remove('dragging');
+});
+origWrap.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  origSetZoom(origZoom * (ev.deltaY > 0 ? 0.9 : 1.1), ev.clientX, ev.clientY);
+}, { passive: false });
+origWrap.addEventListener('touchstart', ev => {
+  if (ev.touches.length === 2) {
+    ev.preventDefault();
+    oDrag = null;
+    origWrapper.classList.remove('dragging');
+    oPinch = { d: Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                             ev.touches[0].clientY - ev.touches[1].clientY),
+               z0: origZoom };
+  }
+}, { passive: false });
+origWrap.addEventListener('touchmove', ev => {
+  if (oPinch && ev.touches.length === 2) {
+    ev.preventDefault();
+    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                         ev.touches[0].clientY - ev.touches[1].clientY);
+    origSetZoom(oPinch.z0 * d / oPinch.d,
+      (ev.touches[0].clientX + ev.touches[1].clientX) / 2,
+      (ev.touches[0].clientY + ev.touches[1].clientY) / 2);
+  }
+}, { passive: false });
+origWrap.addEventListener('touchend', ev => {
+  if (ev.touches.length < 2) oPinch = null;
+});
+
+// ══════════════════════════════════
+// Vyväxling: glob / väggkarta / original
+// ══════════════════════════════════
+let aktivVy = 'glob';
+async function setView(vy) {
+  if (vy === 'orig' && !origSlug) vy = 'glob';   // världstestet saknar originalkarta
+  aktivVy = vy;
+  document.getElementById('view-glob').classList.toggle('active', vy === 'glob');
+  document.getElementById('view-platt').classList.toggle('active', vy === 'platt');
+  document.getElementById('view-orig').classList.toggle('active', vy === 'orig');
+  mapPanel.classList.toggle('platt', vy === 'platt');
+  mapPanel.classList.toggle('orig', vy === 'orig');
+  flatVisible = vy === 'platt';
+  const load = document.getElementById('spel-load');
+  if (vy === 'platt') {
+    if (!mdata) {
+      load.style.display = '';
+      document.getElementById('spel-load-txt').textContent = 'Bygger väggkartan …';
+      await loadMosaic();
+      await renderFlatBase();
+      load.style.display = 'none';
+    } else if (!flatBase) {
+      await renderFlatBase();
+    }
+    composeFlat();
+  } else if (vy === 'orig' && !origInit && !origLoading) {
+    origLoading = true;
+    load.style.display = '';
+    document.getElementById('spel-load-txt').textContent = 'Laddar originalkartan …';
+    await initOrig();
+    load.style.display = 'none';
+    origLoading = false;
+  }
+  updateZoomLabel();
+}
+document.getElementById('view-glob').addEventListener('click', () => setView('glob'));
+document.getElementById('view-platt').addEventListener('click', () => setView('platt'));
+document.getElementById('view-orig').addEventListener('click', () => setView('orig'));
+document.getElementById('zoom-in').addEventListener('click', () => {
+  if (aktivVy === 'orig') origSetZoom(origZoom * 1.3);
+  else if (aktivVy === 'platt') flatZoomTo(flat.k * 1.3, flat.W / 2, flat.H / 2);
+});
+document.getElementById('zoom-out').addEventListener('click', () => {
+  if (aktivVy === 'orig') origSetZoom(origZoom / 1.3);
+  else if (aktivVy === 'platt') flatZoomTo(flat.k / 1.3, flat.W / 2, flat.H / 2);
+});
 window.addEventListener('resize', () => {
-  if (flatVisible) { flatBase = null; renderFlatBase(); composeFlat(); }
+  if (flatVisible && mdata) renderFlatBase().then(composeFlat);
+  if (origInit) { origPosition(); origClampPan(); origApplyTransform(); }
 });
 
 // ══════════════════════════════════
@@ -536,10 +1113,14 @@ async function startRegion(slug) {
   const raw = await loadRegionConfig(slug);
   COUNTRIES = buildCountries(slug, raw);
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
+  aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
   HS_KEY = 'glob-' + (raw.hsKey || slug + '-highscores');
   ASSET_BASE = 'assets/' + slug;
   isWorldTest = false;
+  origSlug = slug;                 // originalvyn = regionens handritade karta
+  origRaw = raw;
+  document.getElementById('view-orig').style.display = '';
 
   document.title = `${raw.name} – Jonas geografi`;
   document.querySelector('header h1').textContent = raw.name + ' 🌍';
@@ -576,9 +1157,13 @@ async function startWorld(count) {
   COUNTRIES = [];
   for (const a of alloc) COUNTRIES.push(...a.e.countries.slice(0, a.n));
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
+  aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
   HS_KEY = 'glob-world-highscores';
   isWorldTest = true;
+  origSlug = null;                 // världstestet har ingen originalkarta
+  document.getElementById('view-orig').style.display = 'none';
+  if (aktivVy === 'orig') setView('glob');
 
   document.title = 'Världstest – Jonas geografi';
   document.querySelector('header h1').textContent = 'Världstest 🌍';
@@ -1117,8 +1702,11 @@ window.spel = {
   get revealed() { return revealed; },
   get target() { return seterraTarget; },
   get mode() { return currentMode; },
+  get vy() { return aktivVy; },
+  get flat() { return flat; },
+  get origZoom() { return origZoom; },
   klick: gid => handleMapClick(gid, null),
-  setLand, landState,
+  setLand, landState, setView, flatZoomTo, origSetZoom,
 };
 
 // ══════════════════════
@@ -1144,6 +1732,7 @@ window.spel = {
 
   if (region === 'world') {
     // världstest: välj antal länder i modalen, sedan quiz över hela globen
+    document.getElementById('view-orig').style.display = 'none';
     const overlay = document.getElementById('world-setup-overlay');
     overlay.classList.add('active');
     document.getElementById('world-setup-loading').style.display = 'none';

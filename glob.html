@@ -7,13 +7,23 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <style>
-    /* ── glob-sidans tillägg: kartpanelen är en MapLibre-glob / platt canvas ── */
+    /* ── glob-sidans tillägg: kartpanelen är glob / väggkarta / originalkarta ── */
     #spel-map { position: absolute; inset: 0; background: #0e2438; }
     #flat-wrap { position: absolute; inset: 0; display: none; align-items: center;
       justify-content: center; background: #0e2438; }
-    #flat-wrap canvas { max-width: 100%; max-height: 100%; cursor: pointer; }
+    #flat-wrap canvas { max-width: 100%; max-height: 100%; cursor: pointer;
+      touch-action: none; }
+    #flat-wrap canvas.dragging { cursor: grabbing; }
     .map-panel.platt #spel-map { visibility: hidden; }
     .map-panel.platt #flat-wrap { display: flex; }
+    #orig-wrap { position: absolute; inset: 0; display: none; align-items: center;
+      justify-content: center; overflow: hidden; padding: 20px;
+      background: #0e2438; touch-action: none; }
+    .map-panel.orig #spel-map { visibility: hidden; }
+    .map-panel.orig #orig-wrap { display: flex; }
+    /* delade zoomknappar för väggkartan och originalkartan (globen har egna) */
+    .map-panel .zoom-controls { left: auto; right: 16px; bottom: 16px; display: none; }
+    .map-panel.platt .zoom-controls, .map-panel.orig .zoom-controls { display: flex; }
     .view-toggle { position: absolute; left: 12px; bottom: 12px; z-index: 5;
       display: flex; gap: 6px; }
     .view-toggle button { padding: 8px 14px; border-radius: 10px; cursor: pointer;
@@ -83,11 +93,22 @@
   <div class="map-panel" id="map-panel">
     <div id="spel-map"></div>
     <div id="flat-wrap"><canvas id="flat-canvas"></canvas></div>
+    <div id="orig-wrap">
+      <div class="map-wrapper" id="orig-wrapper">
+        <img class="base-map" id="orig-base" alt="Karta" draggable="false">
+      </div>
+    </div>
     <div id="spel-load"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
       <div class="track"><div class="fill" id="spel-load-bar"></div></div></div>
     <div class="view-toggle">
       <button id="view-glob" class="active">Glob &#127757;</button>
-      <button id="view-platt">Platt karta</button>
+      <button id="view-platt">V&auml;ggkarta</button>
+      <button id="view-orig">Original</button>
+    </div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
+      <div class="zoom-level" id="zoom-level">100%</div>
+      <button class="zoom-btn" id="zoom-out" title="Zooma ut">&minus;</button>
     </div>
     <div class="explore-toggle-buttons" id="explore-toggle-buttons">
       <button class="explore-toggle-btn" id="show-all-btn" title="Visa alla l&auml;nder">
