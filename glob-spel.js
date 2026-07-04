@@ -644,8 +644,11 @@ flatCanvas.addEventListener('pointerdown', ev => {
     fDrag = null;
     flatCanvas.classList.add('dragging');
   } else if (fPtrs.size === 1) {
+    // riktiga fingrar darrar flera pixlar under ett tryck — med för snäv
+    // tröskel tolkas trycket som en dragning och klicket sväljs
     fDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
-              cx0: flat.cx, cy0: flat.cy, moved: false };
+              cx0: flat.cx, cy0: flat.cy, moved: false,
+              tol: ev.pointerType === 'touch' ? 12 : 4 };
   } else {
     fDrag = null;
   }
@@ -670,7 +673,7 @@ flatCanvas.addEventListener('pointermove', ev => {
   }
   if (fDrag && ev.pointerId === fDrag.id) {
     const dx = ev.clientX - fDrag.sx, dy = ev.clientY - fDrag.sy;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    if (Math.abs(dx) > fDrag.tol || Math.abs(dy) > fDrag.tol) {
       fDrag.moved = true;
       flatCanvas.classList.add('dragging');
     }
@@ -1021,7 +1024,8 @@ origWrap.addEventListener('pointerdown', ev => {
     origWrapper.classList.add('dragging');
   } else if (oPtrs.size === 1) {
     oDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
-              px0: origPanX, py0: origPanY, moved: false };
+              px0: origPanX, py0: origPanY, moved: false,
+              tol: ev.pointerType === 'touch' ? 12 : 4 };
     origWrapper.classList.add('dragging');
   } else {
     oDrag = null;
@@ -1044,7 +1048,7 @@ origWrap.addEventListener('pointermove', ev => {
   }
   if (oDrag && ev.pointerId === oDrag.id) {
     const dx = ev.clientX - oDrag.sx, dy = ev.clientY - oDrag.sy;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) oDrag.moved = true;
+    if (Math.abs(dx) > oDrag.tol || Math.abs(dy) > oDrag.tol) oDrag.moved = true;
     if (oDrag.moved) {
       origPanX = oDrag.px0 + dx;
       origPanY = oDrag.py0 + dy;
@@ -1244,11 +1248,23 @@ function preloadCountryImages() {
     return i;
   });
 }
+// beskrivningen ligger hopfälld bakom en knapp — fäll ihop vid varje nytt land
+const infoToggle = document.getElementById('info-toggle');
+const infoExtra = document.getElementById('info-extra');
+infoToggle.addEventListener('click', () => {
+  const open = infoExtra.style.display !== 'none';
+  infoExtra.style.display = open ? 'none' : '';
+  infoToggle.classList.toggle('open', !open);
+  infoToggle.textContent = open ? 'Visa info om landet' : 'Dölj info om landet';
+});
 function showInfoCard(c) {
   activeCountry = c.gid;
   infoName.textContent = c.name;
   infoShape.src = countryImgSrc(c);
   infoDesc.innerHTML = (c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : '') + escHtml(c.desc);
+  infoExtra.style.display = 'none';
+  infoToggle.classList.remove('open');
+  infoToggle.textContent = 'Visa info om landet';
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
 }
