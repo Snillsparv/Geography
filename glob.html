@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <style>
     /* ── glob-sidans tillägg: kartpanelen är glob / väggkarta / originalkarta ── */
@@ -37,6 +37,35 @@
       margin-top: 10px; overflow: hidden; }
     #spel-load .fill { height: 100%; width: 0%; background: #5bbfff; transition: width .15s; }
     .region-card.glob-card span { background: #1d3a57; }
+    /* Mobil: lyft vyknapparna ovanför MapLibre-attributionen längst ner —
+       överlappande knappar gjorde Original-fliken svår att träffa. */
+    @media (max-width: 900px) {
+      .view-toggle { bottom: 46px; left: 10px; gap: 4px; }
+      .view-toggle button { padding: 7px 10px; font-size: .8rem; }
+    }
+    /* Infokortet på mobilen: landbilden i en nästan kvadratisk ruta till
+       vänster och förklaringen direkt intill — den breda bottenpanelen gjorde
+       annars landbilden pytteliten ovanför texten. */
+    @media (max-width: 900px) {
+      #info-card.active {
+        display: grid;
+        grid-template-columns: clamp(110px, 36%, 180px) 1fr;
+        grid-template-areas: "namn namn" "bild text" "hint hint";
+        gap: 8px 12px;
+        align-items: start;
+      }
+      #info-card .country-name { grid-area: namn; }
+      #info-card .country-shape-preview {
+        grid-area: bild;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1.1;
+        max-height: 190px;
+      }
+      #info-card .country-shape-preview img { max-width: 92%; max-height: 92%; }
+      #info-card .description { grid-area: text; }
+      #info-card .close-hint { grid-area: hint; margin-top: 0; }
+    }
   </style>
 </head>
 <body>
@@ -279,7 +308,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js"></script>
+<script src="glob-spel.js?v=2"></script>
 
 </body>
 </html>

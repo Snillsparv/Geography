@@ -129,8 +129,22 @@ function resetOverlays() {
 // ══════════════════════════════════
 // Dataladdning
 // ══════════════════════════════════
-const TILE_URL = 'tiles/world.pmtiles';
-let pmArchive = null;
+// ?v=N på alla resurser som ändras vid deploy: mobilwebbläsare och CDN:er
+// cachar hårt, och en gammal glob-spel.js mot en ny glob.html gav flikar
+// som "inte gjorde någonting" på mobilen. Bumpa N när tiles/geojson ändras.
+const TILE_URL = 'tiles/world.pmtiles?v=2';
+let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
+let pmStream = null;    // strömmande instans tills nedladdningen är klar
+let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
+function pmSource() {
+  if (pmArchive) return pmArchive;
+  if (!pmStream) pmStream = new pmtiles.PMTiles(TILE_URL);
+  return pmStream;
+}
+// Hela arkivet (≈45 MB) hämtas i BAKGRUNDEN: spelet startar direkt med
+// range requests (bara de rutor som syns laddas — en handfull för en
+// region) och växlar till minnesversionen när nedladdningen är klar, så
+// att globen sedan snurrar utan att rutor laddar i kanterna.
 async function preloadTiles(onProgress) {
   try {
     const resp = await fetch(TILE_URL);
@@ -153,13 +167,14 @@ async function preloadTiles(onProgress) {
       getKey: () => TILE_URL,
       getBytes: async (offset, length) => ({ data: buf.buffer.slice(offset, offset + length) }),
     });
+    if (protocol) protocol.add(pmArchive);   // efterföljande rutor tas ur minnet
   } catch (e) {
-    console.warn('Förladdning misslyckades – strömmar i stället.', e);
+    console.warn('Bakgrundsladdningen misslyckades – fortsätter strömma.', e);
   }
 }
 
 async function loadRegions() {
-  regionsGj = await (await fetch('assets/art-regions.json')).json();
+  regionsGj = await (await fetch('assets/art-regions.json?v=2')).json();
   for (const f of regionsGj.features) {
     featureByFilename.set(f.properties.key.split('/')[1], f);
   }
@@ -192,7 +207,7 @@ function buildCountries(slug, raw) {
 // MapLibre-globen
 // ══════════════════════════════════
 function initMap() {
-  const protocol = new pmtiles.Protocol();
+  protocol = new pmtiles.Protocol();
   maplibregl.addProtocol('pmtiles', protocol.tile);
   if (pmArchive) protocol.add(pmArchive);
 
@@ -210,11 +225,11 @@ function initMap() {
       sources: {
         art: {
           type: 'raster',
-          url: 'pmtiles://tiles/world.pmtiles',
+          url: 'pmtiles://' + TILE_URL,
           tileSize: 512,
           attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
         },
-        borders: { type: 'geojson', data: 'assets/art-borders.json' },
+        borders: { type: 'geojson', data: 'assets/art-borders.json?v=2' },
         regioner: { type: 'geojson', data: regionsGj },
       },
       layers: [
@@ -329,7 +344,7 @@ let flatSeq = 0;                  // gör pågående asynkrona renderingar för�
 let flatTimer = null;
 let patch = null;                 // högupplöst tile-utsnitt {z,tx0,ty0,W,H,data}
 
-fetch('assets/art-borders.json').then(r => r.json())
+fetch('assets/art-borders.json?v=2').then(r => r.json())
   .then(gj => { borderLines = gj.features[0].geometry.coordinates; flatDirty(); })
   .catch(() => {});
 
@@ -342,7 +357,7 @@ function flatDirty() {
 async function loadMosaic() {
   if (mdata) return;
   const N = 1 << MOSZ, T = 512;
-  const pm = pmArchive || new pmtiles.PMTiles(TILE_URL);
+  const pm = pmSource();
   const mosaic = document.createElement('canvas');
   mosaic.width = MOS; mosaic.height = MOS;
   const mctx = mosaic.getContext('2d');
@@ -414,7 +429,7 @@ async function ensurePatch(seq) {
     if (txn * tyn > 48) continue;                    // för stort — prova grövre z
     if (patch && patch.z === zs && patch.tx0 === tx0 && patch.ty0 === ty0 &&
         patch.W === txn * 512 && patch.H === tyn * 512) return;   // återanvänd
-    const pm = pmArchive || new pmtiles.PMTiles(TILE_URL);
+    const pm = pmSource();
     const c = document.createElement('canvas');
     c.width = txn * 512; c.height = tyn * 512;
     const cx2 = c.getContext('2d');
@@ -612,22 +627,48 @@ function flatHit(ev) {
   return null;
 }
 
-// ── väggkartans gester: dra = panorera, hjul/pinch = zooma, stillaklick = spel ──
+// ── väggkartans gester: dra = panorera, hjul/nyp = zooma, stillaklick = spel ──
+// Nypzoomen går HELT via pointer events (två aktiva pekare) i stället för
+// touch events — en och samma kodväg i alla webbläsare, även iOS Safari.
+const fPtrs = new Map();          // pointerId → {x, y}
 let fDrag = null, fPinch = null;
 let flatHoverGid = null, flatHoverRaf = false;
 flatCanvas.addEventListener('pointerdown', ev => {
   if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-  if (fPinch) return;
+  ev.preventDefault();
   flatCanvas.setPointerCapture(ev.pointerId);
-  fDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
-            cx0: flat.cx, cy0: flat.cy, moved: false };
+  fPtrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (fPtrs.size === 2) {
+    const [a, b] = [...fPtrs.values()];
+    fPinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k0: flat.k };
+    fDrag = null;
+    flatCanvas.classList.add('dragging');
+  } else if (fPtrs.size === 1) {
+    fDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
+              cx0: flat.cx, cy0: flat.cy, moved: false };
+  } else {
+    fDrag = null;
+  }
 });
 flatCanvas.addEventListener('pointermove', ev => {
   if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
   }
-  if (fDrag && ev.pointerId === fDrag.id && !fPinch) {
+  const p = fPtrs.get(ev.pointerId);
+  if (p) { p.x = ev.clientX; p.y = ev.clientY; }
+  if (fPinch && fPtrs.size >= 2) {
+    const [a, b] = [...fPtrs.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d > 0 && fPinch.d > 0) {
+      const r = flatCanvas.getBoundingClientRect();
+      flatZoomTo(fPinch.k0 * d / fPinch.d,
+        ((a.x + b.x) / 2 - r.left) * flat.W / r.width,
+        ((a.y + b.y) / 2 - r.top) * flat.H / r.height);
+    }
+    return;
+  }
+  if (fDrag && ev.pointerId === fDrag.id) {
     const dx = ev.clientX - fDrag.sx, dy = ev.clientY - fDrag.sy;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
       fDrag.moved = true;
@@ -657,19 +698,25 @@ flatCanvas.addEventListener('pointermove', ev => {
     }
   });
 });
-flatCanvas.addEventListener('pointerup', ev => {
+function flatPointerEnd(ev) {
+  fPtrs.delete(ev.pointerId);
+  if (fPinch) {
+    if (fPtrs.size < 2) {
+      fPinch = null;
+      if (!fPtrs.size) flatCanvas.classList.remove('dragging');
+    }
+    return;
+  }
   if (!fDrag || ev.pointerId !== fDrag.id) return;
   const moved = fDrag.moved;
   fDrag = null;
   flatCanvas.classList.remove('dragging');
-  if (moved) return;
+  if (moved || ev.type === 'pointercancel') return;
   const f = flatHit(ev);
   if (f) handleMapClick(f.id, ev);
-});
-flatCanvas.addEventListener('pointercancel', () => {
-  fDrag = null;
-  flatCanvas.classList.remove('dragging');
-});
+}
+flatCanvas.addEventListener('pointerup', flatPointerEnd);
+flatCanvas.addEventListener('pointercancel', flatPointerEnd);
 flatCanvas.addEventListener('wheel', ev => {
   ev.preventDefault();
   const r = flatCanvas.getBoundingClientRect();
@@ -677,31 +724,6 @@ flatCanvas.addEventListener('wheel', ev => {
   const py = (ev.clientY - r.top) * flat.H / r.height;
   flatZoomTo(flat.k * (ev.deltaY > 0 ? 0.9 : 1.1), px, py);
 }, { passive: false });
-flatCanvas.addEventListener('touchstart', ev => {
-  if (ev.touches.length === 2) {
-    ev.preventDefault();
-    fDrag = null;
-    flatCanvas.classList.remove('dragging');
-    fPinch = { d: Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
-                             ev.touches[0].clientY - ev.touches[1].clientY),
-               k0: flat.k };
-  }
-}, { passive: false });
-flatCanvas.addEventListener('touchmove', ev => {
-  if (fPinch && ev.touches.length === 2) {
-    ev.preventDefault();
-    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
-                         ev.touches[0].clientY - ev.touches[1].clientY);
-    const cxs = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
-    const cys = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
-    const r = flatCanvas.getBoundingClientRect();
-    flatZoomTo(fPinch.k0 * d / fPinch.d,
-      (cxs - r.left) * flat.W / r.width, (cys - r.top) * flat.H / r.height);
-  }
-}, { passive: false });
-flatCanvas.addEventListener('touchend', ev => {
-  if (ev.touches.length < 2) fPinch = null;
-});
 
 // ══════════════════════════════════
 // Originalkartan — regionens handritade karta precis som originalsidan:
@@ -798,31 +820,40 @@ async function initOrig() {
   ov.src = `assets/${slug}/overlay.webp`;
   origWrapper.appendChild(ov);
 
-  // träffdata: alfakanalen i varje landbild (och specialform)
+  // träffdata: alfakanalen i varje landbild (och specialform). Stora länder
+  // samplas i HALV upplösning — träffsäkerheten påverkas inte märkbart, men
+  // fullupplösta ImageData-buffertar för alla länder samtidigt kan spränga
+  // mobilens canvas-minne. Små länder behåller full precision.
   const loadImg = src => new Promise(res => {
     const i = new Image();
     i.onload = () => res(i);
     i.onerror = () => res(null);
     i.src = src;
   });
+  const hitScale = (w, h) => (w * h > 1000000 ? 2 : 1);
   await Promise.all([
     ...list.map(async c => {
       const i = await loadImg(`assets/${slug}/countries/${c.filename}.webp`);
       if (!i) return;
+      const s = hitScale(c.width, c.height);
+      const w = Math.max(1, Math.round(c.width / s)), h = Math.max(1, Math.round(c.height / s));
       const cv = document.createElement('canvas');
-      cv.width = c.width; cv.height = c.height;
+      cv.width = w; cv.height = h;
       const cx2 = cv.getContext('2d');
-      cx2.drawImage(i, 0, 0, c.width, c.height);
-      origHitData[c.filename] = { data: cx2.getImageData(0, 0, c.width, c.height).data, canvas: cv };
+      cx2.drawImage(i, 0, 0, w, h);
+      origHitData[c.filename] = { data: cx2.getImageData(0, 0, w, h).data, w, h, s, canvas: cv };
     }),
     ...Object.values(origShapes).map(async sh => {
       const i = await loadImg(sh.file);
       if (!i) return;
+      const s = hitScale(sh.width, sh.height);
+      const w = Math.max(1, Math.round(sh.width / s)), h = Math.max(1, Math.round(sh.height / s));
       const cv = document.createElement('canvas');
-      cv.width = sh.width; cv.height = sh.height;
+      cv.width = w; cv.height = h;
       const cx2 = cv.getContext('2d');
-      cx2.drawImage(i, 0, 0, sh.width, sh.height);
-      sh.data = cx2.getImageData(0, 0, sh.width, sh.height).data;
+      cx2.drawImage(i, 0, 0, w, h);
+      sh.data = cx2.getImageData(0, 0, w, h).data;
+      sh.w = w; sh.h = h; sh.s = s;
       sh.canvas = cv;
     }),
   ]);
@@ -832,51 +863,55 @@ async function initOrig() {
   origInit = true;
 }
 
-// gula hover-bilder: landbilden tonad gul, klippt vid baskartans konturer
+// gula hover-bilder: landbilden tonad gul, klippt vid baskartans konturer.
+// Gränsmasken byggs i HALV upplösning (en fjärdedels minne — mobilen) och
+// hover-bilderna genereras i träffdatans skala; CSS sträcker upp dem.
 function origHoverImages(list) {
   const HR = 255, HG = 220, HB = 50, TH = 150;
+  const MW = Math.max(1, ORIG.W >> 1), MH = Math.max(1, ORIG.H >> 1);
   const mc = document.createElement('canvas');
-  mc.width = ORIG.W; mc.height = ORIG.H;
+  mc.width = MW; mc.height = MH;
   const mctx = mc.getContext('2d');
-  mctx.drawImage(origBase, 0, 0, ORIG.W, ORIG.H);
-  const md = mctx.getImageData(0, 0, ORIG.W, ORIG.H).data;
-  const raw = new Uint8Array(ORIG.W * ORIG.H);
-  for (let i = 0; i < ORIG.W * ORIG.H; i++) {
+  mctx.drawImage(origBase, 0, 0, MW, MH);
+  const md = mctx.getImageData(0, 0, MW, MH).data;
+  const raw = new Uint8Array(MW * MH);
+  for (let i = 0; i < MW * MH; i++) {
     const mi = i * 4;
     const b = (md[mi] + md[mi + 1] + md[mi + 2]) / 3;
     if (b < TH || md[mi + 3] < 128) raw[i] = 1;
   }
   const border = new Uint8Array(raw);
-  for (let y = 0; y < ORIG.H; y++) {
-    for (let x = 0; x < ORIG.W; x++) {
-      const i = y * ORIG.W + x;
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      const i = y * MW + x;
       if (border[i]) continue;
-      if ((x > 0 && raw[i - 1]) || (x < ORIG.W - 1 && raw[i + 1]) ||
-          (y > 0 && raw[i - ORIG.W]) || (y < ORIG.H - 1 && raw[i + ORIG.W])) border[i] = 1;
+      if ((x > 0 && raw[i - 1]) || (x < MW - 1 && raw[i + 1]) ||
+          (y > 0 && raw[i - MW]) || (y < MH - 1 && raw[i + MW])) border[i] = 1;
     }
   }
   for (const c of list) {
     const sh = origShapes[c.filename];
     if (sh && sh.hitOnly) continue;
-    let src, L, T, W2, H2;
-    if (sh && sh.canvas) { src = sh.canvas; L = sh.left; T = sh.top; W2 = sh.width; H2 = sh.height; }
+    let hd, L, T, FW, FH;
+    if (sh && sh.canvas) { hd = sh; L = sh.left; T = sh.top; FW = sh.width; FH = sh.height; }
     else {
-      const hd = origHitData[c.filename];
-      if (!hd) continue;
-      src = hd.canvas; L = c.left; T = c.top; W2 = c.width; H2 = c.height;
+      hd = origHitData[c.filename];
+      if (!hd || !hd.canvas) continue;
+      L = c.left; T = c.top; FW = c.width; FH = c.height;
     }
+    const s = hd.s || 1, W2 = hd.w, H2 = hd.h;
     const cv = document.createElement('canvas');
     cv.width = W2; cv.height = H2;
     const cx2 = cv.getContext('2d');
-    cx2.drawImage(src, 0, 0);
+    cx2.drawImage(hd.canvas, 0, 0);
     const pix = cx2.getImageData(0, 0, W2, H2);
     const d = pix.data;
     const sx = L - ORIG.L, sy = T - ORIG.T;
     for (let y = 0; y < H2; y++) {
       for (let x = 0; x < W2; x++) {
-        const mx = sx + x, my = sy + y;
+        const mx = (sx + x * s) >> 1, my = (sy + y * s) >> 1;
         const ci = (y * W2 + x) * 4;
-        if (mx < 0 || mx >= ORIG.W || my < 0 || my >= ORIG.H || border[my * ORIG.W + mx]) {
+        if (mx < 0 || mx >= MW || my < 0 || my >= MH || border[my * MW + mx]) {
           d[ci + 3] = 0;
         } else if (d[ci + 3] > 0) {
           d[ci] = HR; d[ci + 1] = HG; d[ci + 2] = HB;
@@ -885,7 +920,7 @@ function origHoverImages(list) {
     }
     cx2.putImageData(pix, 0, 0);
     const el = origHoverEls[c.filename];
-    if (el) { el.src = cv.toDataURL(); el._rect = { L, T, W: W2, H: H2 }; }
+    if (el) { el.src = cv.toDataURL(); el._rect = { L, T, W: FW, H: FH }; }
   }
 }
 
@@ -936,15 +971,15 @@ function origHitTest(clientX, clientY) {
     const sh = origShapes[c.filename];
     if (sh) {
       if (!sh.data) continue;
-      const lx = Math.round(mapX - sh.left), ly = Math.round(mapY - sh.top);
-      if (lx < 0 || ly < 0 || lx >= sh.width || ly >= sh.height) continue;
-      if (sh.data[(ly * sh.width + lx) * 4 + 3] > 30) return c;
+      const lx = Math.floor((mapX - sh.left) / sh.s), ly = Math.floor((mapY - sh.top) / sh.s);
+      if (lx < 0 || ly < 0 || lx >= sh.w || ly >= sh.h) continue;
+      if (sh.data[(ly * sh.w + lx) * 4 + 3] > 30) return c;
     } else {
       const hd = origHitData[c.filename];
       if (!hd) continue;
-      const lx = Math.round(mapX - c.left), ly = Math.round(mapY - c.top);
-      if (lx < 0 || ly < 0 || lx >= c.width || ly >= c.height) continue;
-      if (hd.data[(ly * c.width + lx) * 4 + 3] > 30) return c;
+      const lx = Math.floor((mapX - c.left) / hd.s), ly = Math.floor((mapY - c.top) / hd.s);
+      if (lx < 0 || ly < 0 || lx >= hd.w || ly >= hd.h) continue;
+      if (hd.data[(ly * hd.w + lx) * 4 + 3] > 30) return c;
     }
   }
   return null;
@@ -968,23 +1003,46 @@ function origApplyState(gid, t) {
   if (mk) mk.classList.toggle('active', glow);
 }
 
-// gester: dra = panorera, hjul/pinch = zooma, stillaklick = spel
+// gester: dra = panorera, hjul/nyp = zooma, stillaklick = spel — nypzoomen
+// via pointer events (två aktiva pekare), samma kodväg även på iOS Safari
+const oPtrs = new Map();          // pointerId → {x, y}
 let oDrag = null, oPinch = null, origHoverFile = null, origHoverRaf = false;
 origWrap.addEventListener('pointerdown', ev => {
   if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-  if (oPinch) return;
+  if (ev.target.closest('.zoom-controls') || ev.target.closest('.view-toggle') ||
+      ev.target.closest('.explore-toggle-buttons')) return;
   ev.preventDefault();
   origWrap.setPointerCapture(ev.pointerId);
-  oDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
-            px0: origPanX, py0: origPanY, moved: false };
-  origWrapper.classList.add('dragging');
+  oPtrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (oPtrs.size === 2) {
+    const [a, b] = [...oPtrs.values()];
+    oPinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z0: origZoom };
+    oDrag = null;
+    origWrapper.classList.add('dragging');
+  } else if (oPtrs.size === 1) {
+    oDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY,
+              px0: origPanX, py0: origPanY, moved: false };
+    origWrapper.classList.add('dragging');
+  } else {
+    oDrag = null;
+  }
 });
 origWrap.addEventListener('pointermove', ev => {
   if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
   }
-  if (oDrag && ev.pointerId === oDrag.id && !oPinch) {
+  const p = oPtrs.get(ev.pointerId);
+  if (p) { p.x = ev.clientX; p.y = ev.clientY; }
+  if (oPinch && oPtrs.size >= 2) {
+    const [a, b] = [...oPtrs.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d > 0 && oPinch.d > 0) {
+      origSetZoom(oPinch.z0 * d / oPinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    }
+    return;
+  }
+  if (oDrag && ev.pointerId === oDrag.id) {
     const dx = ev.clientX - oDrag.sx, dy = ev.clientY - oDrag.sy;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) oDrag.moved = true;
     if (oDrag.moved) {
@@ -1013,47 +1071,30 @@ origWrap.addEventListener('pointermove', ev => {
     origWrap.style.cursor = hit && a ? 'pointer' : '';
   });
 });
-origWrap.addEventListener('pointerup', ev => {
-  origWrapper.classList.remove('dragging');
+function origPointerEnd(ev) {
+  oPtrs.delete(ev.pointerId);
+  if (oPinch) {
+    if (oPtrs.size < 2) {
+      oPinch = null;
+      if (!oPtrs.size) origWrapper.classList.remove('dragging');
+    }
+    return;
+  }
+  if (!oPtrs.size) origWrapper.classList.remove('dragging');
   if (!oDrag || ev.pointerId !== oDrag.id) return;
   const moved = oDrag.moved;
   oDrag = null;
-  if (moved) return;
+  if (moved || ev.type === 'pointercancel') return;
   const hit = origHitTest(ev.clientX, ev.clientY);
   const a = hit ? aktivByFile.get(hit.filename) : null;
   if (a) handleMapClick(a.gid, ev);
-});
-origWrap.addEventListener('pointercancel', () => {
-  oDrag = null;
-  origWrapper.classList.remove('dragging');
-});
+}
+origWrap.addEventListener('pointerup', origPointerEnd);
+origWrap.addEventListener('pointercancel', origPointerEnd);
 origWrap.addEventListener('wheel', ev => {
   ev.preventDefault();
   origSetZoom(origZoom * (ev.deltaY > 0 ? 0.9 : 1.1), ev.clientX, ev.clientY);
 }, { passive: false });
-origWrap.addEventListener('touchstart', ev => {
-  if (ev.touches.length === 2) {
-    ev.preventDefault();
-    oDrag = null;
-    origWrapper.classList.remove('dragging');
-    oPinch = { d: Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
-                             ev.touches[0].clientY - ev.touches[1].clientY),
-               z0: origZoom };
-  }
-}, { passive: false });
-origWrap.addEventListener('touchmove', ev => {
-  if (oPinch && ev.touches.length === 2) {
-    ev.preventDefault();
-    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
-                         ev.touches[0].clientY - ev.touches[1].clientY);
-    origSetZoom(oPinch.z0 * d / oPinch.d,
-      (ev.touches[0].clientX + ev.touches[1].clientX) / 2,
-      (ev.touches[0].clientY + ev.touches[1].clientY) / 2);
-  }
-}, { passive: false });
-origWrap.addEventListener('touchend', ev => {
-  if (ev.touches.length < 2) oPinch = null;
-});
 
 // ══════════════════════════════════
 // Vyväxling: glob / väggkarta / original
@@ -1084,9 +1125,15 @@ async function setView(vy) {
     origLoading = true;
     load.style.display = '';
     document.getElementById('spel-load-txt').textContent = 'Laddar originalkartan …';
-    await initOrig();
-    load.style.display = 'none';
-    origLoading = false;
+    try {
+      await initOrig();
+    } catch (e) {
+      // visa åtminstone baskartan i stället för att fastna på spinnern
+      console.warn('originalkartan kunde inte laddas helt', e);
+    } finally {
+      load.style.display = 'none';
+      origLoading = false;
+    }
   }
   updateZoomLabel();
 }
@@ -1134,6 +1181,7 @@ async function startRegion(slug) {
   }
   const kam = KAMERA[slug] || KAMERA.world;
   map.jumpTo({ center: kam.center, zoom: kam.zoom });
+  preloadCountryImages();
 }
 
 async function startWorld(count) {
@@ -1176,6 +1224,7 @@ async function startWorld(count) {
   map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
   switchMode('seterra', true);
   startSeterra();
+  preloadCountryImages();
 }
 
 // ══════════════════════
@@ -1183,6 +1232,17 @@ async function startWorld(count) {
 // ══════════════════════
 function countryImgSrc(c) {
   return `assets/${c.slug}/countries/${c.filename}.webp`;
+}
+// Förladda de spelbara ländernas bilder så infokortet och quiz-feedbacken
+// visar landbilden DIREKT i stället för efter en nedladdningssekund.
+let bildCache = [];
+function preloadCountryImages() {
+  bildCache = COUNTRIES.map(c => {
+    const i = new Image();
+    i.decoding = 'async';
+    i.src = countryImgSrc(c);
+    return i;
+  });
 }
 function showInfoCard(c) {
   activeCountry = c.gid;
@@ -1718,13 +1778,13 @@ window.spel = {
   if (!region) { showRegionSelector(); document.getElementById('spel-load').style.display = 'none'; return; }
 
   showGame();
-  const loadBar = document.getElementById('spel-load-bar');
   const loadTxt = document.getElementById('spel-load-txt');
-  await Promise.all([
-    preloadTiles(f => { loadBar.style.width = (f * 100).toFixed(1) + '%'; }),
-    loadRegions(),
-  ]);
   loadTxt.textContent = 'Startar …';
+  // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
+  // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
+  // bakgrunden och ger sedan helt sömlös snurr.
+  await loadRegions();
+  preloadTiles();
   initMap();
   // feature-states kan inte sättas innan stilen laddat klart
   await new Promise(res => map.once('load', res));
