@@ -140,7 +140,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '6';
+const V = '7';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -227,10 +227,32 @@ async function loadMarkers() {
 // skärmstorlek så den alltid syns och går att trycka på utzoomat.
 const PRICK_GRAD = 0.35, RING_GRAD = 0.6;   // radie i grader (ring = spridd ö-nation)
 const PRICK_MIN = 5, RING_MIN = 8;          // minsta skärmradie i px
+// pricken finns bara på länder som är för små för att ses vid aktuell zoom
+// (under så här många skärmpixlar) — större länder klarar sig utan. Spridda
+// ö-nationer har alltid sin ring: atollerna syns aldrig hur man än zoomar.
+const PRICK_SYNS_PX = 18;
 function prickRadiePx(spridd, zoomPx) {
   // zoomPx = kartpixlar per grad vid aktuell zoom/skala
   return Math.max(spridd ? RING_MIN : PRICK_MIN,
                   (spridd ? RING_GRAD : PRICK_GRAD) * zoomPx);
+}
+function prickSyns(m, zoomPx) {
+  return m.spridd ? true : m.omfang * zoomPx < PRICK_SYNS_PX;
+}
+// GL-lagrets radie/kontur: ett stopp per zoomsteg där landet antingen får
+// sin fasta kartradie (om det fortfarande är litet på skärmen) eller 0 —
+// interpolationen mellan stoppen gör att pricken krymper bort mjukt
+function prickStops(vardeFn) {
+  const stops = [];
+  for (let z = 0; z <= 10; z++) {
+    const pxDeg = 512 * Math.pow(2, z) / 360;
+    stops.push(z, ['case', ['boolean', ['feature-state', 'tackt'], false],
+      ['case', ['==', ['get', 'spridd'], 1], vardeFn(true, pxDeg),
+        ['case', ['<', ['get', 'omfang'], PRICK_SYNS_PX / pxDeg],
+          vardeFn(false, pxDeg), 0]],
+      0]);
+  }
+  return stops;
 }
 
 const configCache = {};
@@ -355,12 +377,7 @@ function initMap() {
           filter: ['==', ['geometry-type'], 'Point'],
           paint: {
             'circle-radius': ['interpolate', ['exponential', 2], ['zoom'],
-              0, ['case', ['boolean', ['feature-state', 'tackt'], false],
-                   ['case', ['==', ['get', 'spridd'], 1], 8, 5], 0],
-              3.3, ['case', ['boolean', ['feature-state', 'tackt'], false],
-                     ['case', ['==', ['get', 'spridd'], 1], 8.4, 5], 0],
-              10, ['case', ['boolean', ['feature-state', 'tackt'], false],
-                    ['case', ['==', ['get', 'spridd'], 1], 874, 510], 0]],
+              ...prickStops((spridd, pxDeg) => prickRadiePx(spridd, pxDeg))],
             'circle-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['any', ['boolean', ['feature-state', 'tips'], false],
@@ -368,10 +385,8 @@ function initMap() {
               TACK],
             'circle-opacity': ['case', ['==', ['get', 'spridd'], 1], 0.25, 0.95],
             'circle-stroke-color': '#0a0a0a',
-            'circle-stroke-width': ['case',
-              ['boolean', ['feature-state', 'tackt'], false],
-              ['case', ['==', ['get', 'spridd'], 1], 2.5, 1.5],
-              0],
+            'circle-stroke-width': ['interpolate', ['linear'], ['zoom'],
+              ...prickStops(spridd => spridd ? 2.5 : 1.5)],
           } },
         { id: 'borders', type: 'line', source: 'borders',
           paint: { 'line-color': '#0a0a0a', 'line-width': 1.5,
@@ -765,7 +780,7 @@ function composeFlat() {
   const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
   for (const m of markerPts) {
     const t = landState(m.gid);
-    if (!t.tackt) continue;
+    if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
     const rr = prickRadiePx(m.spridd, pxPerDeg);
     const [mx, my] = projPt(m.lng, m.lat);
     if (mx < -rr - 20 || mx > flat.W + rr + 20 || my < -rr - 20 || my > flat.H + rr + 20) continue;
@@ -817,7 +832,7 @@ function flatHit(ev) {
   const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
   for (const m of markerPts) {
     const t = landState(m.gid);
-    if (!t.tackt) continue;
+    if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
     const [mx, my] = projPt(m.lng, m.lat);
     if (Math.hypot(mx - px, my - py) <= prickRadiePx(m.spridd, pxPerDeg) + 4) {
       return featureByGid.get(m.gid) || null;
