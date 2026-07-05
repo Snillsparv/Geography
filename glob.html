@@ -43,37 +43,44 @@
       .view-toggle { bottom: 46px; left: 10px; gap: 4px; }
       .view-toggle button { padding: 7px 10px; font-size: .8rem; }
     }
-    /* Landbeskrivningen ligger hopfälld bakom en knapp — räknaren överst
-       syns alltid utan att man behöver skrolla. */
-    #explore-ui .counter { border-bottom: 1px solid rgba(91,191,255,.12); }
+    /* Landbeskrivningen ligger hopfälld bakom en knapp; minnesregeln
+       (assoc) visas alltid och räknaren ligger kompakt under knappen. */
     .info-toggle { width: 100%; padding: 8px 12px; border-radius: 8px; cursor: pointer;
       border: 1px solid rgba(91,191,255,.3); background: rgba(255,255,255,.05);
       color: #7ec8e3; font-size: .85rem; font-weight: 600; text-align: left; }
     .info-toggle::after { content: ' \25BE'; }
     .info-toggle.open::after { content: ' \25B4'; }
     .info-extra { margin-top: 8px; }
+    #info-card .assoc-box { margin-bottom: 8px; padding: 8px 12px; font-size: .85rem; }
+    #info-card .counter { padding: 8px 0 0; font-size: .78rem; color: #7ea6c4;
+      text-align: left; border: none; }
     /* Infokortet på mobilen: landbilden i en nästan kvadratisk ruta till
        vänster och info-knappen/texten direkt intill — den breda botten-
        panelen gjorde annars landbilden pytteliten ovanför texten. */
     @media (max-width: 900px) {
       #info-card.active {
         display: grid;
-        grid-template-columns: clamp(110px, 36%, 180px) 1fr;
+        grid-template-columns: clamp(96px, 30%, 150px) 1fr;
         grid-template-areas: "namn namn" "bild sido" "hint hint";
-        gap: 8px 12px;
+        gap: 6px 10px;
         align-items: start;
+        padding: 8px 14px 10px;
       }
-      #info-card .country-name { grid-area: namn; }
+      #info-card .country-name { grid-area: namn; font-size: 1.1rem; }
       #info-card .country-shape-preview {
         grid-area: bild;
         width: 100%;
         height: auto;
-        aspect-ratio: 1 / 1.1;
-        max-height: 190px;
+        aspect-ratio: 1 / 1.05;
+        max-height: 150px;
       }
       #info-card .country-shape-preview img { max-width: 92%; max-height: 92%; }
       #info-card .info-side { grid-area: sido; }
-      #info-card .close-hint { grid-area: hint; margin-top: 0; }
+      #info-card .assoc-box { margin-bottom: 6px; padding: 6px 10px; font-size: .8rem; }
+      #info-card .info-toggle { padding: 6px 10px; font-size: .8rem; }
+      #info-card .counter { padding: 6px 0 0; font-size: .72rem; }
+      /* hinten göms på mobilen så hela kortet ryms utan att skrolla */
+      #info-card .close-hint { display: none; }
     }
   </style>
 </head>
@@ -164,10 +171,6 @@
     <div id="explore-ui">
       <div class="info-header"><h2>Landinformation</h2></div>
 
-      <div class="counter">
-        Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> l&auml;nder
-      </div>
-
       <div class="info-default" id="info-default">
         <div class="arrow-icon">&larr;</div>
         <p>Klicka p&aring; ett land p&aring; globen<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
@@ -179,9 +182,13 @@
           <img id="info-shape" src="" alt="">
         </div>
         <div class="info-side">
+          <div class="assoc-box" id="info-assoc" style="display:none"></div>
           <button class="info-toggle" id="info-toggle" type="button">Visa info om landet</button>
           <div class="info-extra" id="info-extra" style="display:none">
             <div class="description" id="info-desc"></div>
+          </div>
+          <div class="counter">
+            Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> l&auml;nder
           </div>
         </div>
         <div class="close-hint">Klicka p&aring; landet igen f&ouml;r att d&ouml;lja</div>
@@ -322,7 +329,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=4"></script>
+<script src="glob-spel.js?v=5"></script>
 
 </body>
 </html>

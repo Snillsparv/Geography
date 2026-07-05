@@ -210,7 +210,8 @@ const map = new maplibregl.Map({
       art: {
         type: 'raster',
         url: 'pmtiles://tiles/world.pmtiles',
-        tileSize: 512,
+        // 512-px-rutor deklarerade som 256: en zoomnivå skarpare överallt
+        tileSize: 256,
         attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
       },
       // konstens egna gränser (exporterade ur tile-bygget): vektorlinjer =
