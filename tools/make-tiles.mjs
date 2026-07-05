@@ -1539,12 +1539,15 @@ function writeBorders(regions, fills) {
   const nk = (x, y) => y * W1 + x;
   // havs-badges (överritade östater vars bild döljs när landet är täckt):
   // deras blobkonturer blir egna features så spelet kan tända/släcka dem
+  // ALLA badge-länder får egna släckbara konturfeatures — även enklaverna
+  // (Vatikanstaten/San Marino inne i Italien) och blob-grannar som Saint
+  // Vincent. Spelet täcker badge-bilden med papper när landet är täckt,
+  // och då ska konturen bort med den — annars skymtar korset/bläckfisken
+  // genom täcket fast bara cirkeln ska synas.
   const havBadge = new Set();
   for (const r of regions) {
     for (const c of r.countries) {
-      if (!c.badge) continue;
-      const g = regionGrann.get(c.gid);
-      if (g && g.hav + g.land > 0 && g.hav / (g.hav + g.land) > 0.5) havBadge.add(c.gid);
+      if (c.badge) havBadge.add(c.gid);
     }
   }
   // gruppera sprickorna: 0 = vanliga gränser, annars badge-gid
