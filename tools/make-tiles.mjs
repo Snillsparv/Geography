@@ -82,6 +82,9 @@ const BORDERS_Z = 6;
 // stable gid, properties {gid, key, namn}). This is the click layer: the
 // map app hit-tests taps against these polygons on both globe and flat map.
 const REGIONS_OUT = arg('regions', null);
+// --markers FILE (med --borders): ländernas RIKTIGA former (badge-länder)
+// och mittpunkter — prick/ring-markörerna för småländer i spelet.
+const MARKERS_OUT = arg('markers', null);
 // Debug: --window z:x0:y0[:x1:y1] renders ONLY that tile range at that zoom
 // (combine with --save DIR to inspect the webp files without a full build).
 const WINDOW = (() => {
@@ -1439,14 +1442,24 @@ function outlineSheet() {
 // world px at BORDERS_Z. Only the tile interior is scanned; the gutter
 // supplies the neighbour side, so every crack is recorded exactly once.
 const borderSegs = [];
+const borderOwn = [];           // [o, grann] per spricka — badge-konturerna
+                                // exporteras som egna features (id = gid) så
+                                // spelet kan släcka dem när landet är täckt
 // Directed cracks per owner (--regions): each country's boundary with its
 // INTERIOR ON THE LEFT of the walking direction (screen coords, y south),
 // so chaining start→end always yields closed rings around its painted area.
 const regionSegs = new Map();   // gid → flat [x0,y0, x1,y1, …]
-function pushRegionSeg(gid, x0, y0, x1, y1) {
+// per land: hur stor del av synliga kanten som vetter mot HAV (ägare 0)
+// respektive andra länder — styr om ett badge-lands täckta bild kan döljas
+// med havsfärg (östater) eller inte (enklaver som Vatikanen inne i Italien)
+const regionGrann = new Map();  // gid → {hav, land}
+function pushRegionSeg(gid, x0, y0, x1, y1, grann) {
   let a = regionSegs.get(gid);
   if (!a) { a = []; regionSegs.set(gid, a); }
   a.push(x0, y0, x1, y1);
+  let g = regionGrann.get(gid);
+  if (!g) { g = { hav: 0, land: 0 }; regionGrann.set(gid, g); }
+  if (grann) g.land++; else g.hav++;
 }
 function collectBorderCracks(tx, ty) {
   const bx = tx * TILE - G, by = ty * TILE - G;
@@ -1457,28 +1470,32 @@ function collectBorderCracks(tx, ty) {
       const i = row + px;
       const o = ownerBuf[i];
       const oe = ownerBuf[i + 1];
-      if (oe !== o) borderSegs.push(bx + px + 1, by + py, bx + px + 1, by + py + 1);
+      if (oe !== o) {
+        borderSegs.push(bx + px + 1, by + py, bx + px + 1, by + py + 1);
+        borderOwn.push(o, oe);
+      }
       if (REGIONS_OUT) {
         // Regions cut hard at the world's EAST edge (x = world = lng 180):
         // the antimeridian copy paints straight on into the gutter so no
         // ownership crack appears there, but the polygon has to close.
         const oeR = bx + px + 1 >= worldPx ? 0 : oe;
         if (oeR !== o) {
-          if (o) pushRegionSeg(o, bx + px + 1, by + py + 1, bx + px + 1, by + py);
-          if (oeR) pushRegionSeg(oeR, bx + px + 1, by + py, bx + px + 1, by + py + 1);
+          if (o) pushRegionSeg(o, bx + px + 1, by + py + 1, bx + px + 1, by + py, oeR);
+          if (oeR) pushRegionSeg(oeR, bx + px + 1, by + py, bx + px + 1, by + py + 1, o);
         }
         // …and at the WEST edge (x = 0), where the wrapped copy starts and
         // no tile scans the crack against the outside.
         if (tx === 0 && px === G && o) {
-          pushRegionSeg(o, bx + px, by + py, bx + px, by + py + 1);
+          pushRegionSeg(o, bx + px, by + py, bx + px, by + py + 1, 0);
         }
       }
       const os = ownerBuf[i + TG];
       if (os !== o) {
         borderSegs.push(bx + px, by + py + 1, bx + px + 1, by + py + 1);
+        borderOwn.push(o, os);
         if (REGIONS_OUT) {
-          if (o) pushRegionSeg(o, bx + px, by + py + 1, bx + px + 1, by + py + 1);
-          if (os) pushRegionSeg(os, bx + px + 1, by + py + 1, bx + px, by + py + 1);
+          if (o) pushRegionSeg(o, bx + px, by + py + 1, bx + px + 1, by + py + 1, os);
+          if (os) pushRegionSeg(os, bx + px + 1, by + py + 1, bx + px, by + py + 1, o);
         }
       }
     }
@@ -1516,73 +1533,108 @@ function douglasPeucker(pts, eps) {
 // Chain the unit cracks into polylines (split at junctions), simplify with
 // Douglas-Peucker and write a GeoJSON MultiLineString. The flat-fill
 // landmasses (Grönland/Antarktis) contribute their true outlines directly.
-function writeBorders(fills) {
+function writeBorders(regions, fills) {
   const world = TILE * (1 << BORDERS_Z);
   const W1 = world + 1;
   const nk = (x, y) => y * W1 + x;
-  const n = borderSegs.length / 4;
-  const adj = new Map();
-  const push = (k, s) => {
-    let a = adj.get(k);
-    if (!a) { a = []; adj.set(k, a); }
-    a.push(s);
-  };
-  for (let s = 0; s < n; s++) {
-    push(nk(borderSegs[s * 4], borderSegs[s * 4 + 1]), s);
-    push(nk(borderSegs[s * 4 + 2], borderSegs[s * 4 + 3]), s);
-  }
-  const used = new Uint8Array(n);
-  const other = (s, node) => {
-    const a = nk(borderSegs[s * 4], borderSegs[s * 4 + 1]);
-    const b = nk(borderSegs[s * 4 + 2], borderSegs[s * 4 + 3]);
-    return node === a ? b : a;
-  };
-  const paths = [];
-  const walk = (start, s0) => {
-    const path = [start];
-    let s = s0, node = start;
-    for (;;) {
-      used[s] = 1;
-      node = other(s, node);
-      path.push(node);
-      const list = adj.get(node);
-      if (list.length !== 2) break;
-      const nxt = list[0] === s ? list[1] : list[0];
-      if (used[nxt]) break;
-      s = nxt;
+  // havs-badges (överritade östater vars bild döljs när landet är täckt):
+  // deras blobkonturer blir egna features så spelet kan tända/släcka dem
+  const havBadge = new Set();
+  for (const r of regions) {
+    for (const c of r.countries) {
+      if (!c.badge) continue;
+      const g = regionGrann.get(c.gid);
+      if (g && g.hav + g.land > 0 && g.hav / (g.hav + g.land) > 0.5) havBadge.add(c.gid);
     }
-    return path;
-  };
-  for (const [node, list] of adj) {
-    if (list.length === 2) continue;
-    for (const s of list) if (!used[s]) paths.push(walk(node, s));
   }
-  for (let s = 0; s < n; s++) {
-    if (!used[s]) paths.push(walk(nk(borderSegs[s * 4], borderSegs[s * 4 + 1]), s));
+  // gruppera sprickorna: 0 = vanliga gränser, annars badge-gid
+  const groups = new Map();     // grupp → segmentindex
+  const nAll = borderSegs.length / 4;
+  for (let sI = 0; sI < nAll; sI++) {
+    const a = borderOwn[sI * 2], b = borderOwn[sI * 2 + 1];
+    const g = havBadge.has(a) ? a : havBadge.has(b) ? b : 0;
+    let arr = groups.get(g);
+    if (!arr) { arr = []; groups.set(g, arr); }
+    arr.push(sI);
   }
   const toLngLat = mercPxToLngLat(world);
-  const lines = [];
-  let ptsIn = 0, ptsOut = 0;
-  for (const p of paths) {
-    const pts = p.map(k => [k % W1, (k / W1) | 0]);
-    ptsIn += pts.length;
-    const simp = douglasPeucker(pts, 1.3);
-    ptsOut += simp.length;
-    lines.push(simp.map(toLngLat));
-  }
-  for (const fl of fills) {
-    for (const rp of fl.rings) {
-      const arr = [];
-      for (let i = 0; i < rp.length; i += 2) arr.push([rp[i] * world, rp[i + 1] * world]);
-      arr.push(arr[0]);
-      lines.push(douglasPeucker(arr, 1.3).map(toLngLat));
+  const chainGroup = idx => {
+    const adj = new Map();
+    const push = (k, sI) => {
+      let a = adj.get(k);
+      if (!a) { a = []; adj.set(k, a); }
+      a.push(sI);
+    };
+    for (const sI of idx) {
+      push(nk(borderSegs[sI * 4], borderSegs[sI * 4 + 1]), sI);
+      push(nk(borderSegs[sI * 4 + 2], borderSegs[sI * 4 + 3]), sI);
     }
+    const used = new Set();
+    const other = (sI, node) => {
+      const a = nk(borderSegs[sI * 4], borderSegs[sI * 4 + 1]);
+      const b = nk(borderSegs[sI * 4 + 2], borderSegs[sI * 4 + 3]);
+      return node === a ? b : a;
+    };
+    const paths = [];
+    const walk = (start, s0) => {
+      const p2 = [start];
+      let sI = s0, node = start;
+      for (;;) {
+        used.add(sI);
+        node = other(sI, node);
+        p2.push(node);
+        const list = adj.get(node);
+        if (list.length !== 2) break;
+        const nxt = list[0] === sI ? list[1] : list[0];
+        if (used.has(nxt)) break;
+        sI = nxt;
+      }
+      return p2;
+    };
+    for (const [node, list] of adj) {
+      if (list.length === 2) continue;
+      for (const sI of list) if (!used.has(sI)) paths.push(walk(node, sI));
+    }
+    for (const sI of idx) {
+      if (!used.has(sI)) paths.push(walk(nk(borderSegs[sI * 4], borderSegs[sI * 4 + 1]), sI));
+    }
+    return paths;
+  };
+  const features = [];
+  let ptsIn = 0, ptsOut = 0, nLines = 0;
+  const nameByGid = new Map();
+  for (const r of regions) for (const c of r.countries) nameByGid.set(c.gid, c.name);
+  for (const [g, idx] of [...groups.entries()].sort((a, b) => a[0] - b[0])) {
+    const lines = [];
+    for (const p2 of chainGroup(idx)) {
+      const pts = p2.map(k => [k % W1, (k / W1) | 0]);
+      ptsIn += pts.length;
+      const simp = douglasPeucker(pts, 1.3);
+      ptsOut += simp.length;
+      lines.push(simp.map(toLngLat));
+    }
+    if (g === 0) {
+      // Grönlands/Antarktis riktiga konturer hör till baslinjerna
+      for (const fl of fills) {
+        for (const rp of fl.rings) {
+          const arr = [];
+          for (let i = 0; i < rp.length; i += 2) arr.push([rp[i] * world, rp[i + 1] * world]);
+          arr.push(arr[0]);
+          lines.push(douglasPeucker(arr, 1.3).map(toLngLat));
+        }
+      }
+    }
+    nLines += lines.length;
+    const f = { type: 'Feature', properties: g === 0 ? {} : { badge: 1, gid: g, namn: nameByGid.get(g) || String(g) },
+                geometry: { type: 'MultiLineString', coordinates: lines } };
+    if (g !== 0) f.id = g;
+    features.push(f);
   }
-  const gj = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: lines } }] };
+  const gj = { type: 'FeatureCollection', features };
   const out = path.resolve(repo, BORDERS);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(gj));
-  console.log(`Skrev ${out}: ${lines.length} linjer (${ptsOut} punkter, förenklat från ${ptsIn}).`);
+  console.log(`Skrev ${out}: ${nLines} linjer i ${features.length} features (${ptsOut} punkter, förenklat från ${ptsIn}).`);
 }
 
 // Chain each country's directed cracks into closed rings, classify outer
@@ -1595,7 +1647,7 @@ function writeRegions(regions, fills) {
   const nk = (x, y) => y * W1 + x;
   const toLngLat = mercPxToLngLat(world);
   const meta = new Map();
-  for (const r of regions) for (const c of r.countries) meta.set(c.gid, { key: c.key, name: c.name });
+  for (const r of regions) for (const c of r.countries) meta.set(c.gid, { key: c.key, name: c.name, badge: c.badge ? 1 : 0 });
 
   const features = [];
   let nRings = 0, nDropped = 0, nOpen = 0, nRepair = 0;
@@ -1739,9 +1791,12 @@ function writeRegions(regions, fills) {
     if (!outers.length) continue;
     nRings += rings.length;
     const m = meta.get(gid) || {};
+    const g = regionGrann.get(gid) || { hav: 0, land: 0 };
+    const hav = g.hav + g.land > 0 && g.hav / (g.hav + g.land) > 0.5 ? 1 : 0;
     features.push({
       type: 'Feature', id: gid,
-      properties: { gid, key: m.key || String(gid), namn: m.name || m.key || String(gid) },
+      properties: { gid, key: m.key || String(gid), namn: m.name || m.key || String(gid),
+                    badge: m.badge || 0, hav },
       geometry: {
         type: 'MultiPolygon',
         coordinates: outers.map(o => [o.pts.map(toLngLat), ...o.holes.map(h => h.pts.map(toLngLat))]),
@@ -1767,6 +1822,70 @@ function writeRegions(regions, fills) {
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify({ type: 'FeatureCollection', features }));
   console.log(`Skrev ${out}: ${features.length} länder, ${nRings} ringar (${nDropped} småfragment släppta, ${nOpen} öppna, ${nRepair} lagade skarvar).`);
+}
+
+// Markörexporten (--markers): en Point-feature per land (riktiga mitt-
+// punkten + utsträckning i grader) och, för badge-länderna (överritade
+// småstater vars bild inte har landets form), den RIKTIGA Natural Earth-
+// formen som MultiPolygon. Spelet ritar formen + en klickbar prick/ring
+// när landet är täckt — bilden visas som vanligt när det avslöjas.
+function writeMarkers(regions) {
+  const extentDeg = (geometry, refLng) => {
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+    for (const poly of polys) {
+      for (const ring of poly) {
+        for (const [lng0, lat] of ring) {
+          let lng = lng0;
+          while (lng - refLng > 180) lng -= 360;
+          while (lng - refLng < -180) lng += 360;
+          if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+          if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        }
+      }
+    }
+    return Math.max(maxLng - minLng, maxLat - minLat);
+  };
+  // lngs uppvridna kring landets mittpunkt (kan gå utanför ±180): MapLibre
+  // ritar dem rätt över antimeridianen (Fiji), i stället för ett band
+  // tvärs över hela världen
+  const unwrapGeom = (geometry, refLng) => {
+    const fix = ring => ring.map(([lng0, lat]) => {
+      let lng = lng0;
+      while (lng - refLng > 180) lng -= 360;
+      while (lng - refLng < -180) lng += 360;
+      return [+lng.toFixed(5), +lat.toFixed(5)];
+    });
+    const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+    return { type: 'MultiPolygon', coordinates: polys.map(poly => poly.map(fix)) };
+  };
+  const features = [];
+  let nForm = 0;
+  for (const r of regions) {
+    for (const c of r.countries) {
+      const omf = +extentDeg(c.anchor, c.centroid[0]).toFixed(3);
+      const badge = c.badge ? 1 : 0;
+      const spridd = badge && omf > 2 ? 1 : 0;
+      features.push({
+        type: 'Feature', id: c.gid,
+        properties: { gid: c.gid, namn: c.name, badge, spridd, omfang: omf },
+        geometry: { type: 'Point',
+          coordinates: [+c.centroid[0].toFixed(4), +c.centroid[1].toFixed(4)] },
+      });
+      if (badge) {
+        nForm++;
+        features.push({
+          type: 'Feature', id: c.gid,
+          properties: { gid: c.gid, namn: c.name, form: 1, spridd },
+          geometry: unwrapGeom(c.anchor, c.centroid[0]),
+        });
+      }
+    }
+  }
+  const out = path.resolve(repo, MARKERS_OUT);
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify({ type: 'FeatureCollection', features }));
+  console.log(`Skrev ${out}: ${features.length - nForm} punkter, ${nForm} riktiga former.`);
 }
 
 // Warp one country's art into `scratch`, then source-over onto `sheetBuf`.
@@ -2287,8 +2406,9 @@ async function main() {
   }
 
   if (BORDERS) {
-    writeBorders(fills);
+    writeBorders(regions, fills);
     if (REGIONS_OUT) writeRegions(regions, fills);
+    if (MARKERS_OUT) writeMarkers(regions);
     return;
   }
   if (SAVE) {

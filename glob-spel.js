@@ -50,6 +50,7 @@ const seterraHintBox = document.getElementById('seterra-hint');
 // ── Speltillstånd ──
 let regionsGj = null;             // art-regions.json (alla klickytor)
 let featureByFilename = new Map();// filnamn → feature
+let featureByGid = new Map();     // gid → feature (för prickklick m.m.)
 let COUNTRIES = [];               // aktiva (spelbara) länder i vald region/test
 let aktivByGid = new Map();       // gid → country
 let IMAGE_ASSOCIATIONS = {};
@@ -93,7 +94,11 @@ function setLand(gid, patch) {
   const t = tillstand.get(gid) || {};
   Object.assign(t, patch);
   tillstand.set(gid, t);
-  if (map) map.setFeatureState({ source: 'regioner', id: gid }, t);
+  if (map) {
+    map.setFeatureState({ source: 'regioner', id: gid }, t);
+    map.setFeatureState({ source: 'markorer', id: gid }, t);
+    map.setFeatureState({ source: 'borders', id: gid }, t);
+  }
   flatDirty();
   origApplyState(gid, t);
 }
@@ -174,9 +179,43 @@ async function preloadTiles(onProgress) {
 }
 
 async function loadRegions() {
-  regionsGj = await (await fetch('assets/art-regions.json?v=2')).json();
+  regionsGj = await (await fetch('assets/art-regions.json?v=3')).json();
   for (const f of regionsGj.features) {
     featureByFilename.set(f.properties.key.split('/')[1], f);
+    featureByGid.set(f.id, f);
+  }
+}
+
+// Markörerna: badge-ländernas RIKTIGA former + alla länders mittpunkter.
+// De överritade småstaternas bilder har inte landets form — när ett sådant
+// land är täckt döljs bilden med havsfärg och man ser i stället den riktiga
+// formen och en klickbar prick (ring för utspridda ö-nationer).
+let markersGj = { type: 'FeatureCollection', features: [] };
+let markerPts = [];             // {gid, lng, lat, omfang, spridd, _vis}
+async function loadMarkers() {
+  try {
+    markersGj = await (await fetch('assets/art-markers.json?v=3')).json();
+    markerPts = markersGj.features
+      .filter(f => f.geometry.type === 'Point')
+      .map(f => ({ gid: f.id, lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1],
+                   omfang: f.properties.omfang, spridd: f.properties.spridd ? 1 : 0, _vis: null }));
+  } catch (e) { console.warn('kunde inte läsa art-markers.json', e); }
+}
+
+// pricken visas när landet är för litet för att formen ska synas tydligt
+// vid aktuell zoom — zoomar man in tar den riktiga formen över
+function prickSynlig(omfang, zoom) {
+  return omfang / 360 * 512 * Math.pow(2, zoom) < 18;
+}
+function uppdateraPrickar() {
+  if (!map) return;
+  const z = map.getZoom();
+  for (const m of markerPts) {
+    const vis = prickSynlig(m.omfang, z);
+    if (m._vis !== vis) {
+      m._vis = vis;
+      map.setFeatureState({ source: 'markorer', id: m.gid }, { prick: vis });
+    }
   }
 }
 
@@ -229,18 +268,23 @@ function initMap() {
           tileSize: 512,
           attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
         },
-        borders: { type: 'geojson', data: 'assets/art-borders.json?v=2' },
+        borders: { type: 'geojson', data: 'assets/art-borders.json?v=3' },
         regioner: { type: 'geojson', data: regionsGj },
+        markorer: { type: 'geojson', data: markersGj },
       },
       layers: [
         { id: 'bg', type: 'background', paint: { 'background-color': '#0e2438' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
+        // täcket: badge-öar (bilden ligger i havet men har inte landets
+        // form) döljs med HAVSFÄRG när de är täckta/gröna — den riktiga
+        // formen och pricken nedanför visar var landet faktiskt finns
         { id: 'cover', type: 'fill', source: 'regioner',
           paint: {
             'fill-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
               ['boolean', ['feature-state', 'hover'], false], GUL,
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#0e2438',
               ['boolean', ['feature-state', 'gron'], false], GRON,
               TACK],
             'fill-opacity': ['case',
@@ -251,8 +295,75 @@ function initMap() {
               ['boolean', ['feature-state', 'tackt'], false], 1,
               0],
           } },
+        // bildens antialiasing-frans (alfa < 128) ligger strax UTANFÖR
+        // klickytan — en kantlinje i havsfärg sväljer den så inga
+        // konturrester av den dolda bilden skymtar på havet
+        { id: 'cover-kant', type: 'line', source: 'regioner',
+          filter: ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+          paint: {
+            'line-color': '#0e2438',
+            'line-width': 3,
+            'line-opacity': ['case',
+              ['any',
+                ['boolean', ['feature-state', 'fel'], false],
+                ['boolean', ['feature-state', 'tips'], false],
+                ['boolean', ['feature-state', 'hover'], false]], 0,
+              ['any',
+                ['boolean', ['feature-state', 'tackt'], false],
+                ['boolean', ['feature-state', 'gron'], false]], 1,
+              0],
+          },
+          layout: { 'line-join': 'round' } },
+        // badge-ländernas RIKTIGA Natural Earth-form, ovanpå täcket
+        { id: 'former', type: 'fill', source: 'markorer',
+          filter: ['==', ['get', 'form'], 1],
+          paint: {
+            'fill-color': ['case',
+              ['boolean', ['feature-state', 'fel'], false], ROD,
+              ['boolean', ['feature-state', 'tips'], false], GUL,
+              ['boolean', ['feature-state', 'hover'], false], GUL,
+              ['boolean', ['feature-state', 'gron'], false], '#45b45e',
+              TACK],
+            'fill-opacity': ['case',
+              ['any',
+                ['boolean', ['feature-state', 'tackt'], false],
+                ['boolean', ['feature-state', 'gron'], false],
+                ['boolean', ['feature-state', 'fel'], false],
+                ['boolean', ['feature-state', 'tips'], false]],
+              1, 0],
+            'fill-outline-color': '#0a0a0a',
+          } },
+        // klickbar prick (ring för utspridda ö-nationer) på täckta småländer
+        { id: 'prickar', type: 'circle', source: 'markorer',
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': ['case',
+              ['all', ['boolean', ['feature-state', 'prick'], false],
+                      ['boolean', ['feature-state', 'tackt'], false]],
+              ['case', ['==', ['get', 'spridd'], 1], 9, 6],
+              0],
+            'circle-color': ['case',
+              ['boolean', ['feature-state', 'fel'], false], ROD,
+              ['any', ['boolean', ['feature-state', 'tips'], false],
+                      ['boolean', ['feature-state', 'hover'], false]], GUL,
+              TACK],
+            'circle-opacity': ['case', ['==', ['get', 'spridd'], 1], 0.25, 0.95],
+            'circle-stroke-color': '#0a0a0a',
+            'circle-stroke-width': ['case',
+              ['all', ['boolean', ['feature-state', 'prick'], false],
+                      ['boolean', ['feature-state', 'tackt'], false]],
+              ['case', ['==', ['get', 'spridd'], 1], 2.5, 1.5],
+              0],
+          } },
         { id: 'borders', type: 'line', source: 'borders',
-          paint: { 'line-color': '#0a0a0a', 'line-width': 1.5, 'line-opacity': 0.9 },
+          paint: { 'line-color': '#0a0a0a', 'line-width': 1.5,
+            // badge-blobbarnas konturer (egna features, id = gid) släcks när
+            // landet är täckt/grönt — bilden de ramar in är ju dold då
+            'line-opacity': ['case',
+              ['all', ['==', ['get', 'badge'], 1],
+                ['any', ['boolean', ['feature-state', 'tackt'], false],
+                        ['boolean', ['feature-state', 'gron'], false]]],
+              0, 0.9] },
           layout: { 'line-join': 'round', 'line-cap': 'round' } },
       ],
     },
@@ -265,7 +376,7 @@ function initMap() {
       cursorLabel.style.left = e.originalEvent.clientX + 'px';
       cursorLabel.style.top = e.originalEvent.clientY + 'px';
     }
-    const hits = map.queryRenderedFeatures(e.point, { layers: ['cover'] });
+    const hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
     const gid = hits.length ? hits[0].id : null;
     const c = gid !== null ? aktivByGid.get(gid) : null;
     const newHover = c && !revealed.has(gid) ? gid : null;
@@ -277,10 +388,11 @@ function initMap() {
     map.getCanvas().style.cursor = gid !== null ? 'pointer' : '';
   });
   map.on('click', e => {
-    const hits = map.queryRenderedFeatures(e.point, { layers: ['cover'] });
+    const hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
   });
+  map.on('zoomend', uppdateraPrickar);
 }
 
 function handleMapClick(gid, ev) {
@@ -338,14 +450,20 @@ let flatBase = null;              // senaste fullrenderade utsnittet (offscreen)
 let flatBaseView = null;          // vyn {k,cx,cy,W,H} som flatBase gäller för
 let flat = { xm: 1, ym: 1, W: 2, H: 2, k: 1, cx: 0, cy: 0 };
 const FLAT_MAX = 16;
-let borderLines = [];
+let borderFeats = [];           // {gid: 0 | badge-gid, lines}
 let flatDirtyFlag = false;
 let flatSeq = 0;                  // gör pågående asynkrona renderingar föråldrade
 let flatTimer = null;
 let patch = null;                 // högupplöst tile-utsnitt {z,tx0,ty0,W,H,data}
 
-fetch('assets/art-borders.json?v=2').then(r => r.json())
-  .then(gj => { borderLines = gj.features[0].geometry.coordinates; flatDirty(); })
+fetch('assets/art-borders.json?v=3').then(r => r.json())
+  .then(gj => {
+    borderFeats = gj.features.map(f => ({
+      gid: f.properties && f.properties.badge ? f.properties.gid : 0,
+      lines: f.geometry.coordinates,
+    }));
+    flatDirty();
+  })
   .catch(() => {});
 
 function flatDirty() {
@@ -570,34 +688,86 @@ function composeFlat() {
   const ox = (flatBaseView.cx - flat.cx) * s + flat.W / 2 - sc * flatBaseView.W / 2;
   const oy = (flat.cy - flatBaseView.cy) * s + flat.H / 2 - sc * flatBaseView.H / 2;
   flatCtx.drawImage(flatBase, ox, oy, flatBaseView.W * sc, flatBaseView.H * sc);
+  const SJO = 'rgb(205,228,246)';        // väggkartans havston
   for (const f of regionsGj.features) {
     const t = landState(f.id);
+    const havBadge = f.properties.badge === 1 && f.properties.hav === 1;
     let color = null, alpha = 1;
     if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
     else if (t.hover) { color = GUL; alpha = 0.6; }
-    else if (t.gron) color = GRON;
+    else if (t.gron) color = havBadge ? SJO : GRON;
+    else if (t.tackt) color = havBadge ? SJO : TACK;
+    if (!color) continue;
+    flatCtx.globalAlpha = alpha;
+    flatCtx.fillStyle = color;
+    traceFeature(flatCtx, f);
+    flatCtx.fill('evenodd');
+    if (havBadge && !t.fel && !t.tips && !t.hover) {
+      // svälj bildens antialiasing-frans strax utanför klickytan
+      flatCtx.strokeStyle = color;
+      flatCtx.lineWidth = 3;
+      flatCtx.lineJoin = 'round';
+      flatCtx.stroke();
+    }
+  }
+  flatCtx.globalAlpha = 1;
+  // badge-ländernas riktiga former ovanpå täcket
+  for (const f of markersGj.features) {
+    if (f.properties.form !== 1) continue;
+    const t = landState(f.id);
+    let color = null, alpha = 1;
+    if (t.fel) { color = ROD; alpha = 0.92; }
+    else if (t.tips || t.hover) { color = GUL; alpha = 0.92; }
+    else if (t.gron) color = '#45b45e';
     else if (t.tackt) color = TACK;
     if (!color) continue;
     flatCtx.globalAlpha = alpha;
     flatCtx.fillStyle = color;
     traceFeature(flatCtx, f);
     flatCtx.fill('evenodd');
+    flatCtx.globalAlpha = 1;
+    flatCtx.lineWidth = 1;
+    flatCtx.strokeStyle = '#0a0a0a';
+    flatCtx.stroke();
   }
-  flatCtx.globalAlpha = 1;
-  if (borderLines.length) {
+  // klickbara prickar/ringar på täckta småländer
+  const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
+  for (const m of markerPts) {
+    const t = landState(m.gid);
+    if (!t.tackt || m.omfang * pxPerDeg >= 18) continue;
+    const [mx, my] = projPt(m.lng, m.lat);
+    if (mx < -20 || mx > flat.W + 20 || my < -20 || my > flat.H + 20) continue;
+    flatCtx.beginPath();
+    flatCtx.arc(mx, my, m.spridd ? 9 : 6, 0, Math.PI * 2);
+    flatCtx.globalAlpha = m.spridd ? 0.25 : 0.95;
+    flatCtx.fillStyle = t.fel ? ROD : (t.tips || t.hover) ? GUL : TACK;
+    flatCtx.fill();
+    flatCtx.globalAlpha = 1;
+    flatCtx.lineWidth = m.spridd ? 2.5 : 1.5;
+    flatCtx.strokeStyle = '#0a0a0a';
+    flatCtx.stroke();
+  }
+  if (borderFeats.length) {
     flatCtx.strokeStyle = '#0a0a0a';
     flatCtx.lineWidth = 1.5;
     flatCtx.lineJoin = 'round';
     flatCtx.lineCap = 'round';
     flatCtx.beginPath();
-    for (const line of borderLines) {
-      let prev = null;
-      for (const [lng, lat] of line) {
-        const [px, py] = projPt(lng, lat);
-        if (prev !== null && Math.abs(px - prev) > flat.W / 2) { flatCtx.moveTo(px, py); prev = px; continue; }
-        if (prev === null) flatCtx.moveTo(px, py); else flatCtx.lineTo(px, py);
-        prev = px;
+    for (const bf of borderFeats) {
+      if (bf.gid) {
+        // badge-blobbens kontur ritas bara när bilden faktiskt syns
+        const t = landState(bf.gid);
+        if (t.tackt || t.gron) continue;
+      }
+      for (const line of bf.lines) {
+        let prev = null;
+        for (const [lng, lat] of line) {
+          const [px, py] = projPt(lng, lat);
+          if (prev !== null && Math.abs(px - prev) > flat.W / 2) { flatCtx.moveTo(px, py); prev = px; continue; }
+          if (prev === null) flatCtx.moveTo(px, py); else flatCtx.lineTo(px, py);
+          prev = px;
+        }
       }
     }
     flatCtx.stroke();
@@ -611,6 +781,17 @@ function flatHit(ev) {
   const pr = canvasToProj(px, py);
   const ll = robinson.inverse(pr[0], pr[1]);
   if (!ll) return null;
+  // prickarna testas FÖRST: de indikerar länder som är för små att träffa
+  // på landmassan (Vatikanens prick ligger t.ex. ovanpå Italiens yta)
+  const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
+  for (const m of markerPts) {
+    const t = landState(m.gid);
+    if (!t.tackt || m.omfang * pxPerDeg >= 18) continue;
+    const [mx, my] = projPt(m.lng, m.lat);
+    if (Math.hypot(mx - px, my - py) <= (m.spridd ? 12 : 10)) {
+      return featureByGid.get(m.gid) || null;
+    }
+  }
   const lng = ll[0] / D2R, lat = ll[1] / D2R;
   for (const f of regionsGj.features) {
     let inside = false;
@@ -1185,6 +1366,7 @@ async function startRegion(slug) {
   }
   const kam = KAMERA[slug] || KAMERA.world;
   map.jumpTo({ center: kam.center, zoom: kam.zoom });
+  uppdateraPrickar();
   preloadCountryImages();
 }
 
@@ -1226,6 +1408,7 @@ async function startWorld(count) {
     setLand(f.id, { gron: !aktivByGid.has(f.id), tackt: aktivByGid.has(f.id) });
   }
   map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
+  uppdateraPrickar();
   switchMode('seterra', true);
   startSeterra();
   preloadCountryImages();
@@ -1799,7 +1982,7 @@ window.spel = {
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
   // bakgrunden och ger sedan helt sömlös snurr.
-  await loadRegions();
+  await Promise.all([loadRegions(), loadMarkers()]);
   preloadTiles();
   initMap();
   // feature-states kan inte sättas innan stilen laddat klart

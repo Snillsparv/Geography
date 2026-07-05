@@ -378,7 +378,7 @@ function drawSelectedFlat(proj) {
 }
 
 let borderLines = [];
-bordersReq.then(gj => { if (gj) borderLines = gj.features[0].geometry.coordinates; });
+bordersReq.then(gj => { if (gj) borderLines = gj.features.flatMap(f => f.geometry.coordinates); });
 let bWidth = 1.5, bColor = '#0a0a0a';
 function drawBordersFlat(proj) {
   if (!borderLines.length || !bWidth) return;
