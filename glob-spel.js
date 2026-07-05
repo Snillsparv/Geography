@@ -140,10 +140,24 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '5';
+const V = '6';
+// På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
+// range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
+// råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
+const RAW_BAS = (() => {
+  if (!/\.githack\.com$/.test(location.hostname)) return '';
+  const p = location.pathname.split('/');   // ['', ägare, repo, …gren, 'glob.html']
+  return p.length >= 4 ? 'https://raw.githubusercontent.com/' + p.slice(1, -1).join('/') + '/' : '';
+})();
+const dataUrl = f => RAW_BAS + f;
+async function fetchJson(path) {
+  const r = await fetch(dataUrl(path));
+  if (!r.ok) throw new Error(path + ' → HTTP ' + r.status);
+  return r.json();
+}
 // tile-arkivet är oförändrat sedan v2 — behåller sin version så mobiler
 // slipper ladda om 45 MB i onödan
-const TILE_URL = 'tiles/world.pmtiles?v=2';
+const TILE_URL = dataUrl('tiles/world.pmtiles?v=2');
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
 let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
@@ -185,7 +199,7 @@ async function preloadTiles(onProgress) {
 }
 
 async function loadRegions() {
-  regionsGj = await (await fetch('assets/art-regions.json?v=' + V)).json();
+  regionsGj = await fetchJson('assets/art-regions.json?v=' + V);
   for (const f of regionsGj.features) {
     featureByFilename.set(f.properties.key.split('/')[1], f);
     featureByGid.set(f.id, f);
@@ -200,7 +214,7 @@ let markersGj = { type: 'FeatureCollection', features: [] };
 let markerPts = [];             // {gid, lng, lat, omfang, spridd, _vis}
 async function loadMarkers() {
   try {
-    markersGj = await (await fetch('assets/art-markers.json?v=' + V)).json();
+    markersGj = await fetchJson('assets/art-markers.json?v=' + V);
     markerPts = markersGj.features
       .filter(f => f.geometry.type === 'Point')
       .map(f => ({ gid: f.id, lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1],
@@ -222,7 +236,7 @@ function prickRadiePx(spridd, zoomPx) {
 const configCache = {};
 async function loadRegionConfig(slug) {
   if (configCache[slug]) return configCache[slug];
-  const raw = await (await fetch(`assets/${slug}/config.json`)).json();
+  const raw = await fetchJson(`assets/${slug}/config.json?v=` + V);
   configCache[slug] = raw;
   return raw;
 }
@@ -271,7 +285,7 @@ function initMap() {
           tileSize: 256,
           attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
         },
-        borders: { type: 'geojson', data: 'assets/art-borders.json?v=' + V },
+        borders: { type: 'geojson', data: dataUrl('assets/art-borders.json?v=' + V) },
         regioner: { type: 'geojson', data: regionsGj },
         markorer: { type: 'geojson', data: markersGj },
       },
@@ -396,6 +410,17 @@ function initMap() {
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
   });
+  // tillstånd satta innan stilen laddat klart (snabbstart/trög proxy)
+  // försvinner i setLands try-fångst — lägg på dem igen när stilen är klar
+  map.on('load', () => {
+    for (const [gid, t] of tillstand) {
+      try {
+        map.setFeatureState({ source: 'regioner', id: gid }, t);
+        map.setFeatureState({ source: 'markorer', id: gid }, t);
+        map.setFeatureState({ source: 'borders', id: gid }, t);
+      } catch (e) { /* källa saknas ännu — hämtas när den laddat */ }
+    }
+  });
 }
 
 function handleMapClick(gid, ev) {
@@ -459,7 +484,7 @@ let flatSeq = 0;                  // gör pågående asynkrona renderingar för�
 let flatTimer = null;
 let patch = null;                 // högupplöst tile-utsnitt {z,tx0,ty0,W,H,data}
 
-fetch('assets/art-borders.json?v=' + V).then(r => r.json())
+fetchJson('assets/art-borders.json?v=' + V)
   .then(gj => {
     borderFeats = gj.features.map(f => ({
       gid: f.properties && f.properties.badge ? f.properties.gid : 0,
@@ -1989,11 +2014,19 @@ window.spel = {
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
   // bakgrunden och ger sedan helt sömlös snurr.
-  await Promise.all([loadRegions(), loadMarkers()]);
-  preloadTiles();
-  initMap();
-  // feature-states kan inte sättas innan stilen laddat klart
-  await new Promise(res => map.once('load', res));
+  try {
+    await Promise.all([loadRegions(), loadMarkers()]);
+    preloadTiles();
+    initMap();
+    // feature-states kan inte sättas innan stilen laddat klart — men om
+    // kartrutorna strular (t.ex. trög förhandsproxy) startar spelet ändå:
+    // vektorlagren funkar direkt och tillstånden återappliceras på 'load'
+    await new Promise(res => { map.once('load', res); setTimeout(res, 8000); });
+  } catch (e) {
+    // fastna ALDRIG tyst på "Startar …" — visa vad som gick fel
+    loadTxt.textContent = 'Kunde inte ladda kartdata — prova att ladda om sidan. [' + ((e && e.message) || e) + ']';
+    throw e;
+  }
   document.getElementById('spel-load').style.display = 'none';
 
   if (region === 'world') {
