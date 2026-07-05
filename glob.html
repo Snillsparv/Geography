@@ -51,6 +51,12 @@
     .info-toggle::after { content: ' \25BE'; }
     .info-toggle.open::after { content: ' \25B4'; }
     .info-extra { margin-top: 8px; }
+    /* landbilden i quiz-feedbacken — ligger kvar tills nästa svar */
+    .seterra-feedback .fb-shape { margin: 10px 0 6px; text-align: center; }
+    .seterra-feedback .fb-shape img { max-width: 78%; max-height: 150px; }
+    @media (max-width: 900px) {
+      .seterra-feedback .fb-shape img { max-height: 96px; }
+    }
     #info-card .assoc-box { margin-bottom: 8px; padding: 8px 12px; font-size: .85rem; }
     #info-card .counter { padding: 8px 0 0; font-size: .78rem; color: #7ea6c4;
       text-align: left; border: none; }
@@ -329,7 +335,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=9"></script>
+<script src="glob-spel.js?v=10"></script>
 
 </body>
 </html>

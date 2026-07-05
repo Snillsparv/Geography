@@ -9,7 +9,9 @@
 
 const GRON = '#2e9e44';        // resten av världen i regionläge
 const TACK = '#f2ead8';        // "papper" över oupptäckta länder
-const GUL = '#ffdc32';         // hover / ledtrådsblink
+const GUL = '#ffdc32';         // ledtrådsblink / cirkelhover
+const LJUSGRON = '#5fca77';    // hover på grönt land — lyser upp, helt opakt
+const HOVERGUL = '#ffe9a8';    // hover på täckt land — ljust och OPAKT (bilden avslöjas först vid klick)
 const ROD = '#e05252';         // felklick
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
@@ -140,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '9';
+const V = '10';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -320,17 +322,29 @@ function initMap() {
         // formen och pricken nedanför visar var landet faktiskt finns
         { id: 'cover', type: 'fill', source: 'regioner',
           paint: {
+            // hover: landet LYSER UPP helt opakt (ljusgrönt/ljusgult) —
+            // bilden under täcket får aldrig skymta, den visas först vid
+            // klick. Havs-badges hålls havsfärgade även vid hover (deras
+            // cirkel lyser i stället).
             'fill-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
-              ['boolean', ['feature-state', 'hover'], false], GUL,
               ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#0e2438',
+              ['boolean', ['feature-state', 'hover'], false],
+                ['case', ['boolean', ['feature-state', 'gron'], false], LJUSGRON,
+                         ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
+                         '#ffffff'],
               ['boolean', ['feature-state', 'gron'], false], GRON,
               TACK],
             'fill-opacity': ['case',
               ['boolean', ['feature-state', 'fel'], false], 0.92,
               ['boolean', ['feature-state', 'tips'], false], 0.92,
-              ['boolean', ['feature-state', 'hover'], false], 0.6,
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+                ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
+                                 ['boolean', ['feature-state', 'tackt'], false]], 1, 0],
+              ['boolean', ['feature-state', 'hover'], false],
+                ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
+                                 ['boolean', ['feature-state', 'tackt'], false]], 1, 0.25],
               ['boolean', ['feature-state', 'gron'], false], 1,
               ['boolean', ['feature-state', 'tackt'], false], 1,
               0],
@@ -737,15 +751,21 @@ function composeFlat() {
     let color = null, alpha = 1;
     if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
-    else if (t.hover) { color = GUL; alpha = 0.6; }
-    else if (t.gron) color = havBadge ? SJO : GRON;
-    else if (t.tackt) color = havBadge ? SJO : TACK;
+    else if (havBadge) { if (t.gron || t.tackt) color = SJO; }
+    else if (t.hover) {
+      // opak uppljusning — bilden under täcket får inte skymta
+      if (t.gron) color = LJUSGRON;
+      else if (t.tackt) color = HOVERGUL;
+      else { color = '#ffffff'; alpha = 0.25; }
+    }
+    else if (t.gron) color = GRON;
+    else if (t.tackt) color = TACK;
     if (!color) continue;
     flatCtx.globalAlpha = alpha;
     flatCtx.fillStyle = color;
     traceFeature(flatCtx, f);
     flatCtx.fill('evenodd');
-    if (havBadge && !t.fel && !t.tips && !t.hover) {
+    if (havBadge && !t.fel && !t.tips) {
       // svälj bildens antialiasing-frans strax utanför klickytan
       flatCtx.strokeStyle = color;
       flatCtx.lineWidth = 3;
@@ -1525,6 +1545,8 @@ function startSeterra() {
   seterraCorrect = 0; seterraWrong = 0;
   seterraTotal = COUNTRIES.length;
   seterraLocked = false; seterraTargetMisses = 0;
+  seterraFeedback.className = 'seterra-feedback';
+  seterraFeedback.innerHTML = '';
   seterraIsRetry = false;
   seterraMissedCountries.clear();
   seterraStartTime = Date.now();
@@ -1546,6 +1568,8 @@ function startSeterraRetry() {
   seterraCorrect = 0; seterraWrong = 0;
   seterraTotal = missedList.length;
   seterraLocked = false; seterraTargetMisses = 0;
+  seterraFeedback.className = 'seterra-feedback';
+  seterraFeedback.innerHTML = '';
   seterraIsRetry = true;
   seterraMissedCountries.clear();
   seterraStartTime = Date.now();
@@ -1564,8 +1588,8 @@ function nextSeterraTarget() {
   seterraTargetMisses = 0;
   seterraTargetName.textContent = seterraTarget.name;
   cursorLabel.textContent = seterraTarget.name;
-  seterraFeedback.className = 'seterra-feedback';
-  seterraFeedback.innerHTML = '';
+  // feedbacken (RÄTT! + landbilden) ligger kvar tills nästa svar —
+  // originalspelet visade bilden på kollaget; här är panelen platsen
   setHint(seterraTarget.assoc || '');
 }
 
@@ -1592,7 +1616,7 @@ function seterraClick(c) {
     seterraTargetMisses = 0;
     revealCountry(c.gid);
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     burstConfetti();
     updateSeterraUI();
     nextSeterraTarget();
@@ -1602,7 +1626,7 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${escHtml(c.name)}</div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
