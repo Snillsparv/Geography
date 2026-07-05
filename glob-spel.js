@@ -140,7 +140,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '7';
+const V = '8';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -225,16 +225,17 @@ async function loadMarkers() {
 // Cirkeln har FAST storlek på kartan (geografiskt förankrad — den zoomar
 // med kartan i stället för att krympa relativt den), med en minsta
 // skärmstorlek så den alltid syns och går att trycka på utzoomat.
-const PRICK_GRAD = 0.35, RING_GRAD = 0.6;   // radie i grader (ring = spridd ö-nation)
-const PRICK_MIN = 5, RING_MIN = 8;          // minsta skärmradie i px
+// ALLA cirklar har samma absoluta storlek på kartan — de zoomar med
+// exakt som geografin, ingen minsta skärmstorlek som blåser upp dem
+// utzoomat. Helt opaka: inget land ska skymta igenom.
+const CIRKEL_GRAD = 0.6;   // radie i grader
 // pricken finns bara på länder som är för små för att ses vid aktuell zoom
 // (under så här många skärmpixlar) — större länder klarar sig utan. Spridda
-// ö-nationer har alltid sin ring: atollerna syns aldrig hur man än zoomar.
+// ö-nationer har alltid sin cirkel: atollerna syns aldrig hur man än zoomar.
 const PRICK_SYNS_PX = 18;
-function prickRadiePx(spridd, zoomPx) {
+function prickRadiePx(zoomPx) {
   // zoomPx = kartpixlar per grad vid aktuell zoom/skala
-  return Math.max(spridd ? RING_MIN : PRICK_MIN,
-                  (spridd ? RING_GRAD : PRICK_GRAD) * zoomPx);
+  return CIRKEL_GRAD * zoomPx;
 }
 function prickSyns(m, zoomPx) {
   return m.spridd ? true : m.omfang * zoomPx < PRICK_SYNS_PX;
@@ -368,26 +369,6 @@ function initMap() {
               1],
             'fill-outline-color': '#0a0a0a',
           } },
-        // klickbar prick (ring för utspridda ö-nationer) på täckta
-        // småländer. FAST storlek på kartan: radien växer exponentiellt
-        // med zoomen (geografiskt förankrad), aldrig under minsta
-        // skärmstorlek — utzoomat alltid synlig, inzoomat markerar den
-        // landets faktiska område.
-        { id: 'prickar', type: 'circle', source: 'markorer',
-          filter: ['==', ['geometry-type'], 'Point'],
-          paint: {
-            'circle-radius': ['interpolate', ['exponential', 2], ['zoom'],
-              ...prickStops((spridd, pxDeg) => prickRadiePx(spridd, pxDeg))],
-            'circle-color': ['case',
-              ['boolean', ['feature-state', 'fel'], false], ROD,
-              ['any', ['boolean', ['feature-state', 'tips'], false],
-                      ['boolean', ['feature-state', 'hover'], false]], GUL,
-              TACK],
-            'circle-opacity': ['case', ['==', ['get', 'spridd'], 1], 0.25, 0.95],
-            'circle-stroke-color': '#0a0a0a',
-            'circle-stroke-width': ['interpolate', ['linear'], ['zoom'],
-              ...prickStops(spridd => spridd ? 2.5 : 1.5)],
-          } },
         { id: 'borders', type: 'line', source: 'borders',
           paint: { 'line-color': '#0a0a0a', 'line-width': 1.5,
             // badge-blobbarnas konturer (egna features, id = gid) släcks när
@@ -398,6 +379,24 @@ function initMap() {
                         ['boolean', ['feature-state', 'gron'], false]]],
               0, 0.9] },
           layout: { 'line-join': 'round', 'line-cap': 'round' } },
+        // klickbar cirkel på täckta småländer. ABSOLUT storlek på kartan
+        // (zoomar med geografin, ingen minsta skärmstorlek) och helt opak —
+        // ritas ovanpå gränslinjerna så att inget land skymtar igenom.
+        { id: 'prickar', type: 'circle', source: 'markorer',
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': ['interpolate', ['exponential', 2], ['zoom'],
+              ...prickStops((spridd, pxDeg) => prickRadiePx(pxDeg))],
+            'circle-color': ['case',
+              ['boolean', ['feature-state', 'fel'], false], ROD,
+              ['any', ['boolean', ['feature-state', 'tips'], false],
+                      ['boolean', ['feature-state', 'hover'], false]], GUL,
+              TACK],
+            'circle-opacity': 1,
+            'circle-stroke-color': '#0a0a0a',
+            'circle-stroke-width': ['interpolate', ['linear'], ['zoom'],
+              ...prickStops(spridd => spridd ? 2.5 : 1.5)],
+          } },
       ],
     },
   });
@@ -775,25 +774,6 @@ function composeFlat() {
     flatCtx.strokeStyle = '#0a0a0a';
     flatCtx.stroke();
   }
-  // klickbara prickar/ringar på täckta småländer — fast storlek på
-  // kartan (zoomar med), aldrig mindre än minsta skärmradien
-  const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
-  for (const m of markerPts) {
-    const t = landState(m.gid);
-    if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
-    const rr = prickRadiePx(m.spridd, pxPerDeg);
-    const [mx, my] = projPt(m.lng, m.lat);
-    if (mx < -rr - 20 || mx > flat.W + rr + 20 || my < -rr - 20 || my > flat.H + rr + 20) continue;
-    flatCtx.beginPath();
-    flatCtx.arc(mx, my, rr, 0, Math.PI * 2);
-    flatCtx.globalAlpha = m.spridd ? 0.25 : 0.95;
-    flatCtx.fillStyle = t.fel ? ROD : (t.tips || t.hover) ? GUL : TACK;
-    flatCtx.fill();
-    flatCtx.globalAlpha = 1;
-    flatCtx.lineWidth = m.spridd ? 2.5 : 1.5;
-    flatCtx.strokeStyle = '#0a0a0a';
-    flatCtx.stroke();
-  }
   if (borderFeats.length) {
     flatCtx.strokeStyle = '#0a0a0a';
     flatCtx.lineWidth = 1.5;
@@ -818,6 +798,23 @@ function composeFlat() {
     }
     flatCtx.stroke();
   }
+  // klickbara cirklar på täckta småländer — absolut storlek på kartan
+  // (zoomar med geografin), ritas EFTER gränslinjerna så inget syns igenom
+  const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
+  for (const m of markerPts) {
+    const t = landState(m.gid);
+    if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
+    const rr = prickRadiePx(pxPerDeg);
+    const [mx, my] = projPt(m.lng, m.lat);
+    if (mx < -rr - 20 || mx > flat.W + rr + 20 || my < -rr - 20 || my > flat.H + rr + 20) continue;
+    flatCtx.beginPath();
+    flatCtx.arc(mx, my, rr, 0, Math.PI * 2);
+    flatCtx.fillStyle = t.fel ? ROD : (t.tips || t.hover) ? GUL : TACK;
+    flatCtx.fill();
+    flatCtx.lineWidth = m.spridd ? 2.5 : 1.5;
+    flatCtx.strokeStyle = '#0a0a0a';
+    flatCtx.stroke();
+  }
 }
 
 function flatHit(ev) {
@@ -834,7 +831,7 @@ function flatHit(ev) {
     const t = landState(m.gid);
     if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
     const [mx, my] = projPt(m.lng, m.lat);
-    if (Math.hypot(mx - px, my - py) <= prickRadiePx(m.spridd, pxPerDeg) + 4) {
+    if (Math.hypot(mx - px, my - py) <= prickRadiePx(pxPerDeg) + 4) {
       return featureByGid.get(m.gid) || null;
     }
   }
