@@ -2057,10 +2057,19 @@ function visaHal(el) {
   tourHal.style.top = (r.top - 8) + 'px';
   tourHal.style.width = (r.width + 16) + 'px';
   tourHal.style.height = (r.height + 16) + 'px';
+  // bubblan får aldrig täcka målet: ovanför mål i nedre halvan, annars under
+  if (r.top > window.innerHeight / 2) {
+    introBubbla.style.bottom = (window.innerHeight - r.top + 30) + 'px';
+  } else {
+    introBubbla.style.bottom =
+      Math.max(40, window.innerHeight - r.bottom - introBubbla.offsetHeight - 46) + 'px';
+  }
 }
 
 function startaIntro() {
   tourSteg = -1;
+  introOverlay.classList.remove('steg');
+  introBubbla.style.bottom = '';
   introOverlay.style.display = '';
   introBubbla.style.display = '';
   introJonas.style.display = '';
@@ -2078,6 +2087,7 @@ function nastaSteg() {
   tourSteg++;
   if (tourSteg >= TOUR.length) { avslutaIntro(); return; }
   introHoppa.style.display = 'none';
+  introOverlay.classList.add('steg');   // Jonas kliver åt sidan, målen syns fritt
   introText.textContent = TOUR[tourSteg].text;
   introNasta.textContent = tourSteg === TOUR.length - 1 ? 'Nu kör vi!' : 'Nästa';
   visaHal(TOUR[tourSteg].el());

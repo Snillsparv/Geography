@@ -130,7 +130,7 @@
       outline: 3px dashed #ffdc32; outline-offset: 4px; }
     #intro-jonas { position: fixed; left: 6vw; bottom: 0; height: min(64vh, 560px); z-index: 202;
       filter: drop-shadow(0 8px 26px #000c);
-      transition: transform .95s cubic-bezier(.5, -0.1, .3, 1.15); transform-origin: bottom left; }
+      transition: transform .95s cubic-bezier(.5, -0.1, .3, 1.15), height .5s ease, left .5s ease; transform-origin: bottom left; }
     #intro-bubbla { position: fixed; left: calc(6vw + min(30vh, 270px)); bottom: min(46vh, 400px);
       max-width: min(400px, 72vw); background: #fff; color: #14243a; border-radius: 18px;
       padding: 16px 18px; z-index: 203; box-shadow: 0 10px 34px #000b; text-align: left; }
@@ -142,8 +142,14 @@
       font-weight: 800; font-size: .92rem; }
     #intro-nasta { background: #ffdc32; color: #08131f; box-shadow: 0 3px 0 #0005; }
     #intro-hoppa { background: #e8eef4; color: #56718c; }
+    /* under själva rundturs-stegen kliver Jonas åt sidan och blir halvstor
+       så att strålkastarmålen (knappar m.m.) syns fritt */
+    #intro-overlay.steg #intro-jonas { height: min(36vh, 320px); left: 2vw; }
+    #intro-overlay.steg #intro-bubbla { left: calc(2vw + min(17vh, 155px)); bottom: min(26vh, 235px); }
     @media (max-width: 700px) {
       #intro-jonas { height: 44vh; left: 2vw; }
+      #intro-overlay.steg #intro-jonas { height: 30vh; }
+      #intro-overlay.steg #intro-bubbla { left: 8vw; right: 8vw; bottom: 34vh; }
       #intro-bubbla { left: 10vw; right: 10vw; bottom: 48vh; max-width: none; }
       #intro-bubbla::after { left: 30px; bottom: -18px; border: 10px solid transparent;
         border-top-color: #fff; }
