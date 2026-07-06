@@ -57,6 +57,9 @@ let COUNTRIES = [];               // aktiva (spelbara) länder i vald region/tes
 let aktivByGid = new Map();       // gid → country
 let IMAGE_ASSOCIATIONS = {};
 let HS_KEY = '';
+let HS_BAS = '';               // grundnyckel; bildquizet får egen rekordlista
+let bildlage = false;          // bildquiz: konsten synlig, hittade länder blir gröna
+function uppdateraHsKey() { HS_KEY = (bildlage ? 'bild-' : '') + HS_BAS; }
 let ASSET_BASE = '';
 let currentMode = 'explore';
 let isWorldTest = false;
@@ -142,7 +145,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '17';
+const V = '18';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -321,9 +324,9 @@ function initMap() {
         // rymden bakom sfären; själva havet är en VEKTORSFÄR som syns
         // omedelbart — utan den är globen osynlig tills konst-tilesen
         // strömmat in (kan ta många sekunder på förhandslänkar/mobil)
-        { id: 'bg', type: 'background', paint: { 'background-color': '#050b14' } },
+        { id: 'bg', type: 'background', paint: { 'background-color': '#02060d' } },
         { id: 'hav', type: 'fill', source: 'jorden',
-          paint: { 'fill-color': '#0e2438' } },
+          paint: { 'fill-color': '#123050' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
         // täcket: badge-öar (bilden ligger i havet men har inte landets
         // form) döljs med HAVSFÄRG när de är täckta/gröna — den riktiga
@@ -337,7 +340,7 @@ function initMap() {
             'fill-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
-              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#0e2438',
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#123050',
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['boolean', ['feature-state', 'gron'], false], LJUSGRON,
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
@@ -363,7 +366,7 @@ function initMap() {
         { id: 'cover-kant', type: 'line', source: 'regioner',
           filter: ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
           paint: {
-            'line-color': '#0e2438',
+            'line-color': '#123050',
             'line-width': 3,
             'line-opacity': ['case',
               ['any',
@@ -1425,7 +1428,8 @@ async function startRegion(slug, flyg) {
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
-  HS_KEY = 'glob-' + (raw.hsKey || slug + '-highscores');
+  HS_BAS = 'glob-' + (raw.hsKey || slug + '-highscores');
+  uppdateraHsKey();
   ASSET_BASE = 'assets/' + slug;
   isWorldTest = false;
   origSlug = slug;                 // originalvyn = regionens handritade karta
@@ -1480,7 +1484,8 @@ async function startWorld(count) {
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
-  HS_KEY = 'glob-world-highscores';
+  HS_BAS = 'glob-world-highscores';
+  uppdateraHsKey();
   isWorldTest = true;
   origSlug = null;                 // världstestet har ingen originalkarta
   document.getElementById('view-orig').style.display = 'none';
@@ -1566,6 +1571,9 @@ function hideExploreTooltip() {
 // ══════════════════════
 function startSeterra() {
   resetOverlays();
+  // bildquizet: konsten synlig hela tiden — man tränar på att koppla
+  // bild till land innan man kör klassiska quizet helt utan stöd
+  if (bildlage) COUNTRIES.forEach(c => setLand(c.gid, { tackt: false }));
   seterraQueue = shuffle([...COUNTRIES]);
   seterraCorrect = 0; seterraWrong = 0;
   seterraTotal = COUNTRIES.length;
@@ -1589,6 +1597,8 @@ function startSeterraRetry() {
   if (missedList.length === 0) return;
   resetOverlays();
   COUNTRIES.forEach(c => { if (!seterraMissedCountries.has(c.gid)) revealCountry(c.gid); });
+  if (bildlage) COUNTRIES.forEach(c =>
+    setLand(c.gid, { tackt: false, gron: !seterraMissedCountries.has(c.gid) }));
   seterraQueue = shuffle([...missedList]);
   seterraCorrect = 0; seterraWrong = 0;
   seterraTotal = missedList.length;
@@ -1639,7 +1649,12 @@ function seterraClick(c) {
   if (c.gid === seterraTarget.gid) {
     seterraCorrect++;
     seterraTargetMisses = 0;
-    revealCountry(c.gid);
+    if (bildlage) {
+      revealed.add(c.gid);
+      setLand(c.gid, { gron: true, fel: false, tips: false, hover: false });
+    } else {
+      revealCountry(c.gid);
+    }
     seterraFeedback.className = 'seterra-feedback correct-fb';
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     burstConfetti();
@@ -1697,6 +1712,9 @@ function endSeterra() {
   } else {
     retryBtn.style.display = 'none';
   }
+  // bildquizet klarat → putta vidare mot klassiska quizet utan stöd
+  const vidareBtn = document.getElementById('seterra-vidare');
+  if (vidareBtn) vidareBtn.style.display = bildlage ? '' : 'none';
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = 'none';
   if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
@@ -1813,6 +1831,7 @@ document.getElementById('hs-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('hs-save').click();
 });
 document.getElementById('seterra-restart').addEventListener('click', () => startSeterra());
+document.getElementById('seterra-vidare').addEventListener('click', () => switchMode('seterra'));
 document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
 document.getElementById('modal-save').addEventListener('click', async () => {
   const name = modalNameInput.value.trim();
@@ -1840,6 +1859,8 @@ nameModalOverlay.addEventListener('click', e => {
 function switchMode(mode, force) {
   if (mode === currentMode && !force) return;
   currentMode = mode;
+  bildlage = mode === 'bildquiz';
+  uppdateraHsKey();
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   if (mode === 'explore') {
     document.getElementById('explore-ui').style.display = '';
@@ -1858,7 +1879,8 @@ function switchMode(mode, force) {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
     document.getElementById('explore-toggle-buttons').style.display = 'none';
-    headerHint.textContent = 'Klicka där du tror landet är!';
+    headerHint.textContent = bildlage ? 'Bilderna hjälper dig — klicka på rätt land!'
+                                      : 'Klicka där du tror landet är!';
     startSeterra();
   }
 }
@@ -2050,7 +2072,7 @@ function visaStartSkal() {
   document.getElementById('ladd-rida').style.display = 'block';   // stilarkets default är none
   requestAnimationFrame(() => sel.classList.add('synlig'));
   const skarm = document.getElementById('ladd-skarm');
-  const variant = new URLSearchParams(location.search).get('ladd') || '1';
+  const variant = new URLSearchParams(location.search).get('ladd') || '3';
   skarm.classList.add('v' + (['1','2','3'].includes(variant) ? variant : '1'));
   if (variant === '2') {
     const jordar = ['🌍', '🌎', '🌏'];
