@@ -92,6 +92,11 @@
     /* ── Startsidan: overlay ovanpå den RIKTIGA globen — rymden runt om,
        genomskinlig mitt så att jordgloben (MapLibre) syns och kan snurras ── */
     #region-selector { position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      opacity: 0; transition: opacity .45s ease; }
+    #region-selector.synlig { opacity: 1; }
+    header, .info-panel { transition: opacity .6s ease; }
+    body.flyger header, body.flyger .info-panel { opacity: 0; }
+    #region-selector { 
       background: radial-gradient(circle at 50% 46%,
         rgba(3,7,17,0) 0, rgba(3,7,17,0) 30vmin, rgba(3,7,17,.55) 58vmin, #030711 105vmin); }
     #region-selector > * { pointer-events: auto; }
@@ -437,7 +442,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=12"></script>
+<script src="glob-spel.js?v=13"></script>
 
 </body>
 </html>

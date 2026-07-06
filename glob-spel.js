@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '12';
+const V = '13';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -311,11 +311,19 @@ function initMap() {
           attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
         },
         borders: { type: 'geojson', data: dataUrl('assets/art-borders.json?v=' + V) },
+        jorden: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: {
+          type: 'Polygon', coordinates: [[[-180, -89.9], [-180, 89.9], [180, 89.9],
+                                          [180, -89.9], [-180, -89.9]]] } } },
         regioner: { type: 'geojson', data: regionsGj },
         markorer: { type: 'geojson', data: markersGj },
       },
       layers: [
-        { id: 'bg', type: 'background', paint: { 'background-color': '#0e2438' } },
+        // rymden bakom sfären; själva havet är en VEKTORSFÄR som syns
+        // omedelbart — utan den är globen osynlig tills konst-tilesen
+        // strömmat in (kan ta många sekunder på förhandslänkar/mobil)
+        { id: 'bg', type: 'background', paint: { 'background-color': '#050b14' } },
+        { id: 'hav', type: 'fill', source: 'jorden',
+          paint: { 'fill-color': '#0e2438' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
         // täcket: badge-öar (bilden ligger i havet men har inte landets
         // form) döljs med HAVSFÄRG när de är täckta/gröna — den riktiga
@@ -2030,29 +2038,61 @@ function stoppaSnurr() {
   if (snurrId !== null) { cancelAnimationFrame(snurrId); snurrId = null; }
 }
 
-function startLage() {
+function startLage(flyg) {
   document.body.classList.add('startlage');
   document.querySelector('header').style.display = 'none';
-  document.getElementById('region-selector').style.display = '';
+  const sel = document.getElementById('region-selector');
+  sel.style.display = '';
+  requestAnimationFrame(() => sel.classList.add('synlig'));
   document.title = 'Jonas geografi';
   document.body.style.overflow = 'hidden';
   // hela världen avslöjad: konstgloben i all sin prakt
   for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
-  map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
   map.resize();
-  startaSnurr();
+  if (flyg) {
+    // snurren får inte starta förrän återflygningen är klar — varje
+    // setCenter avbryter annars kamerans animation direkt
+    map.flyTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom,
+                duration: 2000, essential: true });
+    map.once('moveend', () => {
+      if (document.body.classList.contains('startlage')) startaSnurr();
+    });
+  } else {
+    map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
+    startaSnurr();
+  }
   map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
   const badge = document.getElementById('start-version');
   if (badge) badge.textContent = 'version ' + V;
   if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
 }
 
+// Tillbaka till starten UTAN sidladdning: städa pågående läge, flyg ut
+// till världsvyn och tona fram startöverlägget — samma glob hela tiden.
+function tillbakaTillStart() {
+  if (seterraTimerInterval) clearInterval(seterraTimerInterval);
+  seterraTarget = null;
+  cursorLabel.style.display = 'none';
+  document.getElementById('world-setup-overlay').classList.remove('active');
+  document.getElementById('info-card')?.classList.remove('active');
+  if (infoDefault) infoDefault.style.display = '';
+  switchMode('explore', true);
+  if (aktivVy !== 'glob') setView('glob');
+  startLage(true);
+}
+
 function lamnaStart() {
   stoppaSnurr();
+  const sel = document.getElementById('region-selector');
+  sel.classList.remove('synlig');
+  setTimeout(() => { sel.style.display = 'none'; }, 450);
   document.body.classList.remove('startlage');
-  document.getElementById('region-selector').style.display = 'none';
+  document.body.classList.add('flyger');          // panelerna tonar in när kameran är framme
   document.querySelector('header').style.display = '';
   map.resize();   // panelbredden ändras när infopanelen kommer fram
+  const fram = () => document.body.classList.remove('flyger');
+  map.once('moveend', fram);
+  setTimeout(fram, 3200);                          // säkerhetsnät
 }
 
 // startknapparna: ingen sidladdning — kameran flyger till världsdelen
@@ -2067,7 +2107,11 @@ document.querySelectorAll('.start-knappar .knapp').forEach(a => {
     else await startRegion(slug, true);
   });
 });
-window.addEventListener('popstate', () => location.reload());
+window.addEventListener('popstate', () => {
+  const r = new URLSearchParams(location.search).get('region');
+  if (!r) tillbakaTillStart();     // bakåt till starten: sömlöst, utan omladdning
+  else location.reload();          // bakåt/framåt mellan regioner: enklast så
+});
 
 // Världstestets uppställning (antal länder + start) — bunden EN gång
 let worldCount = 50;
@@ -2092,7 +2136,8 @@ function worldFlow() {
   for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
 }
 document.getElementById('back-btn').addEventListener('click', () => {
-  window.location.href = window.location.pathname;
+  history.pushState({}, '', window.location.pathname);
+  tillbakaTillStart();
 });
 
 // ══════════════════════
@@ -2243,7 +2288,12 @@ window.spel = {
   // bakgrunden och ger sedan helt sömlös snurr.
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
-    preloadTiles();
+    preloadTiles(p => {
+      const el = document.querySelector('.start-hint');
+      if (!el || !document.body.classList.contains('startlage')) return;
+      el.textContent = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %`
+                             : 'Snurra på jordgloben — eller välj var du vill börja!';
+    });
     initMap();
     // feature-states kan inte sättas innan stilen laddat klart — men om
     // kartrutorna strular (t.ex. trög förhandsproxy) startar spelet ändå:
