@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '16';
+const V = '17';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2141,7 +2141,10 @@ function startLage(flyg) {
     map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
     startaSnurr();
   }
+  // snurren släpper vid FÖRSTA interaktionen — även scrollzoom och nyp,
+  // annars slåss den mot zoomanimationen och allt känns segt
   map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
+  map.getCanvas().addEventListener('wheel', stoppaSnurr, { passive: true, once: true });
 }
 
 // Tillbaka till starten UTAN sidladdning: städa pågående läge, flyg ut
