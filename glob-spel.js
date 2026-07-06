@@ -145,7 +145,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '19';
+const V = '20';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2197,6 +2197,7 @@ function lamnaStart() {
   document.body.classList.remove('startlage');
   document.body.classList.add('flyger');          // panelerna tonar in när kameran är framme
   document.querySelector('header').style.display = '';
+  document.getElementById('back-btn').style.display = '';   // dold i grundmarkupen
   map.resize();   // panelbredden ändras när infopanelen kommer fram
   const fram = () => document.body.classList.remove('flyger');
   map.once('moveend', fram);
