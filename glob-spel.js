@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '15';
+const V = '16';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2047,6 +2047,7 @@ function visaStartSkal() {
   const sel = document.getElementById('region-selector');
   sel.classList.add('laddar');
   sel.style.display = '';
+  document.getElementById('ladd-rida').style.display = 'block';   // stilarkets default är none
   requestAnimationFrame(() => sel.classList.add('synlig'));
   const skarm = document.getElementById('ladd-skarm');
   const variant = new URLSearchParams(location.search).get('ladd') || '1';
@@ -2074,6 +2075,9 @@ function gomStartSkal() {
   const skarm = document.getElementById('ladd-skarm');
   skarm.classList.add('klar');
   setTimeout(() => { skarm.style.display = 'none'; }, 650);
+  const rida = document.getElementById('ladd-rida');
+  rida.classList.add('borta');
+  setTimeout(() => { rida.style.display = 'none'; }, 1000);
   document.getElementById('region-selector').classList.remove('laddar');
 }
 
@@ -2081,6 +2085,7 @@ function gomStartSkal() {
 // startöverlägget. Väljer man en världsdel flyger kameran dit och
 // spelpanelerna tonar fram — man byter aldrig sida.
 let snurrId = null;
+let startAvslojad = false;   // globen visad färdigritad första gången?
 function startaSnurr() {
   stoppaSnurr();
   let last = performance.now();
@@ -2109,7 +2114,22 @@ function startLage(flyg) {
   // hela världen avslöjad: konstgloben i all sin prakt
   for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
   map.resize();
-  if (flyg) {
+  const badge = document.getElementById('start-version');
+  if (badge) badge.textContent = 'version ' + V;
+  if (!startAvslojad) {
+    // första besöket: globen bakom ridån tills den är FÄRDIGRITAD —
+    // snurren väntar också, annars blir kartan aldrig 'idle'
+    map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
+    const klar = () => {
+      if (startAvslojad) return;
+      startAvslojad = true;
+      gomStartSkal();
+      if (document.body.classList.contains('startlage')) startaSnurr();
+      if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
+    };
+    map.once('idle', klar);
+    setTimeout(klar, 12000);   // säkerhetsnät om rutorna strular
+  } else if (flyg) {
     // snurren får inte starta förrän återflygningen är klar — varje
     // setCenter avbryter annars kamerans animation direkt
     map.flyTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom,
@@ -2122,10 +2142,6 @@ function startLage(flyg) {
     startaSnurr();
   }
   map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
-  const badge = document.getElementById('start-version');
-  if (badge) badge.textContent = 'version ' + V;
-  gomStartSkal();
-  if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
 }
 
 // Tillbaka till starten UTAN sidladdning: städa pågående läge, flyg ut
