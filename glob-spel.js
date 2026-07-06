@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '11';
+const V = '12';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1411,7 +1411,7 @@ window.addEventListener('resize', () => {
 // ══════════════════════════════════
 // Spelstart för region / världstest
 // ══════════════════════════════════
-async function startRegion(slug) {
+async function startRegion(slug, flyg) {
   const raw = await loadRegionConfig(slug);
   COUNTRIES = buildCountries(slug, raw);
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
@@ -1435,7 +1435,8 @@ async function startRegion(slug) {
     else setLand(f.id, { gron: true, tackt: false });
   }
   const kam = KAMERA[slug] || KAMERA.world;
-  map.jumpTo({ center: kam.center, zoom: kam.zoom });
+  if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
+  else map.jumpTo({ center: kam.center, zoom: kam.zoom });
   preloadCountryImages();
 }
 
@@ -2010,18 +2011,85 @@ function showCelebration(m, s) {
 // ══════════════════════
 // Regionväljare / navigering
 // ══════════════════════
-function showRegionSelector() {
-  document.getElementById('region-selector').style.display = '';
-  document.querySelector('.game-container').style.display = 'none';
-  document.querySelector('.mode-toggle').style.display = 'none';
-  document.getElementById('header-hint').style.display = 'none';
-  document.getElementById('back-btn').style.display = 'none';
-  document.querySelector('header h1').textContent = 'Jonas geografi';
-  document.title = 'Jonas geografi – jordglob';
-  document.body.style.overflow = 'auto';
-  // startsidan har egen rubrik — spel-headern göms helt
+// Startläget: SAMMA jordglob som i spelet, snurrande i rymden bakom
+// startöverlägget. Väljer man en världsdel flyger kameran dit och
+// spelpanelerna tonar fram — man byter aldrig sida.
+let snurrId = null;
+function startaSnurr() {
+  stoppaSnurr();
+  let last = performance.now();
+  const tick = t => {
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    const c = map.getCenter();
+    map.setCenter([c.lng + 1.6 * dt, c.lat]);
+    snurrId = requestAnimationFrame(tick);
+  };
+  snurrId = requestAnimationFrame(tick);
+}
+function stoppaSnurr() {
+  if (snurrId !== null) { cancelAnimationFrame(snurrId); snurrId = null; }
+}
+
+function startLage() {
+  document.body.classList.add('startlage');
   document.querySelector('header').style.display = 'none';
-  if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 500);
+  document.getElementById('region-selector').style.display = '';
+  document.title = 'Jonas geografi';
+  document.body.style.overflow = 'hidden';
+  // hela världen avslöjad: konstgloben i all sin prakt
+  for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
+  map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
+  map.resize();
+  startaSnurr();
+  map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
+  const badge = document.getElementById('start-version');
+  if (badge) badge.textContent = 'version ' + V;
+  if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
+}
+
+function lamnaStart() {
+  stoppaSnurr();
+  document.body.classList.remove('startlage');
+  document.getElementById('region-selector').style.display = 'none';
+  document.querySelector('header').style.display = '';
+  map.resize();   // panelbredden ändras när infopanelen kommer fram
+}
+
+// startknapparna: ingen sidladdning — kameran flyger till världsdelen
+document.querySelectorAll('.start-knappar .knapp').forEach(a => {
+  a.addEventListener('click', async e => {
+    if (e.target.closest('.knapp-video')) return;   // ▶ sköter sig själv
+    e.preventDefault();
+    const slug = new URL(a.href, location.href).searchParams.get('region');
+    history.pushState({}, '', '?region=' + slug);
+    lamnaStart();
+    if (slug === 'world') worldFlow();
+    else await startRegion(slug, true);
+  });
+});
+window.addEventListener('popstate', () => location.reload());
+
+// Världstestets uppställning (antal länder + start) — bunden EN gång
+let worldCount = 50;
+document.querySelectorAll('#world-count-buttons button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#world-count-buttons button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    worldCount = +b.dataset.count;
+  });
+});
+document.getElementById('world-start-btn').addEventListener('click', async () => {
+  document.getElementById('world-setup-overlay').classList.remove('active');
+  await startWorld(worldCount);
+});
+function worldFlow() {
+  document.getElementById('view-orig').style.display = 'none';
+  const overlay = document.getElementById('world-setup-overlay');
+  overlay.classList.add('active');
+  document.getElementById('world-setup-loading').style.display = 'none';
+  document.getElementById('world-setup-ready').style.display = '';
+  // visa globen bakom modalen under tiden
+  for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
 }
 document.getElementById('back-btn').addEventListener('click', () => {
   window.location.href = window.location.pathname;
@@ -2166,11 +2234,10 @@ window.spel = {
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const region = params.get('region');
-  if (!region) { showRegionSelector(); document.getElementById('spel-load').style.display = 'none'; return; }
 
   showGame();
   const loadTxt = document.getElementById('spel-load-txt');
-  loadTxt.textContent = 'Startar …';
+  loadTxt.textContent = region ? 'Startar …' : 'Snurrar igång jordgloben …';
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
   // bakgrunden och ger sedan helt sömlös snurr.
@@ -2190,29 +2257,10 @@ window.spel = {
   document.getElementById('spel-load').style.display = 'none';
 
   if (region === 'world') {
-    // världstest: välj antal länder i modalen, sedan quiz över hela globen
-    document.getElementById('view-orig').style.display = 'none';
-    const overlay = document.getElementById('world-setup-overlay');
-    overlay.classList.add('active');
-    document.getElementById('world-setup-loading').style.display = 'none';
-    document.getElementById('world-setup-ready').style.display = '';
-    let count = 50;
-    document.querySelectorAll('#world-count-buttons button').forEach(b => {
-      b.addEventListener('click', () => {
-        document.querySelectorAll('#world-count-buttons button').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        count = +b.dataset.count;
-      });
-    });
-    document.getElementById('world-start-btn').addEventListener('click', async () => {
-      overlay.classList.remove('active');
-      await startWorld(count);
-    });
-    // visa globen bakom modalen under tiden
-    for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
+    worldFlow();
   } else if (WORLD_SLUGS.includes(region)) {
     await startRegion(region);
   } else {
-    showRegionSelector();
+    startLage();
   }
 })();
