@@ -205,6 +205,11 @@
     .view-toggle { display: none !important; }
     /* appen är fullskärm — dokumentet får aldrig scrolla (sidledsscrollbar) */
     html, body { overflow: hidden !important; background: #02060d; }
+    /* inga synliga rullningslister någonstans i appen (macOS-inställningen
+       "visa alltid rullningslister" ritade annars en list längst ner) —
+       panelerna förblir scrollbara med hjul och svep, bara listen göms */
+    * { scrollbar-width: none; }
+    *::-webkit-scrollbar { display: none; }
     /* ── Laddskärm: startsidan syns från första bildrutan; i mitten en
        jordglobsanimation + förberedelsetips tills riktiga globen är redo ── */
     /* ridån: täcker den riktiga globen helt under laddningen — den får
@@ -522,7 +527,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=20"></script>
+<script src="glob-spel.js?v=21"></script>
 
 </body>
 </html>
