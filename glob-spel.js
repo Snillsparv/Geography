@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '10';
+const V = '11';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1174,6 +1174,9 @@ function origHoverImages(list) {
 function origPosition() {
   if (!origBase.naturalWidth) return;
   const mapRect = origBase.getBoundingClientRect();
+  // vyn dold (resize medan glob/väggkarta visas) → rektanglarna är noll och
+  // skulle ge skräppositioner som ligger kvar när vyn visas igen
+  if (!mapRect.width) return;
   const wrapRect = origWrapper.getBoundingClientRect();
   // rektanglarna är lästa GENOM wrapper-transformen — dela bort zoomen,
   // stilarna sätts i wrapperns otransformerade koordinater
@@ -1369,6 +1372,10 @@ async function setView(vy) {
       await renderFlatBase();
     }
     composeFlat();
+  } else if (vy === 'orig' && origInit) {
+    // layouten kan ha ändrats medan vyn var dold (fönsterstorlek, rotation)
+    // — positionera alltid om bitarna när vyn blir synlig
+    requestAnimationFrame(() => { origPosition(); origClampPan(); origApplyTransform(); });
   } else if (vy === 'orig' && !origInit && !origLoading) {
     origLoading = true;
     load.style.display = '';
@@ -1859,23 +1866,31 @@ const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
 const highfiveAudio = new Audio('high_five.wav');
 const highfiveRef = firebaseDB ? firebaseDB.ref('highfives') : null;
-if (highfiveRef) {
-  highfiveRef.on('value', snap => { highfiveCountEl.textContent = snap.val() || 0; });
-} else {
-  highfiveCountEl.textContent = localStorage.getItem('highfive-count') || '0';
+const startHifiCountEl = document.getElementById('start-hifi-count');
+const startHifiImg = document.getElementById('start-hifi-img');
+function sattHighfives(n) {
+  highfiveCountEl.textContent = n;
+  if (startHifiCountEl) startHifiCountEl.textContent = n;
 }
-jonasImg.addEventListener('click', () => {
+if (highfiveRef) {
+  highfiveRef.on('value', snap => sattHighfives(snap.val() || 0));
+} else {
+  sattHighfives(localStorage.getItem('highfive-count') || '0');
+}
+function geHighfive(img) {
   highfiveAudio.currentTime = 0;
   highfiveAudio.play();
-  jonasImg.src = 'Jonas_2.webp';
-  setTimeout(() => { jonasImg.src = 'Jonas_1.webp'; }, 1000);
+  img.src = 'Jonas_2.webp';
+  setTimeout(() => { img.src = 'Jonas_1.webp'; }, 1000);
   if (highfiveRef) highfiveRef.transaction(cur => (cur || 0) + 1);
   else {
     const count = parseInt(localStorage.getItem('highfive-count') || '0', 10) + 1;
     localStorage.setItem('highfive-count', count);
-    highfiveCountEl.textContent = count;
+    sattHighfives(count);
   }
-});
+}
+jonasImg.addEventListener('click', () => geHighfive(jonasImg));
+if (startHifiImg) document.getElementById('start-hifi').addEventListener('click', () => geHighfive(startHifiImg));
 
 // ══════════════════════
 // Konfetti + firande — samma som originalsidan
@@ -2004,12 +2019,111 @@ function showRegionSelector() {
   document.querySelector('header h1').textContent = 'Jonas geografi';
   document.title = 'Jonas geografi – jordglob';
   document.body.style.overflow = 'auto';
+  // startsidan har egen rubrik — spel-headern göms helt
+  document.querySelector('header').style.display = 'none';
+  if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 500);
 }
 document.getElementById('back-btn').addEventListener('click', () => {
   window.location.href = window.location.pathname;
 });
 
+// ══════════════════════
+// Startsidans rundtur: stora Jonas berättar, en strålkastare lyfter fram
+// delar av sidan, och till sist åker han ner och blir hörngubben.
+// ══════════════════════
+const introOverlay = document.getElementById('intro-overlay');
+const introJonas = document.getElementById('intro-jonas');
+const introBubbla = document.getElementById('intro-bubbla');
+const introText = document.getElementById('intro-text');
+const introNasta = document.getElementById('intro-nasta');
+const introHoppa = document.getElementById('intro-hoppa');
+const tourHal = document.getElementById('tour-hal');
+const TOUR = [
+  { el: () => document.querySelector('.start-knappar .k8'),
+    text: 'Här startar du det stora VÄRLDSTESTET — hela globen på en gång. Vågar du?' },
+  { el: () => document.getElementById('start-knappar'),
+    text: 'Här klickar du för att kolla på länderna! Välj en världsdel, utforska bilderna och kör sedan Klassiskt Quiz.' },
+  { el: () => document.getElementById('start-video-syd'),
+    text: 'Ser du den röda play-knappen? Där ligger min video om världsdelens länder — smart att titta först!' },
+  { el: () => document.getElementById('start-hifi'),
+    text: 'Och när du har klarat något riktigt bra: kom hit och ge mig en HIGH FIVE! 🖐' },
+];
+let tourSteg = -1;
+
+function visaHal(el) {
+  if (!el) { nastaSteg(); return; }
+  const r = el.getBoundingClientRect();
+  tourHal.style.left = (r.left - 8) + 'px';
+  tourHal.style.top = (r.top - 8) + 'px';
+  tourHal.style.width = (r.width + 16) + 'px';
+  tourHal.style.height = (r.height + 16) + 'px';
+}
+
+function startaIntro() {
+  tourSteg = -1;
+  introOverlay.style.display = '';
+  introBubbla.style.display = '';
+  introJonas.style.display = '';
+  introJonas.style.transform = '';
+  // inget utpekat än: hålet är en punkt utanför skärmen → dimman täcker allt
+  tourHal.style.display = '';
+  tourHal.style.left = '-60px'; tourHal.style.top = '-60px';
+  tourHal.style.width = '0px'; tourHal.style.height = '0px';
+  introText.textContent = 'Hej! Det är jag som är Jonas, och det här är min geografisida. Ska jag visa dig runt?';
+  introNasta.textContent = 'Visa mig runt!';
+  introHoppa.style.display = '';
+}
+
+function nastaSteg() {
+  tourSteg++;
+  if (tourSteg >= TOUR.length) { avslutaIntro(); return; }
+  introHoppa.style.display = 'none';
+  introText.textContent = TOUR[tourSteg].text;
+  introNasta.textContent = tourSteg === TOUR.length - 1 ? 'Nu kör vi!' : 'Nästa';
+  visaHal(TOUR[tourSteg].el());
+}
+
+function avslutaIntro() {
+  localStorage.setItem('rundtur-klar', '1');
+  const mal = startHifiImg.getBoundingClientRect();
+  const fran = introJonas.getBoundingClientRect();
+  const dx = (mal.left + mal.width / 2) - (fran.left + fran.width / 2);
+  const dy = mal.bottom - fran.bottom;
+  introBubbla.style.display = 'none';
+  tourHal.style.display = 'none';          // dimman släcks, Jonas flyger fritt
+  introJonas.style.transform = `translate(${dx}px, ${dy}px) scale(${mal.width / fran.width})`;
+  setTimeout(() => { introOverlay.style.display = 'none'; }, 1000);
+}
+
+introNasta.addEventListener('click', nastaSteg);
+introHoppa.addEventListener('click', () => {
+  localStorage.setItem('rundtur-klar', '1');
+  introOverlay.style.display = 'none';
+});
+document.getElementById('start-hjalp').addEventListener('click', startaIntro);
+window.addEventListener('resize', () => {
+  if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < TOUR.length) {
+    visaHal(TOUR[tourSteg].el());
+  }
+});
+
+// Videomodal — genomgångsvideor per världsdel (▶-knappen på kortet)
+const videoModal = document.getElementById('video-modal');
+const videoIframe = document.getElementById('video-iframe');
+function stangVideo() { videoModal.style.display = 'none'; videoIframe.src = ''; }
+document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  videoIframe.src = 'https://www.youtube.com/embed/' + b.dataset.video + '?autoplay=1&rel=0';
+  videoModal.style.display = 'flex';
+}));
+document.getElementById('video-stang').addEventListener('click', stangVideo);
+videoModal.addEventListener('click', e => { if (e.target === videoModal) stangVideo(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && videoModal.style.display !== 'none') stangVideo();
+});
+
 function showGame() {
+  document.querySelector('header').style.display = '';
   document.getElementById('region-selector').style.display = 'none';
   document.querySelector('.game-container').style.display = '';
   document.querySelector('.mode-toggle').style.display = '';

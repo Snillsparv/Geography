@@ -88,6 +88,75 @@
       /* hinten göms på mobilen så hela kortet ryms utan att skrolla */
       #info-card .close-hint { display: none; }
     }
+
+    /* ── Startsidan: förslag 7 (lekfull) med rymdbakgrund ── */
+    #region-selector { position: fixed; inset: 0; overflow: auto; background: #030711;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; z-index: 50; padding: 20px 14px; }
+    .start-stjarnor { position: absolute; inset: 0; pointer-events: none; opacity: .55;
+      background-image: radial-gradient(#fff 1px, transparent 1.6px),
+                        radial-gradient(#9fc3e0 1px, transparent 1.6px);
+      background-size: 190px 190px, 290px 290px; background-position: 12px 24px, 130px 90px; }
+    .start-titel { position: relative; font-size: clamp(1.7rem, 4.6vw, 2.9rem); color: #ffdc32;
+      text-shadow: 3px 3px 0 #0009, 0 0 26px #2e9eff44; transform: rotate(-2deg); margin: 8px 0 4px; }
+    .start-glob { position: relative; width: min(38vh, 62vw); border-radius: 50%;
+      box-shadow: 0 0 55px #2e9eff55, 0 0 150px #2e9eff22; margin: 10px 0 16px; }
+    .start-knappar { position: relative; display: flex; flex-wrap: wrap; gap: 12px;
+      justify-content: center; max-width: 880px; }
+    .start-knappar .knapp { position: relative; padding: 14px 22px; border-radius: 16px;
+      font-size: 1.05rem; font-weight: 800; text-decoration: none; color: #08131f;
+      box-shadow: 0 5px 0 #0007; transition: transform .08s; }
+    .start-knappar .knapp:hover { transform: translateY(2px); box-shadow: 0 3px 0 #0007; }
+    .k1 { background: #ffd166; } .k2 { background: #06d6a0; } .k3 { background: #ef7674; }
+    .k4 { background: #74b9ff; } .k5 { background: #f4a261; } .k6 { background: #b39ddb; }
+    .k7 { background: #8ce99a; } .k8 { background: #ffdc32; }
+    .knapp-video { position: absolute; top: -10px; right: -10px; width: 30px; height: 30px;
+      border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
+      font-size: .72rem; cursor: pointer; padding-left: 3px; box-shadow: 0 2px 6px #000a; }
+    .knapp-video:hover { transform: scale(1.15); }
+    .start-hjalp { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
+      font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
+    .start-hifi { position: fixed; right: 16px; bottom: 10px; text-align: center; z-index: 55;
+      cursor: pointer; }
+    .start-hifi img { width: 84px; display: block; margin: 0 auto;
+      filter: drop-shadow(0 4px 10px #000a); transition: transform .15s; }
+    .start-hifi:hover img { transform: scale(1.08) rotate(-3deg); }
+    .start-hifi span { font-size: .74rem; color: #ffdc32; font-weight: 700; }
+    /* ── Rundturen ── */
+    #intro-overlay { position: fixed; inset: 0; z-index: 200; }
+    #tour-hal { position: fixed; border-radius: 16px; z-index: 201; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(3, 7, 17, .82); transition: all .5s ease;
+      outline: 3px dashed #ffdc32; outline-offset: 4px; }
+    #intro-jonas { position: fixed; left: 6vw; bottom: 0; height: min(64vh, 560px); z-index: 202;
+      filter: drop-shadow(0 8px 26px #000c);
+      transition: transform .95s cubic-bezier(.5, -0.1, .3, 1.15); transform-origin: bottom left; }
+    #intro-bubbla { position: fixed; left: calc(6vw + min(30vh, 270px)); bottom: min(46vh, 400px);
+      max-width: min(400px, 72vw); background: #fff; color: #14243a; border-radius: 18px;
+      padding: 16px 18px; z-index: 203; box-shadow: 0 10px 34px #000b; text-align: left; }
+    #intro-bubbla::after { content: ""; position: absolute; left: -14px; bottom: 26px;
+      border: 10px solid transparent; border-right-color: #fff; border-left-width: 6px; }
+    #intro-bubbla p { font-size: 1.02rem; line-height: 1.45; margin-bottom: 12px; font-weight: 600; }
+    .intro-knappar { display: flex; gap: 10px; }
+    .intro-knappar button { padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer;
+      font-weight: 800; font-size: .92rem; }
+    #intro-nasta { background: #ffdc32; color: #08131f; box-shadow: 0 3px 0 #0005; }
+    #intro-hoppa { background: #e8eef4; color: #56718c; }
+    @media (max-width: 700px) {
+      #intro-jonas { height: 44vh; left: 2vw; }
+      #intro-bubbla { left: 10vw; right: 10vw; bottom: 48vh; max-width: none; }
+      #intro-bubbla::after { left: 30px; bottom: -18px; border: 10px solid transparent;
+        border-top-color: #fff; }
+    }
+    /* ── Videomodal ── */
+    #video-modal { position: fixed; inset: 0; z-index: 300; background: rgba(3, 7, 17, .88);
+      display: flex; align-items: center; justify-content: center; padding: 4vmin; }
+    .video-ram { position: relative; width: min(920px, 94vw); aspect-ratio: 16 / 9;
+      background: #000; border-radius: 14px; box-shadow: 0 18px 60px #000; }
+    .video-ram iframe { width: 100%; height: 100%; border: 0; border-radius: 14px; }
+    #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
+      border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
+      font-size: 1rem; cursor: pointer; z-index: 2; }
   </style>
 </head>
 <body>
@@ -103,40 +172,49 @@
 </header>
 
 <div class="region-selector" id="region-selector" style="display:none">
-  <h2>V&auml;lj en v&auml;rldsdel &#127757;</h2>
-  <div class="region-grid">
-    <a class="region-card world-card" href="?region=world">
-      <img src="world_cover.webp" alt="V&Auml;RLDSTEST" loading="lazy">
-      <span>V&Auml;RLDSTEST</span>
-    </a>
-    <a class="region-card" href="?region=europa">
-      <img src="assets/covers/europa.webp" alt="Europa" loading="lazy">
-      <span>Europa</span>
-    </a>
-    <a class="region-card" href="?region=afrika">
-      <img src="assets/covers/afrika.webp" alt="Afrika" loading="lazy">
-      <span>Afrika</span>
-    </a>
-    <a class="region-card" href="?region=asien">
-      <img src="assets/covers/asien.webp" alt="Asien" loading="lazy">
-      <span>Asien</span>
-    </a>
-    <a class="region-card" href="?region=nordamerika">
-      <img src="assets/covers/nordamerika.webp" alt="Nordamerika" loading="lazy">
-      <span>Nordamerika</span>
-    </a>
-    <a class="region-card" href="?region=sydamerika">
-      <img src="assets/covers/sydamerika.webp" alt="Sydamerika" loading="lazy">
-      <span>Sydamerika</span>
-    </a>
-    <a class="region-card" href="?region=oceanien">
-      <img src="assets/covers/oceanien.webp" alt="Oceanien" loading="lazy">
-      <span>Oceanien</span>
-    </a>
-    <a class="region-card" href="?region=vastindien">
-      <img src="assets/covers/vastindien.webp" alt="V&auml;stindien" loading="lazy">
-      <span>V&auml;stindien</span>
-    </a>
+  <div class="start-stjarnor"></div>
+  <h1 class="start-titel">Kan du hela v&auml;rlden? &#127757;</h1>
+  <img class="start-glob" src="assets/design/glob-art.webp" alt="Jordglob med Jonas illustrationer">
+  <div class="start-knappar" id="start-knappar">
+    <a class="knapp k8" href="?region=world">&#127757; V&Auml;RLDSTEST</a>
+    <a class="knapp k1" href="?region=europa">Europa</a>
+    <a class="knapp k2" href="?region=afrika">Afrika</a>
+    <a class="knapp k3" href="?region=asien">Asien</a>
+    <a class="knapp k4" href="?region=nordamerika">Nordamerika</a>
+    <a class="knapp k5" href="?region=sydamerika">Sydamerika
+      <button class="knapp-video" id="start-video-syd" data-video="iyU2bR1MsQ8"
+              title="Se videon om Sydamerikas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k6" href="?region=oceanien">Oceanien</a>
+    <a class="knapp k7" href="?region=vastindien">V&auml;stindien</a>
+  </div>
+  <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
+  <div class="start-hifi" id="start-hifi">
+    <img src="Jonas_1.webp" alt="Jonas" id="start-hifi-img">
+    <span>High fives: <strong id="start-hifi-count">0</strong></span>
+  </div>
+</div>
+
+<!-- Introduktion + rundtur på startsidan: stora Jonas berättar, delar av
+     sidan lyfts fram i en "strålkastare", och till sist åker han ner och
+     blir lilla high five-gubben i hörnet. -->
+<div id="intro-overlay" style="display:none">
+  <div id="tour-hal"></div>
+  <img id="intro-jonas" src="Jonas_1.webp" alt="Jonas">
+  <div id="intro-bubbla">
+    <p id="intro-text"></p>
+    <div class="intro-knappar">
+      <button id="intro-nasta">Visa mig runt!</button>
+      <button id="intro-hoppa">Hoppa &ouml;ver</button>
+    </div>
+  </div>
+</div>
+
+<!-- Videomodal för världsdelarnas genomgångsvideor -->
+<div id="video-modal" style="display:none">
+  <div class="video-ram">
+    <button id="video-stang" title="St&auml;ng">&#10005;</button>
+    <iframe id="video-iframe" src="" title="Genomg&aring;ngsvideo"
+            allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
   </div>
 </div>
 
@@ -335,7 +413,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=10"></script>
+<script src="glob-spel.js?v=11"></script>
 
 </body>
 </html>
