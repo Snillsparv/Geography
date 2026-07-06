@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '13';
+const V = '14';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1442,10 +1442,19 @@ async function startRegion(slug, flyg) {
     if (aktivByGid.has(f.id)) setLand(f.id, { gron: false, tackt: true });
     else setLand(f.id, { gron: true, tackt: false });
   }
+  spelPadding();
   const kam = KAMERA[slug] || KAMERA.world;
   if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
   else map.jumpTo({ center: kam.center, zoom: kam.zoom });
   preloadCountryImages();
+}
+
+// kartan täcker numera hela fönstret även i spelläge — paddningen ser till
+// att regionen centreras i den fria ytan vänster om den svävande panelen
+function spelPadding() {
+  map.setPadding(window.innerWidth > 900
+    ? { top: 60, right: 400, bottom: 10, left: 10 }
+    : { top: 56, right: 0, bottom: 0, left: 0 });
 }
 
 async function startWorld(count) {
@@ -2042,10 +2051,12 @@ function startLage(flyg) {
   document.body.classList.add('startlage');
   document.querySelector('header').style.display = 'none';
   const sel = document.getElementById('region-selector');
+  clearTimeout(selGomTimer);   // en väntande döljning från utflygningen får inte släcka oss
   sel.style.display = '';
   requestAnimationFrame(() => sel.classList.add('synlig'));
   document.title = 'Jonas geografi';
   document.body.style.overflow = 'hidden';
+  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
   // hela världen avslöjad: konstgloben i all sin prakt
   for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
   map.resize();
@@ -2081,11 +2092,13 @@ function tillbakaTillStart() {
   startLage(true);
 }
 
+let selGomTimer = null;
 function lamnaStart() {
   stoppaSnurr();
   const sel = document.getElementById('region-selector');
   sel.classList.remove('synlig');
-  setTimeout(() => { sel.style.display = 'none'; }, 450);
+  clearTimeout(selGomTimer);
+  selGomTimer = setTimeout(() => { sel.style.display = 'none'; }, 450);
   document.body.classList.remove('startlage');
   document.body.classList.add('flyger');          // panelerna tonar in när kameran är framme
   document.querySelector('header').style.display = '';
@@ -2127,6 +2140,7 @@ document.getElementById('world-start-btn').addEventListener('click', async () =>
   await startWorld(worldCount);
 });
 function worldFlow() {
+  spelPadding();
   document.getElementById('view-orig').style.display = 'none';
   const overlay = document.getElementById('world-setup-overlay');
   overlay.classList.add('active');

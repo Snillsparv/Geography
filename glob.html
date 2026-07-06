@@ -100,7 +100,8 @@
       background: radial-gradient(circle at 50% 46%,
         rgba(3,7,17,0) 0, rgba(3,7,17,0) 30vmin, rgba(3,7,17,.55) 58vmin, #030711 105vmin); }
     #region-selector > * { pointer-events: auto; }
-    .start-stjarnor { position: absolute; inset: 0; pointer-events: none !important; opacity: .55;
+    /* stjärnorna + mjuk vinjett lever i BÅDA lägena — samma rymd, samma vy */
+    #rymd-lager { position: fixed; inset: 0; pointer-events: none; z-index: 5; opacity: .55;
       background-image: radial-gradient(#fff 1px, transparent 1.6px),
                         radial-gradient(#9fc3e0 1px, transparent 1.6px);
       background-size: 190px 190px, 290px 290px; background-position: 12px 24px, 130px 90px;
@@ -185,6 +186,22 @@
     #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: 1rem; cursor: pointer; z-index: 2; }
+    /* ── Spelvyn = SAMMA vy som starten: kartan täcker hela fönstret,
+       headern är en genomskinlig remsa och infopanelen SVÄVAR över rymden
+       i stället för att vara en fast blå sida ── */
+    @media (min-width: 901px) {
+      body:not(.startlage) header { position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+        background: linear-gradient(180deg, rgba(5,11,20,.88) 30%, rgba(5,11,20,0));
+        border-bottom: none; box-shadow: none; }
+      .game-container { height: 100vh; }
+      .map-panel { padding: 0; }
+      body:not(.startlage) .maplibregl-ctrl-top-right { right: 394px; }
+      .info-panel { position: fixed; top: 60px; right: 14px; bottom: 14px; width: 366px;
+        border-radius: 18px; background: rgba(13, 26, 44, .88);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 18px 50px rgba(0,0,0,.6); z-index: 15; overflow: hidden;
+        border: 1px solid rgba(91,191,255,.12); }
+    }
   </style>
 </head>
 <body>
@@ -199,8 +216,9 @@
   <span class="header-hint" id="header-hint">Klicka p&aring; ett land</span>
 </header>
 
+<div id="rymd-lager"></div>
+
 <div class="region-selector" id="region-selector" style="display:none">
-  <div class="start-stjarnor"></div>
   <h1 class="start-titel">Kan du hela v&auml;rlden? &#127757;</h1>
   <div class="start-hint">Snurra p&aring; jordgloben &mdash; eller v&auml;lj var du vill b&ouml;rja!</div>
   <span class="start-version" id="start-version"></span>
@@ -442,7 +460,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=13"></script>
+<script src="glob-spel.js?v=14"></script>
 
 </body>
 </html>
