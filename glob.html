@@ -203,6 +203,8 @@
     }
     /* Väggkartan och Original-vyn är avstängda tills vidare — allt är globen */
     .view-toggle { display: none !important; }
+    /* appen är fullskärm — dokumentet får aldrig scrolla (sidledsscrollbar) */
+    html, body { overflow: hidden !important; background: #02060d; }
     /* ── Laddskärm: startsidan syns från första bildrutan; i mitten en
        jordglobsanimation + förberedelsetips tills riktiga globen är redo ── */
     /* ridån: täcker den riktiga globen helt under laddningen — den får
@@ -253,9 +255,9 @@
       filter: saturate(.5); }
   </style>
 </head>
-<body>
+<body class="startlage">
 
-<header>
+<header style="display:none">
   <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
   <h1>Jonas geografi</h1>
   <div class="mode-toggle">
@@ -333,7 +335,7 @@
         <img class="base-map" id="orig-base" alt="Karta" draggable="false">
       </div>
     </div>
-    <div id="spel-load"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
+    <div id="spel-load" style="display:none"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
       <div class="track"><div class="fill" id="spel-load-bar"></div></div></div>
     <div class="view-toggle">
       <button id="view-glob" class="active">Glob &#127757;</button>
@@ -520,7 +522,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=18"></script>
+<script src="glob-spel.js?v=19"></script>
 
 </body>
 </html>

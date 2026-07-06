@@ -145,7 +145,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '18';
+const V = '19';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -429,7 +429,11 @@ function initMap() {
 
   let hoverGid = null;
   map.on('mousemove', e => {
-    if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
+    if ((currentMode === 'seterra' || currentMode === 'bildquiz') && seterraTarget && !seterraLocked) {
+      cursorLabel.style.left = e.originalEvent.clientX + 'px';
+      cursorLabel.style.top = e.originalEvent.clientY + 'px';
+    } else if (cursorLabel.classList.contains('explore-tooltip') && cursorLabel.style.display === 'block') {
+      // landnamnsrutan i Utforska följer med musen tills den tonar bort
       cursorLabel.style.left = e.originalEvent.clientX + 'px';
       cursorLabel.style.top = e.originalEvent.clientY + 'px';
     }
@@ -909,7 +913,7 @@ flatCanvas.addEventListener('pointerdown', ev => {
   }
 });
 flatCanvas.addEventListener('pointermove', ev => {
-  if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
+  if ((currentMode === 'seterra' || currentMode === 'bildquiz') && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
   }
@@ -1290,7 +1294,7 @@ origWrap.addEventListener('pointerdown', ev => {
   }
 });
 origWrap.addEventListener('pointermove', ev => {
-  if (currentMode === 'seterra' && seterraTarget && !seterraLocked) {
+  if ((currentMode === 'seterra' || currentMode === 'bildquiz') && seterraTarget && !seterraLocked) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
   }
@@ -1556,7 +1560,7 @@ function exploreClick(c, e) {
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(hideExploreTooltip, 1000);
+    exploreTooltipTimer = setTimeout(hideExploreTooltip, 1400);
   }
   exploredCountEl.textContent = revealed.size;
 }
@@ -2351,6 +2355,7 @@ document.addEventListener('keydown', e => {
 });
 
 function showGame() {
+  document.body.classList.remove('startlage');   // markupens default är startläge
   document.querySelector('header').style.display = '';
   document.getElementById('region-selector').style.display = 'none';
   document.querySelector('.game-container').style.display = '';
@@ -2387,7 +2392,10 @@ window.spel = {
 
   if (region) showGame(); else visaStartSkal();
   const loadTxt = document.getElementById('spel-load-txt');
-  if (region) loadTxt.textContent = 'Startar …';
+  if (region) {
+    document.getElementById('spel-load').style.display = '';   // dold i markupen numera
+    loadTxt.textContent = 'Startar …';
+  }
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
   // bakgrunden och ger sedan helt sömlös snurr.
