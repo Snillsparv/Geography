@@ -145,7 +145,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '21';
+const V = '22';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -453,6 +453,12 @@ function initMap() {
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
   });
+  // snurren på startsidan ska ALLTID släppa vid beröring — permanenta
+  // lyssnare (engångs kunde förbrukas mitt under återflygningen och
+  // lämna snurren ostoppbar)
+  for (const ev of ['pointerdown', 'touchstart', 'wheel']) {
+    map.getCanvas().addEventListener(ev, () => stoppaSnurr(), { passive: true });
+  }
   // tillstånd satta innan stilen laddat klart (snabbstart/trög proxy)
   // försvinner i setLands try-fångst — lägg på dem igen när stilen är klar
   map.on('load', () => {
@@ -2116,6 +2122,7 @@ function startaSnurr() {
   stoppaSnurr();
   let last = performance.now();
   const tick = t => {
+    if (!document.body.classList.contains('startlage')) { snurrId = null; return; }
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     const c = map.getCenter();
     map.setCenter([c.lng + 1.6 * dt, c.lat]);
@@ -2127,6 +2134,22 @@ function stoppaSnurr() {
   if (snurrId !== null) { cancelAnimationFrame(snurrId); snurrId = null; }
 }
 
+// kamerapaddning så att globen ligger mitt i den FRIA ytan mellan
+// titeltexten och knappraden — inte mitt i hela fönstret
+function startPadding() {
+  const hintEl = document.querySelector('.start-hint');
+  const knapparEl = document.getElementById('start-knappar');
+  let top = 0, bottom = 0;
+  if (hintEl) top = Math.max(0, Math.round(hintEl.getBoundingClientRect().bottom) + 6);
+  if (knapparEl) bottom = Math.max(0, Math.round(innerHeight - knapparEl.getBoundingClientRect().top) + 6);
+  const max = innerHeight * 0.72;   // paddningen får aldrig äta upp kartan
+  if (top + bottom > max) {
+    const k = max / (top + bottom);
+    top = Math.round(top * k); bottom = Math.round(bottom * k);
+  }
+  map.setPadding({ top, bottom, left: 0, right: 0 });
+}
+
 function startLage(flyg) {
   document.body.classList.add('startlage');
   document.querySelector('header').style.display = 'none';
@@ -2136,7 +2159,7 @@ function startLage(flyg) {
   requestAnimationFrame(() => sel.classList.add('synlig'));
   document.title = 'Jonas geografi';
   document.body.style.overflow = 'hidden';
-  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  startPadding();
   // hela världen avslöjad: konstgloben i all sin prakt
   for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
   map.resize();
@@ -2167,10 +2190,7 @@ function startLage(flyg) {
     map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
     startaSnurr();
   }
-  // snurren släpper vid FÖRSTA interaktionen — även scrollzoom och nyp,
-  // annars slåss den mot zoomanimationen och allt känns segt
-  map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
-  map.getCanvas().addEventListener('wheel', stoppaSnurr, { passive: true, once: true });
+
 }
 
 // Tillbaka till starten UTAN sidladdning: städa pågående läge, flyg ut
@@ -2338,6 +2358,7 @@ window.addEventListener('resize', () => {
   if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < TOUR.length) {
     visaHal(TOUR[tourSteg].el());
   }
+  if (document.body.classList.contains('startlage')) startPadding();
 });
 
 // Videomodal — genomgångsvideor per världsdel (▶-knappen på kortet)

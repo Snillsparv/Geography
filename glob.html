@@ -258,6 +258,31 @@
     /* medan det laddar är världsdelsknapparna vilande */
     #region-selector.laddar .start-knappar { opacity: .35; pointer-events: none;
       filter: saturate(.5); }
+    /* ── Minnesregeln är själva inlärningen — lyft fram den ordentligt ── */
+    #info-card .assoc-box, .seterra-feedback .assoc-box {
+      font-size: 1.08rem; line-height: 1.45; font-weight: 800; color: #ffe9a8;
+      background: rgba(255, 220, 50, .10); border: 1.5px solid rgba(255, 220, 50, .5);
+      box-shadow: 0 0 16px rgba(255, 220, 50, .12); border-radius: 10px; }
+    #info-card .assoc-box::before, .seterra-feedback .assoc-box::before {
+      content: '💡 '; }
+    /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
+    @media (max-width: 900px) {
+      #info-card .assoc-box { font-size: .98rem; padding: 8px 10px; }
+      .seterra-feedback .assoc-box { font-size: .95rem; }
+      .mode-toggle { gap: 3px; }
+      .mode-toggle .mode-btn { padding: 6px 9px; font-size: .78rem; }
+      /* dynamisk vyhöjd: mobilens adressfält ska inte knuffa ut panelen */
+      @supports (height: 100dvh) {
+        .game-container { height: calc(100dvh - var(--mobile-header-h, 80px)); }
+        body.startlage .game-container { height: 100dvh; }
+      }
+    }
+    @media (max-width: 700px) {
+      /* headern andas: hinttexten och maplibre-zoomknapparna bort på små
+         skärmar (nyp-zoom finns), kvar: pil, titel och lägesväxlaren */
+      .header-hint { display: none; }
+      .maplibregl-ctrl-top-right { display: none !important; }
+    }
   </style>
 </head>
 <body class="startlage">
@@ -527,7 +552,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=21"></script>
+<script src="glob-spel.js?v=22"></script>
 
 </body>
 </html>
