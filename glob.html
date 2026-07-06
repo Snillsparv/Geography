@@ -202,6 +202,49 @@
         box-shadow: 0 18px 50px rgba(0,0,0,.6); z-index: 15; overflow: hidden;
         border: 1px solid rgba(91,191,255,.12); }
     }
+    /* Väggkartan och Original-vyn är avstängda tills vidare — allt är globen */
+    .view-toggle { display: none !important; }
+    /* ── Laddskärm: startsidan syns från första bildrutan; i mitten en
+       jordglobsanimation + förberedelsetips tills riktiga globen är redo ── */
+    #ladd-skarm { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none; transition: opacity .6s ease; }
+    #ladd-skarm.klar { opacity: 0; }
+    .ladd-glob { display: none; position: relative; margin: 0 auto 18px; }
+    /* variant 1: konstgloben andas med en satellit i omlopp */
+    #ladd-skarm.v1 .ladd-glob-v1 { display: block; width: 34vmin; height: 34vmin; }
+    .ladd-glob-v1 img { width: 100%; border-radius: 50%;
+      animation: ladd-andas 2.4s ease-in-out infinite;
+      box-shadow: 0 0 55px #2e9eff55, 0 0 150px #2e9eff22; }
+    .ladd-glob-v1 .omlopp { position: absolute; inset: -14%; border-radius: 50%;
+      border: 1.5px dashed #2b4a66; animation: ladd-snurr 5s linear infinite; }
+    .ladd-glob-v1 .omlopp span { position: absolute; top: -5px; left: 50%; width: 10px;
+      height: 10px; border-radius: 50%; background: #ffdc32; box-shadow: 0 0 12px #ffdc32; }
+    @keyframes ladd-andas { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+    @keyframes ladd-snurr { to { transform: rotate(360deg); } }
+    /* variant 2: studsande emoji-jord som växlar världsdel */
+    #ladd-skarm.v2 .ladd-glob-v2 { display: block; }
+    .ladd-glob-v2 span { font-size: 21vmin; display: inline-block;
+      animation: ladd-studs 1.1s ease-in-out infinite; }
+    @keyframes ladd-studs { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3vmin) } }
+    /* variant 3: tecknad trådglob som roterar */
+    #ladd-skarm.v3 .ladd-glob-v3 { display: block; width: 30vmin; height: 30vmin; }
+    .ladd-glob-v3 .wire { position: absolute; inset: 0; border: 2.5px solid #7ec8e3aa;
+      border-radius: 50%; }
+    .ladd-glob-v3 .wire i { position: absolute; inset: 0; border: 2px solid #7ec8e366;
+      border-radius: 50%; }
+    .ladd-glob-v3 .wire i:nth-child(1) { animation: ladd-meridian 2.6s linear infinite; }
+    .ladd-glob-v3 .wire i:nth-child(2) { animation: ladd-meridian 2.6s linear infinite -0.87s; }
+    .ladd-glob-v3 .wire i:nth-child(3) { transform: scaleY(.33); border-color: #7ec8e344; }
+    @keyframes ladd-meridian {
+      0% { transform: scaleX(1); } 25% { transform: scaleX(.08); }
+      50% { transform: scaleX(1); } 75% { transform: scaleX(.08); } 100% { transform: scaleX(1); } }
+    #ladd-procent { color: #7ec8e3; font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+    #ladd-info { color: #9fc3e0; font-size: .95rem; max-width: min(420px, 80vw);
+      margin: 0 auto; min-height: 2.6em; transition: opacity .4s; }
+    #ladd-info.byter { opacity: 0; }
+    /* medan det laddar är världsdelsknapparna vilande */
+    #region-selector.laddar .start-knappar { opacity: .35; pointer-events: none;
+      filter: saturate(.5); }
   </style>
 </head>
 <body>
@@ -221,6 +264,14 @@
 <div class="region-selector" id="region-selector" style="display:none">
   <h1 class="start-titel">Kan du hela v&auml;rlden? &#127757;</h1>
   <div class="start-hint">Snurra p&aring; jordgloben &mdash; eller v&auml;lj var du vill b&ouml;rja!</div>
+  <div id="ladd-skarm">
+    <div class="ladd-glob ladd-glob-v1"><img src="assets/design/glob-art.webp" alt="">
+      <div class="omlopp"><span></span></div></div>
+    <div class="ladd-glob ladd-glob-v2"><span id="ladd-emoji">&#127757;</span></div>
+    <div class="ladd-glob ladd-glob-v3"><div class="wire"><i></i><i></i><i></i></div></div>
+    <div id="ladd-procent">Startar &hellip;</div>
+    <div id="ladd-info"></div>
+  </div>
   <span class="start-version" id="start-version"></span>
   <div class="start-knappar" id="start-knappar">
     <a class="knapp k8" href="?region=world">&#127757; V&Auml;RLDSTEST</a>
@@ -460,7 +511,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=14"></script>
+<script src="glob-spel.js?v=15"></script>
 
 </body>
 </html>

@@ -142,7 +142,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '14';
+const V = '15';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2028,6 +2028,55 @@ function showCelebration(m, s) {
 // ══════════════════════
 // Regionväljare / navigering
 // ══════════════════════
+// Startskalet: startsidan syns från allra första bildrutan (ingen blink av
+// spelvyn), med laddskärmens jordglobsanimation och roterande tips tills
+// kartan är redo. Variant väljs med ?ladd=1|2|3 (standard 1).
+const LADD_TIPS = [
+  '🎨 202 länder — varje land är ritat som en bild man kan känna igen!',
+  '💡 Klicka på ett land för att se dess bild och en minnesregel.',
+  '🏆 Klassiskt Quiz: hitta länderna på tid — rekorden sparas.',
+  '▶ Sydamerika har en genomgångsvideo — leta efter play-knappen!',
+  '🖐 Och när du klarat något: ge Jonas en high five!',
+];
+let laddTipsTimer = null;
+function visaStartSkal() {
+  document.body.classList.add('startlage');
+  document.querySelector('header').style.display = 'none';
+  document.getElementById('spel-load').style.display = 'none';
+  document.body.style.overflow = 'hidden';
+  const sel = document.getElementById('region-selector');
+  sel.classList.add('laddar');
+  sel.style.display = '';
+  requestAnimationFrame(() => sel.classList.add('synlig'));
+  const skarm = document.getElementById('ladd-skarm');
+  const variant = new URLSearchParams(location.search).get('ladd') || '1';
+  skarm.classList.add('v' + (['1','2','3'].includes(variant) ? variant : '1'));
+  if (variant === '2') {
+    const jordar = ['🌍', '🌎', '🌏'];
+    let i = 0;
+    setInterval(() => { document.getElementById('ladd-emoji').textContent = jordar[++i % 3]; }, 700);
+  }
+  const info = document.getElementById('ladd-info');
+  let t = 0;
+  info.textContent = LADD_TIPS[0];
+  laddTipsTimer = setInterval(() => {
+    info.classList.add('byter');
+    setTimeout(() => {
+      info.textContent = LADD_TIPS[++t % LADD_TIPS.length];
+      info.classList.remove('byter');
+    }, 400);
+  }, 3200);
+  const badge = document.getElementById('start-version');
+  if (badge) badge.textContent = 'version ' + V;
+}
+function gomStartSkal() {
+  clearInterval(laddTipsTimer);
+  const skarm = document.getElementById('ladd-skarm');
+  skarm.classList.add('klar');
+  setTimeout(() => { skarm.style.display = 'none'; }, 650);
+  document.getElementById('region-selector').classList.remove('laddar');
+}
+
 // Startläget: SAMMA jordglob som i spelet, snurrande i rymden bakom
 // startöverlägget. Väljer man en världsdel flyger kameran dit och
 // spelpanelerna tonar fram — man byter aldrig sida.
@@ -2075,6 +2124,7 @@ function startLage(flyg) {
   map.getCanvas().addEventListener('pointerdown', stoppaSnurr, { once: true });
   const badge = document.getElementById('start-version');
   if (badge) badge.textContent = 'version ' + V;
+  gomStartSkal();
   if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
 }
 
@@ -2294,19 +2344,24 @@ window.spel = {
   const params = new URLSearchParams(window.location.search);
   const region = params.get('region');
 
-  showGame();
+  if (region) showGame(); else visaStartSkal();
   const loadTxt = document.getElementById('spel-load-txt');
-  loadTxt.textContent = region ? 'Startar …' : 'Snurrar igång jordgloben …';
+  if (region) loadTxt.textContent = 'Startar …';
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
   // bakgrunden och ger sedan helt sömlös snurr.
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
     preloadTiles(p => {
+      const procent = document.getElementById('ladd-procent');
+      const text = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %` : '';
+      if (procent && !document.getElementById('ladd-skarm').classList.contains('klar')) {
+        procent.textContent = text || 'Nästan klart …';
+      }
       const el = document.querySelector('.start-hint');
-      if (!el || !document.body.classList.contains('startlage')) return;
-      el.textContent = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %`
-                             : 'Snurra på jordgloben — eller välj var du vill börja!';
+      if (el && document.body.classList.contains('startlage')) {
+        el.textContent = text || 'Snurra på jordgloben — eller välj var du vill börja!';
+      }
     });
     initMap();
     // feature-states kan inte sättas innan stilen laddat klart — men om
@@ -2319,6 +2374,7 @@ window.spel = {
     throw e;
   }
   document.getElementById('spel-load').style.display = 'none';
+  if (!region) document.querySelector('.game-container').style.display = '';
 
   if (region === 'world') {
     worldFlow();
