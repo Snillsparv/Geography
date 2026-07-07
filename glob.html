@@ -139,6 +139,17 @@
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
       font-size: 1.05rem; cursor: pointer; z-index: 60; }
     body:not(.startlage) #feedback-knapp { display: none; }
+    /* spelvyns ?-knapp: kör om genomgången av lägena (ovanför ljudknappen) */
+    #spel-hjalp { position: fixed; left: 10px; bottom: 80px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
+      font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
+    body.startlage #spel-hjalp { display: none; }
+    /* play-knapp i spelvyns header: världsdelens genomgångsvideo */
+    #spel-video { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff;
+      background: #e0453a; color: #fff; font-size: .68rem; cursor: pointer;
+      padding-left: 3px; margin-left: 8px; vertical-align: middle;
+      box-shadow: 0 2px 6px #000a; flex: none; }
+    #spel-video:hover { transform: scale(1.12); }
     #feedback-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
       display: flex; align-items: center; justify-content: center; padding: 3vmin; }
     .feedback-kort { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
@@ -410,6 +421,7 @@
 <header style="display:none">
   <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
   <h1>Jonas geografi</h1>
+  <button id="spel-video" style="display:none" title="Se videon om v&auml;rldsdelens l&auml;nder">&#9654;</button>
   <div class="mode-toggle">
     <button class="mode-btn active" data-mode="explore">Utforska</button>
     <button class="mode-btn" data-mode="bildquiz" title="Quiz med bilderna synliga &mdash; tr&auml;na p&aring; att koppla bild till land">Bildquiz</button>
@@ -434,8 +446,13 @@
   </div>
   <span class="start-version" id="start-version"></span>
   <div class="start-knappar" id="start-knappar">
-    <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; V&auml;rldsresan</a>
-    <a class="knapp k8" href="?region=world">&#127757; V&Auml;RLDSTEST</a>
+    <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; Jorden runt</a>
+    <a class="knapp k5" href="?region=sydamerika">Sydamerika
+      <button class="knapp-video" id="start-video-syd" data-video="iyU2bR1MsQ8"
+              title="Se videon om Sydamerikas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k4" href="?region=nordamerika">Nordamerika
+      <button class="knapp-video" data-video="NF_UcuD1XKU"
+              title="Se videon om Nordamerikas l&auml;nder">&#9654;</button></a>
     <a class="knapp k1" href="?region=europa">Europa
       <button class="knapp-video" data-video="L7BriuuKjd4"
               title="Se videon om Europas l&auml;nder">&#9654;</button></a>
@@ -445,18 +462,13 @@
     <a class="knapp k3" href="?region=asien">Asien
       <button class="knapp-video" data-video="J7jt8Egjv9M"
               title="Se videon om Asiens l&auml;nder">&#9654;</button></a>
-    <a class="knapp k4" href="?region=nordamerika">Nordamerika
-      <button class="knapp-video" data-video="NF_UcuD1XKU"
-              title="Se videon om Nordamerikas l&auml;nder">&#9654;</button></a>
-    <a class="knapp k5" href="?region=sydamerika">Sydamerika
-      <button class="knapp-video" id="start-video-syd" data-video="iyU2bR1MsQ8"
-              title="Se videon om Sydamerikas l&auml;nder">&#9654;</button></a>
     <a class="knapp k6" href="?region=oceanien">Oceanien
       <button class="knapp-video" data-video="7wgREQcfMRc"
               title="Se videon om Oceaniens l&auml;nder">&#9654;</button></a>
     <a class="knapp k7" href="?region=vastindien">V&auml;stindien
       <button class="knapp-video" data-video="9ZkIjghuPBQ"
               title="Se videon om V&auml;stindiens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k8" href="?region=world">&#127757; Hela v&auml;rlden</a>
   </div>
   <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
   <div class="start-hifi" id="start-hifi">
@@ -482,6 +494,7 @@
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
+<button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
 
 <!-- Feedback: formul&auml;r som mejlas till Jonas -->
 <div id="feedback-modal" style="display:none">
@@ -508,12 +521,12 @@
 <!-- Världsresan: kampanjpasset -->
 <div id="resa-modal" style="display:none">
   <div class="resa-pass">
-    <h2>&#129523; Din v&auml;rldsresa</h2>
+    <h2>&#129523; Jorden runt</h2>
     <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
       f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Du kan f&ouml;rst&aring;s
       alltid spela fritt ocks&aring;!</p>
     <div id="resa-lista"></div>
-    <p id="resa-klart" style="display:none">&#127942; <b>Hela v&auml;rldsresan &auml;r klar &mdash; du
+    <p id="resa-klart" style="display:none">&#127942; <b>Hela Jorden runt-resan &auml;r klar &mdash; du
       &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
     <button id="resa-stang">St&auml;ng</button>
   </div>
@@ -687,7 +700,7 @@
 
 <div class="world-setup-overlay" id="world-setup-overlay">
   <div class="world-setup-modal">
-    <h2>V&Auml;RLDSTEST</h2>
+    <h2>HELA V&Auml;RLDEN</h2>
     <div class="world-setup-desc">
       <p><strong>V&auml;lkommen globetrotter!</strong></p>
       <p>Du f&aring;r ett antal l&auml;nder fr&aring;n hela v&auml;rlden.</p>
@@ -748,7 +761,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=35"></script>
+<script src="glob-spel.js?v=36"></script>
 
 </body>
 </html>

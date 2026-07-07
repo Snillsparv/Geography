@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '35';
+const V = '36';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -544,12 +544,41 @@ function initMap() {
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
   });
-  // snurren på startsidan ska ALLTID släppa vid beröring — permanenta
-  // lyssnare (engångs kunde förbrukas mitt under återflygningen och
-  // lämna snurren ostoppbar)
+  // snurren på startsidan släpper vid beröring men återupptas efteråt —
+  // åt det håll användaren själv drog globen
   for (const ev of ['pointerdown', 'touchstart', 'wheel']) {
-    map.getCanvas().addEventListener(ev, () => stoppaSnurr(), { passive: true });
+    map.getCanvas().addEventListener(ev, () => {
+      if (ev === 'pointerdown' || ev === 'touchstart') pekarNere = true;
+      stoppaSnurr();
+      planeraSnurrAter();
+    }, { passive: true });
   }
+  for (const ev of ['pointerup', 'pointercancel', 'touchend', 'touchcancel']) {
+    map.getCanvas().addEventListener(ev, () => {
+      pekarNere = false;
+      planeraSnurrAter();
+    }, { passive: true });
+  }
+  let senasteLng = null;
+  map.on('move', e => {
+    // bara användarens egna drag räknas (programstyrda flygningar saknar
+    // originalEvent) — riktningen avgör åt vilket håll snurren återupptas
+    if (!e.originalEvent || !document.body.classList.contains('startlage')) {
+      senasteLng = null;
+      return;
+    }
+    const lng = map.getCenter().lng;
+    if (senasteLng != null) {
+      let d = lng - senasteLng;
+      if (d > 180) d -= 360;
+      if (d < -180) d += 360;
+      if (Math.abs(d) > 0.01) snurrRikt = d > 0 ? 1 : -1;
+    }
+    senasteLng = lng;
+  });
+  map.on('moveend', () => {
+    if (document.body.classList.contains('startlage') && snurrId === null) planeraSnurrAter();
+  });
   // tillstånd satta innan stilen laddat klart (snabbstart/trög proxy)
   // försvinner i setLands try-fångst — lägg på dem igen när stilen är klar
   map.on('load', () => {
@@ -1541,6 +1570,7 @@ async function startRegion(slug, flyg) {
 
   document.title = `${raw.name} – Jonas geografi`;
   document.querySelector('header h1').textContent = raw.name + ' 🌍';
+  visaSpelVideo(slug);   // världsdelens film nås via play-knappen i headern
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
 
@@ -1596,8 +1626,9 @@ async function startWorld(count) {
   document.getElementById('view-orig').style.display = 'none';
   if (aktivVy === 'orig') setView('glob');
 
-  document.title = 'Världstest – Jonas geografi';
-  document.querySelector('header h1').textContent = 'Världstest 🌍';
+  document.title = 'Hela världen – Jonas geografi';
+  document.querySelector('header h1').textContent = 'Hela världen 🌍';
+  visaSpelVideo(null);   // världstestet har ingen egen film
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
 
   // ALLA länder täckta — hela världen är spelplan
@@ -1837,7 +1868,7 @@ function endSeterra() {
         const nasta = RESA_ORDNING[resa.steg];
         document.getElementById('seterra-final-detail').innerHTML +=
           `<br><span class="resa-stampel">🧳 Stämpel i passet!` +
-          (nasta ? ` Nästa stopp: <b>${RESA_NAMN[nasta]}</b>` : ' HELA VÄRLDSRESAN ÄR KLAR! 🏆') + '</span>';
+          (nasta ? ` Nästa stopp: <b>${RESA_NAMN[nasta]}</b>` : ' HELA JORDEN RUNT-RESAN ÄR KLAR! 🏆') + '</span>';
       }
     }
   }
@@ -2263,22 +2294,42 @@ function gomStartSkal() {
 // Startläget: SAMMA jordglob som i spelet, snurrande i rymden bakom
 // startöverlägget. Väljer man en världsdel flyger kameran dit och
 // spelpanelerna tonar fram — man byter aldrig sida.
+// Globen stannar aldrig helt: rör man den släpper snurren, men efter en
+// liten stund tar den mjukt vid igen — åt samma håll som man drog.
 let snurrId = null;
+let snurrRikt = 1;           // senaste rotationsriktningen (österut = +1)
+let snurrLas = false;        // rundturens Italien-steg håller globen stilla
+let snurrAterTimer = null;
+let pekarNere = false;
 let startAvslojad = false;   // globen visad färdigritad första gången?
-function startaSnurr() {
+function startaSnurr(malFart) {
   stoppaSnurr();
+  if (malFart == null) malFart = 1.6 * snurrRikt;
+  if (malFart) snurrRikt = malFart > 0 ? 1 : -1;
+  let fart = 0;              // mjuk start: farten glider upp mot målet
   let last = performance.now();
   const tick = t => {
     if (!document.body.classList.contains('startlage')) { snurrId = null; return; }
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    fart += (malFart - fart) * Math.min(1, dt * 1.2);
     const c = map.getCenter();
-    map.setCenter([c.lng + 1.6 * dt, c.lat]);
+    map.setCenter([c.lng + fart * dt, c.lat]);
     snurrId = requestAnimationFrame(tick);
   };
   snurrId = requestAnimationFrame(tick);
 }
 function stoppaSnurr() {
   if (snurrId !== null) { cancelAnimationFrame(snurrId); snurrId = null; }
+}
+// efter beröring/zoom: vänta ut rörelsen och återuppta sedan en långsam snurr
+function planeraSnurrAter() {
+  clearTimeout(snurrAterTimer);
+  snurrAterTimer = setTimeout(() => {
+    if (document.body.classList.contains('startlage') && startAvslojad
+        && !snurrLas && !pekarNere && snurrId === null && !map.isMoving()) {
+      startaSnurr(0.9 * snurrRikt);
+    }
+  }, 1400);
 }
 
 // kamerapaddning så att globen ligger mitt i den FRIA ytan mellan
@@ -2355,9 +2406,24 @@ function tillbakaTillStart() {
   startLage(true);
 }
 
+// rättighetsrutan (kartans attribution) får synas en kort stund första
+// gången spelvyn visas och fäller sedan ihop sig till sin lilla ⓘ-knapp
+let rattigheterDolda = false;
+function fallIhopRattigheter() {
+  if (rattigheterDolda) return;
+  rattigheterDolda = true;
+  setTimeout(() => {
+    document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(el => {
+      el.classList.remove('maplibregl-compact-show');
+      el.removeAttribute('open');
+    });
+  }, 5000);
+}
+
 let selGomTimer = null;
 function lamnaStart() {
   stoppaSnurr();
+  fallIhopRattigheter();
   const sel = document.getElementById('region-selector');
   sel.classList.remove('synlig');
   clearTimeout(selGomTimer);
@@ -2413,17 +2479,23 @@ function visaMedaljer() {
 }
 
 // ══════════════════════
-// Världsresan: valfritt kampanjläge — res världsdel för världsdel, stämpel
+// Jorden runt: valfritt kampanjläge — res världsdel för världsdel, stämpel
 // i passet vid minst 80 % i klassiska quizet, nästa stopp låses upp.
 // Fritt spel påverkas inte.
 // ══════════════════════
-const RESA_ORDNING = ['europa', 'sydamerika', 'nordamerika', 'afrika', 'asien', 'oceanien', 'vastindien', 'world'];
+const RESA_ORDNING = ['sydamerika', 'nordamerika', 'europa', 'afrika', 'asien', 'oceanien', 'vastindien', 'world'];
 const RESA_NAMN = { europa: 'Europa', sydamerika: 'Sydamerika', nordamerika: 'Nordamerika',
   afrika: 'Afrika', asien: 'Asien', oceanien: 'Oceanien', vastindien: 'Västindien',
-  world: 'Världstestet 🌍' };
+  world: 'Hela världen 🌍' };
 function resaState() {
-  try { return JSON.parse(localStorage.getItem('varldsresa')) || { steg: 0, klara: {} }; }
-  catch (e) { return { steg: 0, klara: {} }; }
+  let resa;
+  try { resa = JSON.parse(localStorage.getItem('varldsresa')) || { steg: 0, klara: {} }; }
+  catch (e) { resa = { steg: 0, klara: {} }; }
+  // aktuellt stopp härleds ur stämplarna — så tål sparade resor att
+  // ordningen på stoppen ändras
+  resa.steg = RESA_ORDNING.findIndex(s => resa.klara[s] == null);
+  if (resa.steg < 0) resa.steg = RESA_ORDNING.length;
+  return resa;
 }
 function visaResa() {
   const resa = resaState();
@@ -2466,6 +2538,9 @@ document.getElementById('world-start-btn').addEventListener('click', async () =>
 function worldFlow() {
   spelPadding();
   document.getElementById('view-orig').style.display = 'none';
+  document.title = 'Hela världen – Jonas geografi';
+  document.querySelector('header h1').textContent = 'Hela världen 🌍';
+  visaSpelVideo(null);   // världstestet har ingen egen film
   const overlay = document.getElementById('world-setup-overlay');
   overlay.classList.add('active');
   document.getElementById('world-setup-loading').style.display = 'none';
@@ -2507,18 +2582,18 @@ function globRect() {
 const TOUR = [
   { stor: true, bild: 'assets/jonas/hej.webp', knapp: 'Visa mig runt!',
     text: 'Hej! Det är jag som är Jonas, och det här är min geografisida. Ska jag visa dig runt?' },
-  { el: globRect, rund: true, bild: 'assets/jonas/upp.webp',
+  { el: globRect, rund: true, bild: 'assets/jonas/upp.webp', italien: true,
     text: 'Alla minns var Italien ligger eftersom det ser ut som en stövel. På samma sätt går det att hitta på en bild för varje land i världen och på så vis minnas det mycket lättare!' },
   { el: () => document.getElementById('start-knappar'), bild: 'assets/jonas/ner.webp',
     // Jonas svävar mitt ovanför knappraden och pekar ner på den
     asp: 0.50, plats: (r, jw) => ({ left: r.left + r.width / 2 - jw / 2,
       bottom: window.innerHeight - r.top + 20 }),
     text: 'Du kan träna på en världsdel i taget eller utmana dig på hela världen på en gång!' },
-  { el: () => document.getElementById('resa-knapp'), bild: 'assets/jonas/ner-hoger.webp',
-    // snett ovanför resknappen så att den pekande handen hamnar alldeles intill
-    asp: 0.50, plats: (r, jw) => ({ left: r.left - jw * 0.7,
+  { el: () => document.getElementById('resa-knapp'), bild: 'assets/jonas/lugn2.webp',
+    // snett ovanför resknappen, alldeles intill
+    plats: (r, jw) => ({ left: r.left - jw * 0.7,
       bottom: window.innerHeight - r.top + 14 }),
-    text: 'Om du vill gå igenom hela sidan systematiskt rekommenderar jag Jorden Runt-resan!' },
+    text: 'Om du vill gå igenom hela sidan systematiskt rekommenderar jag Jorden runt-resan!' },
   { el: () => document.getElementById('start-video-syd'), bild: 'assets/jonas/kul.webp',
     // tätt till vänster om play-knappen, bubblan på andra sidan
     asp: 0.68, plats: (r, jw) => ({ left: r.left - jw - 18, bottom: 0,
@@ -2527,7 +2602,7 @@ const TOUR = [
   { el: () => document.getElementById('start-hifi'), bild: 'assets/jonas/smash.webp',
     hoger: true, spegel: true,
     text: 'Varje gång du känner dig extra nöjd med att ha lyckats minnas något är du välkommen att ge mig en high five i hörnet!' },
-  { stor: true, bild: 'assets/jonas/stark.webp', knapp: 'Nu kör vi!',
+  { stor: true, bild: 'assets/jonas/masken.webp', knapp: 'Nu kör vi!',
     text: 'Kör hårt!' },
 ];
 
@@ -2543,7 +2618,7 @@ const SPEL_TOUR = [
     text: 'Bildquiz är perfekt att börja träna med — jag frågar efter länderna medan bilderna fortfarande syns.' },
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
     bild: 'assets/jonas/stark.webp',
-    text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Världsresan — och 100 % ger ett diplom!' },
+    text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!' },
   { el: () => document.getElementById('back-btn'),
     bild: 'assets/jonas/upp.webp', spegel: true,
     text: 'Pilen tar dig tillbaka till jordgloben när du vill välja något annat.' },
@@ -2558,7 +2633,7 @@ let tourSlut = null;
 
 // posernas bredd/höjd-förhållanden (beskurna figurer) — för placering
 const POSE_ASP = { hej: 0.58, upp: 0.47, ner: 0.50, 'ner-hoger': 0.50,
-  kul: 0.68, smash: 0.56, stark: 0.67, pekar: 0.54 };
+  kul: 0.68, smash: 0.56, stark: 0.67, pekar: 0.54, lugn2: 0.57, masken: 0.82 };
 const aspFor = bild =>
   POSE_ASP[(bild || '').replace(/^.*\//, '').replace('.webp', '')] || 0.55;
 
@@ -2586,6 +2661,15 @@ function visaTourSteg() {
   introOverlay.classList.toggle('hoger', !!s.hoger);
   introJonas.classList.toggle('spegel', !!s.spegel);
   tourHal.classList.toggle('rund', !!s.rund);
+  // stövel-steget: globen vrids så att Italien hamnar mitt i cirkeln
+  if (s.italien && map) {
+    snurrLas = true;
+    stoppaSnurr();
+    map.easeTo({ center: [12.5, 42.5], duration: 1400, essential: true });
+  } else if (snurrLas) {
+    snurrLas = false;
+    if (document.body.classList.contains('startlage')) startaSnurr(0.9 * snurrRikt);
+  }
   // grundplacering (CSS) tills steget säger annat
   introJonas.style.left = ''; introJonas.style.bottom = '';
   introBubbla.style.left = ''; introBubbla.style.right = '';
@@ -2643,6 +2727,13 @@ function visaTourSteg() {
   tourHal.style.left = '-60px'; tourHal.style.top = '-60px';
   tourHal.style.width = '0px'; tourHal.style.height = '0px';
   introBubbla.style.bottom = '';
+  // stora Jonas: bubblan läggs efter posens faktiska bredd (masken är bred!)
+  if (window.innerWidth > 700) {
+    const jhS = Math.min(window.innerHeight * 0.64, 560);
+    introBubbla.style.left = Math.round(Math.min(
+      window.innerWidth * 0.06 + jhS * aspFor(s.bild) + 16,
+      window.innerWidth - 430)) + 'px';
+  }
 }
 
 function startaTour(lista, nyckel, vidSlut) {
@@ -2662,6 +2753,7 @@ function nastaSteg() {
   tourSteg++;
   if (tourSteg >= aktivTour.length) {
     localStorage.setItem(tourNyckel, '1');
+    snurrLas = false;
     if (tourSlut) tourSlut();
     else introOverlay.style.display = 'none';
     return;
@@ -2708,9 +2800,7 @@ function spelaVideo(delar, start) {
   videoDelar.querySelectorAll('button').forEach((k, i) =>
     k.classList.toggle('aktiv', i === start));
 }
-document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click', e => {
-  e.preventDefault(); e.stopPropagation();
-  const delar = b.dataset.video.split(',');
+function oppnaVideo(delar) {
   videoDelar.innerHTML = '';
   videoDelar.style.display = delar.length > 1 ? 'flex' : 'none';
   if (delar.length > 1) {
@@ -2723,7 +2813,29 @@ document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click
   }
   spelaVideo(delar, 0);
   videoModal.style.display = 'flex';
+}
+document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  oppnaVideo(b.dataset.video.split(','));
 }));
+// samma videor inifrån spelvyn: play-knappen bredvid regiontiteln
+function regionVideo(slug) {
+  const knapp = document.querySelector(
+    `.start-knappar .knapp[href*="region=${slug}"] .knapp-video`);
+  return knapp ? knapp.dataset.video : null;
+}
+const spelVideoKnapp = document.getElementById('spel-video');
+function visaSpelVideo(slug) {
+  const video = slug ? regionVideo(slug) : null;
+  spelVideoKnapp.style.display = video ? '' : 'none';
+  spelVideoKnapp.dataset.video = video || '';
+}
+spelVideoKnapp.addEventListener('click', () => {
+  if (spelVideoKnapp.dataset.video) oppnaVideo(spelVideoKnapp.dataset.video.split(','));
+});
+document.getElementById('spel-hjalp').addEventListener('click', () => {
+  startaTour(SPEL_TOUR, 'speltur-klar', null);
+});
 document.getElementById('video-stang').addEventListener('click', stangVideo);
 videoModal.addEventListener('click', e => { if (e.target === videoModal) stangVideo(); });
 document.addEventListener('keydown', e => {
@@ -2791,6 +2903,7 @@ document.getElementById('feedback-form').addEventListener('submit', async e => {
 
 function showGame() {
   document.body.classList.remove('startlage');   // markupens default är startläge
+  fallIhopRattigheter();
   document.querySelector('header').style.display = '';
   document.getElementById('region-selector').style.display = 'none';
   document.querySelector('.game-container').style.display = '';
