@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '28';
+const V = '29';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2503,10 +2503,19 @@ const TOUR = [
   { el: globRect, rund: true, bild: 'assets/jonas/upp.webp',
     text: 'Alla minns var Italien ligger eftersom det ser ut som en stövel. På samma sätt går det att hitta på en bild för varje land i världen och på så vis minnas det mycket lättare!' },
   { el: () => document.getElementById('start-knappar'), bild: 'assets/jonas/ner.webp',
+    // Jonas svävar mitt ovanför knappraden och pekar ner på den
+    asp: 0.50, plats: (r, jw) => ({ left: r.left + r.width / 2 - jw / 2,
+      bottom: window.innerHeight - r.top + 20 }),
     text: 'Du kan träna på en världsdel i taget eller utmana dig på hela världen på en gång!' },
   { el: () => document.getElementById('resa-knapp'), bild: 'assets/jonas/ner-hoger.webp',
+    // snett ovanför resknappen så att den pekande handen hamnar alldeles intill
+    asp: 0.50, plats: (r, jw) => ({ left: r.left - jw * 0.7,
+      bottom: window.innerHeight - r.top + 14 }),
     text: 'Om du vill gå igenom hela sidan systematiskt rekommenderar jag Jorden Runt-resan!' },
   { el: () => document.getElementById('start-video-syd'), bild: 'assets/jonas/kul.webp',
+    // tätt till vänster om play-knappen, bubblan på andra sidan
+    asp: 0.68, plats: (r, jw) => ({ left: r.left - jw - 18, bottom: 0,
+      bubbLeft: r.right + 26 }),
     text: 'Om något är oklart är det en bra idé att titta på filmen om Sydamerikas länder där jag också förklarar hur minnesteknikerna fungerar!' },
   { el: () => document.getElementById('start-hifi'), bild: 'assets/jonas/smash.webp',
     hoger: true, spegel: true,
@@ -2563,10 +2572,32 @@ function visaTourSteg() {
   introOverlay.classList.toggle('hoger', !!s.hoger);
   introJonas.classList.toggle('spegel', !!s.spegel);
   tourHal.classList.toggle('rund', !!s.rund);
+  // grundplacering (CSS) tills steget säger annat
+  introJonas.style.left = ''; introJonas.style.bottom = '';
+  introBubbla.style.left = ''; introBubbla.style.right = '';
+  introBubbla.style.maxWidth = '';
   if (s.bild) introJonas.src = s.bild;
   introText.textContent = s.text;
   introNasta.textContent = s.knapp || 'Nästa';
-  if (s.el) { visaHal(s.el()); return; }
+  if (s.el) {
+    const mal = s.el();
+    visaHal(mal);
+    // på större skärmar kan Jonas ställa sig alldeles intill målet
+    if (s.plats && mal && window.innerWidth > 700) {
+      const r = mal.getBoundingClientRect ? mal.getBoundingClientRect() : mal;
+      const jh = Math.min(window.innerHeight * 0.36, 320);
+      const jw = jh * (s.asp || 0.5);
+      const p = s.plats(r, jw);
+      const vx = Math.max(8, Math.min(p.left, window.innerWidth - jw - 8));
+      introJonas.style.left = vx + 'px';
+      introJonas.style.bottom = Math.max(0, p.bottom) + 'px';
+      const bubbLeft = p.bubbLeft != null ? p.bubbLeft : vx + jw + 14;
+      introBubbla.style.left = bubbLeft + 'px';
+      introBubbla.style.maxWidth =
+        Math.min(400, window.innerWidth - bubbLeft - 16) + 'px';
+    }
+    return;
+  }
   // inget utpekat: hålet är en punkt utanför skärmen → dimman täcker allt
   tourHal.style.left = '-60px'; tourHal.style.top = '-60px';
   tourHal.style.width = '0px'; tourHal.style.height = '0px';
@@ -2584,7 +2615,7 @@ function startaTour(lista, nyckel, vidSlut) {
   visaTourSteg();
 }
 
-function startaIntro() { startaTour(TOUR, 'rundtur-klar', flygTillHornet); }
+function startaIntro() { startaTour(TOUR, 'rundtur-klar', null); }
 
 function nastaSteg() {
   tourSteg++;
@@ -2595,23 +2626,6 @@ function nastaSteg() {
     return;
   }
   visaTourSteg();
-}
-
-// startsidans final: Jonas åker ner och blir hörngubben
-function flygTillHornet() {
-  // byt till hörngubbens bild innan flygturen så att landningen blir sömlös
-  introJonas.src = 'Jonas_1.webp';
-  const flyg = () => {
-    const mal = startHifiImg.getBoundingClientRect();
-    const fran = introJonas.getBoundingClientRect();
-    const dx = (mal.left + mal.width / 2) - (fran.left + fran.width / 2);
-    const dy = mal.bottom - fran.bottom;
-    introBubbla.style.display = 'none';
-    tourHal.style.display = 'none';        // dimman släcks, Jonas flyger fritt
-    introJonas.style.transform = `translate(${dx}px, ${dy}px) scale(${mal.width / fran.width})`;
-    setTimeout(() => { introOverlay.style.display = 'none'; }, 1000);
-  };
-  (introJonas.decode ? introJonas.decode().catch(() => {}) : Promise.resolve()).then(flyg);
 }
 
 // spelvyns genomgång startar när kameran har landat i regionen
@@ -2635,9 +2649,8 @@ introHoppa.addEventListener('click', () => {
 });
 document.getElementById('start-hjalp').addEventListener('click', startaIntro);
 window.addEventListener('resize', () => {
-  if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < aktivTour.length
-      && aktivTour[tourSteg].el) {
-    visaHal(aktivTour[tourSteg].el());
+  if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < aktivTour.length) {
+    visaTourSteg();   // räknar om både hålet och Jonas placering
   }
   if (document.body.classList.contains('startlage')) startPadding();
 });
