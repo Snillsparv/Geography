@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '25';
+const V = '26';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2629,7 +2629,11 @@ if ('serviceWorker' in navigator) {
   // bakgrunden och ger sedan helt sömlös snurr.
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
-    preloadTiles(p => {
+    // datasnåla anslutningar (spara data-läge / 2G) slipper 45 MB-för-
+    // laddningen — kartrutorna strömmas på begäran i stället
+    const ansl = navigator.connection || {};
+    const sparsam = !!ansl.saveData || /(^|-)2g$/.test(ansl.effectiveType || '');
+    if (!sparsam) preloadTiles(p => {
       const procent = document.getElementById('ladd-procent');
       const text = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %` : '';
       if (procent && !document.getElementById('ladd-skarm').classList.contains('klar')) {
