@@ -73,6 +73,7 @@ let exploreTooltipTimer = null;
 let seterraQueue = [];
 let seterraTarget = null;
 let seterraCorrect = 0, seterraWrong = 0, seterraTotal = 0;
+let seterraSvit = 0;   // rätta svar i rad — konfetti vid var femte
 let seterraStartTime = 0, seterraTimerInterval = null;
 let seterraLocked = false, seterraTargetMisses = 0, seterraElapsed = 0;
 let seterraMissedCountries = new Set();
@@ -147,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '36';
+const V = '37';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1711,7 +1712,7 @@ function startSeterra() {
   // bild till land innan man kör klassiska quizet helt utan stöd
   if (bildlage) COUNTRIES.forEach(c => setLand(c.gid, { tackt: false }));
   seterraQueue = shuffle([...COUNTRIES]);
-  seterraCorrect = 0; seterraWrong = 0;
+  seterraCorrect = 0; seterraWrong = 0; seterraSvit = 0;
   seterraTotal = COUNTRIES.length;
   seterraLocked = false; seterraTargetMisses = 0;
   seterraFeedback.className = 'seterra-feedback';
@@ -1736,7 +1737,7 @@ function startSeterraRetry() {
   if (bildlage) COUNTRIES.forEach(c =>
     setLand(c.gid, { tackt: false, gron: !seterraMissedCountries.has(c.gid) }));
   seterraQueue = shuffle([...missedList]);
-  seterraCorrect = 0; seterraWrong = 0;
+  seterraCorrect = 0; seterraWrong = 0; seterraSvit = 0;
   seterraTotal = missedList.length;
   seterraLocked = false; seterraTargetMisses = 0;
   seterraFeedback.className = 'seterra-feedback';
@@ -1794,11 +1795,14 @@ function seterraClick(c) {
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
-    burstConfetti();
+    // konfetti bara vid var femte rätta svar i rad — lagom festligt
+    seterraSvit++;
+    if (seterraSvit % 5 === 0) burstConfetti();
     updateSeterraUI();
     nextSeterraTarget();
   } else {
     seterraWrong++;
+    seterraSvit = 0;
     seterraTargetMisses++;
     spela('fel');
     seterraMissedCountries.add(seterraTarget.gid);
@@ -2606,23 +2610,35 @@ const TOUR = [
     text: 'Kör hårt!' },
 ];
 
-// spelvyns genomgång: förklarar de tre lägena första gången man är inne
+// spelvyns genomgång: förklarar lägena första gången man är inne.
+// På datorn ställer sig Jonas rakt under knappen han berättar om,
+// med pratbubblan bredvid sig.
+function underKnappen(r, jw) {
+  const jh = Math.min(window.innerHeight * 0.36, 320);
+  return { left: r.left + r.width / 2 - jw / 2,
+           bottom: Math.max(0, window.innerHeight - r.bottom - jh - 12) };
+}
 const SPEL_TOUR = [
   { stor: true, bild: 'assets/jonas/hej.webp', knapp: 'Ja, visa mig!',
     text: 'Nu är vi inne! Ska jag snabbt förklara hur lägena funkar?' },
   { el: () => document.querySelector('.mode-btn[data-mode="explore"]'),
-    bild: 'assets/jonas/upp.webp',
+    bild: 'assets/jonas/upp.webp', plats: underKnappen,
     text: 'Vi börjar alltid i Utforska: klicka runt på länderna och kolla in bilderna och mina minnesknep!' },
+  { el: () => document.querySelector('.info-panel'),
+    bild: 'assets/jonas/kul.webp',
+    plats: (r, jw) => ({ left: r.left - jw - 16, bottom: 0,
+      bubbLeft: Math.max(16, r.left - jw - 452), svans: 'hoger' }),
+    text: 'Klicka på ett land, så dyker det upp här! Du får se vad landet föreställer och ett minnesknep som kopplar bilden till landets namn.' },
   { el: () => document.querySelector('.mode-btn[data-mode="bildquiz"]'),
-    bild: 'assets/jonas/pekar.webp',
+    bild: 'assets/jonas/pekar.webp', plats: underKnappen,
     text: 'Bildquiz är perfekt att börja träna med — jag frågar efter länderna medan bilderna fortfarande syns.' },
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
-    bild: 'assets/jonas/stark.webp',
+    bild: 'assets/jonas/stark.webp', plats: underKnappen,
     text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!' },
   { el: () => document.getElementById('back-btn'),
-    bild: 'assets/jonas/upp.webp', spegel: true,
+    bild: 'assets/jonas/upp.webp', spegel: true, plats: underKnappen,
     text: 'Pilen tar dig tillbaka till jordgloben när du vill välja något annat.' },
-  { stor: true, bild: 'assets/jonas/kul.webp', knapp: 'Nu kör vi!',
+  { stor: true, bild: 'assets/jonas/masken.webp', knapp: 'Nu kör vi!',
     text: 'Kör hårt!' },
 ];
 
@@ -2692,7 +2708,13 @@ function visaTourSteg() {
         const vx = Math.max(8, Math.min(p.left, W - jw - 8));
         introJonas.style.left = vx + 'px';
         introJonas.style.bottom = Math.max(0, p.bottom) + 'px';
-        const bubbLeft = p.bubbLeft != null ? p.bubbLeft : vx + jw + 14;
+        let bubbLeft = p.bubbLeft != null ? p.bubbLeft : vx + jw + 14;
+        let svansHoger = p.svans === 'hoger';
+        if (p.bubbLeft == null && W - bubbLeft < 280) {
+          bubbLeft = Math.max(16, vx - 414);   // trångt till höger → vänster sida
+          svansHoger = true;
+        }
+        if (svansHoger) introOverlay.classList.add('hoger');   // svansen mot Jonas
         introBubbla.style.left = bubbLeft + 'px';
         introBubbla.style.maxWidth = Math.min(400, W - bubbLeft - 16) + 'px';
       }
@@ -2712,7 +2734,7 @@ function visaTourSteg() {
     introJonas.style.left = jLeft + 'px';
     introJonas.style.bottom = jBottom + 'px';
     const bh = introBubbla.offsetHeight;
-    let bb = jBottom + jh + 12;
+    let bb = jBottom + jh + 26;   // svansen sticker ner — täck aldrig Jonas
     if (H - bb - bh < r.bottom + 6 && H - bb > r.top - 6) {
       // bubblan skulle skymma målet → lägg den ovanför, aldrig utanför skärmen
       bb = Math.min(H - r.top + 16, H - 6 - bh);
@@ -2796,7 +2818,9 @@ const videoIframe = document.getElementById('video-iframe');
 const videoDelar = document.getElementById('video-delar');
 function stangVideo() { videoModal.style.display = 'none'; videoIframe.src = ''; }
 function spelaVideo(delar, start) {
-  videoIframe.src = 'https://www.youtube.com/embed/' + delar[start] + '?autoplay=1&rel=0';
+  // cc_load_policy=3 stänger av de autogenererade undertexterna som standard
+  videoIframe.src = 'https://www.youtube.com/embed/' + delar[start]
+    + '?autoplay=1&rel=0&cc_load_policy=3';
   videoDelar.querySelectorAll('button').forEach((k, i) =>
     k.classList.toggle('aktiv', i === start));
 }
