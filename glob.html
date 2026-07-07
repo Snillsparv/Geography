@@ -147,9 +147,8 @@
     body.startlage .zoom-controls, body.startlage .maplibregl-control-container,
     body.startlage #spel-map .maplibregl-ctrl { display: none !important; }
     @media (max-width: 700px) {
-      /* knappraden lämnar plats åt hörngubben till höger */
-      .start-knappar { bottom: 4vh; gap: 8px; width: calc(100vw - 78px);
-        left: calc(50% - 35px); }
+      /* raden centrerad och lyft: ljudknappen och hörngubben får plats under */
+      .start-knappar { bottom: 104px; gap: 8px; }
       .start-knappar .knapp { padding: 11px 15px; font-size: .9rem; }
       .start-hifi { right: 8px; bottom: 6px; }
       .start-hifi img { width: 54px; }
@@ -676,7 +675,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=30"></script>
+<script src="glob-spel.js?v=31"></script>
 
 </body>
 </html>
