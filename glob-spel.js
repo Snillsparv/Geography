@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '33';
+const V = '34';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2523,7 +2523,7 @@ const TOUR = [
     // tätt till vänster om play-knappen, bubblan på andra sidan
     asp: 0.68, plats: (r, jw) => ({ left: r.left - jw - 18, bottom: 0,
       bubbLeft: r.right + 26 }),
-    text: 'Om något är oklart är det en bra idé att titta på filmen om Sydamerikas länder där jag också förklarar hur minnesteknikerna fungerar!' },
+    text: 'Varje världsdel har en film bakom play-knappen! Om något är oklart är det en bra idé att titta på filmen om Sydamerikas länder där jag också förklarar hur minnesteknikerna fungerar!' },
   { el: () => document.getElementById('start-hifi'), bild: 'assets/jonas/smash.webp',
     hoger: true, spegel: true,
     text: 'Varje gång du känner dig extra nöjd med att ha lyckats minnas något är du välkommen att ge mig en high five i hörnet!' },
@@ -2696,13 +2696,34 @@ window.addEventListener('resize', () => {
   if (document.body.classList.contains('startlage')) startPadding();
 });
 
-// Videomodal — genomgångsvideor per världsdel (▶-knappen på kortet)
+// Videomodal — genomgångsvideor per världsdel (▶-knappen på kortet).
+// Flera delar (Afrika) anges kommaseparerat: delarna spelas i följd via
+// YouTubes playlist-parameter, och delknappar låter en hoppa direkt.
 const videoModal = document.getElementById('video-modal');
 const videoIframe = document.getElementById('video-iframe');
+const videoDelar = document.getElementById('video-delar');
 function stangVideo() { videoModal.style.display = 'none'; videoIframe.src = ''; }
+function spelaVideo(delar, start) {
+  const resten = delar.slice(start + 1);
+  videoIframe.src = 'https://www.youtube.com/embed/' + delar[start]
+    + '?autoplay=1&rel=0' + (resten.length ? '&playlist=' + resten.join(',') : '');
+  videoDelar.querySelectorAll('button').forEach((k, i) =>
+    k.classList.toggle('aktiv', i === start));
+}
 document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click', e => {
   e.preventDefault(); e.stopPropagation();
-  videoIframe.src = 'https://www.youtube.com/embed/' + b.dataset.video + '?autoplay=1&rel=0';
+  const delar = b.dataset.video.split(',');
+  videoDelar.innerHTML = '';
+  videoDelar.style.display = delar.length > 1 ? 'flex' : 'none';
+  if (delar.length > 1) {
+    delar.forEach((_, i) => {
+      const k = document.createElement('button');
+      k.textContent = 'Del ' + (i + 1);
+      k.addEventListener('click', () => spelaVideo(delar, i));
+      videoDelar.appendChild(k);
+    });
+  }
+  spelaVideo(delar, 0);
   videoModal.style.display = 'flex';
 }));
 document.getElementById('video-stang').addEventListener('click', stangVideo);

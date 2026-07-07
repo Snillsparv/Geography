@@ -234,6 +234,12 @@
     .video-ram { position: relative; width: min(920px, 94vw); aspect-ratio: 16 / 9;
       background: #000; border-radius: 14px; box-shadow: 0 18px 60px #000; }
     .video-ram iframe { width: 100%; height: 100%; border: 0; border-radius: 14px; }
+    /* flerdelade videor (Afrika): delknappar under spelaren */
+    #video-delar { position: absolute; left: 0; right: 0; bottom: -46px;
+      display: flex; gap: 8px; justify-content: center; }
+    #video-delar button { padding: 7px 16px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 800; cursor: pointer; }
+    #video-delar button.aktiv { background: #ffdc32; color: #08131f; }
     #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: 1rem; cursor: pointer; z-index: 2; }
@@ -426,15 +432,27 @@
   <div class="start-knappar" id="start-knappar">
     <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; V&auml;rldsresan</a>
     <a class="knapp k8" href="?region=world">&#127757; V&Auml;RLDSTEST</a>
-    <a class="knapp k1" href="?region=europa">Europa</a>
-    <a class="knapp k2" href="?region=afrika">Afrika</a>
-    <a class="knapp k3" href="?region=asien">Asien</a>
-    <a class="knapp k4" href="?region=nordamerika">Nordamerika</a>
+    <a class="knapp k1" href="?region=europa">Europa
+      <button class="knapp-video" data-video="L7BriuuKjd4"
+              title="Se videon om Europas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k2" href="?region=afrika">Afrika
+      <button class="knapp-video" data-video="mm8oTv53IJk,nitqJxm3JrA,2qTbJbb6Vuw"
+              title="Se videorna om Afrikas l&auml;nder (tre delar)">&#9654;</button></a>
+    <a class="knapp k3" href="?region=asien">Asien
+      <button class="knapp-video" data-video="J7jt8Egjv9M"
+              title="Se videon om Asiens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k4" href="?region=nordamerika">Nordamerika
+      <button class="knapp-video" data-video="NF_UcuD1XKU"
+              title="Se videon om Nordamerikas l&auml;nder">&#9654;</button></a>
     <a class="knapp k5" href="?region=sydamerika">Sydamerika
       <button class="knapp-video" id="start-video-syd" data-video="iyU2bR1MsQ8"
               title="Se videon om Sydamerikas l&auml;nder">&#9654;</button></a>
-    <a class="knapp k6" href="?region=oceanien">Oceanien</a>
-    <a class="knapp k7" href="?region=vastindien">V&auml;stindien</a>
+    <a class="knapp k6" href="?region=oceanien">Oceanien
+      <button class="knapp-video" data-video="7wgREQcfMRc"
+              title="Se videon om Oceaniens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k7" href="?region=vastindien">V&auml;stindien
+      <button class="knapp-video" data-video="9ZkIjghuPBQ"
+              title="Se videon om V&auml;stindiens l&auml;nder">&#9654;</button></a>
   </div>
   <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
   <div class="start-hifi" id="start-hifi">
@@ -525,6 +543,7 @@
     <button id="video-stang" title="St&auml;ng">&#10005;</button>
     <iframe id="video-iframe" src="" title="Genomg&aring;ngsvideo"
             allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+    <div id="video-delar" style="display:none"></div>
   </div>
 </div>
 
@@ -725,7 +744,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=33"></script>
+<script src="glob-spel.js?v=34"></script>
 
 </body>
 </html>
