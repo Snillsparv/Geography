@@ -11,6 +11,8 @@
 <title>Jonas geografi – jordglob</title>
   <link rel="stylesheet" href="style.css?v=2">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
+  <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
+  <link rel="preload" as="image" href="assets/jonas/hej.webp">
   <style>
     /* ── glob-sidans tillägg: kartpanelen är glob / väggkarta / originalkarta ── */
     #spel-map { position: absolute; inset: 0; background: #0e2438; }
@@ -482,7 +484,7 @@
      blir lilla high five-gubben i hörnet. -->
 <div id="intro-overlay" style="display:none">
   <div id="tour-hal"></div>
-  <img id="intro-jonas" src="Jonas_1.webp" alt="Jonas">
+  <img id="intro-jonas" src="assets/jonas/hej.webp" alt="Jonas">
   <div id="intro-bubbla">
     <p id="intro-text"></p>
     <div class="intro-knappar">
