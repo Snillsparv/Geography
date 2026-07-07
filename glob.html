@@ -173,6 +173,15 @@
        så att strålkastarmålen (knappar m.m.) syns fritt */
     #intro-overlay.steg #intro-jonas { height: min(36vh, 320px); left: 2vw; }
     #intro-overlay.steg #intro-bubbla { left: calc(2vw + min(17vh, 155px)); bottom: min(26vh, 235px); }
+    /* runt strålkastarhål (jordgloben) */
+    #tour-hal.rund { border-radius: 50%; }
+    /* vissa steg står Jonas till höger (t.ex. vid high five-hörnet) */
+    #intro-overlay.steg.hoger #intro-jonas { left: auto; right: min(20vw, 220px); }
+    #intro-overlay.steg.hoger #intro-bubbla { left: auto;
+      right: calc(min(20vw, 220px) + min(17vh, 155px)); }
+    #intro-overlay.hoger #intro-bubbla::after { left: auto; right: -14px;
+      border: 10px solid transparent; border-left-color: #fff; border-right-width: 6px; }
+    #intro-jonas.spegel { transform: scaleX(-1); }
     @media (max-width: 700px) {
       #intro-jonas { height: 44vh; left: 2vw; }
       #intro-overlay.steg #intro-jonas { height: 30vh; }
@@ -180,6 +189,10 @@
       #intro-bubbla { left: 10vw; right: 10vw; bottom: 48vh; max-width: none; }
       #intro-bubbla::after { left: 30px; bottom: -18px; border: 10px solid transparent;
         border-top-color: #fff; }
+      #intro-overlay.steg.hoger #intro-jonas { right: 2vw; }
+      #intro-overlay.steg.hoger #intro-bubbla { left: 8vw; right: 8vw; }
+      #intro-overlay.hoger #intro-bubbla::after { left: auto; right: 30px; bottom: -18px;
+        border: 10px solid transparent; border-top-color: #fff; }
     }
     /* ── Videomodal ── */
     #video-modal { position: fixed; inset: 0; z-index: 300; background: rgba(3, 7, 17, .88);
@@ -655,7 +668,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=27"></script>
+<script src="glob-spel.js?v=28"></script>
 
 </body>
 </html>

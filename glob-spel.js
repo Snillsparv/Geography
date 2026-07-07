@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '27';
+const V = '28';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2370,7 +2370,10 @@ async function gaTillRegion(slug) {
   history.pushState({}, '', '?region=' + slug);
   lamnaStart();
   if (slug === 'world') worldFlow();
-  else await startRegion(slug, true);
+  else {
+    await startRegion(slug, true);
+    spelTourVidBehov();   // första besöket i spelvyn: förklara lägena
+  }
 }
 document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
   a.addEventListener('click', e => {
@@ -2469,8 +2472,12 @@ document.getElementById('back-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════
-// Startsidans rundtur: stora Jonas berättar, en strålkastare lyfter fram
-// delar av sidan, och till sist åker han ner och blir hörngubben.
+// Rundturerna: Jonas (riktiga foton, ny pose per steg) berättar medan en
+// strålkastare lyfter fram delar av sidan. Samma maskineri driver både
+// startsidans rundtur och spelvyns genomgång av lägena.
+// Stegflaggor:  stor = stora Jonas utan strålkastare,  el = mål (element
+// eller ruta),  rund = runt hål,  hoger = Jonas står till höger,
+// spegel = spegelvänd pose,  knapp = text på gå-vidare-knappen.
 // ══════════════════════
 const introOverlay = document.getElementById('intro-overlay');
 const introJonas = document.getElementById('intro-jonas');
@@ -2479,25 +2486,63 @@ const introText = document.getElementById('intro-text');
 const introNasta = document.getElementById('intro-nasta');
 const introHoppa = document.getElementById('intro-hoppa');
 const tourHal = document.getElementById('tour-hal');
-const TOUR = [
-  { el: () => document.querySelector('.start-knappar .k8'),
-    bild: 'assets/jonas/stark.webp',
-    text: 'Här startar du det stora VÄRLDSTESTET — hela globen på en gång. Vågar du?' },
-  { el: () => document.getElementById('start-knappar'),
-    bild: 'assets/jonas/ner.webp',
-    text: 'Här klickar du för att kolla på länderna! Välj en världsdel, utforska bilderna och kör sedan Klassiskt Quiz.' },
-  { el: () => document.getElementById('start-video-syd'),
-    bild: 'assets/jonas/kul.webp',
-    text: 'Ser du den röda play-knappen? Där ligger min video om världsdelens länder — smart att titta först!' },
-  { el: () => document.getElementById('start-hifi'),
-    bild: 'assets/jonas/smash.webp',
-    text: 'Och när du har klarat något riktigt bra: kom hit och ge mig en HIGH FIVE! 🖐' },
-];
-let tourSteg = -1;
 
-function visaHal(el) {
-  if (!el) { nastaSteg(); return; }
-  const r = el.getBoundingClientRect();
+// jordglobens ruta på skärmen: centrum via kartprojektionen, radien ur
+// zoomnivån (globens omkrets = kartvärldens bredd i pixlar)
+function globRect() {
+  const c = map.project(map.getCenter());
+  let r = 512 * Math.pow(2, map.getZoom()) / (2 * Math.PI);
+  r = Math.min(r, window.innerHeight * 0.42, window.innerWidth * 0.42);
+  return { left: c.x - r, top: c.y - r, right: c.x + r, bottom: c.y + r,
+           width: r * 2, height: r * 2 };
+}
+
+const TOUR = [
+  { stor: true, bild: 'assets/jonas/hej.webp', knapp: 'Visa mig runt!',
+    text: 'Hej! Det är jag som är Jonas, och det här är min geografisida. Ska jag visa dig runt?' },
+  { el: globRect, rund: true, bild: 'assets/jonas/upp.webp',
+    text: 'Alla minns var Italien ligger eftersom det ser ut som en stövel. På samma sätt går det att hitta på en bild för varje land i världen och på så vis minnas det mycket lättare!' },
+  { el: () => document.getElementById('start-knappar'), bild: 'assets/jonas/ner.webp',
+    text: 'Du kan träna på en världsdel i taget eller utmana dig på hela världen på en gång!' },
+  { el: () => document.getElementById('resa-knapp'), bild: 'assets/jonas/ner-hoger.webp',
+    text: 'Om du vill gå igenom hela sidan systematiskt rekommenderar jag Jorden Runt-resan!' },
+  { el: () => document.getElementById('start-video-syd'), bild: 'assets/jonas/kul.webp',
+    text: 'Om något är oklart är det en bra idé att titta på filmen om Sydamerikas länder där jag också förklarar hur minnesteknikerna fungerar!' },
+  { el: () => document.getElementById('start-hifi'), bild: 'assets/jonas/smash.webp',
+    hoger: true, spegel: true,
+    text: 'Varje gång du känner dig extra nöjd med att ha lyckats minnas något är du välkommen att ge mig en high five i hörnet!' },
+  { stor: true, bild: 'assets/jonas/stark.webp', knapp: 'Nu kör vi!',
+    text: 'Kör hårt!' },
+];
+
+// spelvyns genomgång: förklarar de tre lägena första gången man är inne
+const SPEL_TOUR = [
+  { stor: true, bild: 'assets/jonas/hej.webp', knapp: 'Ja, visa mig!',
+    text: 'Nu är vi inne! Ska jag snabbt förklara hur lägena funkar?' },
+  { el: () => document.querySelector('.mode-btn[data-mode="explore"]'),
+    bild: 'assets/jonas/upp.webp',
+    text: 'Vi börjar alltid i Utforska: klicka runt på länderna och kolla in bilderna och mina minnesknep!' },
+  { el: () => document.querySelector('.mode-btn[data-mode="bildquiz"]'),
+    bild: 'assets/jonas/pekar.webp',
+    text: 'Bildquiz är perfekt att börja träna med — jag frågar efter länderna medan bilderna fortfarande syns.' },
+  { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
+    bild: 'assets/jonas/stark.webp',
+    text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Världsresan — och 100 % ger ett diplom!' },
+  { el: () => document.getElementById('back-btn'),
+    bild: 'assets/jonas/upp.webp', spegel: true,
+    text: 'Pilen tar dig tillbaka till jordgloben när du vill välja något annat.' },
+  { stor: true, bild: 'assets/jonas/kul.webp', knapp: 'Nu kör vi!',
+    text: 'Kör hårt!' },
+];
+
+let aktivTour = TOUR;
+let tourSteg = -1;
+let tourNyckel = 'rundtur-klar';
+let tourSlut = null;
+
+function visaHal(mal) {
+  if (!mal) { nastaSteg(); return; }
+  const r = mal.getBoundingClientRect ? mal.getBoundingClientRect() : mal;
   tourHal.style.left = (r.left - 8) + 'px';
   tourHal.style.top = (r.top - 8) + 'px';
   tourHal.style.width = (r.width + 16) + 'px';
@@ -2511,39 +2556,49 @@ function visaHal(el) {
   }
 }
 
-function startaIntro() {
-  tourSteg = -1;
-  // riktiga foton på Jonas: vinkar i hälsningen, ny pose per steg
-  introJonas.src = 'assets/jonas/hej.webp';
-  TOUR.forEach(s => { if (s.bild) new Image().src = s.bild; });   // värm cachen
-  introOverlay.classList.remove('steg');
+function visaTourSteg() {
+  const s = aktivTour[tourSteg];
+  introHoppa.style.display = tourSteg === 0 ? '' : 'none';
+  introOverlay.classList.toggle('steg', !s.stor);
+  introOverlay.classList.toggle('hoger', !!s.hoger);
+  introJonas.classList.toggle('spegel', !!s.spegel);
+  tourHal.classList.toggle('rund', !!s.rund);
+  if (s.bild) introJonas.src = s.bild;
+  introText.textContent = s.text;
+  introNasta.textContent = s.knapp || 'Nästa';
+  if (s.el) { visaHal(s.el()); return; }
+  // inget utpekat: hålet är en punkt utanför skärmen → dimman täcker allt
+  tourHal.style.left = '-60px'; tourHal.style.top = '-60px';
+  tourHal.style.width = '0px'; tourHal.style.height = '0px';
   introBubbla.style.bottom = '';
+}
+
+function startaTour(lista, nyckel, vidSlut) {
+  aktivTour = lista; tourNyckel = nyckel; tourSlut = vidSlut; tourSteg = 0;
+  lista.forEach(s => { if (s.bild) new Image().src = s.bild; });   // värm cachen
   introOverlay.style.display = '';
   introBubbla.style.display = '';
   introJonas.style.display = '';
   introJonas.style.transform = '';
-  // inget utpekat än: hålet är en punkt utanför skärmen → dimman täcker allt
   tourHal.style.display = '';
-  tourHal.style.left = '-60px'; tourHal.style.top = '-60px';
-  tourHal.style.width = '0px'; tourHal.style.height = '0px';
-  introText.textContent = 'Hej! Det är jag som är Jonas, och det här är min geografisida. Ska jag visa dig runt?';
-  introNasta.textContent = 'Visa mig runt!';
-  introHoppa.style.display = '';
+  visaTourSteg();
 }
+
+function startaIntro() { startaTour(TOUR, 'rundtur-klar', flygTillHornet); }
 
 function nastaSteg() {
   tourSteg++;
-  if (tourSteg >= TOUR.length) { avslutaIntro(); return; }
-  introHoppa.style.display = 'none';
-  introOverlay.classList.add('steg');   // Jonas kliver åt sidan, målen syns fritt
-  if (TOUR[tourSteg].bild) introJonas.src = TOUR[tourSteg].bild;
-  introText.textContent = TOUR[tourSteg].text;
-  introNasta.textContent = tourSteg === TOUR.length - 1 ? 'Nu kör vi!' : 'Nästa';
-  visaHal(TOUR[tourSteg].el());
+  if (tourSteg >= aktivTour.length) {
+    localStorage.setItem(tourNyckel, '1');
+    if (tourSlut) tourSlut();
+    else introOverlay.style.display = 'none';
+    return;
+  }
+  visaTourSteg();
 }
 
-function avslutaIntro() {
-  localStorage.setItem('rundtur-klar', '1');
+// startsidans final: Jonas åker ner och blir hörngubben
+function flygTillHornet() {
   // byt till hörngubbens bild innan flygturen så att landningen blir sömlös
   introJonas.src = 'Jonas_1.webp';
   const flyg = () => {
@@ -2559,15 +2614,30 @@ function avslutaIntro() {
   (introJonas.decode ? introJonas.decode().catch(() => {}) : Promise.resolve()).then(flyg);
 }
 
+// spelvyns genomgång startar när kameran har landat i regionen
+function spelTourVidBehov() {
+  if (localStorage.getItem('speltur-klar')) return;
+  let gjord = false;
+  const kor = () => {
+    if (gjord) return; gjord = true;
+    if (document.body.classList.contains('startlage')) return;   // hann tillbaka
+    if (introOverlay.style.display !== 'none') return;           // annan tur igång
+    startaTour(SPEL_TOUR, 'speltur-klar', null);
+  };
+  map.once('moveend', () => setTimeout(kor, 500));
+  setTimeout(kor, 3800);                    // säkerhetsnät om flygturen uteblir
+}
+
 introNasta.addEventListener('click', nastaSteg);
 introHoppa.addEventListener('click', () => {
-  localStorage.setItem('rundtur-klar', '1');
+  localStorage.setItem(tourNyckel, '1');
   introOverlay.style.display = 'none';
 });
 document.getElementById('start-hjalp').addEventListener('click', startaIntro);
 window.addEventListener('resize', () => {
-  if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < TOUR.length) {
-    visaHal(TOUR[tourSteg].el());
+  if (introOverlay.style.display !== 'none' && tourSteg >= 0 && tourSteg < aktivTour.length
+      && aktivTour[tourSteg].el) {
+    visaHal(aktivTour[tourSteg].el());
   }
   if (document.body.classList.contains('startlage')) startPadding();
 });
@@ -2674,6 +2744,7 @@ if ('serviceWorker' in navigator) {
     worldFlow();
   } else if (WORLD_SLUGS.includes(region)) {
     await startRegion(region);
+    spelTourVidBehov();
   } else {
     startLage();
   }
