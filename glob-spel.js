@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '34';
+const V = '35';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2697,16 +2697,14 @@ window.addEventListener('resize', () => {
 });
 
 // Videomodal — genomgångsvideor per världsdel (▶-knappen på kortet).
-// Flera delar (Afrika) anges kommaseparerat: delarna spelas i följd via
-// YouTubes playlist-parameter, och delknappar låter en hoppa direkt.
+// Flera delar (Afrika) anges kommaseparerat och byts med delknapparna;
+// ingen dold spellista, så markeringen stämmer alltid med det som spelas.
 const videoModal = document.getElementById('video-modal');
 const videoIframe = document.getElementById('video-iframe');
 const videoDelar = document.getElementById('video-delar');
 function stangVideo() { videoModal.style.display = 'none'; videoIframe.src = ''; }
 function spelaVideo(delar, start) {
-  const resten = delar.slice(start + 1);
-  videoIframe.src = 'https://www.youtube.com/embed/' + delar[start]
-    + '?autoplay=1&rel=0' + (resten.length ? '&playlist=' + resten.join(',') : '');
+  videoIframe.src = 'https://www.youtube.com/embed/' + delar[start] + '?autoplay=1&rel=0';
   videoDelar.querySelectorAll('button').forEach((k, i) =>
     k.classList.toggle('aktiv', i === start));
 }

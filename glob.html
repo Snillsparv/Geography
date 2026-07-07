@@ -230,13 +230,17 @@
     }
     /* ── Videomodal ── */
     #video-modal { position: fixed; inset: 0; z-index: 300; background: rgba(3, 7, 17, .88);
-      display: flex; align-items: center; justify-content: center; padding: 4vmin; }
-    .video-ram { position: relative; width: min(920px, 94vw); aspect-ratio: 16 / 9;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 4vmin; }
+    /* spelarens bredd begränsas även av höjden så att spelare + delknappar
+       alltid ryms på skärmen (t.ex. mobil i liggande läge) */
+    .video-ram { position: relative; aspect-ratio: 16 / 9;
+      width: min(920px, 94vw, calc((100vh - 8vmin - 70px) * 16 / 9));
       background: #000; border-radius: 14px; box-shadow: 0 18px 60px #000; }
+    .video-ram { width: min(920px, 94vw, calc((100dvh - 8vmin - 70px) * 16 / 9)); }
     .video-ram iframe { width: 100%; height: 100%; border: 0; border-radius: 14px; }
     /* flerdelade videor (Afrika): delknappar under spelaren */
-    #video-delar { position: absolute; left: 0; right: 0; bottom: -46px;
-      display: flex; gap: 8px; justify-content: center; }
+    #video-delar { display: flex; gap: 8px; justify-content: center; }
     #video-delar button { padding: 7px 16px; border-radius: 10px; border: none;
       background: #1d3550; color: #cfe3f4; font-weight: 800; cursor: pointer; }
     #video-delar button.aktiv { background: #ffdc32; color: #08131f; }
@@ -343,7 +347,7 @@
     }
     /* ── Medaljer på startknapparna ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
-      filter: drop-shadow(0 2px 4px #000a); }
+      filter: drop-shadow(0 2px 4px #000a); pointer-events: none; }
     .k9 { background: #e7c27d; }
     /* ── Världsresans pass ── */
     #resa-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
@@ -543,8 +547,8 @@
     <button id="video-stang" title="St&auml;ng">&#10005;</button>
     <iframe id="video-iframe" src="" title="Genomg&aring;ngsvideo"
             allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
-    <div id="video-delar" style="display:none"></div>
   </div>
+  <div id="video-delar" style="display:none"></div>
 </div>
 
 <div class="game-container">
@@ -744,7 +748,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=34"></script>
+<script src="glob-spel.js?v=35"></script>
 
 </body>
 </html>
