@@ -59,6 +59,8 @@ let IMAGE_ASSOCIATIONS = {};
 let HS_KEY = '';
 let HS_BAS = '';               // grundnyckel; bildquizet får egen rekordlista
 let bildlage = false;          // bildquiz: konsten synlig, hittade länder blir gröna
+let aktivSlug = '';            // aktuell region (slug eller 'world')
+let aktivRegionNamn = '';
 function uppdateraHsKey() { HS_KEY = (bildlage ? 'bild-' : '') + HS_BAS; }
 let ASSET_BASE = '';
 let currentMode = 'explore';
@@ -145,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '22';
+const V = '23';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -260,6 +262,95 @@ function prickStops(vardeFn) {
   }
   return stops;
 }
+
+
+// ══════════════════════
+// Flaggor: landnamn → emoji (ISO-koder; England/Skottland/Wales har egna
+// emojiflaggor, Nordirland saknar och får GB)
+// ══════════════════════
+const FLAGG_ISO = { Afghanistan:'AF', Albanien:'AL', Algeriet:'DZ', Andorra:'AD', Angola:'AO',
+  'Antigua & Barbuda':'AG', Argentina:'AR', Armenien:'AM', Australien:'AU', Azerbajdzjan:'AZ',
+  Bahamas:'BS', Bahrain:'BH', Bangladesh:'BD', Barbados:'BB', Belgien:'BE', Belize:'BZ',
+  Benin:'BJ', Bhutan:'BT', Bolivia:'BO', 'Bosnien-Hercegovina':'BA', Botswana:'BW',
+  Brasilien:'BR', Brunei:'BN', Bulgarien:'BG', 'Burkina Faso':'BF', Burma:'MM', Burundi:'BI',
+  'Centralafrikanska Republiken':'CF', Chile:'CL', Colombia:'CO', 'Costa Rica':'CR',
+  Cypern:'CY', Danmark:'DK', 'Demokratiska Republiken Kongo':'CD', Djibouti:'DJ',
+  Dominica:'DM', 'Dominikanska Republiken':'DO', Ecuador:'EC', Egypten:'EG',
+  Ekvatorialguinea:'GQ', 'El Salvador':'SV', Elfenbenskusten:'CI', England:'gbeng',
+  Eritrea:'ER', Estland:'EE', Eswatini:'SZ', Etiopien:'ET', Fiji:'FJ', Filippinerna:'PH',
+  Finland:'FI', Frankrike:'FR', 'Franska Guyana':'GF', 'Förenade Arabemiraten':'AE',
+  Gabon:'GA', Gambia:'GM', Georgien:'GE', Ghana:'GH', Grekland:'GR', Grenada:'GD',
+  Guatemala:'GT', Guinea:'GN', 'Guinea-Bissau':'GW', Guyana:'GY', Haiti:'HT', Honduras:'HN',
+  Indien:'IN', Indonesien:'ID', Irak:'IQ', Iran:'IR', Irland:'IE', Island:'IS', Israel:'IL',
+  Italien:'IT', Jamaica:'JM', Japan:'JP', Jemen:'YE', Jordanien:'JO', Kambodja:'KH',
+  Kamerun:'CM', Kanada:'CA', 'Kap Verde':'CV', Kazakstan:'KZ', Kenya:'KE', Kina:'CN',
+  Kirgizistan:'KG', Kiribati:'KI', Komorerna:'KM', 'Kongo-Brazzaville':'CG', Kosovo:'XK',
+  Kroatien:'HR', Kuba:'CU', Kuwait:'KW', Laos:'LA', Lesotho:'LS', Lettland:'LV',
+  Libanon:'LB', Liberia:'LR', Libyen:'LY', Liechtenstein:'LI', Litauen:'LT', Luxembourg:'LU',
+  Madagaskar:'MG', Makedonien:'MK', Malawi:'MW', Malaysia:'MY', Maldiverna:'MV', Mali:'ML',
+  Malta:'MT', Marocko:'MA', 'Marshallöarna':'MH', Mauretanien:'MR', Mauritius:'MU',
+  Mexiko:'MX', Mikronesien:'FM', Mocambique:'MZ', Moldavien:'MD', Monaco:'MC',
+  Mongoliet:'MN', Montenegro:'ME', Namibia:'NA', Nauru:'NR', 'Nederländerna':'NL',
+  Nepal:'NP', Nicaragua:'NI', Niger:'NE', Nigeria:'NG', Nordirland:'GB', Nordkorea:'KP',
+  Norge:'NO', 'Nya Zeeland':'NZ', Oman:'OM', Pakistan:'PK', Palau:'PW', Palestina:'PS',
+  Panama:'PA', 'Papua Nya Guinea':'PG', Paraguay:'PY', Peru:'PE', Polen:'PL', Portugal:'PT',
+  Qatar:'QA', 'Rumänien':'RO', Rwanda:'RW', Ryssland:'RU', 'Saint Kitts & Nevis':'KN',
+  'Saint Lucia':'LC', 'Saint Vincent & Grenadinerna':'VC', Samoa:'WS', 'San Marino':'SM',
+  'Sao Tome & Principe':'ST', Saudiarabien:'SA', Schweiz:'CH', Senegal:'SN', Serbien:'RS',
+  Seychellerna:'SC', 'Sierra Leone':'SL', Singapore:'SG', Skottland:'gbsct', Slovakien:'SK',
+  Slovenien:'SI', 'Solomonöarna':'SB', Somalia:'SO', Spanien:'ES', 'Sri Lanka':'LK',
+  Sudan:'SD', Surinam:'SR', Sverige:'SE', Sydafrika:'ZA', Sydkorea:'KR', Sydsudan:'SS',
+  Syrien:'SY', Tadzjikistan:'TJ', Taiwan:'TW', Tanzania:'TZ', Tchad:'TD', Thailand:'TH',
+  Tjeckien:'CZ', Togo:'TG', Tonga:'TO', 'Trinidad & Tobago':'TT', Tunisien:'TN',
+  Turkiet:'TR', Turkmenistan:'TM', Tuvalu:'TV', Tyskland:'DE', USA:'US', Uganda:'UG',
+  Ukraina:'UA', Ungern:'HU', Uruguay:'UY', Uzbekistan:'UZ', Vanuatu:'VU',
+  Vatikanstaten:'VA', Venezuela:'VE', Vietnam:'VN', Vitryssland:'BY', 'Västsahara':'EH',
+  Wales:'gbwls', Zambia:'ZM', Zimbabwe:'ZW', 'Österrike':'AT', 'Östtimor':'TL' };
+function flagga(namn) {
+  const kod = FLAGG_ISO[namn];
+  if (!kod) return '';
+  if (kod.length === 2) {
+    return String.fromCodePoint(...[...kod].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+  }
+  // subnationella flaggor (gbeng/gbsct/gbwls): svart flagga + tag-tecken
+  return '\u{1F3F4}' + [...kod].map(c => String.fromCodePoint(0xE0000 + c.charCodeAt(0))) .join('') + '\u{E007F}';
+}
+
+
+// ══════════════════════
+// Ljud: små syntplingar (inga filer behövs) + global mute-knapp
+// ══════════════════════
+let ljudAv = localStorage.getItem('ljud-av') === '1';
+let audioCtx = null;
+function spela(typ) {
+  if (ljudAv) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const toner = typ === 'ratt' ? [[523.25, 0, .09], [659.25, .08, .09], [783.99, .16, .18]]
+      : typ === 'fel' ? [[196, 0, .16], [155.56, .1, .22]]
+      : [[523.25, 0, .12], [659.25, .1, .12], [783.99, .2, .12], [1046.5, .3, .34]];
+    for (const [fr, st, len] of toner) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = typ === 'fel' ? 'triangle' : 'sine';
+      o.frequency.value = fr;
+      g.gain.setValueAtTime(0.0001, t + st);
+      g.gain.exponentialRampToValueAtTime(typ === 'fel' ? .2 : .16, t + st + .015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + st + len);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t + st); o.stop(t + st + len + .05);
+    }
+  } catch (e) { /* ljud är aldrig kritiskt */ }
+}
+const ljudKnapp = document.getElementById('ljud-knapp');
+function visaLjudlage() { if (ljudKnapp) ljudKnapp.textContent = ljudAv ? '🔇' : '🔊'; }
+if (ljudKnapp) ljudKnapp.addEventListener('click', () => {
+  ljudAv = !ljudAv;
+  localStorage.setItem('ljud-av', ljudAv ? '1' : '0');
+  visaLjudlage();
+});
+visaLjudlage();
 
 const configCache = {};
 async function loadRegionConfig(slug) {
@@ -1442,6 +1533,8 @@ async function startRegion(slug, flyg) {
   uppdateraHsKey();
   ASSET_BASE = 'assets/' + slug;
   isWorldTest = false;
+  aktivSlug = slug;
+  aktivRegionNamn = raw.name;
   origSlug = slug;                 // originalvyn = regionens handritade karta
   origRaw = raw;
   document.getElementById('view-orig').style.display = '';
@@ -1494,6 +1587,8 @@ async function startWorld(count) {
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
+  aktivSlug = 'world';
+  aktivRegionNamn = 'hela världen';
   HS_BAS = 'glob-world-highscores';
   uppdateraHsKey();
   isWorldTest = true;
@@ -1543,7 +1638,7 @@ infoToggle.addEventListener('click', () => {
 });
 function showInfoCard(c) {
   activeCountry = c.gid;
-  infoName.textContent = c.name;
+  infoName.textContent = (flagga(c.name) + ' ' + c.name).trim();
   infoShape.src = countryImgSrc(c);
   const infoAssoc = document.getElementById('info-assoc');
   infoAssoc.textContent = c.assoc || '';
@@ -1659,6 +1754,7 @@ function seterraClick(c) {
   if (c.gid === seterraTarget.gid) {
     seterraCorrect++;
     seterraTargetMisses = 0;
+    spela('ratt');
     if (bildlage) {
       revealed.add(c.gid);
       setLand(c.gid, { gron: true, fel: false, tips: false, hover: false });
@@ -1666,17 +1762,18 @@ function seterraClick(c) {
       revealCountry(c.gid);
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     burstConfetti();
     updateSeterraUI();
     nextSeterraTarget();
   } else {
     seterraWrong++;
     seterraTargetMisses++;
+    spela('fel');
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
@@ -1725,6 +1822,11 @@ function endSeterra() {
   // bildquizet klarat → putta vidare mot klassiska quizet utan stöd
   const vidareBtn = document.getElementById('seterra-vidare');
   if (vidareBtn) vidareBtn.style.display = bildlage ? '' : 'none';
+  spela('fanfar');
+  // 100 % i klassiska quizet (hela omgången) → diplom!
+  const diplomBtn = document.getElementById('seterra-diplom');
+  if (diplomBtn) diplomBtn.style.display =
+    (!bildlage && !seterraIsRetry && score === 100) ? '' : 'none';
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = 'none';
   if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
@@ -1840,6 +1942,24 @@ document.getElementById('hs-save').addEventListener('click', async () => {
 document.getElementById('hs-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('hs-save').click();
 });
+
+// ══════════════════════
+// Diplom: 100 % i klassiska quizet → utskrivbart diplom
+// ══════════════════════
+document.getElementById('seterra-diplom')?.addEventListener('click', () => {
+  document.getElementById('diplom-region').textContent = aktivRegionNamn || 'världen';
+  document.getElementById('diplom-detalj').textContent =
+    `alla ${seterraTotal} länder · 100 % rätt · tid ${seterraTimeEl.textContent}`;
+  document.getElementById('diplom-datum').textContent =
+    new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('diplom-modal').style.display = 'flex';
+  spela('fanfar');
+});
+document.getElementById('diplom-stang')?.addEventListener('click', () => {
+  document.getElementById('diplom-modal').style.display = 'none';
+});
+document.getElementById('diplom-skriv')?.addEventListener('click', () => window.print());
+
 document.getElementById('seterra-restart').addEventListener('click', () => startSeterra());
 document.getElementById('seterra-vidare').addEventListener('click', () => switchMode('seterra'));
 document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
@@ -1928,8 +2048,10 @@ if (highfiveRef) {
   sattHighfives(localStorage.getItem('highfive-count') || '0');
 }
 function geHighfive(img) {
-  highfiveAudio.currentTime = 0;
-  highfiveAudio.play();
+  if (!ljudAv) {
+    highfiveAudio.currentTime = 0;
+    highfiveAudio.play();
+  }
   img.src = 'Jonas_2.webp';
   setTimeout(() => { img.src = 'Jonas_1.webp'; }, 1000);
   if (highfiveRef) highfiveRef.transaction(cur => (cur || 0) + 1);

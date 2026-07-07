@@ -283,6 +283,39 @@
       .header-hint { display: none; }
       .maplibregl-ctrl-top-right { display: none !important; }
     }
+    /* ── Ljudknapp ── */
+    #ljud-knapp { position: fixed; left: 10px; bottom: 34px; z-index: 60; width: 38px;
+      height: 38px; border-radius: 50%; border: 2px solid #2e9eff55; background: #0a1526cc;
+      font-size: 1.05rem; cursor: pointer; }
+    /* ── Diplom ── */
+    #diplom-modal { position: fixed; inset: 0; z-index: 320; background: rgba(2,6,13,.9);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .diplom { max-width: 640px; width: 94vw; }
+    .diplom-ram { background: #fdf8ec; color: #241d12; border: 6px double #b8912f;
+      border-radius: 10px; padding: 30px 34px; text-align: center;
+      box-shadow: 0 24px 70px #000; font-family: Georgia, 'Times New Roman', serif; }
+    .diplom-ram h1 { font-size: 2.4rem; letter-spacing: .35em; color: #b8912f; margin-bottom: 4px; }
+    .diplom-till { font-style: italic; color: #6b5c40; }
+    .diplom-namn { font-size: 1.7rem; font-weight: 700; border-bottom: 2px solid #b8912f66;
+      display: inline-block; padding: 4px 26px; margin: 8px 0; min-width: 55%; outline: none; }
+    .diplom-text { font-size: 1.06rem; margin-top: 4px; }
+    .diplom-detalj { color: #6b5c40; margin-top: 6px; font-size: .95rem; }
+    .diplom-fot { display: flex; justify-content: space-between; align-items: flex-end;
+      margin-top: 22px; }
+    .diplom-jonas img { width: 74px; display: block; }
+    .diplom-jonas span { font-size: .8rem; color: #6b5c40; font-style: italic; }
+    .diplom-datum { font-size: .85rem; color: #6b5c40; }
+    .diplom-knappar { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .diplom-knappar button { padding: 10px 20px; border-radius: 10px; border: none;
+      cursor: pointer; font-weight: 800; }
+    #diplom-skriv { background: #ffdc32; box-shadow: 0 3px 0 #0006; }
+    #diplom-stang { background: #e8eef4; color: #56718c; }
+    @media print {
+      body > *:not(#diplom-modal) { display: none !important; }
+      #diplom-modal { position: static; background: #fff; padding: 0; }
+      .diplom-knappar { display: none; }
+      .diplom-ram { box-shadow: none; }
+    }
   </style>
 </head>
 <body class="startlage">
@@ -343,6 +376,30 @@
     <div class="intro-knappar">
       <button id="intro-nasta">Visa mig runt!</button>
       <button id="intro-hoppa">Hoppa &ouml;ver</button>
+    </div>
+  </div>
+</div>
+
+<button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
+
+<!-- Diplom: 100 % i klassiska quizet -->
+<div id="diplom-modal" style="display:none">
+  <div class="diplom">
+    <div class="diplom-ram">
+      <h1>DIPLOM</h1>
+      <p class="diplom-till">tilldelas</p>
+      <p class="diplom-namn" contenteditable="true" spellcheck="false">Skriv ditt namn h&auml;r</p>
+      <p class="diplom-text">f&ouml;r att ha klarat <strong id="diplom-region"></strong></p>
+      <p class="diplom-detalj" id="diplom-detalj"></p>
+      <div class="diplom-fot">
+        <div class="diplom-jonas"><img src="Jonas_1.webp" alt="Jonas">
+          <span>High five! &mdash; Jonas</span></div>
+        <span class="diplom-datum" id="diplom-datum"></span>
+      </div>
+    </div>
+    <div class="diplom-knappar">
+      <button id="diplom-skriv">Skriv ut &#128424;</button>
+      <button id="diplom-stang">St&auml;ng</button>
     </div>
   </div>
 </div>
@@ -475,6 +532,7 @@
 
         <div class="highscore-list" id="highscore-list"></div>
 
+        <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
         <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
         <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
@@ -552,7 +610,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=22"></script>
+<script src="glob-spel.js?v=23"></script>
 
 </body>
 </html>
