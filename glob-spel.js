@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '29';
+const V = '30';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2549,6 +2549,12 @@ let tourSteg = -1;
 let tourNyckel = 'rundtur-klar';
 let tourSlut = null;
 
+// posernas bredd/höjd-förhållanden (beskurna figurer) — för placering
+const POSE_ASP = { hej: 0.58, upp: 0.47, ner: 0.50, 'ner-hoger': 0.50,
+  kul: 0.68, smash: 0.56, stark: 0.67, pekar: 0.54 };
+const aspFor = bild =>
+  POSE_ASP[(bild || '').replace(/^.*\//, '').replace('.webp', '')] || 0.55;
+
 function visaHal(mal) {
   if (!mal) { nastaSteg(); return; }
   const r = mal.getBoundingClientRect ? mal.getBoundingClientRect() : mal;
@@ -2556,6 +2562,7 @@ function visaHal(mal) {
   tourHal.style.top = (r.top - 8) + 'px';
   tourHal.style.width = (r.width + 16) + 'px';
   tourHal.style.height = (r.height + 16) + 'px';
+  if (window.innerWidth <= 700) return;   // mobilen placerar bubblan själv
   // bubblan får aldrig täcka målet: ovanför mål i nedre halvan, annars under
   if (r.top > window.innerHeight / 2) {
     introBubbla.style.bottom = (window.innerHeight - r.top + 30) + 'px';
@@ -2582,20 +2589,47 @@ function visaTourSteg() {
   if (s.el) {
     const mal = s.el();
     visaHal(mal);
-    // på större skärmar kan Jonas ställa sig alldeles intill målet
-    if (s.plats && mal && window.innerWidth > 700) {
-      const r = mal.getBoundingClientRect ? mal.getBoundingClientRect() : mal;
-      const jh = Math.min(window.innerHeight * 0.36, 320);
-      const jw = jh * (s.asp || 0.5);
-      const p = s.plats(r, jw);
-      const vx = Math.max(8, Math.min(p.left, window.innerWidth - jw - 8));
-      introJonas.style.left = vx + 'px';
-      introJonas.style.bottom = Math.max(0, p.bottom) + 'px';
-      const bubbLeft = p.bubbLeft != null ? p.bubbLeft : vx + jw + 14;
-      introBubbla.style.left = bubbLeft + 'px';
-      introBubbla.style.maxWidth =
-        Math.min(400, window.innerWidth - bubbLeft - 16) + 'px';
+    if (!mal) return;
+    const r = mal.getBoundingClientRect ? mal.getBoundingClientRect() : mal;
+    const W = window.innerWidth, H = window.innerHeight;
+    if (W > 700) {
+      // på större skärmar kan Jonas ställa sig alldeles intill målet
+      if (s.plats) {
+        const jh = Math.min(H * 0.36, 320);
+        const jw = jh * aspFor(s.bild);
+        const p = s.plats(r, jw);
+        const vx = Math.max(8, Math.min(p.left, W - jw - 8));
+        introJonas.style.left = vx + 'px';
+        introJonas.style.bottom = Math.max(0, p.bottom) + 'px';
+        const bubbLeft = p.bubbLeft != null ? p.bubbLeft : vx + jw + 14;
+        introBubbla.style.left = bubbLeft + 'px';
+        introBubbla.style.maxWidth = Math.min(400, W - bubbLeft - 16) + 'px';
+      }
+      return;
     }
+    // ── mobil: Jonas får aldrig skymma målet — då flyttar han sig ovanför
+    // det — och bubblan ligger ovanför Jonas (eller ovanför målet) ──
+    const jh = H * 0.30, jw = jh * aspFor(s.bild);
+    let jLeft = s.hoger ? W * 0.98 - jw : W * 0.02;
+    let jBottom = 0;
+    const skymmer = r.bottom > H - jh - 14
+      && r.right > jLeft - 14 && r.left < jLeft + jw + 14;
+    if (skymmer) {
+      jBottom = H - r.top + 12;
+      jLeft = Math.max(8, Math.min(r.left + r.width / 2 - jw / 2, W - jw - 8));
+    }
+    introJonas.style.left = jLeft + 'px';
+    introJonas.style.bottom = jBottom + 'px';
+    const bh = introBubbla.offsetHeight;
+    let bb = jBottom + jh + 12;
+    if (H - bb - bh < r.bottom + 6 && H - bb > r.top - 6) {
+      // bubblan skulle skymma målet → lägg den ovanför, aldrig utanför skärmen
+      bb = Math.min(H - r.top + 16, H - 6 - bh);
+    }
+    introBubbla.style.bottom = bb + 'px';
+    // svansen pekar mot Jonas
+    introBubbla.style.setProperty('--svans-x',
+      Math.max(18, Math.min(jLeft + jw / 2 - W * 0.08, W * 0.84 - 46)) + 'px');
     return;
   }
   // inget utpekat: hålet är en punkt utanför skärmen → dimman täcker allt
