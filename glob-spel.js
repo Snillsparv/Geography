@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '23';
+const V = '24';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1823,6 +1823,24 @@ function endSeterra() {
   const vidareBtn = document.getElementById('seterra-vidare');
   if (vidareBtn) vidareBtn.style.display = bildlage ? '' : 'none';
   spela('fanfar');
+  // personbästa (medalj) och världsresans stämpel — bara riktiga, hela
+  // klassiska omgångar räknas
+  if (!bildlage && !seterraIsRetry && aktivSlug) {
+    const gammal = +localStorage.getItem('medalj-' + aktivSlug) || 0;
+    if (score > gammal) localStorage.setItem('medalj-' + aktivSlug, score);
+    if (score >= 80) {
+      const resa = resaState();
+      if (RESA_ORDNING[resa.steg] === aktivSlug) {
+        resa.klara[aktivSlug] = score;
+        resa.steg++;
+        localStorage.setItem('varldsresa', JSON.stringify(resa));
+        const nasta = RESA_ORDNING[resa.steg];
+        document.getElementById('seterra-final-detail').innerHTML +=
+          `<br><span class="resa-stampel">🧳 Stämpel i passet!` +
+          (nasta ? ` Nästa stopp: <b>${RESA_NAMN[nasta]}</b>` : ' HELA VÄRLDSRESAN ÄR KLAR! 🏆') + '</span>';
+      }
+    }
+  }
   // 100 % i klassiska quizet (hela omgången) → diplom!
   const diplomBtn = document.getElementById('seterra-diplom');
   if (diplomBtn) diplomBtn.style.display =
@@ -2287,6 +2305,7 @@ function startLage(flyg) {
   map.resize();
   const badge = document.getElementById('start-version');
   if (badge) badge.textContent = 'version ' + V;
+  visaMedaljer();
   if (!startAvslojad) {
     // första besöket: globen bakom ridån tills den är FÄRDIGRITAD —
     // snurren väntar också, annars blir kartan aldrig 'idle'
@@ -2347,21 +2366,78 @@ function lamnaStart() {
 }
 
 // startknapparna: ingen sidladdning — kameran flyger till världsdelen
-document.querySelectorAll('.start-knappar .knapp').forEach(a => {
-  a.addEventListener('click', async e => {
+async function gaTillRegion(slug) {
+  history.pushState({}, '', '?region=' + slug);
+  lamnaStart();
+  if (slug === 'world') worldFlow();
+  else await startRegion(slug, true);
+}
+document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
+  a.addEventListener('click', e => {
     if (e.target.closest('.knapp-video')) return;   // ▶ sköter sig själv
     e.preventDefault();
-    const slug = new URL(a.href, location.href).searchParams.get('region');
-    history.pushState({}, '', '?region=' + slug);
-    lamnaStart();
-    if (slug === 'world') worldFlow();
-    else await startRegion(slug, true);
+    gaTillRegion(new URL(a.href, location.href).searchParams.get('region'));
   });
 });
 window.addEventListener('popstate', () => {
   const r = new URLSearchParams(location.search).get('region');
   if (!r) tillbakaTillStart();     // bakåt till starten: sömlöst, utan omladdning
   else location.reload();          // bakåt/framåt mellan regioner: enklast så
+});
+
+
+// ══════════════════════
+// Medaljer: personbästa i klassiska quizet per region (guld 100, silver 90,
+// brons 70) — visas som märken på startsidans knappar
+// ══════════════════════
+function medaljFor(pct) { return pct >= 100 ? '🥇' : pct >= 90 ? '🥈' : pct >= 70 ? '🥉' : ''; }
+function visaMedaljer() {
+  document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
+    const slug = new URL(a.href, location.href).searchParams.get('region');
+    const m = medaljFor(+localStorage.getItem('medalj-' + slug) || 0);
+    let span = a.querySelector('.medalj');
+    if (!m) { if (span) span.remove(); return; }
+    if (!span) { span = document.createElement('span'); span.className = 'medalj'; a.appendChild(span); }
+    span.textContent = m;
+  });
+}
+
+// ══════════════════════
+// Världsresan: valfritt kampanjläge — res världsdel för världsdel, stämpel
+// i passet vid minst 80 % i klassiska quizet, nästa stopp låses upp.
+// Fritt spel påverkas inte.
+// ══════════════════════
+const RESA_ORDNING = ['europa', 'sydamerika', 'nordamerika', 'afrika', 'asien', 'oceanien', 'vastindien', 'world'];
+const RESA_NAMN = { europa: 'Europa', sydamerika: 'Sydamerika', nordamerika: 'Nordamerika',
+  afrika: 'Afrika', asien: 'Asien', oceanien: 'Oceanien', vastindien: 'Västindien',
+  world: 'Världstestet 🌍' };
+function resaState() {
+  try { return JSON.parse(localStorage.getItem('varldsresa')) || { steg: 0, klara: {} }; }
+  catch (e) { return { steg: 0, klara: {} }; }
+}
+function visaResa() {
+  const resa = resaState();
+  const lista = document.getElementById('resa-lista');
+  lista.innerHTML = RESA_ORDNING.map((slug, i) => {
+    const namn = RESA_NAMN[slug];
+    if (resa.klara[slug] != null)
+      return `<div class="resa-rad klar">✅ <b>${namn}</b><i>${resa.klara[slug]} %</i></div>`;
+    if (i === resa.steg)
+      return `<div class="resa-rad nu">▶ <b>${namn}</b><button class="resa-res" data-slug="${slug}">Res hit!</button></div>`;
+    return `<div class="resa-rad last">🔒 <b>${namn}</b></div>`;
+  }).join('');
+  document.getElementById('resa-klart').style.display =
+    resaState().steg >= RESA_ORDNING.length ? '' : 'none';
+  document.getElementById('resa-modal').style.display = 'flex';
+}
+document.getElementById('resa-knapp')?.addEventListener('click', e => { e.preventDefault(); visaResa(); });
+document.getElementById('resa-stang')?.addEventListener('click', () => {
+  document.getElementById('resa-modal').style.display = 'none';
+});
+document.getElementById('resa-modal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+  const res = e.target.closest('.resa-res');
+  if (res) { e.currentTarget.style.display = 'none'; gaTillRegion(res.dataset.slug); }
 });
 
 // Världstestets uppställning (antal länder + start) — bunden EN gång
@@ -2495,7 +2571,10 @@ document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click
 document.getElementById('video-stang').addEventListener('click', stangVideo);
 videoModal.addEventListener('click', e => { if (e.target === videoModal) stangVideo(); });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && videoModal.style.display !== 'none') stangVideo();
+  if (e.key !== 'Escape') return;
+  if (videoModal.style.display !== 'none') stangVideo();
+  const rm = document.getElementById('resa-modal');
+  if (rm && rm.style.display !== 'none') rm.style.display = 'none';
 });
 
 function showGame() {

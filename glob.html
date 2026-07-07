@@ -283,6 +283,31 @@
       .header-hint { display: none; }
       .maplibregl-ctrl-top-right { display: none !important; }
     }
+    /* ── Medaljer på startknapparna ── */
+    .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
+      filter: drop-shadow(0 2px 4px #000a); }
+    .k9 { background: #e7c27d; }
+    /* ── Världsresans pass ── */
+    #resa-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .resa-pass { width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+    .resa-pass h2 { color: #ffdc32; margin-bottom: 8px; }
+    .resa-info { color: #9fc3e0; font-size: .88rem; margin-bottom: 14px; line-height: 1.45; }
+    .resa-rad { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 10px; margin-bottom: 6px; background: #0b1a2c; }
+    .resa-rad b { flex: 1; }
+    .resa-rad.klar { border: 1px solid rgba(69,180,94,.4); }
+    .resa-rad.klar i { color: #5fca77; font-style: normal; font-weight: 700; }
+    .resa-rad.nu { border: 1.5px solid rgba(255,220,50,.55); background: #14243a; }
+    .resa-rad.last { opacity: .45; }
+    .resa-res { padding: 7px 14px; border-radius: 8px; border: none; background: #ffdc32;
+      font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    #resa-klart { color: #ffdc32; margin: 10px 0; }
+    #resa-stang { margin-top: 10px; padding: 9px 18px; border-radius: 10px; border: none;
+      background: #e8eef4; color: #56718c; font-weight: 800; cursor: pointer; }
+    .resa-stampel { color: #ffdc32; font-weight: 700; }
     /* ── Ljudknapp ── */
     #ljud-knapp { position: fixed; left: 10px; bottom: 34px; z-index: 60; width: 38px;
       height: 38px; border-radius: 50%; border: 2px solid #2e9eff55; background: #0a1526cc;
@@ -347,6 +372,7 @@
   </div>
   <span class="start-version" id="start-version"></span>
   <div class="start-knappar" id="start-knappar">
+    <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; V&auml;rldsresan</a>
     <a class="knapp k8" href="?region=world">&#127757; V&Auml;RLDSTEST</a>
     <a class="knapp k1" href="?region=europa">Europa</a>
     <a class="knapp k2" href="?region=afrika">Afrika</a>
@@ -381,6 +407,20 @@
 </div>
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
+
+<!-- Världsresan: kampanjpasset -->
+<div id="resa-modal" style="display:none">
+  <div class="resa-pass">
+    <h2>&#129523; Din v&auml;rldsresa</h2>
+    <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
+      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Du kan f&ouml;rst&aring;s
+      alltid spela fritt ocks&aring;!</p>
+    <div id="resa-lista"></div>
+    <p id="resa-klart" style="display:none">&#127942; <b>Hela v&auml;rldsresan &auml;r klar &mdash; du
+      &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
+    <button id="resa-stang">St&auml;ng</button>
+  </div>
+</div>
 
 <!-- Diplom: 100 % i klassiska quizet -->
 <div id="diplom-modal" style="display:none">
@@ -610,7 +650,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=23"></script>
+<script src="glob-spel.js?v=24"></script>
 
 </body>
 </html>
