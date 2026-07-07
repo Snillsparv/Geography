@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '26';
+const V = '27';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2481,12 +2481,16 @@ const introHoppa = document.getElementById('intro-hoppa');
 const tourHal = document.getElementById('tour-hal');
 const TOUR = [
   { el: () => document.querySelector('.start-knappar .k8'),
+    bild: 'assets/jonas/stark.webp',
     text: 'Här startar du det stora VÄRLDSTESTET — hela globen på en gång. Vågar du?' },
   { el: () => document.getElementById('start-knappar'),
+    bild: 'assets/jonas/ner.webp',
     text: 'Här klickar du för att kolla på länderna! Välj en världsdel, utforska bilderna och kör sedan Klassiskt Quiz.' },
   { el: () => document.getElementById('start-video-syd'),
+    bild: 'assets/jonas/kul.webp',
     text: 'Ser du den röda play-knappen? Där ligger min video om världsdelens länder — smart att titta först!' },
   { el: () => document.getElementById('start-hifi'),
+    bild: 'assets/jonas/smash.webp',
     text: 'Och när du har klarat något riktigt bra: kom hit och ge mig en HIGH FIVE! 🖐' },
 ];
 let tourSteg = -1;
@@ -2509,6 +2513,9 @@ function visaHal(el) {
 
 function startaIntro() {
   tourSteg = -1;
+  // riktiga foton på Jonas: vinkar i hälsningen, ny pose per steg
+  introJonas.src = 'assets/jonas/hej.webp';
+  TOUR.forEach(s => { if (s.bild) new Image().src = s.bild; });   // värm cachen
   introOverlay.classList.remove('steg');
   introBubbla.style.bottom = '';
   introOverlay.style.display = '';
@@ -2529,6 +2536,7 @@ function nastaSteg() {
   if (tourSteg >= TOUR.length) { avslutaIntro(); return; }
   introHoppa.style.display = 'none';
   introOverlay.classList.add('steg');   // Jonas kliver åt sidan, målen syns fritt
+  if (TOUR[tourSteg].bild) introJonas.src = TOUR[tourSteg].bild;
   introText.textContent = TOUR[tourSteg].text;
   introNasta.textContent = tourSteg === TOUR.length - 1 ? 'Nu kör vi!' : 'Nästa';
   visaHal(TOUR[tourSteg].el());
@@ -2536,14 +2544,19 @@ function nastaSteg() {
 
 function avslutaIntro() {
   localStorage.setItem('rundtur-klar', '1');
-  const mal = startHifiImg.getBoundingClientRect();
-  const fran = introJonas.getBoundingClientRect();
-  const dx = (mal.left + mal.width / 2) - (fran.left + fran.width / 2);
-  const dy = mal.bottom - fran.bottom;
-  introBubbla.style.display = 'none';
-  tourHal.style.display = 'none';          // dimman släcks, Jonas flyger fritt
-  introJonas.style.transform = `translate(${dx}px, ${dy}px) scale(${mal.width / fran.width})`;
-  setTimeout(() => { introOverlay.style.display = 'none'; }, 1000);
+  // byt till hörngubbens bild innan flygturen så att landningen blir sömlös
+  introJonas.src = 'Jonas_1.webp';
+  const flyg = () => {
+    const mal = startHifiImg.getBoundingClientRect();
+    const fran = introJonas.getBoundingClientRect();
+    const dx = (mal.left + mal.width / 2) - (fran.left + fran.width / 2);
+    const dy = mal.bottom - fran.bottom;
+    introBubbla.style.display = 'none';
+    tourHal.style.display = 'none';        // dimman släcks, Jonas flyger fritt
+    introJonas.style.transform = `translate(${dx}px, ${dy}px) scale(${mal.width / fran.width})`;
+    setTimeout(() => { introOverlay.style.display = 'none'; }, 1000);
+  };
+  (introJonas.decode ? introJonas.decode().catch(() => {}) : Promise.resolve()).then(flyg);
 }
 
 introNasta.addEventListener('click', nastaSteg);

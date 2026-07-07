@@ -15,7 +15,8 @@
       "test/**",
       "psd/**",
       "*.psd",
-      "tempo/**"
+      "tempo/**",
+      "JONASBILDER/**"
     ],
     "headers": [
       {
