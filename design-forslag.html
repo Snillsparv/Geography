@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Startsidan — 10 designförslag</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0b1826; color: #eaf2fa; }
+  section.forslag { min-height: 100vh; position: relative; overflow: hidden; display: flex;
+    flex-direction: column; border-bottom: 4px solid #000; }
+  .tag { position: absolute; top: 14px; left: 14px; z-index: 40; background: #000c;
+    color: #ffdc32; padding: 6px 14px; border-radius: 999px; font-size: .82rem; font-weight: 700;
+    letter-spacing: .04em; backdrop-filter: blur(4px); }
+  .tag small { color: #9fc3e0; font-weight: 400; margin-left: 8px; }
+  /* ── navigering ── */
+  nav { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); z-index: 90;
+    display: flex; flex-direction: column; gap: 6px; }
+  nav a { width: 30px; height: 30px; border-radius: 50%; background: #12283d; color: #7ec8e3;
+    display: grid; place-items: center; text-decoration: none; font-size: .78rem; font-weight: 700;
+    border: 1px solid #2b4a66; }
+  nav a:hover { background: #ffdc32; color: #08131f; }
+  .hifi { position: absolute; right: 18px; bottom: 12px; text-align: center; z-index: 30; }
+  .hifi img { width: 74px; display: block; margin: 0 auto; filter: drop-shadow(0 4px 10px #0008); }
+  .hifi span { font-size: .72rem; color: #ffdc32; font-weight: 700; }
+  img[src^="assets/design/glob"] { border-radius: 50%; }
+  .vid { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+    background: #e0453a; color: #fff; font-size: .6rem; padding-left: 2px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#f1">1</a><a href="#f2">2</a><a href="#f3">3</a><a href="#f4">4</a><a href="#f5">5</a>
+  <a href="#f6">6</a><a href="#f7">7</a><a href="#f8">8</a><a href="#f9">9</a><a href="#f10">10</a>
+</nav>
+
+<!-- ════════ 1. REN SCEN ════════ -->
+<style>
+  #f1 { background: radial-gradient(ellipse at 50% 120%, #14324e 0%, #081420 70%); align-items: center;
+    justify-content: center; text-align: center; }
+  #f1 h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); letter-spacing: .02em; margin-top: 40px;
+    color: #7ec8e3; text-shadow: 0 2px 18px #0af3; }
+  #f1 .glob { width: min(52vh, 78vw); margin: 12px 0 8px; filter: drop-shadow(0 18px 50px #000a); }
+  #f1 .chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 780px;
+    padding: 0 16px 40px; }
+  #f1 .chips a { padding: 10px 20px; border-radius: 999px; background: #12283daa; color: #eaf2fa;
+    text-decoration: none; font-weight: 600; border: 1px solid #2b4a66; }
+  #f1 .chips a:hover { background: #ffdc32; color: #08131f; }
+  #f1 .chips a.varld { background: #2e9e44; border-color: #45b45e; }
+</style>
+<section class="forslag" id="f1">
+  <div class="tag">FÖRSLAG 1 · Ren scen<small>globen är hela sidan — världsdelarna som stilla rad under</small></div>
+  <h1>Jonas geografi 🌍</h1>
+  <img class="glob" src="assets/design/glob-art.webp" alt="">
+  <div class="chips">
+    <a class="varld" href="#">🌍 Världstest</a><a href="#">Europa</a><a href="#">Afrika</a><a href="#">Asien</a>
+    <a href="#">Nordamerika</a><a href="#">Sydamerika</a><a href="#">Oceanien</a><a href="#">Västindien</a>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 2. KORTDÄCK ════════ -->
+<style>
+  #f2 { background: #0d1f30; flex-direction: row; align-items: center; gap: 20px; padding: 60px 40px 30px; }
+  #f2 .vanster { flex: 1.1; text-align: center; }
+  #f2 .vanster h1 { color: #eaf2fa; font-size: 1.9rem; margin-bottom: 14px; }
+  #f2 .glob { width: min(58vh, 38vw); filter: drop-shadow(0 16px 40px #000b); }
+  #f2 .kort { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 560px; }
+  #f2 .kort a { display: flex; align-items: center; gap: 10px; background: #12283d; border-radius: 14px;
+    padding: 10px; text-decoration: none; color: #eaf2fa; border: 1px solid #23405c; }
+  #f2 .kort a:hover { border-color: #ffdc32; transform: translateY(-2px); }
+  #f2 .kort img { width: 62px; height: 46px; object-fit: cover; border-radius: 8px; }
+  #f2 .kort b { display: block; font-size: .95rem; }
+  #f2 .kort i { font-style: normal; font-size: .72rem; color: #7ea6c4; }
+  #f2 .kort .varld { grid-column: 1 / -1; background: linear-gradient(120deg, #14563a, #0d3f57); }
+</style>
+<section class="forslag" id="f2">
+  <div class="tag">FÖRSLAG 2 · Kortdäck<small>glob + kort med statistik och videoknapp på varje världsdel</small></div>
+  <div class="vanster">
+    <h1>Jonas geografi 🌍</h1>
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+  </div>
+  <div class="kort">
+    <a class="varld" href="#"><img src="world_cover.webp"><span><b>🌍 Världstest</b><i>Rekord: 94 % · 12:31</i></span></a>
+    <a href="#"><img src="assets/covers/europa.webp"><span><b>Europa <span class="vid">▶</span></b><i>Bästa: 100 % · 49 länder</i></span></a>
+    <a href="#"><img src="assets/covers/afrika.webp"><span><b>Afrika <span class="vid">▶</span></b><i>Bästa: 87 % · 54 länder</i></span></a>
+    <a href="#"><img src="assets/covers/asien.webp"><span><b>Asien <span class="vid">▶</span></b><i>Ospelad · 47 länder</i></span></a>
+    <a href="#"><img src="assets/covers/nordamerika.webp"><span><b>Nordamerika <span class="vid">▶</span></b><i>Bästa: 91 %</i></span></a>
+    <a href="#"><img src="assets/covers/sydamerika.webp"><span><b>Sydamerika <span class="vid">▶</span></b><i>Bästa: 100 %</i></span></a>
+    <a href="#"><img src="assets/covers/oceanien.webp"><span><b>Oceanien <span class="vid">▶</span></b><i>Bästa: 78 %</i></span></a>
+    <a href="#"><img src="assets/covers/vastindien.webp"><span><b>Västindien <span class="vid">▶</span></b><i>Ospelad</i></span></a>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 3. OMLOPPSBANA ════════ -->
+<style>
+  #f3 { background: radial-gradient(circle at 50% 50%, #10293f 0%, #060e17 75%); align-items: center;
+    justify-content: center; }
+  #f3 .scen { position: relative; width: min(88vh, 96vw); height: min(88vh, 96vw); }
+  #f3 .glob { position: absolute; inset: 18%; width: 64%; filter: drop-shadow(0 0 60px #1a5c8c88); }
+  #f3 .ring { position: absolute; inset: 6%; border: 1.5px dashed #2b4a66; border-radius: 50%; }
+  #f3 .p { position: absolute; transform: translate(-50%, -50%); background: #12283d; padding: 9px 16px;
+    border-radius: 999px; text-decoration: none; color: #eaf2fa; font-weight: 700; font-size: .9rem;
+    border: 1px solid #3c658; white-space: nowrap; }
+  #f3 .p:hover { background: #ffdc32; color: #08131f; }
+  #f3 h1 { position: absolute; top: 20px; width: 100%; text-align: center; color: #7ec8e3; }
+</style>
+<section class="forslag" id="f3">
+  <div class="tag">FÖRSLAG 3 · Omloppsbana<small>världsdelarna kretsar som satelliter runt globen</small></div>
+  <h1>Jonas geografi</h1>
+  <div class="scen">
+    <div class="ring"></div>
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+    <a class="p" style="left:50%; top:6%" href="#">🌍 Världstest</a>
+    <a class="p" style="left:81%; top:19%" href="#">Europa</a>
+    <a class="p" style="left:94%; top:50%" href="#">Asien</a>
+    <a class="p" style="left:81%; top:81%" href="#">Oceanien</a>
+    <a class="p" style="left:50%; top:94%" href="#">Afrika</a>
+    <a class="p" style="left:19%; top:81%" href="#">Sydamerika</a>
+    <a class="p" style="left:6%; top:50%" href="#">Nordamerika</a>
+    <a class="p" style="left:19%; top:19%" href="#">Västindien</a>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 4. ATLAS PÅ PAPPER ════════ -->
+<style>
+  #f4 { background: #f2ead8; color: #241d12; align-items: center; justify-content: center; }
+  #f4 .ram { border: 3px solid #241d12; border-radius: 18px; padding: 26px 34px; background: #f7f1e2;
+    box-shadow: 8px 8px 0 #241d1222; text-align: center; max-width: 900px; margin: 40px 16px; }
+  #f4 h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 2.2rem; }
+  #f4 p.under { color: #6b5c40; margin: 4px 0 14px; font-style: italic; }
+  #f4 .glob { width: min(44vh, 60vw); border-radius: 50%; box-shadow: 0 10px 30px #241d1240; }
+  #f4 .marken { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
+  #f4 .marken a { border: 2px dashed #a5906b; background: #fff; padding: 8px 10px 6px; text-decoration: none;
+    color: #241d12; transform: rotate(-2deg); font-size: .85rem; font-weight: 700; }
+  #f4 .marken a:nth-child(2n) { transform: rotate(2deg); }
+  #f4 .marken a:hover { background: #ffdc32; }
+  #f4 .marken img { display: block; width: 84px; height: 56px; object-fit: cover; margin-bottom: 4px; }
+  #f4 .hifi span { color: #241d12; }
+</style>
+<section class="forslag" id="f4">
+  <div class="tag">FÖRSLAG 4 · Atlas på papper<small>samma papperston som täcket i spelet — frimärken att resa med</small></div>
+  <div class="ram">
+    <h1>Jonas stora geografiatlas</h1>
+    <p class="under">— välj ett uppslag och res —</p>
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+    <div class="marken">
+      <a href="#"><img src="assets/covers/europa.webp">Europa</a>
+      <a href="#"><img src="assets/covers/afrika.webp">Afrika</a>
+      <a href="#"><img src="assets/covers/asien.webp">Asien</a>
+      <a href="#"><img src="assets/covers/nordamerika.webp">Nordamerika</a>
+      <a href="#"><img src="assets/covers/sydamerika.webp">Sydamerika</a>
+      <a href="#"><img src="assets/covers/oceanien.webp">Oceanien</a>
+      <a href="#"><img src="assets/covers/vastindien.webp">Västindien</a>
+    </div>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 5. RYMDEN ════════ -->
+<style>
+  #f5 { background: #030711; align-items: center; justify-content: center; }
+  #f5 .stjarnor, #f5 .stjarnor::after { content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(#9fc3e0 1px, transparent 1.5px);
+    background-size: 190px 190px, 290px 290px; background-position: 12px 24px, 130px 90px; opacity: .5; }
+  #f5 .glob { width: min(56vh, 74vw); border-radius: 50%; position: relative;
+    box-shadow: 0 0 60px #2e9eff55, 0 0 160px #2e9eff22; }
+  #f5 h1 { position: relative; color: #fff; font-size: 2rem; letter-spacing: .28em; margin-bottom: 18px;
+    text-transform: uppercase; text-shadow: 0 0 18px #2e9eff; }
+  #f5 .rad { position: relative; display: flex; flex-wrap: wrap; gap: 9px; justify-content: center;
+    margin-top: 22px; max-width: 760px; padding: 0 14px; }
+  #f5 .rad a { color: #bfe3ff; text-decoration: none; border: 1px solid #2e9eff66; padding: 9px 18px;
+    border-radius: 4px; font-weight: 600; letter-spacing: .06em; background: #0a1526cc; }
+  #f5 .rad a:hover { box-shadow: 0 0 18px #2e9eff88; color: #fff; }
+</style>
+<section class="forslag" id="f5">
+  <div class="tag">FÖRSLAG 5 · Rymden<small>planeten Jonas sedd från omloppsbana — stjärnhimmel och glöd</small></div>
+  <div class="stjarnor"></div>
+  <h1>Geografi</h1>
+  <img class="glob" src="assets/design/glob-art.webp" alt="">
+  <div class="rad">
+    <a href="#">VÄRLDSTEST</a><a href="#">EUROPA</a><a href="#">AFRIKA</a><a href="#">ASIEN</a>
+    <a href="#">NORDAMERIKA</a><a href="#">SYDAMERIKA</a><a href="#">OCEANIEN</a><a href="#">VÄSTINDIEN</a>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 6. LISTAN ════════ -->
+<style>
+  #f6 { background: #0d1f30; flex-direction: row; }
+  #f6 .spalt { width: min(430px, 44vw); background: #0a1826; padding: 64px 18px 18px; overflow: auto;
+    border-right: 1px solid #23405c; }
+  #f6 .spalt h1 { font-size: 1.4rem; color: #7ec8e3; margin-bottom: 14px; padding-left: 6px; }
+  #f6 .rad { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px;
+    text-decoration: none; color: #eaf2fa; }
+  #f6 .rad:hover { background: #16324c; }
+  #f6 .rad img.c { width: 74px; height: 50px; object-fit: cover; border-radius: 8px; }
+  #f6 .rad .m { flex: 1; }
+  #f6 .rad b { display: block; }
+  #f6 .rad i { font-style: normal; font-size: .74rem; color: #7ea6c4; }
+  #f6 .rad .bar { height: 5px; border-radius: 3px; background: #1d3happened952; margin-top: 5px; background: #1d3952; }
+  #f6 .rad .bar div { height: 100%; border-radius: 3px; background: #45b45e; }
+  #f6 .globdel { flex: 1; display: grid; place-items: center; position: relative; }
+  #f6 .globdel img { width: min(74vh, 46vw); filter: drop-shadow(0 16px 44px #000b); }
+</style>
+<section class="forslag" id="f6">
+  <div class="tag">FÖRSLAG 6 · Listan<small>allt på en rad: framsteg, video och start — globen tronar bredvid</small></div>
+  <div class="spalt">
+    <h1>Jonas geografi 🌍</h1>
+    <a class="rad" href="#"><img class="c" src="world_cover.webp"><span class="m"><b>🌍 Världstest</b><i>Rekord 94 % · High fives: 4332</i><span class="bar"><div style="width:94%"></div></span></span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/europa.webp"><span class="m"><b>Europa</b><i>100 % · 49/49 utforskade</i><span class="bar"><div style="width:100%"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/afrika.webp"><span class="m"><b>Afrika</b><i>87 % · 41/54 utforskade</i><span class="bar"><div style="width:76%"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/asien.webp"><span class="m"><b>Asien</b><i>Ospelad · 47 länder väntar</i><span class="bar"><div style="width:0"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/nordamerika.webp"><span class="m"><b>Nordamerika</b><i>91 %</i><span class="bar"><div style="width:91%"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/sydamerika.webp"><span class="m"><b>Sydamerika</b><i>100 %</i><span class="bar"><div style="width:100%"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/oceanien.webp"><span class="m"><b>Oceanien</b><i>78 %</i><span class="bar"><div style="width:78%"></div></span></span><span class="vid">▶</span></a>
+    <a class="rad" href="#"><img class="c" src="assets/covers/vastindien.webp"><span class="m"><b>Västindien</b><i>Ospelad</i><span class="bar"><div style="width:0"></div></span></span><span class="vid">▶</span></a>
+  </div>
+  <div class="globdel"><img src="assets/design/glob-art.webp" alt="">
+    <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+  </div>
+</section>
+
+<!-- ════════ 7. LEKFULL ════════ -->
+<style>
+  #f7 { background: linear-gradient(160deg, #1d3557 0%, #0f2233 100%); align-items: center;
+    justify-content: center; text-align: center; }
+  #f7 h1 { font-size: clamp(1.8rem, 5vw, 3rem); color: #ffdc32; text-shadow: 3px 3px 0 #0007;
+    transform: rotate(-2deg); margin: 30px 0 6px; }
+  #f7 .glob { width: min(40vh, 60vw); filter: drop-shadow(0 14px 34px #000a); margin-bottom: 12px; }
+  #f7 .knappar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 860px;
+    padding: 0 16px 46px; }
+  #f7 .knappar a { padding: 14px 22px; border-radius: 16px; font-size: 1.05rem; font-weight: 800;
+    text-decoration: none; color: #08131f; box-shadow: 0 5px 0 #0006; }
+  #f7 .knappar a:hover { transform: translateY(2px); box-shadow: 0 3px 0 #0006; }
+  #f7 .k1 { background: #ffd166; } #f7 .k2 { background: #06d6a0; } #f7 .k3 { background: #ef7674; }
+  #f7 .k4 { background: #74b9ff; } #f7 .k5 { background: #f4a261; } #f7 .k6 { background: #b39ddb; }
+  #f7 .k7 { background: #8ce99a; } #f7 .k8 { background: #ffdc32; }
+  #f7 .hifi img { width: 110px; }
+</style>
+<section class="forslag" id="f7">
+  <div class="tag">FÖRSLAG 7 · Lekfull<small>stora godisknappar — gjord för mellanstadiet och surfplattor</small></div>
+  <h1>Kan du hela världen? 🌍</h1>
+  <img class="glob" src="assets/design/glob-art.webp" alt="">
+  <div class="knappar">
+    <a class="k8" href="#">🌍 VÄRLDSTEST</a><a class="k1" href="#">Europa</a><a class="k2" href="#">Afrika</a>
+    <a class="k3" href="#">Asien</a><a class="k4" href="#">Nordamerika</a><a class="k5" href="#">Sydamerika</a>
+    <a class="k6" href="#">Oceanien</a><a class="k7" href="#">Västindien</a>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 8. DIREKT PÅ GLOBEN ════════ -->
+<style>
+  #f8 { background: radial-gradient(ellipse at 50% 110%, #123049 0%, #070f19 70%); align-items: center;
+    justify-content: center; }
+  #f8 .scen { position: relative; width: min(86vh, 92vw); }
+  #f8 .glob { width: 100%; filter: drop-shadow(0 20px 50px #000c); }
+  #f8 .pin { position: absolute; transform: translate(-50%, -100%); text-decoration: none; }
+  #f8 .pin b { display: block; background: #ffdc32; color: #08131f; font-size: .82rem; padding: 5px 12px;
+    border-radius: 999px; box-shadow: 0 3px 8px #000a; white-space: nowrap; }
+  #f8 .pin::after { content: ''; display: block; width: 2px; height: 26px; background: #ffdc32aa; margin: 0 auto; }
+  #f8 .pin:hover b { background: #fff; }
+  #f8 h1 { position: absolute; top: 26px; left: 0; right: 0; text-align: center; color: #7ec8e3;
+    font-size: 1.5rem; letter-spacing: .05em; }
+  #f8 .hint { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: #7ea6c4;
+    font-size: .9rem; }
+</style>
+<section class="forslag" id="f8">
+  <div class="tag">FÖRSLAG 8 · Direkt på globen<small>inga menyer — man klickar på själva världsdelen (pins på riktiga globen)</small></div>
+  <h1>Jonas geografi</h1>
+  <div class="scen">
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+    <a class="pin" style="left: 47%; top: 30%" href="#"><b>Europa</b></a>
+    <a class="pin" style="left: 50%; top: 58%" href="#"><b>Afrika</b></a>
+    <a class="pin" style="left: 68%; top: 36%" href="#"><b>Asien</b></a>
+    <a class="pin" style="left: 22%; top: 34%" href="#"><b>Nordamerika</b></a>
+    <a class="pin" style="left: 27%; top: 68%" href="#"><b>Sydamerika</b></a>
+    <a class="pin" style="left: 82%; top: 72%" href="#"><b>Oceanien</b></a>
+    <a class="pin" style="left: 16%; top: 52%" href="#"><b>Västindien</b></a>
+  </div>
+  <div class="hint">Snurra på globen · klicka på en världsdel för att träna · 🌍 Världstest längst upp</div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+<!-- ════════ 9. DASHBOARD ════════ -->
+<style>
+  #f9 { background: #0b1c2c; }
+  #f9 .topp { display: flex; gap: 12px; align-items: center; padding: 12px 18px; background: #081522;
+    border-bottom: 1px solid #23405c; padding-left: 190px; }
+  #f9 .topp .stat { background: #12283d; border-radius: 10px; padding: 7px 14px; font-size: .8rem;
+    color: #7ea6c4; }
+  #f9 .topp .stat b { color: #eaf2fa; font-size: .95rem; display: block; }
+  #f9 .mitt { flex: 1; display: grid; place-items: center; position: relative; }
+  #f9 .mitt img { width: min(62vh, 70vw); filter: drop-shadow(0 16px 40px #000b); }
+  #f9 .dock { display: flex; gap: 10px; justify-content: center; padding: 12px; background: #081522ee;
+    border-top: 1px solid #23405c; flex-wrap: wrap; }
+  #f9 .dock a { position: relative; text-decoration: none; color: #eaf2fa; text-align: center; font-size: .78rem; }
+  #f9 .dock img { width: 92px; height: 60px; object-fit: cover; border-radius: 10px; display: block;
+    border: 2px solid transparent; }
+  #f9 .dock a:hover img { border-color: #ffdc32; }
+  #f9 .dock .vid { position: absolute; top: 4px; right: 4px; }
+</style>
+<section class="forslag" id="f9">
+  <div class="tag">FÖRSLAG 9 · Dashboard<small>statistiken överst, världsdelarna i en dock — som ett spelnav</small></div>
+  <div class="topp">
+    <div class="stat"><b>4332</b>High fives</div>
+    <div class="stat"><b>94 %</b>Världsrekord</div>
+    <div class="stat"><b>187/202</b>Utforskade länder</div>
+    <div class="stat"><b>6/7</b>Världsdelar klarade</div>
+  </div>
+  <div class="mitt"><img src="assets/design/glob-art.webp" alt="">
+    <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+  </div>
+  <div class="dock">
+    <a href="#"><img src="world_cover.webp"><span>Världstest</span></a>
+    <a href="#"><img src="assets/covers/europa.webp"><span class="vid">▶</span><span>Europa</span></a>
+    <a href="#"><img src="assets/covers/afrika.webp"><span class="vid">▶</span><span>Afrika</span></a>
+    <a href="#"><img src="assets/covers/asien.webp"><span class="vid">▶</span><span>Asien</span></a>
+    <a href="#"><img src="assets/covers/nordamerika.webp"><span class="vid">▶</span><span>Nordamerika</span></a>
+    <a href="#"><img src="assets/covers/sydamerika.webp"><span class="vid">▶</span><span>Sydamerika</span></a>
+    <a href="#"><img src="assets/covers/oceanien.webp"><span class="vid">▶</span><span>Oceanien</span></a>
+    <a href="#"><img src="assets/covers/vastindien.webp"><span class="vid">▶</span><span>Västindien</span></a>
+  </div>
+</section>
+
+<!-- ════════ 10. SAGOBOKEN ════════ -->
+<style>
+  #f10 { background: #241d12; align-items: center; justify-content: center; }
+  #f10 .bok { display: flex; width: min(1060px, 94vw); min-height: 72vh; margin: 44px 0;
+    box-shadow: 0 24px 60px #000c; border-radius: 8px; overflow: hidden; }
+  #f10 .sida { flex: 1; padding: 34px; }
+  #f10 .v { background: #f7f1e2; display: grid; place-items: center; border-right: 3px double #a5906b; }
+  #f10 .v img { width: 82%; border-radius: 50%; box-shadow: 0 12px 30px #241d1240; }
+  #f10 .h { background: #fbf6ea; color: #241d12; font-family: Georgia, serif; }
+  #f10 .h h1 { font-size: 1.7rem; border-bottom: 2px solid #a5906b; padding-bottom: 8px; margin-bottom: 14px; }
+  #f10 .h a { display: flex; justify-content: space-between; align-items: baseline; text-decoration: none;
+    color: #241d12; padding: 9px 4px; border-bottom: 1px dotted #a5906b88; font-size: 1.02rem; }
+  #f10 .h a:hover { background: #ffdc3244; }
+  #f10 .h i { font-style: normal; font-size: .78rem; color: #6b5c40; }
+  #f10 .h .kap { color: #a5906b; margin-right: 8px; }
+</style>
+<section class="forslag" id="f10">
+  <div class="tag">FÖRSLAG 10 · Sagoboken<small>ett atlasuppslag — globen till vänster, kapitellista till höger</small></div>
+  <div class="bok">
+    <div class="sida v"><img src="assets/design/glob-art.webp" alt=""></div>
+    <div class="sida h">
+      <h1>Jonas geografi — innehåll</h1>
+      <a href="#"><span><span class="kap">✦</span><b>Världstest</b></span><i>hela globen · rekord 94 %</i></a>
+      <a href="#"><span><span class="kap">I.</span>Europa</span><i>49 länder · 100 % ▶</i></a>
+      <a href="#"><span><span class="kap">II.</span>Afrika</span><i>54 länder · 87 % ▶</i></a>
+      <a href="#"><span><span class="kap">III.</span>Asien</span><i>47 länder · ospelad ▶</i></a>
+      <a href="#"><span><span class="kap">IV.</span>Nordamerika</span><i>23 länder · 91 % ▶</i></a>
+      <a href="#"><span><span class="kap">V.</span>Sydamerika</span><i>12 länder · 100 % ▶</i></a>
+      <a href="#"><span><span class="kap">VI.</span>Oceanien</span><i>14 länder · 78 % ▶</i></a>
+      <a href="#"><span><span class="kap">VII.</span>Västindien</span><i>13 länder · ospelad ▶</i></a>
+    </div>
+  </div>
+  <div class="hifi"><img src="Jonas_1.webp" alt=""><span>High fives: 4332</span></div>
+</section>
+
+</body>
+</html>

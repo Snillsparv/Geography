@@ -67,3 +67,11 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Staging artifacts for the PSD → SVG pipeline (tools/)
+tools/psd-extracted/
+tools/three.bundle.min.js
+tilecache/
+
+# make-tiles.mjs scratch output (debug windows, resumable tile dirs)
+/tmp-*/

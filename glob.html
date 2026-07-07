@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#02060d">
+<link rel="apple-touch-icon" href="assets/design/ikon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Jonas geografi – jordglob</title>
+  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="vendor/maplibre-gl.css">
+  <style>
+    /* ── glob-sidans tillägg: kartpanelen är glob / väggkarta / originalkarta ── */
+    #spel-map { position: absolute; inset: 0; background: #0e2438; }
+    #flat-wrap { position: absolute; inset: 0; display: none; align-items: center;
+      justify-content: center; background: #0e2438; }
+    #flat-wrap canvas { max-width: 100%; max-height: 100%; cursor: pointer;
+      touch-action: none; }
+    #flat-wrap canvas.dragging { cursor: grabbing; }
+    .map-panel.platt #spel-map { visibility: hidden; }
+    .map-panel.platt #flat-wrap { display: flex; }
+    #orig-wrap { position: absolute; inset: 0; display: none; align-items: center;
+      justify-content: center; overflow: hidden; padding: 20px;
+      background: #0e2438; touch-action: none; }
+    .map-panel.orig #spel-map { visibility: hidden; }
+    .map-panel.orig #orig-wrap { display: flex; }
+    /* delade zoomknappar för väggkartan och originalkartan (globen har egna) */
+    .map-panel .zoom-controls { left: auto; right: 16px; bottom: 16px; display: none; }
+    .map-panel.platt .zoom-controls, .map-panel.orig .zoom-controls { display: flex; }
+    .view-toggle { position: absolute; left: 12px; bottom: 12px; z-index: 5;
+      display: flex; gap: 6px; }
+    .view-toggle button { padding: 8px 14px; border-radius: 10px; cursor: pointer;
+      border: 2px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9);
+      font-weight: 700; font-size: .85rem; color: #234; }
+    .view-toggle button.active { background: #2980b9; border-color: #1c5a80; color: #fff; }
+    #spel-load { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+      z-index: 6; background: rgba(10,22,38,.94); border-radius: 12px; padding: 14px 22px;
+      color: #cde; font-size: .9rem; min-width: 240px; text-align: center; }
+    #spel-load .track { height: 6px; border-radius: 3px; background: rgba(255,255,255,.15);
+      margin-top: 10px; overflow: hidden; }
+    #spel-load .fill { height: 100%; width: 0%; background: #5bbfff; transition: width .15s; }
+    .region-card.glob-card span { background: #1d3a57; }
+    /* Mobil: lyft vyknapparna ovanför MapLibre-attributionen längst ner —
+       överlappande knappar gjorde Original-fliken svår att träffa. */
+    @media (max-width: 900px) {
+      .view-toggle { bottom: 46px; left: 10px; gap: 4px; }
+      .view-toggle button { padding: 7px 10px; font-size: .8rem; }
+    }
+    /* Landbeskrivningen ligger hopfälld bakom en knapp; minnesregeln
+       (assoc) visas alltid och räknaren ligger kompakt under knappen. */
+    .info-toggle { width: 100%; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(91,191,255,.3); background: rgba(255,255,255,.05);
+      color: #7ec8e3; font-size: .85rem; font-weight: 600; text-align: left; }
+    .info-toggle::after { content: ' \25BE'; }
+    .info-toggle.open::after { content: ' \25B4'; }
+    .info-extra { margin-top: 8px; }
+    /* landbilden i quiz-feedbacken — ligger kvar tills nästa svar */
+    .seterra-feedback .fb-shape { margin: 10px 0 6px; text-align: center; }
+    .seterra-feedback .fb-shape img { max-width: 78%; max-height: 150px; }
+    @media (max-width: 900px) {
+      .seterra-feedback .fb-shape img { max-height: 96px; }
+    }
+    #info-card .assoc-box { margin-bottom: 8px; padding: 8px 12px; font-size: .85rem; }
+    #info-card .counter { padding: 8px 0 0; font-size: .78rem; color: #7ea6c4;
+      text-align: left; border: none; }
+    /* Infokortet på mobilen: landbilden i en nästan kvadratisk ruta till
+       vänster och info-knappen/texten direkt intill — den breda botten-
+       panelen gjorde annars landbilden pytteliten ovanför texten. */
+    @media (max-width: 900px) {
+      #info-card.active {
+        display: grid;
+        grid-template-columns: clamp(96px, 30%, 150px) 1fr;
+        grid-template-areas: "namn namn" "bild sido" "hint hint";
+        gap: 6px 10px;
+        align-items: start;
+        padding: 8px 14px 10px;
+      }
+      #info-card .country-name { grid-area: namn; font-size: 1.1rem; }
+      #info-card .country-shape-preview {
+        grid-area: bild;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1.05;
+        max-height: 150px;
+      }
+      #info-card .country-shape-preview img { max-width: 92%; max-height: 92%; }
+      #info-card .info-side { grid-area: sido; }
+      #info-card .assoc-box { margin-bottom: 6px; padding: 6px 10px; font-size: .8rem; }
+      #info-card .info-toggle { padding: 6px 10px; font-size: .8rem; }
+      #info-card .counter { padding: 6px 0 0; font-size: .72rem; }
+      /* hinten göms på mobilen så hela kortet ryms utan att skrolla */
+      #info-card .close-hint { display: none; }
+    }
+
+    /* ── Startsidan: overlay ovanpå den RIKTIGA globen — rymden runt om,
+       genomskinlig mitt så att jordgloben (MapLibre) syns och kan snurras ── */
+    #region-selector { position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      opacity: 0; transition: opacity .45s ease; }
+    #region-selector.synlig { opacity: 1; }
+    header, .info-panel { transition: opacity .6s ease; }
+    body.flyger header, body.flyger .info-panel { opacity: 0; }
+    #region-selector { 
+      background: radial-gradient(circle at 50% 46%,
+        rgba(2,6,13,0) 0, rgba(2,6,13,0) 30vmin, rgba(2,6,13,.6) 58vmin, #02060d 105vmin); }
+    #region-selector > * { pointer-events: auto; }
+    /* stjärnorna + mjuk vinjett lever i BÅDA lägena — samma rymd, samma vy */
+    #rymd-lager { position: fixed; inset: 0; pointer-events: none; z-index: 5; opacity: .55;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'%3E%3Ccircle cx=%22639.4%22 cy=%2225.0%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.8%22/%3E%3Ccircle cx=%22892.2%22 cy=%2286.9%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%2226.5%22 cy=%22198.8%22 r=%220.92%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22809.4%22 cy=%226.5%22 r=%221.4%22 fill=%22%23ffffff%22 fill-opacity=%220.51%22/%3E%3Ccircle cx=%22957.2%22 cy=%22336.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22807.1%22 cy=%22729.7%22 r=%221.07%22 fill=%22%23ffffff%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22829.4%22 cy=%22618.5%22 r=%221.34%22 fill=%22%23ffffff%22 fill-opacity=%220.78%22/%3E%3Ccircle cx=%22227.9%22 cy=%22289.4%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22635.7%22 cy=%22364.8%22 r=%220.53%22 fill=%22%23ffe9a8%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22648.0%22 cy=%22609.1%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22989.5%22 cy=%22640.0%22 r=%220.97%22 fill=%22%239fc3e0%22 fill-opacity=%220.88%22/%3E%3Ccircle cx=%22229.0%22 cy=%2232.1%22 r=%220.54%22 fill=%22%23ffe9a8%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%22876.4%22 cy=%22314.7%22 r=%220.86%22 fill=%22%23ffffff%22 fill-opacity=%220.94%22/%3E%3Ccircle cx=%22264.9%22 cy=%22246.6%22 r=%220.81%22 fill=%22%239fc3e0%22 fill-opacity=%220.69%22/%3E%3Ccircle cx=%22399.4%22 cy=%22219.3%22 r=%221.81%22 fill=%22%23ffffff%22 fill-opacity=%220.32%22/%3E%3Ccircle cx=%22109.6%22 cy=%22627.4%22 r=%220.87%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22996.1%22 cy=%22529.1%22 r=%222.06%22 fill=%22%239fc3e0%22 fill-opacity=%220.26%22/%3E%3Ccircle cx=%22681.7%22 cy=%22537.0%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22453.7%22 cy=%22953.8%22 r=%221.18%22 fill=%22%23ffffff%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22912.6%22 cy=%22870.5%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.71%22/%3E%3Ccircle cx=%22762.5%22 cy=%22539.4%22 r=%220.91%22 fill=%22%23ffffff%22 fill-opacity=%220.25%22/%3E%3Ccircle cx=%2219.5%22 cy=%22929.1%22 r=%221.47%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22878.0%22 cy=%22946.9%22 r=%220.6%22 fill=%22%239fc3e0%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22765.8%22 cy=%22128.4%22 r=%220.61%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22423.1%22 cy=%22211.8%22 r=%220.98%22 fill=%22%23ffffff%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22995.1%22 cy=%22649.9%22 r=%220.6%22 fill=%22%23ffffff%22 fill-opacity=%220.34%22/%3E%3Ccircle cx=%22338.1%22 cy=%22588.3%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22228.9%22 cy=%22905.4%22 r=%221.08%22 fill=%22%23ffffff%22 fill-opacity=%220.43%22/%3E%3Ccircle cx=%22214.2%22 cy=%22132.3%22 r=%221.34%22 fill=%22%239fc3e0%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22807.5%22 cy=%22190.4%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.57%22/%3E%3Ccircle cx=%22729.1%22 cy=%22673.4%22 r=%221.51%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22861.7%22 cy=%22248.7%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.57%22/%3E%3Ccircle cx=%22249.8%22 cy=%22923.3%22 r=%220.69%22 fill=%22%23ffffff%22 fill-opacity=%220.66%22/%3E%3Ccircle cx=%22999.3%22 cy=%22836.0%22 r=%222.11%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22485.6%22 cy=%22213.7%22 r=%220.49%22 fill=%22%23ffe9a8%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22265.2%22 cy=%22784.1%22 r=%220.58%22 fill=%22%23ffe9a8%22 fill-opacity=%220.97%22/%3E%3Ccircle cx=%22555.8%22 cy=%22718.4%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22542.2%22 cy=%22748.0%22 r=%220.62%22 fill=%22%239fc3e0%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22157.4%22 cy=%22960.8%22 r=%220.52%22 fill=%22%23ffffff%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22235.2%22 cy=%22119.9%22 r=%221.17%22 fill=%22%23ffffff%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22419.2%22 cy=%22583.7%22 r=%221.06%22 fill=%22%239fc3e0%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22238.7%22 cy=%22395.8%22 r=%220.83%22 fill=%22%239fc3e0%22 fill-opacity=%220.49%22/%3E%3Ccircle cx=%2272.5%22 cy=%22458.3%22 r=%222.16%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22265.2%22 cy=%22933.3%22 r=%221.5%22 fill=%22%23ffffff%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22833.7%22 cy=%22703.5%22 r=%221.08%22 fill=%22%23ffffff%22 fill-opacity=%220.74%22/%3E%3Ccircle cx=%22817.1%22 cy=%22299.4%22 r=%221.06%22 fill=%22%23ffffff%22 fill-opacity=%220.35%22/%3E%3Ccircle cx=%22107.0%22 cy=%22553.2%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.79%22/%3E%3Ccircle cx=%22634.2%22 cy=%22264.0%22 r=%220.7%22 fill=%22%23ffffff%22 fill-opacity=%220.88%22/%3E%3Ccircle cx=%22423.6%22 cy=%22276.7%22 r=%220.67%22 fill=%22%23ffffff%22 fill-opacity=%220.73%22/%3E%3Ccircle cx=%22741.2%22 cy=%22551.7%22 r=%220.48%22 fill=%22%239fc3e0%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22903.9%22 cy=%22545.6%22 r=%221.34%22 fill=%22%23ffffff%22 fill-opacity=%220.36%22/%3E%3Ccircle cx=%22308.3%22 cy=%22899.0%22 r=%221.03%22 fill=%22%23ffffff%22 fill-opacity=%220.92%22/%3E%3Ccircle cx=%22249.5%22 cy=%22102.8%22 r=%221.04%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22154.6%22 cy=%22929.9%22 r=%221.55%22 fill=%22%239fc3e0%22 fill-opacity=%220.86%22/%3E%3Ccircle cx=%2224.8%22 cy=%22736.6%22 r=%220.7%22 fill=%22%239fc3e0%22 fill-opacity=%220.85%22/%3E%3Ccircle cx=%22810.7%22 cy=%22266.8%22 r=%220.76%22 fill=%22%239fc3e0%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22222.4%22 cy=%22816.6%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.85%22/%3E%3Ccircle cx=%2223.7%22 cy=%22193.1%22 r=%220.69%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22641.5%22 cy=%22399.7%22 r=%221.83%22 fill=%22%23ffffff%22 fill-opacity=%220.95%22/%3E%3Ccircle cx=%22970.4%22 cy=%22178.6%22 r=%221.63%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22728.5%22 cy=%22313.7%22 r=%220.9%22 fill=%22%23ffffff%22 fill-opacity=%220.54%22/%3E%3Ccircle cx=%22254.7%22 cy=%22708.8%22 r=%220.7%22 fill=%22%239fc3e0%22 fill-opacity=%220.65%22/%3E%3Ccircle cx=%22742.0%22 cy=%22670.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.75%22/%3E%3Ccircle cx=%22313.9%22 cy=%22848.0%22 r=%220.83%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22402.4%22 cy=%22295.7%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22902.8%22 cy=%22615.5%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%220.25%22/%3E%3Ccircle cx=%22429.9%22 cy=%22580.0%22 r=%220.89%22 fill=%22%23ffffff%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22473.2%22 cy=%22901.2%22 r=%220.78%22 fill=%22%23ffffff%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22632.9%22 cy=%22335.2%22 r=%221.43%22 fill=%22%23ffffff%22 fill-opacity=%220.75%22/%3E%3Ccircle cx=%22199.1%22 cy=%2224.4%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22414.4%22 cy=%22629.8%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.62%22/%3E%3Ccircle cx=%22656.1%22 cy=%225.5%22 r=%221.0%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22175.9%22 cy=%22958.0%22 r=%220.74%22 fill=%22%239fc3e0%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22456.5%22 cy=%22801.4%22 r=%221.08%22 fill=%22%23ffe9a8%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22891.4%22 cy=%22612.7%22 r=%220.9%22 fill=%22%23ffffff%22 fill-opacity=%220.87%22/%3E%3Ccircle cx=%22897.2%22 cy=%22743.7%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22765.8%22 cy=%22521.3%22 r=%220.82%22 fill=%22%23ffffff%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22271.7%22 cy=%22319.7%22 r=%220.77%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22706.4%22 cy=%2264.2%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%220.56%22/%3E%3Ccircle cx=%22420.1%22 cy=%22904.8%22 r=%220.97%22 fill=%22%239fc3e0%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22380.4%22 cy=%225.9%22 r=%220.66%22 fill=%22%23ffe9a8%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22419.0%22 cy=%22747.5%22 r=%220.94%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22435.8%22 cy=%2229.0%22 r=%220.64%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22467.4%22 cy=%22127.6%22 r=%220.73%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%2227.1%22 cy=%22642.7%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.29%22/%3E%3Ccircle cx=%22211.7%22 cy=%22326.8%22 r=%220.86%22 fill=%22%239fc3e0%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22252.3%22 cy=%2281.9%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%221.0%22/%3E%3Ccircle cx=%22650.1%22 cy=%22781.2%22 r=%220.99%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%2220.4%22 cy=%22152.4%22 r=%220.64%22 fill=%22%23ffffff%22 fill-opacity=%220.67%22/%3E%3Ccircle cx=%22699.5%22 cy=%22766.9%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22819.3%22 cy=%22964.7%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22958.2%22 cy=%22396.7%22 r=%220.75%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22101.9%22 cy=%22772.5%22 r=%221.35%22 fill=%22%23ffe9a8%22 fill-opacity=%220.34%22/%3E%3Ccircle cx=%22782.6%22 cy=%22347.2%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22849.6%22 cy=%22822.3%22 r=%220.71%22 fill=%22%239fc3e0%22 fill-opacity=%220.73%22/%3E%3Ccircle cx=%22707.3%22 cy=%22435.5%22 r=%221.07%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22538.2%22 cy=%22483.5%22 r=%220.66%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22830.7%22 cy=%2286.7%22 r=%221.17%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22379.0%22 cy=%2228.7%22 r=%221.13%22 fill=%22%239fc3e0%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%22340.3%22 cy=%22880.3%22 r=%220.82%22 fill=%22%23ffe9a8%22 fill-opacity=%220.26%22/%3E%3Ccircle cx=%2285.6%22 cy=%22720.1%22 r=%220.66%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22490.8%22 cy=%22792.9%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22581.6%22 cy=%22473.3%22 r=%220.87%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22702.9%22 cy=%22270.9%22 r=%220.51%22 fill=%22%23ffffff%22 fill-opacity=%220.39%22/%3E%3Ccircle cx=%22535.9%22 cy=%22762.2%22 r=%220.53%22 fill=%22%239fc3e0%22 fill-opacity=%220.61%22/%3E%3Ccircle cx=%22976.6%22 cy=%22524.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22179.4%22 cy=%2214.1%22 r=%220.82%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22697.4%22 cy=%22126.3%22 r=%221.3%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22469.4%22 cy=%22440.5%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22822.1%22 cy=%22400.7%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.29%22/%3E%3Ccircle cx=%22562.8%22 cy=%22303.8%22 r=%221.53%22 fill=%22%23ffffff%22 fill-opacity=%220.82%22/%3E%3Ccircle cx=%22790.7%22 cy=%22225.7%22 r=%220.88%22 fill=%22%239fc3e0%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22990.0%22 cy=%22305.4%22 r=%220.94%22 fill=%22%23ffe9a8%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22207.8%22 cy=%22211.0%22 r=%220.78%22 fill=%22%23ffffff%22 fill-opacity=%220.38%22/%3E%3Ccircle cx=%222.7%22 cy=%22450.5%22 r=%220.82%22 fill=%22%239fc3e0%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22703.0%22 cy=%22454.0%22 r=%221.05%22 fill=%22%23ffffff%22 fill-opacity=%220.84%22/%3E%3Ccircle cx=%22661.2%22 cy=%22933.7%22 r=%220.61%22 fill=%22%239fc3e0%22 fill-opacity=%220.74%22/%3E%3Ccircle cx=%22826.6%22 cy=%2271.4%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22288.6%22 cy=%22124.4%22 r=%220.97%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22493.8%22 cy=%2280.4%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.49%22/%3E%3Ccircle cx=%2291.3%22 cy=%22961.9%22 r=%221.34%22 fill=%22%23ffe9a8%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22672.3%22 cy=%22269.5%22 r=%220.66%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22916.1%22 cy=%22181.5%22 r=%220.95%22 fill=%22%23ffffff%22 fill-opacity=%220.62%22/%3E%3Ccircle cx=%22348.0%22 cy=%22333.3%22 r=%221.03%22 fill=%22%23ffffff%22 fill-opacity=%220.5%22/%3E%3Ccircle cx=%22288.2%22 cy=%22945.2%22 r=%221.33%22 fill=%22%23ffffff%22 fill-opacity=%220.59%22/%3E%3Ccircle cx=%22323.3%22 cy=%22970.2%22 r=%220.6%22 fill=%22%23ffffff%22 fill-opacity=%220.99%22/%3E%3Ccircle cx=%22542.6%22 cy=%22413.2%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.82%22/%3E%3Ccircle cx=%22760.0%22 cy=%22203.6%22 r=%221.05%22 fill=%22%23ffffff%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22121.4%22 cy=%22973.1%22 r=%220.81%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22552.3%22 cy=%2293.2%22 r=%222.1%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22832.1%22 cy=%22498.4%22 r=%220.9%22 fill=%22%239fc3e0%22 fill-opacity=%220.46%22/%3E%3Ccircle cx=%22980.2%22 cy=%22243.7%22 r=%220.86%22 fill=%22%23ffffff%22 fill-opacity=%220.94%22/%3E%3Ccircle cx=%22879.3%22 cy=%22864.0%22 r=%220.67%22 fill=%22%23ffe9a8%22 fill-opacity=%220.56%22/%3E%3Ccircle cx=%22507.7%22 cy=%22820.5%22 r=%220.55%22 fill=%22%23ffe9a8%22 fill-opacity=%220.69%22/%3E%3Ccircle cx=%22489.6%22 cy=%22148.6%22 r=%220.84%22 fill=%22%23ffffff%22 fill-opacity=%220.66%22/%3E%3Ccircle cx=%22455.3%22 cy=%22321.8%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.68%22/%3E%3Ccircle cx=%22775.5%22 cy=%2243.6%22 r=%220.97%22 fill=%22%23ffffff%22 fill-opacity=%220.86%22/%3E%3Ccircle cx=%22663.7%22 cy=%22820.7%22 r=%221.8%22 fill=%22%23ffffff%22 fill-opacity=%220.28%22/%3E%3Ccircle cx=%22590.2%22 cy=%22869.7%22 r=%221.27%22 fill=%22%23ffffff%22 fill-opacity=%220.64%22/%3E%3Ccircle cx=%22722.4%22 cy=%22410.0%22 r=%220.78%22 fill=%22%23ffe9a8%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22338.6%22 cy=%22692.7%22 r=%221.03%22 fill=%22%239fc3e0%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22380.0%22 cy=%22316.7%22 r=%220.99%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%2268.4%22 cy=%22631.2%22 r=%221.56%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%2298.4%22 cy=%22633.7%22 r=%221.27%22 fill=%22%239fc3e0%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%2246.0%22 cy=%22796.1%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.36%22/%3E%3Ccircle cx=%22565.9%22 cy=%22792.5%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22240.8%22 cy=%22912.8%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%229.4%22 cy=%22804.6%22 r=%221.39%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22345.6%22 cy=%22587.6%22 r=%220.87%22 fill=%22%239fc3e0%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22199.2%22 cy=%22384.7%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.68%22/%3E%3C/svg%3E");
+      background-size: 1000px 1000px;
+      -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 0 32vmin, #000 46vmin);
+      mask-image: radial-gradient(circle at 50% 46%, transparent 0 32vmin, #000 46vmin); }
+    .start-titel { position: absolute; top: 3vh; left: 0; right: 0; text-align: center;
+      pointer-events: none; font-size: clamp(1.5rem, 4.2vw, 2.7rem); color: #ffdc32;
+      text-shadow: 3px 3px 0 #0009, 0 0 26px #2e9eff44; transform: rotate(-2deg); }
+    .start-hint { position: absolute; top: calc(3vh + clamp(2.4rem, 6vw, 4rem)); left: 0; right: 0;
+      text-align: center; pointer-events: none; color: #7ea6c4; font-size: .92rem; }
+    .start-version { position: fixed; left: 12px; bottom: 8px; color: #46627e;
+      font-size: .72rem; pointer-events: none; }
+    .start-knappar { position: absolute; bottom: 6vh; left: 50%; transform: translateX(-50%);
+      width: min(900px, 96vw); display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .start-knappar .knapp { position: relative; padding: 14px 22px; border-radius: 16px;
+      font-size: 1.05rem; font-weight: 800; text-decoration: none; color: #08131f;
+      box-shadow: 0 5px 0 #0007; transition: transform .08s; }
+    .start-knappar .knapp:hover { transform: translateY(2px); box-shadow: 0 3px 0 #0007; }
+    .k1 { background: #ffd166; } .k2 { background: #06d6a0; } .k3 { background: #ef7674; }
+    .k4 { background: #74b9ff; } .k5 { background: #f4a261; } .k6 { background: #b39ddb; }
+    .k7 { background: #8ce99a; } .k8 { background: #ffdc32; }
+    .knapp-video { position: absolute; top: -10px; right: -10px; width: 30px; height: 30px;
+      border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
+      font-size: .72rem; cursor: pointer; padding-left: 3px; box-shadow: 0 2px 6px #000a; }
+    .knapp-video:hover { transform: scale(1.15); }
+    .start-hjalp { position: fixed; top: 14px; right: 14px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
+      font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
+    /* feedbackknappen: bara på startsidan, speglar ?-knappen */
+    #feedback-knapp { position: fixed; top: 14px; left: 14px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
+      font-size: 1.05rem; cursor: pointer; z-index: 60; }
+    body:not(.startlage) #feedback-knapp { display: none; }
+    /* spelvyns ?-knapp: kör om genomgången av lägena (ovanför ljudknappen) */
+    #spel-hjalp { position: fixed; left: 10px; bottom: 80px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
+      font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
+    body.startlage #spel-hjalp { display: none; }
+    /* play-knapp i spelvyns header: världsdelens genomgångsvideo */
+    #spel-video { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff;
+      background: #e0453a; color: #fff; font-size: .68rem; cursor: pointer;
+      padding-left: 3px; margin-left: 8px; vertical-align: middle;
+      box-shadow: 0 2px 6px #000a; flex: none; }
+    #spel-video:hover { transform: scale(1.12); }
+    #feedback-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .feedback-kort { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+    .feedback-kort h2 { color: #ffdc32; margin-bottom: 8px; }
+    .feedback-kort p { color: #9fc3e0; font-size: .88rem; margin-bottom: 12px; line-height: 1.45; }
+    .feedback-kort label { display: block; color: #cfe3f4; font-size: .82rem; font-weight: 700;
+      margin: 10px 0 4px; }
+    .feedback-kort input, .feedback-kort textarea { width: 100%; padding: 9px 11px;
+      border-radius: 10px; border: 1px solid rgba(91,191,255,.3); background: #0b1a2c;
+      color: #eaf4ff; font: inherit; font-size: .92rem; }
+    .feedback-kort textarea { min-height: 110px; resize: vertical; }
+    .feedback-knappar { display: flex; gap: 10px; margin-top: 14px; }
+    #feedback-skicka { padding: 9px 18px; border-radius: 10px; border: none; background: #ffdc32;
+      color: #08131f; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    #feedback-stang { padding: 9px 18px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
+    #feedback-status { margin-top: 10px; font-size: .9rem; line-height: 1.4; }
+    #feedback-status.tack { color: #5fca77; font-weight: 700; }
+    #feedback-status.fel { color: #ff9d8a; }
+    #feedback-status a { color: #7ec8e3; }
+    .start-hifi { position: fixed; right: 16px; bottom: 10px; text-align: center; z-index: 55;
+      cursor: pointer; }
+    .start-hifi img { width: 84px; display: block; margin: 0 auto;
+      filter: drop-shadow(0 4px 10px #000a); transition: transform .15s; }
+    .start-hifi:hover img { transform: scale(1.08) rotate(-3deg); }
+    .start-hifi span { font-size: .74rem; color: #ffdc32; font-weight: 700; }
+    /* startläge: kartan i fullbredd bakom overlayn, spelpanelerna gömda */
+    body.startlage .game-container { height: 100vh; }
+    body.startlage .info-panel { display: none; }
+    body.startlage .view-toggle, body.startlage .explore-toggle-buttons,
+    body.startlage .zoom-controls, body.startlage .maplibregl-control-container,
+    body.startlage #spel-map .maplibregl-ctrl { display: none !important; }
+    @media (max-width: 700px) {
+      /* raden centrerad och lyft: ljudknappen och hörngubben får plats under */
+      .start-knappar { bottom: 104px; gap: 8px; }
+      .start-knappar .knapp { padding: 11px 15px; font-size: .9rem; }
+      .start-hifi { right: 8px; bottom: 6px; }
+      .start-hifi img { width: 54px; }
+      .start-hifi span { font-size: .62rem; }
+    }
+    /* ── Rundturen ── */
+    #intro-overlay { position: fixed; inset: 0; z-index: 200; }
+    #tour-hal { position: fixed; border-radius: 16px; z-index: 201; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(3, 7, 17, .82); transition: all .5s ease;
+      outline: 3px dashed #ffdc32; outline-offset: 4px; }
+    #intro-jonas { position: fixed; left: 6vw; bottom: 0; height: min(64vh, 560px); z-index: 202;
+      filter: drop-shadow(0 8px 26px #000c);
+      transition: transform .95s cubic-bezier(.5, -0.1, .3, 1.15), height .5s ease, left .5s ease, bottom .5s ease; transform-origin: bottom center; }
+    #intro-bubbla { position: fixed; left: calc(6vw + min(30vh, 270px)); bottom: min(46vh, 400px);
+      max-width: min(400px, 72vw); background: #fff; color: #14243a; border-radius: 18px;
+      padding: 16px 18px; z-index: 203; box-shadow: 0 10px 34px #000b; text-align: left; }
+    #intro-bubbla::after { content: ""; position: absolute; left: -14px; bottom: 26px;
+      border: 10px solid transparent; border-right-color: #fff; border-left-width: 6px; }
+    #intro-bubbla p { font-size: 1.02rem; line-height: 1.45; margin-bottom: 12px; font-weight: 600; }
+    .intro-knappar { display: flex; gap: 10px; }
+    .intro-knappar button { padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer;
+      font-weight: 800; font-size: .92rem; }
+    #intro-nasta { background: #ffdc32; color: #08131f; box-shadow: 0 3px 0 #0005; }
+    #intro-hoppa { background: #e8eef4; color: #56718c; }
+    /* under själva rundturs-stegen kliver Jonas åt sidan och blir halvstor
+       så att strålkastarmålen (knappar m.m.) syns fritt */
+    #intro-overlay.steg #intro-jonas { height: min(36vh, 320px); left: 2vw; }
+    #intro-overlay.steg #intro-bubbla { left: calc(2vw + min(17vh, 155px)); bottom: min(26vh, 235px); }
+    /* runt strålkastarhål (jordgloben) */
+    #tour-hal.rund { border-radius: 50%; }
+    /* vissa steg står Jonas till höger (t.ex. vid high five-hörnet) */
+    #intro-overlay.steg.hoger #intro-jonas { left: auto; right: min(20vw, 220px); }
+    #intro-overlay.steg.hoger #intro-bubbla { left: auto;
+      right: calc(min(20vw, 220px) + min(17vh, 155px)); }
+    #intro-overlay.hoger #intro-bubbla::after { left: auto; right: -14px;
+      border: 10px solid transparent; border-left-color: #fff; border-right-width: 6px; }
+    #intro-jonas.spegel { transform: scaleX(-1); }
+    @media (max-width: 700px) {
+      #intro-jonas { height: 44vh; left: 2vw; }
+      #intro-overlay.steg #intro-jonas { height: 30vh; }
+      #intro-overlay.steg #intro-bubbla { left: 8vw; right: 8vw; bottom: 34vh; }
+      #intro-bubbla { left: 10vw; right: 10vw; bottom: 48vh; max-width: none;
+        padding: 12px 14px; }
+      #intro-bubbla p { font-size: .93rem; line-height: 1.35; margin-bottom: 9px; }
+      .intro-knappar button { padding: 8px 14px; font-size: .88rem; }
+      /* svansen pekar nedåt, mot Jonas (läget sätts av skriptet) */
+      #intro-bubbla::after, #intro-overlay.hoger #intro-bubbla::after {
+        left: var(--svans-x, 30px); right: auto; bottom: -18px;
+        border: 10px solid transparent; border-top-color: #fff; }
+      #intro-overlay.steg.hoger #intro-jonas { right: 2vw; }
+      #intro-overlay.steg.hoger #intro-bubbla { left: 8vw; right: 8vw; }
+    }
+    /* ── Videomodal ── */
+    #video-modal { position: fixed; inset: 0; z-index: 300; background: rgba(3, 7, 17, .88);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 4vmin; }
+    /* spelarens bredd begränsas även av höjden så att spelare + delknappar
+       alltid ryms på skärmen (t.ex. mobil i liggande läge) */
+    .video-ram { position: relative; aspect-ratio: 16 / 9;
+      width: min(920px, 94vw, calc((100vh - 8vmin - 70px) * 16 / 9));
+      background: #000; border-radius: 14px; box-shadow: 0 18px 60px #000; }
+    .video-ram { width: min(920px, 94vw, calc((100dvh - 8vmin - 70px) * 16 / 9)); }
+    .video-ram iframe { width: 100%; height: 100%; border: 0; border-radius: 14px; }
+    /* flerdelade videor (Afrika): delknappar under spelaren */
+    #video-delar { display: flex; gap: 8px; justify-content: center; }
+    #video-delar button { padding: 7px 16px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 800; cursor: pointer; }
+    #video-delar button.aktiv { background: #ffdc32; color: #08131f; }
+    #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
+      border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
+      font-size: 1rem; cursor: pointer; z-index: 2; }
+    /* ── Spelvyn = SAMMA vy som starten: kartan täcker hela fönstret,
+       headern är en genomskinlig remsa och infopanelen SVÄVAR över rymden
+       i stället för att vara en fast blå sida ── */
+    @media (min-width: 901px) {
+      body:not(.startlage) header { position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+        background: linear-gradient(180deg, rgba(5,11,20,.88) 30%, rgba(5,11,20,0));
+        border-bottom: none; box-shadow: none; }
+      .game-container { height: 100vh; }
+      .map-panel { padding: 0; }
+      body:not(.startlage) .maplibregl-ctrl-top-right { top: 52px; right: 394px; }
+      .info-panel { position: fixed; top: 60px; right: 14px; bottom: 14px; width: 366px;
+        border-radius: 18px; background: rgba(13, 26, 44, .88);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 18px 50px rgba(0,0,0,.6); z-index: 15; overflow: hidden;
+        border: 1px solid rgba(91,191,255,.12); }
+    }
+    /* Väggkartan och Original-vyn är avstängda tills vidare — allt är globen */
+    .view-toggle { display: none !important; }
+    /* appen är fullskärm — dokumentet får aldrig scrolla (sidledsscrollbar) */
+    html, body { overflow: hidden !important; background: #02060d; }
+    /* inga synliga rullningslister någonstans i appen (macOS-inställningen
+       "visa alltid rullningslister" ritade annars en list längst ner) —
+       panelerna förblir scrollbara med hjul och svep, bara listen göms */
+    * { scrollbar-width: none; }
+    *::-webkit-scrollbar { display: none; }
+    /* ── Laddskärm: startsidan syns från första bildrutan; i mitten en
+       jordglobsanimation + förberedelsetips tills riktiga globen är redo ── */
+    /* ridån: täcker den riktiga globen helt under laddningen — den får
+       dyka upp först när den är färdigritad, inte halvmålad */
+    #ladd-rida { position: absolute; inset: 0; display: none; background: #02060d;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'%3E%3Ccircle cx=%22639.4%22 cy=%2225.0%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.8%22/%3E%3Ccircle cx=%22892.2%22 cy=%2286.9%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%2226.5%22 cy=%22198.8%22 r=%220.92%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22809.4%22 cy=%226.5%22 r=%221.4%22 fill=%22%23ffffff%22 fill-opacity=%220.51%22/%3E%3Ccircle cx=%22957.2%22 cy=%22336.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22807.1%22 cy=%22729.7%22 r=%221.07%22 fill=%22%23ffffff%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22829.4%22 cy=%22618.5%22 r=%221.34%22 fill=%22%23ffffff%22 fill-opacity=%220.78%22/%3E%3Ccircle cx=%22227.9%22 cy=%22289.4%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22635.7%22 cy=%22364.8%22 r=%220.53%22 fill=%22%23ffe9a8%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22648.0%22 cy=%22609.1%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22989.5%22 cy=%22640.0%22 r=%220.97%22 fill=%22%239fc3e0%22 fill-opacity=%220.88%22/%3E%3Ccircle cx=%22229.0%22 cy=%2232.1%22 r=%220.54%22 fill=%22%23ffe9a8%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%22876.4%22 cy=%22314.7%22 r=%220.86%22 fill=%22%23ffffff%22 fill-opacity=%220.94%22/%3E%3Ccircle cx=%22264.9%22 cy=%22246.6%22 r=%220.81%22 fill=%22%239fc3e0%22 fill-opacity=%220.69%22/%3E%3Ccircle cx=%22399.4%22 cy=%22219.3%22 r=%221.81%22 fill=%22%23ffffff%22 fill-opacity=%220.32%22/%3E%3Ccircle cx=%22109.6%22 cy=%22627.4%22 r=%220.87%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22996.1%22 cy=%22529.1%22 r=%222.06%22 fill=%22%239fc3e0%22 fill-opacity=%220.26%22/%3E%3Ccircle cx=%22681.7%22 cy=%22537.0%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22453.7%22 cy=%22953.8%22 r=%221.18%22 fill=%22%23ffffff%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22912.6%22 cy=%22870.5%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.71%22/%3E%3Ccircle cx=%22762.5%22 cy=%22539.4%22 r=%220.91%22 fill=%22%23ffffff%22 fill-opacity=%220.25%22/%3E%3Ccircle cx=%2219.5%22 cy=%22929.1%22 r=%221.47%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22878.0%22 cy=%22946.9%22 r=%220.6%22 fill=%22%239fc3e0%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22765.8%22 cy=%22128.4%22 r=%220.61%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22423.1%22 cy=%22211.8%22 r=%220.98%22 fill=%22%23ffffff%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22995.1%22 cy=%22649.9%22 r=%220.6%22 fill=%22%23ffffff%22 fill-opacity=%220.34%22/%3E%3Ccircle cx=%22338.1%22 cy=%22588.3%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22228.9%22 cy=%22905.4%22 r=%221.08%22 fill=%22%23ffffff%22 fill-opacity=%220.43%22/%3E%3Ccircle cx=%22214.2%22 cy=%22132.3%22 r=%221.34%22 fill=%22%239fc3e0%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22807.5%22 cy=%22190.4%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.57%22/%3E%3Ccircle cx=%22729.1%22 cy=%22673.4%22 r=%221.51%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22861.7%22 cy=%22248.7%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.57%22/%3E%3Ccircle cx=%22249.8%22 cy=%22923.3%22 r=%220.69%22 fill=%22%23ffffff%22 fill-opacity=%220.66%22/%3E%3Ccircle cx=%22999.3%22 cy=%22836.0%22 r=%222.11%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22485.6%22 cy=%22213.7%22 r=%220.49%22 fill=%22%23ffe9a8%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22265.2%22 cy=%22784.1%22 r=%220.58%22 fill=%22%23ffe9a8%22 fill-opacity=%220.97%22/%3E%3Ccircle cx=%22555.8%22 cy=%22718.4%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22542.2%22 cy=%22748.0%22 r=%220.62%22 fill=%22%239fc3e0%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22157.4%22 cy=%22960.8%22 r=%220.52%22 fill=%22%23ffffff%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22235.2%22 cy=%22119.9%22 r=%221.17%22 fill=%22%23ffffff%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22419.2%22 cy=%22583.7%22 r=%221.06%22 fill=%22%239fc3e0%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22238.7%22 cy=%22395.8%22 r=%220.83%22 fill=%22%239fc3e0%22 fill-opacity=%220.49%22/%3E%3Ccircle cx=%2272.5%22 cy=%22458.3%22 r=%222.16%22 fill=%22%23ffffff%22 fill-opacity=%220.3%22/%3E%3Ccircle cx=%22265.2%22 cy=%22933.3%22 r=%221.5%22 fill=%22%23ffffff%22 fill-opacity=%220.53%22/%3E%3Ccircle cx=%22833.7%22 cy=%22703.5%22 r=%221.08%22 fill=%22%23ffffff%22 fill-opacity=%220.74%22/%3E%3Ccircle cx=%22817.1%22 cy=%22299.4%22 r=%221.06%22 fill=%22%23ffffff%22 fill-opacity=%220.35%22/%3E%3Ccircle cx=%22107.0%22 cy=%22553.2%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.79%22/%3E%3Ccircle cx=%22634.2%22 cy=%22264.0%22 r=%220.7%22 fill=%22%23ffffff%22 fill-opacity=%220.88%22/%3E%3Ccircle cx=%22423.6%22 cy=%22276.7%22 r=%220.67%22 fill=%22%23ffffff%22 fill-opacity=%220.73%22/%3E%3Ccircle cx=%22741.2%22 cy=%22551.7%22 r=%220.48%22 fill=%22%239fc3e0%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22903.9%22 cy=%22545.6%22 r=%221.34%22 fill=%22%23ffffff%22 fill-opacity=%220.36%22/%3E%3Ccircle cx=%22308.3%22 cy=%22899.0%22 r=%221.03%22 fill=%22%23ffffff%22 fill-opacity=%220.92%22/%3E%3Ccircle cx=%22249.5%22 cy=%22102.8%22 r=%221.04%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22154.6%22 cy=%22929.9%22 r=%221.55%22 fill=%22%239fc3e0%22 fill-opacity=%220.86%22/%3E%3Ccircle cx=%2224.8%22 cy=%22736.6%22 r=%220.7%22 fill=%22%239fc3e0%22 fill-opacity=%220.85%22/%3E%3Ccircle cx=%22810.7%22 cy=%22266.8%22 r=%220.76%22 fill=%22%239fc3e0%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22222.4%22 cy=%22816.6%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.85%22/%3E%3Ccircle cx=%2223.7%22 cy=%22193.1%22 r=%220.69%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22641.5%22 cy=%22399.7%22 r=%221.83%22 fill=%22%23ffffff%22 fill-opacity=%220.95%22/%3E%3Ccircle cx=%22970.4%22 cy=%22178.6%22 r=%221.63%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22728.5%22 cy=%22313.7%22 r=%220.9%22 fill=%22%23ffffff%22 fill-opacity=%220.54%22/%3E%3Ccircle cx=%22254.7%22 cy=%22708.8%22 r=%220.7%22 fill=%22%239fc3e0%22 fill-opacity=%220.65%22/%3E%3Ccircle cx=%22742.0%22 cy=%22670.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.75%22/%3E%3Ccircle cx=%22313.9%22 cy=%22848.0%22 r=%220.83%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22402.4%22 cy=%22295.7%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22902.8%22 cy=%22615.5%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%220.25%22/%3E%3Ccircle cx=%22429.9%22 cy=%22580.0%22 r=%220.89%22 fill=%22%23ffffff%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22473.2%22 cy=%22901.2%22 r=%220.78%22 fill=%22%23ffffff%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22632.9%22 cy=%22335.2%22 r=%221.43%22 fill=%22%23ffffff%22 fill-opacity=%220.75%22/%3E%3Ccircle cx=%22199.1%22 cy=%2224.4%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22414.4%22 cy=%22629.8%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.62%22/%3E%3Ccircle cx=%22656.1%22 cy=%225.5%22 r=%221.0%22 fill=%22%23ffffff%22 fill-opacity=%220.33%22/%3E%3Ccircle cx=%22175.9%22 cy=%22958.0%22 r=%220.74%22 fill=%22%239fc3e0%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22456.5%22 cy=%22801.4%22 r=%221.08%22 fill=%22%23ffe9a8%22 fill-opacity=%220.7%22/%3E%3Ccircle cx=%22891.4%22 cy=%22612.7%22 r=%220.9%22 fill=%22%23ffffff%22 fill-opacity=%220.87%22/%3E%3Ccircle cx=%22897.2%22 cy=%22743.7%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22765.8%22 cy=%22521.3%22 r=%220.82%22 fill=%22%23ffffff%22 fill-opacity=%220.31%22/%3E%3Ccircle cx=%22271.7%22 cy=%22319.7%22 r=%220.77%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22706.4%22 cy=%2264.2%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%220.56%22/%3E%3Ccircle cx=%22420.1%22 cy=%22904.8%22 r=%220.97%22 fill=%22%239fc3e0%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22380.4%22 cy=%225.9%22 r=%220.66%22 fill=%22%23ffe9a8%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22419.0%22 cy=%22747.5%22 r=%220.94%22 fill=%22%23ffffff%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22435.8%22 cy=%2229.0%22 r=%220.64%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%22467.4%22 cy=%22127.6%22 r=%220.73%22 fill=%22%23ffffff%22 fill-opacity=%220.55%22/%3E%3Ccircle cx=%2227.1%22 cy=%22642.7%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.29%22/%3E%3Ccircle cx=%22211.7%22 cy=%22326.8%22 r=%220.86%22 fill=%22%239fc3e0%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22252.3%22 cy=%2281.9%22 r=%220.61%22 fill=%22%23ffffff%22 fill-opacity=%221.0%22/%3E%3Ccircle cx=%22650.1%22 cy=%22781.2%22 r=%220.99%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%2220.4%22 cy=%22152.4%22 r=%220.64%22 fill=%22%23ffffff%22 fill-opacity=%220.67%22/%3E%3Ccircle cx=%22699.5%22 cy=%22766.9%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22819.3%22 cy=%22964.7%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.48%22/%3E%3Ccircle cx=%22958.2%22 cy=%22396.7%22 r=%220.75%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22101.9%22 cy=%22772.5%22 r=%221.35%22 fill=%22%23ffe9a8%22 fill-opacity=%220.34%22/%3E%3Ccircle cx=%22782.6%22 cy=%22347.2%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.63%22/%3E%3Ccircle cx=%22849.6%22 cy=%22822.3%22 r=%220.71%22 fill=%22%239fc3e0%22 fill-opacity=%220.73%22/%3E%3Ccircle cx=%22707.3%22 cy=%22435.5%22 r=%221.07%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22538.2%22 cy=%22483.5%22 r=%220.66%22 fill=%22%239fc3e0%22 fill-opacity=%220.45%22/%3E%3Ccircle cx=%22830.7%22 cy=%2286.7%22 r=%221.17%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22379.0%22 cy=%2228.7%22 r=%221.13%22 fill=%22%239fc3e0%22 fill-opacity=%220.41%22/%3E%3Ccircle cx=%22340.3%22 cy=%22880.3%22 r=%220.82%22 fill=%22%23ffe9a8%22 fill-opacity=%220.26%22/%3E%3Ccircle cx=%2285.6%22 cy=%22720.1%22 r=%220.66%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22490.8%22 cy=%22792.9%22 r=%220.53%22 fill=%22%23ffffff%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%22581.6%22 cy=%22473.3%22 r=%220.87%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22702.9%22 cy=%22270.9%22 r=%220.51%22 fill=%22%23ffffff%22 fill-opacity=%220.39%22/%3E%3Ccircle cx=%22535.9%22 cy=%22762.2%22 r=%220.53%22 fill=%22%239fc3e0%22 fill-opacity=%220.61%22/%3E%3Ccircle cx=%22976.6%22 cy=%22524.6%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.4%22/%3E%3Ccircle cx=%22179.4%22 cy=%2214.1%22 r=%220.82%22 fill=%22%23ffffff%22 fill-opacity=%220.98%22/%3E%3Ccircle cx=%22697.4%22 cy=%22126.3%22 r=%221.3%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22469.4%22 cy=%22440.5%22 r=%220.49%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22822.1%22 cy=%22400.7%22 r=%220.63%22 fill=%22%23ffffff%22 fill-opacity=%220.29%22/%3E%3Ccircle cx=%22562.8%22 cy=%22303.8%22 r=%221.53%22 fill=%22%23ffffff%22 fill-opacity=%220.82%22/%3E%3Ccircle cx=%22790.7%22 cy=%22225.7%22 r=%220.88%22 fill=%22%239fc3e0%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22990.0%22 cy=%22305.4%22 r=%220.94%22 fill=%22%23ffe9a8%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22207.8%22 cy=%22211.0%22 r=%220.78%22 fill=%22%23ffffff%22 fill-opacity=%220.38%22/%3E%3Ccircle cx=%222.7%22 cy=%22450.5%22 r=%220.82%22 fill=%22%239fc3e0%22 fill-opacity=%220.42%22/%3E%3Ccircle cx=%22703.0%22 cy=%22454.0%22 r=%221.05%22 fill=%22%23ffffff%22 fill-opacity=%220.84%22/%3E%3Ccircle cx=%22661.2%22 cy=%22933.7%22 r=%220.61%22 fill=%22%239fc3e0%22 fill-opacity=%220.74%22/%3E%3Ccircle cx=%22826.6%22 cy=%2271.4%22 r=%220.55%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%22288.6%22 cy=%22124.4%22 r=%220.97%22 fill=%22%23ffffff%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22493.8%22 cy=%2280.4%22 r=%220.58%22 fill=%22%23ffffff%22 fill-opacity=%220.49%22/%3E%3Ccircle cx=%2291.3%22 cy=%22961.9%22 r=%221.34%22 fill=%22%23ffe9a8%22 fill-opacity=%220.96%22/%3E%3Ccircle cx=%22672.3%22 cy=%22269.5%22 r=%220.66%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22916.1%22 cy=%22181.5%22 r=%220.95%22 fill=%22%23ffffff%22 fill-opacity=%220.62%22/%3E%3Ccircle cx=%22348.0%22 cy=%22333.3%22 r=%221.03%22 fill=%22%23ffffff%22 fill-opacity=%220.5%22/%3E%3Ccircle cx=%22288.2%22 cy=%22945.2%22 r=%221.33%22 fill=%22%23ffffff%22 fill-opacity=%220.59%22/%3E%3Ccircle cx=%22323.3%22 cy=%22970.2%22 r=%220.6%22 fill=%22%23ffffff%22 fill-opacity=%220.99%22/%3E%3Ccircle cx=%22542.6%22 cy=%22413.2%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.82%22/%3E%3Ccircle cx=%22760.0%22 cy=%22203.6%22 r=%221.05%22 fill=%22%23ffffff%22 fill-opacity=%220.58%22/%3E%3Ccircle cx=%22121.4%22 cy=%22973.1%22 r=%220.81%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22552.3%22 cy=%2293.2%22 r=%222.1%22 fill=%22%23ffffff%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22832.1%22 cy=%22498.4%22 r=%220.9%22 fill=%22%239fc3e0%22 fill-opacity=%220.46%22/%3E%3Ccircle cx=%22980.2%22 cy=%22243.7%22 r=%220.86%22 fill=%22%23ffffff%22 fill-opacity=%220.94%22/%3E%3Ccircle cx=%22879.3%22 cy=%22864.0%22 r=%220.67%22 fill=%22%23ffe9a8%22 fill-opacity=%220.56%22/%3E%3Ccircle cx=%22507.7%22 cy=%22820.5%22 r=%220.55%22 fill=%22%23ffe9a8%22 fill-opacity=%220.69%22/%3E%3Ccircle cx=%22489.6%22 cy=%22148.6%22 r=%220.84%22 fill=%22%23ffffff%22 fill-opacity=%220.66%22/%3E%3Ccircle cx=%22455.3%22 cy=%22321.8%22 r=%220.65%22 fill=%22%23ffffff%22 fill-opacity=%220.68%22/%3E%3Ccircle cx=%22775.5%22 cy=%2243.6%22 r=%220.97%22 fill=%22%23ffffff%22 fill-opacity=%220.86%22/%3E%3Ccircle cx=%22663.7%22 cy=%22820.7%22 r=%221.8%22 fill=%22%23ffffff%22 fill-opacity=%220.28%22/%3E%3Ccircle cx=%22590.2%22 cy=%22869.7%22 r=%221.27%22 fill=%22%23ffffff%22 fill-opacity=%220.64%22/%3E%3Ccircle cx=%22722.4%22 cy=%22410.0%22 r=%220.78%22 fill=%22%23ffe9a8%22 fill-opacity=%220.6%22/%3E%3Ccircle cx=%22338.6%22 cy=%22692.7%22 r=%221.03%22 fill=%22%239fc3e0%22 fill-opacity=%220.89%22/%3E%3Ccircle cx=%22380.0%22 cy=%22316.7%22 r=%220.99%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%2268.4%22 cy=%22631.2%22 r=%221.56%22 fill=%22%23ffffff%22 fill-opacity=%220.81%22/%3E%3Ccircle cx=%2298.4%22 cy=%22633.7%22 r=%221.27%22 fill=%22%239fc3e0%22 fill-opacity=%220.77%22/%3E%3Ccircle cx=%2246.0%22 cy=%22796.1%22 r=%220.57%22 fill=%22%23ffffff%22 fill-opacity=%220.36%22/%3E%3Ccircle cx=%22565.9%22 cy=%22792.5%22 r=%220.5%22 fill=%22%23ffffff%22 fill-opacity=%220.9%22/%3E%3Ccircle cx=%22240.8%22 cy=%22912.8%22 r=%220.59%22 fill=%22%23ffffff%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%229.4%22 cy=%22804.6%22 r=%221.39%22 fill=%22%23ffffff%22 fill-opacity=%220.37%22/%3E%3Ccircle cx=%22345.6%22 cy=%22587.6%22 r=%220.87%22 fill=%22%239fc3e0%22 fill-opacity=%220.44%22/%3E%3Ccircle cx=%22199.2%22 cy=%22384.7%22 r=%220.54%22 fill=%22%23ffffff%22 fill-opacity=%220.68%22/%3E%3C/svg%3E");
+      background-size: 1000px 1000px; background-position: 340px 170px;
+      transition: opacity .9s ease; }
+    #ladd-rida.borta { opacity: 0; pointer-events: none; }
+    #ladd-skarm { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none; transition: opacity .6s ease; }
+    #ladd-skarm.klar { opacity: 0; }
+    .ladd-glob { display: none; position: relative; margin: 0 auto 18px; }
+    /* variant 1: konstgloben andas med en satellit i omlopp */
+    #ladd-skarm.v1 .ladd-glob-v1 { display: block; width: 34vmin; height: 34vmin; }
+    .ladd-glob-v1 img { width: 100%; border-radius: 50%;
+      animation: ladd-andas 2.4s ease-in-out infinite;
+      box-shadow: 0 0 55px #2e9eff55, 0 0 150px #2e9eff22; }
+    .ladd-glob-v1 .omlopp { position: absolute; inset: -14%; border-radius: 50%;
+      border: 1.5px dashed #2b4a66; animation: ladd-snurr 5s linear infinite; }
+    .ladd-glob-v1 .omlopp span { position: absolute; top: -5px; left: 50%; width: 10px;
+      height: 10px; border-radius: 50%; background: #ffdc32; box-shadow: 0 0 12px #ffdc32; }
+    @keyframes ladd-andas { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+    @keyframes ladd-snurr { to { transform: rotate(360deg); } }
+    /* variant 2: studsande emoji-jord som växlar världsdel */
+    #ladd-skarm.v2 .ladd-glob-v2 { display: block; }
+    .ladd-glob-v2 span { font-size: 21vmin; display: inline-block;
+      animation: ladd-studs 1.1s ease-in-out infinite; }
+    @keyframes ladd-studs { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3vmin) } }
+    /* variant 3: tecknad trådglob som roterar */
+    #ladd-skarm.v3 .ladd-glob-v3 { display: block; width: 30vmin; height: 30vmin; }
+    .ladd-glob-v3 .wire { position: absolute; inset: 0; border: 2.5px solid #7ec8e3aa;
+      border-radius: 50%; }
+    .ladd-glob-v3 .wire i { position: absolute; inset: 0; border: 2px solid #7ec8e366;
+      border-radius: 50%; }
+    .ladd-glob-v3 .wire i:nth-child(1) { animation: ladd-meridian 2.6s linear infinite; }
+    .ladd-glob-v3 .wire i:nth-child(2) { animation: ladd-meridian 2.6s linear infinite -0.87s; }
+    .ladd-glob-v3 .wire i:nth-child(3) { transform: scaleY(.33); border-color: #7ec8e344; }
+    @keyframes ladd-meridian {
+      0% { transform: scaleX(1); } 25% { transform: scaleX(.08); }
+      50% { transform: scaleX(1); } 75% { transform: scaleX(.08); } 100% { transform: scaleX(1); } }
+    #ladd-procent { color: #7ec8e3; font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+    #ladd-info { color: #9fc3e0; font-size: .95rem; max-width: min(420px, 80vw);
+      margin: 0 auto; min-height: 2.6em; transition: opacity .4s; }
+    #ladd-info.byter { opacity: 0; }
+    /* medan det laddar är världsdelsknapparna vilande */
+    #region-selector.laddar .start-knappar { opacity: .35; pointer-events: none;
+      filter: saturate(.5); }
+    /* ── Minnesregeln är själva inlärningen — lyft fram den ordentligt ── */
+    #info-card .assoc-box, .seterra-feedback .assoc-box {
+      font-size: 1.08rem; line-height: 1.45; font-weight: 800; color: #ffe9a8;
+      background: rgba(255, 220, 50, .10); border: 1.5px solid rgba(255, 220, 50, .5);
+      box-shadow: 0 0 16px rgba(255, 220, 50, .12); border-radius: 10px; }
+    #info-card .assoc-box::before, .seterra-feedback .assoc-box::before {
+      content: '💡 '; }
+    /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
+    @media (max-width: 900px) {
+      #info-card .assoc-box { font-size: .98rem; padding: 8px 10px; }
+      .seterra-feedback .assoc-box { font-size: .95rem; }
+      .mode-toggle { gap: 3px; }
+      .mode-toggle .mode-btn { padding: 6px 9px; font-size: .78rem; }
+      /* dynamisk vyhöjd: mobilens adressfält ska inte knuffa ut panelen */
+      @supports (height: 100dvh) {
+        .game-container { height: calc(100dvh - var(--mobile-header-h, 80px)); }
+        body.startlage .game-container { height: 100dvh; }
+      }
+    }
+    @media (max-width: 700px) {
+      /* headern andas: hinttexten och maplibre-zoomknapparna bort på små
+         skärmar (nyp-zoom finns), kvar: pil, titel och lägesväxlaren */
+      .header-hint { display: none; }
+      .maplibregl-ctrl-top-right { display: none !important; }
+    }
+    /* ── Medaljer på startknapparna ── */
+    .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
+      filter: drop-shadow(0 2px 4px #000a); pointer-events: none; }
+    .k9 { background: #e7c27d; }
+    /* ── Världsresans pass ── */
+    #resa-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .resa-pass { width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+    .resa-pass h2 { color: #ffdc32; margin-bottom: 8px; }
+    .resa-info { color: #9fc3e0; font-size: .88rem; margin-bottom: 14px; line-height: 1.45; }
+    .resa-rad { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 10px; margin-bottom: 6px; background: #0b1a2c; }
+    .resa-rad b { flex: 1; }
+    .resa-rad.klar { border: 1px solid rgba(69,180,94,.4); }
+    .resa-rad.klar i { color: #5fca77; font-style: normal; font-weight: 700; }
+    .resa-rad.nu { border: 1.5px solid rgba(255,220,50,.55); background: #14243a; }
+    .resa-rad.last { opacity: .45; }
+    .resa-res { padding: 7px 14px; border-radius: 8px; border: none; background: #ffdc32;
+      font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    #resa-klart { color: #ffdc32; margin: 10px 0; }
+    #resa-stang { margin-top: 10px; padding: 9px 18px; border-radius: 10px; border: none;
+      background: #e8eef4; color: #56718c; font-weight: 800; cursor: pointer; }
+    .resa-stampel { color: #ffdc32; font-weight: 700; }
+    /* ── Ljudknapp ── */
+    #ljud-knapp { position: fixed; left: 10px; bottom: 34px; z-index: 60; width: 38px;
+      height: 38px; border-radius: 50%; border: 2px solid #2e9eff55; background: #0a1526cc;
+      font-size: 1.05rem; cursor: pointer; }
+    /* ── Diplom ── */
+    #diplom-modal { position: fixed; inset: 0; z-index: 320; background: rgba(2,6,13,.9);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .diplom { max-width: 640px; width: 94vw; }
+    .diplom-ram { background: #fdf8ec; color: #241d12; border: 6px double #b8912f;
+      border-radius: 10px; padding: 30px 34px; text-align: center;
+      box-shadow: 0 24px 70px #000; font-family: Georgia, 'Times New Roman', serif; }
+    .diplom-ram h1 { font-size: 2.4rem; letter-spacing: .35em; color: #b8912f; margin-bottom: 4px; }
+    .diplom-till { font-style: italic; color: #6b5c40; }
+    .diplom-namn { font-size: 1.7rem; font-weight: 700; border-bottom: 2px solid #b8912f66;
+      display: inline-block; padding: 4px 26px; margin: 8px 0; min-width: 55%; outline: none; }
+    .diplom-text { font-size: 1.06rem; margin-top: 4px; }
+    .diplom-detalj { color: #6b5c40; margin-top: 6px; font-size: .95rem; }
+    .diplom-fot { display: flex; justify-content: space-between; align-items: flex-end;
+      margin-top: 22px; }
+    .diplom-jonas img { width: 74px; display: block; }
+    .diplom-jonas span { font-size: .8rem; color: #6b5c40; font-style: italic; }
+    .diplom-datum { font-size: .85rem; color: #6b5c40; }
+    .diplom-knappar { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .diplom-knappar button { padding: 10px 20px; border-radius: 10px; border: none;
+      cursor: pointer; font-weight: 800; }
+    #diplom-skriv { background: #ffdc32; box-shadow: 0 3px 0 #0006; }
+    #diplom-stang { background: #e8eef4; color: #56718c; }
+    @media print {
+      body > *:not(#diplom-modal) { display: none !important; }
+      #diplom-modal { position: static; background: #fff; padding: 0; }
+      .diplom-knappar { display: none; }
+      .diplom-ram { box-shadow: none; }
+    }
+  </style>
+</head>
+<body class="startlage">
+
+<header style="display:none">
+  <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
+  <h1>Jonas geografi</h1>
+  <button id="spel-video" style="display:none" title="Se videon om v&auml;rldsdelens l&auml;nder">&#9654;</button>
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="explore">Utforska</button>
+    <button class="mode-btn" data-mode="bildquiz" title="Quiz med bilderna synliga &mdash; tr&auml;na p&aring; att koppla bild till land">Bildquiz</button>
+    <button class="mode-btn" data-mode="seterra">Klassiskt Quiz</button>
+  </div>
+  <span class="header-hint" id="header-hint">Klicka p&aring; ett land</span>
+</header>
+
+<div id="rymd-lager"></div>
+
+<div class="region-selector" id="region-selector" style="display:none">
+  <div id="ladd-rida"></div>
+  <h1 class="start-titel">Redo att ta &ouml;ver v&auml;rlden? &#127757;</h1>
+  <div class="start-hint">Snurra p&aring; jordgloben &mdash; eller v&auml;lj var du vill b&ouml;rja!</div>
+  <div id="ladd-skarm">
+    <div class="ladd-glob ladd-glob-v1"><img src="assets/design/glob-art.webp" alt="">
+      <div class="omlopp"><span></span></div></div>
+    <div class="ladd-glob ladd-glob-v2"><span id="ladd-emoji">&#127757;</span></div>
+    <div class="ladd-glob ladd-glob-v3"><div class="wire"><i></i><i></i><i></i></div></div>
+    <div id="ladd-procent">Startar &hellip;</div>
+    <div id="ladd-info"></div>
+  </div>
+  <span class="start-version" id="start-version"></span>
+  <div class="start-knappar" id="start-knappar">
+    <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; Jorden runt</a>
+    <a class="knapp k5" href="?region=sydamerika">Sydamerika
+      <button class="knapp-video" id="start-video-syd" data-video="iyU2bR1MsQ8"
+              title="Se videon om Sydamerikas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k4" href="?region=nordamerika">Nordamerika
+      <button class="knapp-video" data-video="mfWy-xPL94g"
+              title="Se videon om Nordamerikas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k1" href="?region=europa">Europa
+      <button class="knapp-video" data-video="t_-lDvNDF5g"
+              title="Se videon om Europas l&auml;nder">&#9654;</button></a>
+    <a class="knapp k2" href="?region=afrika">Afrika
+      <button class="knapp-video" data-video="mm8oTv53IJk,nitqJxm3JrA,2qTbJbb6Vuw"
+              title="Se videorna om Afrikas l&auml;nder (tre delar)">&#9654;</button></a>
+    <a class="knapp k3" href="?region=asien">Asien
+      <button class="knapp-video" data-video="_qzvRa6OG34"
+              title="Se videon om Asiens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k6" href="?region=oceanien">Oceanien
+      <button class="knapp-video" data-video="ExwpFEFi_ZM"
+              title="Se videon om Oceaniens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k7" href="?region=vastindien">V&auml;stindien
+      <button class="knapp-video" data-video="TEkeVdwJPk8"
+              title="Se videon om V&auml;stindiens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k8" href="?region=world">&#127757; Hela v&auml;rlden</a>
+  </div>
+  <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
+  <div class="start-hifi" id="start-hifi">
+    <img src="Jonas_1.webp" alt="Jonas" id="start-hifi-img">
+    <span>High fives: <strong id="start-hifi-count">0</strong></span>
+  </div>
+</div>
+
+<!-- Introduktion + rundtur på startsidan: stora Jonas berättar, delar av
+     sidan lyfts fram i en "strålkastare", och till sist åker han ner och
+     blir lilla high five-gubben i hörnet. -->
+<div id="intro-overlay" style="display:none">
+  <div id="tour-hal"></div>
+  <img id="intro-jonas" src="Jonas_1.webp" alt="Jonas">
+  <div id="intro-bubbla">
+    <p id="intro-text"></p>
+    <div class="intro-knappar">
+      <button id="intro-nasta">Visa mig runt!</button>
+      <button id="intro-hoppa">Hoppa &ouml;ver</button>
+    </div>
+  </div>
+</div>
+
+<button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
+<button id="feedback-knapp" title="Tyck till!">&#128140;</button>
+<button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
+
+<!-- Feedback: formul&auml;r som mejlas till Jonas -->
+<div id="feedback-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#128140; Tyck till!</h2>
+    <p>Har du feedback eller f&ouml;rb&auml;ttringsf&ouml;rslag? Skriv till Jonas &mdash;
+      meddelandet skickas till <b>info@jonasvonessen.se</b>.</p>
+    <form id="feedback-form">
+      <label for="feedback-namn">Namn (valfritt)</label>
+      <input id="feedback-namn" type="text" maxlength="60" autocomplete="name">
+      <label for="feedback-epost">E-post (valfritt &mdash; om du vill ha svar)</label>
+      <input id="feedback-epost" type="email" maxlength="120" autocomplete="email">
+      <label for="feedback-medd">Meddelande</label>
+      <textarea id="feedback-medd" required maxlength="4000"></textarea>
+      <div class="feedback-knappar">
+        <button id="feedback-skicka" type="submit">Skicka</button>
+        <button id="feedback-stang" type="button">St&auml;ng</button>
+      </div>
+      <div id="feedback-status"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Världsresan: kampanjpasset -->
+<div id="resa-modal" style="display:none">
+  <div class="resa-pass">
+    <h2>&#129523; Jorden runt</h2>
+    <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
+      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Du kan f&ouml;rst&aring;s
+      alltid spela fritt ocks&aring;!</p>
+    <div id="resa-lista"></div>
+    <p id="resa-klart" style="display:none">&#127942; <b>Hela Jorden runt-resan &auml;r klar &mdash; du
+      &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
+    <button id="resa-stang">St&auml;ng</button>
+  </div>
+</div>
+
+<!-- Diplom: 100 % i klassiska quizet -->
+<div id="diplom-modal" style="display:none">
+  <div class="diplom">
+    <div class="diplom-ram">
+      <h1>DIPLOM</h1>
+      <p class="diplom-till">tilldelas</p>
+      <p class="diplom-namn" contenteditable="true" spellcheck="false">Skriv ditt namn h&auml;r</p>
+      <p class="diplom-text">f&ouml;r att ha klarat <strong id="diplom-region"></strong></p>
+      <p class="diplom-detalj" id="diplom-detalj"></p>
+      <div class="diplom-fot">
+        <div class="diplom-jonas"><img src="Jonas_1.webp" alt="Jonas">
+          <span>High five! &mdash; Jonas</span></div>
+        <span class="diplom-datum" id="diplom-datum"></span>
+      </div>
+    </div>
+    <div class="diplom-knappar">
+      <button id="diplom-skriv">Skriv ut &#128424;</button>
+      <button id="diplom-stang">St&auml;ng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Videomodal för världsdelarnas genomgångsvideor -->
+<div id="video-modal" style="display:none">
+  <div class="video-ram">
+    <button id="video-stang" title="St&auml;ng">&#10005;</button>
+    <iframe id="video-iframe" src="" title="Genomg&aring;ngsvideo"
+            allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+  </div>
+  <div id="video-delar" style="display:none"></div>
+</div>
+
+<div class="game-container">
+  <div class="map-panel" id="map-panel">
+    <div id="spel-map"></div>
+    <div id="flat-wrap"><canvas id="flat-canvas"></canvas></div>
+    <div id="orig-wrap">
+      <div class="map-wrapper" id="orig-wrapper">
+        <img class="base-map" id="orig-base" alt="Karta" draggable="false">
+      </div>
+    </div>
+    <div id="spel-load" style="display:none"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
+      <div class="track"><div class="fill" id="spel-load-bar"></div></div></div>
+    <div class="view-toggle">
+      <button id="view-glob" class="active">Glob &#127757;</button>
+      <button id="view-platt">V&auml;ggkarta</button>
+      <button id="view-orig">Original</button>
+    </div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
+      <div class="zoom-level" id="zoom-level">100%</div>
+      <button class="zoom-btn" id="zoom-out" title="Zooma ut">&minus;</button>
+    </div>
+    <div class="explore-toggle-buttons" id="explore-toggle-buttons">
+      <button class="explore-toggle-btn" id="show-all-btn" title="Visa alla l&auml;nder">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button class="explore-toggle-btn" id="hide-all-btn" title="D&ouml;lj alla l&auml;nder">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="info-panel" id="info-panel">
+    <div class="info-panel-content">
+    <!-- EXPLORE MODE -->
+    <div id="explore-ui">
+      <div class="info-header"><h2>Landinformation</h2></div>
+
+      <div class="info-default" id="info-default">
+        <div class="arrow-icon">&larr;</div>
+        <p>Klicka p&aring; ett land p&aring; globen<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
+      </div>
+
+      <div class="info-card" id="info-card">
+        <div class="country-name" id="info-name"></div>
+        <div class="country-shape-preview">
+          <img id="info-shape" src="" alt="">
+        </div>
+        <div class="info-side">
+          <div class="assoc-box" id="info-assoc" style="display:none"></div>
+          <button class="info-toggle" id="info-toggle" type="button">Visa info om landet</button>
+          <div class="info-extra" id="info-extra" style="display:none">
+            <div class="description" id="info-desc"></div>
+          </div>
+          <div class="counter">
+            Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> l&auml;nder
+          </div>
+        </div>
+        <div class="close-hint">Klicka p&aring; landet igen f&ouml;r att d&ouml;lja</div>
+      </div>
+    </div>
+
+    <!-- SETERRA MODE -->
+    <div id="seterra-ui" style="display:none;">
+      <div class="info-header"><h2>Klassiskt Quiz</h2></div>
+
+      <div class="seterra-panel active" id="seterra-game">
+        <div class="seterra-target">
+          <div class="label">Hitta detta land:</div>
+          <div class="target-name" id="seterra-target-name">---</div>
+        </div>
+
+        <div class="seterra-hint-row">
+          <button class="hint-btn" id="seterra-hint-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+            <span>Visa ledtr&aring;d</span>
+          </button>
+          <div class="seterra-hint" id="seterra-hint" style="display:none"></div>
+        </div>
+
+        <div class="seterra-stats">
+          <div class="stat-box">
+            <div class="stat-label">Po&auml;ng</div>
+            <div class="stat-value score" id="seterra-score">100%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Tid</div>
+            <div class="stat-value time" id="seterra-time">0:00</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">R&auml;tt</div>
+            <div class="stat-value correct" id="seterra-correct">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Fel</div>
+            <div class="stat-value wrong" id="seterra-wrong">0</div>
+          </div>
+        </div>
+
+        <div class="seterra-progress">
+          <div class="bar" id="seterra-bar" style="width:0%"></div>
+        </div>
+        <div class="seterra-progress-label" id="seterra-progress-label">0 / 13</div>
+
+        <div class="seterra-feedback" id="seterra-feedback"></div>
+      </div>
+
+      <div class="seterra-done" id="seterra-done">
+        <h2>Klart!</h2>
+        <div class="big-score" id="seterra-final-score"></div>
+        <div class="done-detail" id="seterra-final-detail"></div>
+
+        <div class="hs-form" id="hs-form">
+          <input type="text" id="hs-name" placeholder="Ditt namn" maxlength="20">
+          <button id="hs-save">Spara</button>
+        </div>
+        <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
+
+        <div class="highscore-list" id="highscore-list"></div>
+
+        <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
+        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
+        <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
+        <button class="restart-btn" id="seterra-restart">Spela igen</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="jonas-section">
+      <img id="jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+      <div class="highfive-counter">High fives: <strong id="highfive-count">0</strong></div>
+    </div>
+  </div>
+</div>
+
+<div class="world-setup-overlay" id="world-setup-overlay">
+  <div class="world-setup-modal">
+    <h2>HELA V&Auml;RLDEN</h2>
+    <div class="world-setup-desc">
+      <p><strong>V&auml;lkommen globetrotter!</strong></p>
+      <p>Du f&aring;r ett antal l&auml;nder fr&aring;n hela v&auml;rlden.</p>
+      <p>Snurra p&aring; jordgloben och klicka p&aring; r&auml;tt land!</p>
+      <p>Lycka till!</p>
+    </div>
+    <div class="world-setup-loading" id="world-setup-loading">
+      <p>V&auml;rlden laddas...</p>
+      <div class="world-loading-bar-wrap"><div class="world-loading-bar" id="world-loading-bar"></div></div>
+    </div>
+    <div class="world-setup-ready" id="world-setup-ready" style="display:none">
+      <div class="world-setup-count">
+        <label>Antal l&auml;nder:</label>
+        <div class="count-buttons" id="world-count-buttons">
+          <button data-count="10">10</button>
+          <button data-count="20">20</button>
+          <button data-count="30">30</button>
+          <button data-count="50" class="active">50</button>
+          <button data-count="100">100</button>
+        </div>
+      </div>
+      <button class="restart-btn" id="world-start-btn">Starta!</button>
+    </div>
+  </div>
+</div>
+
+<div class="celebration-overlay" id="celebration-overlay">
+  <canvas id="confetti-canvas"></canvas>
+  <div class="celebration-content">
+    <div class="medal">&#127942;</div>
+    <h2>PERFEKT!</h2>
+    <p class="celebration-score">100%</p>
+    <p class="celebration-detail" id="celebration-detail"></p>
+    <div class="celebration-jonas">
+      <img id="celebration-jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
+    </div>
+    <button class="restart-btn" id="celebration-close">Forts&auml;tt</button>
+  </div>
+</div>
+
+<div class="cursor-label" id="cursor-label"></div>
+
+<div class="name-modal-overlay" id="name-modal-overlay">
+  <div class="name-modal">
+    <h3>Snyggt spelat!</h3>
+    <div class="modal-score" id="modal-score"></div>
+    <div class="modal-detail" id="modal-detail"></div>
+    <div class="modal-input-row">
+      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20">
+      <button id="modal-save">Spara</button>
+    </div>
+    <button class="modal-skip" id="modal-skip">Hoppa &ouml;ver</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
+<script src="glob-spel.js?v=37"></script>
+
+</body>
+</html>
