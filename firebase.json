@@ -18,6 +18,12 @@
       "tempo/**",
       "JONASBILDER/**"
     ],
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/glob.html"
+      }
+    ],
     "headers": [
       {
         "source": "**/*.html",

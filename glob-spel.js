@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '32';
+const V = '33';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2712,6 +2712,62 @@ document.addEventListener('keydown', e => {
   if (videoModal.style.display !== 'none') stangVideo();
   const rm = document.getElementById('resa-modal');
   if (rm && rm.style.display !== 'none') rm.style.display = 'none';
+  const fm = document.getElementById('feedback-modal');
+  if (fm && fm.style.display !== 'none') fm.style.display = 'none';
+});
+
+// ══════════════════════
+// Feedback: formulär som mejlas till Jonas via FormSubmit
+// ══════════════════════
+const FEEDBACK_MOTTAGARE = 'info@jonasvonessen.se';
+const feedbackModal = document.getElementById('feedback-modal');
+const feedbackStatus = document.getElementById('feedback-status');
+document.getElementById('feedback-knapp').addEventListener('click', () => {
+  feedbackStatus.textContent = '';
+  feedbackStatus.className = '';
+  document.getElementById('feedback-form').style.display = '';
+  feedbackModal.style.display = 'flex';
+  document.getElementById('feedback-medd').focus();
+});
+document.getElementById('feedback-stang').addEventListener('click', () => {
+  feedbackModal.style.display = 'none';
+});
+feedbackModal.addEventListener('click', e => {
+  if (e.target === feedbackModal) feedbackModal.style.display = 'none';
+});
+document.getElementById('feedback-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const medd = document.getElementById('feedback-medd').value.trim();
+  if (!medd) return;
+  const skicka = document.getElementById('feedback-skicka');
+  skicka.disabled = true;
+  feedbackStatus.className = '';
+  feedbackStatus.textContent = 'Skickar …';
+  try {
+    const svar = await fetch('https://formsubmit.co/ajax/' + FEEDBACK_MOTTAGARE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        namn: document.getElementById('feedback-namn').value.trim() || '(inget namn)',
+        epost: document.getElementById('feedback-epost').value.trim() || '(ingen e-post)',
+        meddelande: medd,
+        _subject: 'Feedback från Jonas geografi',
+        _template: 'table',
+      }),
+    });
+    if (!svar.ok) throw new Error('HTTP ' + svar.status);
+    document.getElementById('feedback-form').style.display = 'none';
+    feedbackStatus.className = 'tack';
+    feedbackStatus.textContent = '🎉 Tack för din feedback! Meddelandet är skickat till Jonas.';
+    feedbackModal.querySelector('.feedback-kort').appendChild(feedbackStatus);
+    setTimeout(() => { feedbackModal.style.display = 'none'; }, 3500);
+  } catch (fel) {
+    feedbackStatus.className = 'fel';
+    feedbackStatus.innerHTML = 'Hoppsan, det gick inte att skicka just nu. Prova igen — eller mejla direkt till '
+      + '<a href="mailto:' + FEEDBACK_MOTTAGARE + '?subject=Feedback%20fr%C3%A5n%20Jonas%20geografi">'
+      + FEEDBACK_MOTTAGARE + '</a>.';
+  }
+  skicka.disabled = false;
 });
 
 function showGame() {

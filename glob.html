@@ -134,6 +134,33 @@
     .start-hjalp { position: fixed; top: 14px; right: 14px; width: 38px; height: 38px;
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
       font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
+    /* feedbackknappen: bara på startsidan, speglar ?-knappen */
+    #feedback-knapp { position: fixed; top: 14px; left: 14px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
+      font-size: 1.05rem; cursor: pointer; z-index: 60; }
+    body:not(.startlage) #feedback-knapp { display: none; }
+    #feedback-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .feedback-kort { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+    .feedback-kort h2 { color: #ffdc32; margin-bottom: 8px; }
+    .feedback-kort p { color: #9fc3e0; font-size: .88rem; margin-bottom: 12px; line-height: 1.45; }
+    .feedback-kort label { display: block; color: #cfe3f4; font-size: .82rem; font-weight: 700;
+      margin: 10px 0 4px; }
+    .feedback-kort input, .feedback-kort textarea { width: 100%; padding: 9px 11px;
+      border-radius: 10px; border: 1px solid rgba(91,191,255,.3); background: #0b1a2c;
+      color: #eaf4ff; font: inherit; font-size: .92rem; }
+    .feedback-kort textarea { min-height: 110px; resize: vertical; }
+    .feedback-knappar { display: flex; gap: 10px; margin-top: 14px; }
+    #feedback-skicka { padding: 9px 18px; border-radius: 10px; border: none; background: #ffdc32;
+      color: #08131f; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    #feedback-stang { padding: 9px 18px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
+    #feedback-status { margin-top: 10px; font-size: .9rem; line-height: 1.4; }
+    #feedback-status.tack { color: #5fca77; font-weight: 700; }
+    #feedback-status.fel { color: #ff9d8a; }
+    #feedback-status a { color: #7ec8e3; }
     .start-hifi { position: fixed; right: 16px; bottom: 10px; text-align: center; z-index: 55;
       cursor: pointer; }
     .start-hifi img { width: 84px; display: block; margin: 0 auto;
@@ -432,6 +459,29 @@
 </div>
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
+<button id="feedback-knapp" title="Tyck till!">&#128140;</button>
+
+<!-- Feedback: formul&auml;r som mejlas till Jonas -->
+<div id="feedback-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#128140; Tyck till!</h2>
+    <p>Har du feedback eller f&ouml;rb&auml;ttringsf&ouml;rslag? Skriv till Jonas &mdash;
+      meddelandet skickas till <b>info@jonasvonessen.se</b>.</p>
+    <form id="feedback-form">
+      <label for="feedback-namn">Namn (valfritt)</label>
+      <input id="feedback-namn" type="text" maxlength="60" autocomplete="name">
+      <label for="feedback-epost">E-post (valfritt &mdash; om du vill ha svar)</label>
+      <input id="feedback-epost" type="email" maxlength="120" autocomplete="email">
+      <label for="feedback-medd">Meddelande</label>
+      <textarea id="feedback-medd" required maxlength="4000"></textarea>
+      <div class="feedback-knappar">
+        <button id="feedback-skicka" type="submit">Skicka</button>
+        <button id="feedback-stang" type="button">St&auml;ng</button>
+      </div>
+      <div id="feedback-status"></div>
+    </form>
+  </div>
+</div>
 
 <!-- Världsresan: kampanjpasset -->
 <div id="resa-modal" style="display:none">
@@ -675,7 +725,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=32"></script>
+<script src="glob-spel.js?v=33"></script>
 
 </body>
 </html>
