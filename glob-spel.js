@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '31';
+const V = '32';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2203,12 +2203,18 @@ function showCelebration(m, s) {
 // Startskalet: startsidan syns från allra första bildrutan (ingen blink av
 // spelvyn), med laddskärmens jordglobsanimation och roterande tips tills
 // kartan är redo. Variant väljs med ?ladd=1|2|3 (standard 1).
+// Jonas berättelse under laddningen — visas i ordning och stannar på
+// sista raden (vitsens poäng ska inte snurra tillbaka till början!)
 const LADD_TIPS = [
-  '🎨 202 länder — varje land är ritat som en bild man kan känna igen!',
-  '💡 Klicka på ett land för att se dess bild och en minnesregel.',
-  '🏆 Klassiskt Quiz: hitta länderna på tid — rekorden sparas.',
-  '▶ Sydamerika har en genomgångsvideo — leta efter play-knappen!',
-  '🖐 Och när du klarat något: ge Jonas en high five!',
+  'Har du alltid velat ha koll på världskartan?',
+  'Med minnestekniker är det enkelt!',
+  'På den här sidan kan du lära dig Jonas bilder för ALLA världens länder…',
+  'Du kommer imponera både på dig själv och din omgivning!',
+  'Alldeles strax har vi laddat klart världen åt dig…',
+  'Det kommer att vara väl värt väntan!',
+  'Medan vi väntar kan du få höra en rolig vits:',
+  'Var i världen är det billigast att köpa nötkreatur?',
+  'I nordvästra Asien, för där har de Ko-rea! 😄',
 ];
 let laddTipsTimer = null;
 function visaStartSkal() {
@@ -2233,9 +2239,10 @@ function visaStartSkal() {
   let t = 0;
   info.textContent = LADD_TIPS[0];
   laddTipsTimer = setInterval(() => {
+    if (t >= LADD_TIPS.length - 1) { clearInterval(laddTipsTimer); return; }
     info.classList.add('byter');
     setTimeout(() => {
-      info.textContent = LADD_TIPS[++t % LADD_TIPS.length];
+      info.textContent = LADD_TIPS[++t];
       info.classList.remove('byter');
     }, 400);
   }, 3200);
