@@ -147,7 +147,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '24';
+const V = '25';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2609,6 +2609,11 @@ window.spel = {
 // ══════════════════════
 // Uppstart
 // ══════════════════════
+// PWA: installerbar + offline (service workern cachar kartarkiv och data)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* http utan SW-stöd */ });
+}
+
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const region = params.get('region');

@@ -1,0 +1,15 @@
+{
+  "name": "Jonas geografi",
+  "short_name": "Geografi",
+  "description": "Lär dig världens länder med Jonas handritade kartvärld",
+  "start_url": "glob.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#02060d",
+  "theme_color": "#02060d",
+  "lang": "sv",
+  "icons": [
+    { "src": "assets/design/ikon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/design/ikon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
