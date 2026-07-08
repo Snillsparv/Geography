@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '41';
+const V = '42';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -178,6 +178,29 @@ function pmSource() {
 // range requests (bara de rutor som syns laddas — en handfull för en
 // region) och växlar till minnesversionen när nedladdningen är klar, så
 // att globen sedan snurrar utan att rutor laddar i kanterna.
+// Hela 45 MB-arkivet förladdas först när besökaren visar ENGAGEMANG —
+// varje nyfiken förbiflygare ska inte kosta full bandbredd. Återbesökare
+// har arkivet gratis i service workerns cache och förladdar direkt.
+let forladdningStartad = false;
+function startaForladdning() {
+  if (forladdningStartad) return;
+  forladdningStartad = true;
+  const ansl = navigator.connection || {};
+  const sparsam = !!ansl.saveData || /(^|-)2g$/.test(ansl.effectiveType || '');
+  if (sparsam) return;   // datasnåla lägen strömmar alltid på begäran
+  preloadTiles(p => {
+    const procent = document.getElementById('ladd-procent');
+    const text = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %` : '';
+    if (procent && !document.getElementById('ladd-skarm').classList.contains('klar')) {
+      procent.textContent = text || 'Nästan klart …';
+    }
+    const el = document.querySelector('.start-hint');
+    if (el && document.body.classList.contains('startlage')) {
+      el.textContent = text || 'Snurra på jordgloben — eller välj var du vill börja!';
+    }
+  });
+}
+
 async function preloadTiles(onProgress) {
   try {
     const resp = await fetch(TILE_URL);
@@ -552,6 +575,7 @@ function initMap() {
       if (ev === 'pointerdown' || ev === 'touchstart') pekarNere = true;
       stoppaSnurr();
       planeraSnurrAter();
+      startaForladdning();   // den som rör globen är engagerad → hämta arkivet
     }, { passive: true });
   }
   for (const ev of ['pointerup', 'pointercancel', 'touchend', 'touchcancel']) {
@@ -2487,6 +2511,7 @@ function lamnaStart() {
 
 // startknapparna: ingen sidladdning — kameran flyger till världsdelen
 async function gaTillRegion(slug) {
+  startaForladdning();   // nu behövs sömlösa kartrutor på riktigt
   history.pushState({}, '', '?region=' + slug);
   lamnaStart();
   if (slug === 'world') worldFlow();
@@ -3019,25 +3044,22 @@ if ('serviceWorker' in navigator) {
     loadTxt.textContent = 'Startar …';
   }
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
-  // på begäran (regionens rutor är en handfull), och hela arkivet hämtas i
-  // bakgrunden och ger sedan helt sömlös snurr.
+  // på begäran (regionens rutor är en handfull). Hela arkivet förladdas
+  // först vid engagemang (startaForladdning): direktlänk in i spelet,
+  // beröring av globen, regionsval eller en stunds kvarstannande.
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
-    // datasnåla anslutningar (spara data-läge / 2G) slipper 45 MB-för-
-    // laddningen — kartrutorna strömmas på begäran i stället
-    const ansl = navigator.connection || {};
-    const sparsam = !!ansl.saveData || /(^|-)2g$/.test(ansl.effectiveType || '');
-    if (!sparsam) preloadTiles(p => {
-      const procent = document.getElementById('ladd-procent');
-      const text = p < 1 ? `Målar jordgloben … ${Math.round(p * 100)} %` : '';
-      if (procent && !document.getElementById('ladd-skarm').classList.contains('klar')) {
-        procent.textContent = text || 'Nästan klart …';
+    if (region) {
+      startaForladdning();               // direktlänk in i spelet = engagerad
+    } else {
+      // återbesökare: arkivet ligger redan i SW-cachen → förladda gratis
+      if (window.caches) {
+        const nyckel = new URL(TILE_URL, location.href); nyckel.search = '';
+        caches.open('geografi-tiles').then(c => c.match(nyckel.href))
+          .then(traff => { if (traff) startaForladdning(); }).catch(() => {});
       }
-      const el = document.querySelector('.start-hint');
-      if (el && document.body.classList.contains('startlage')) {
-        el.textContent = text || 'Snurra på jordgloben — eller välj var du vill börja!';
-      }
-    });
+      setTimeout(startaForladdning, 45000);   // den som stannar är nyfiken på riktigt
+    }
     initMap();
     // feature-states kan inte sättas innan stilen laddat klart — men om
     // kartrutorna strular (t.ex. trög förhandsproxy) startar spelet ändå:
