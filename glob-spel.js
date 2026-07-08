@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '38';
+const V = '39';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2088,7 +2088,9 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
 const highfiveAudio = new Audio('high_five.wav');
-const highfiveRef = firebaseDB ? firebaseDB.ref('highfives') : null;
+// 'highfives2': räknaren flyttade hit när gamla nyckeln autoklickades
+// sönder — gamla klienter är strandade av databasreglerna
+const highfiveRef = firebaseDB ? firebaseDB.ref('highfives2') : null;
 const startHifiCountEl = document.getElementById('start-hifi-count');
 const startHifiImg = document.getElementById('start-hifi-img');
 function sattHighfives(n) {
