@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '40';
+const V = '41';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1951,23 +1951,51 @@ async function saveHighscore(name, score, time, wrong) {
   }
   return entry;
 }
-async function renderHighscores(highlightEntry) {
-  const container = document.getElementById('highscore-list');
-  container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
-  const list = await getHighscores();
-  if (list.length === 0) {
-    container.innerHTML = '<div class="hs-empty">Inga sparade resultat ännu.</div>';
-    return;
-  }
-  let html = '<h3>Topp 30</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
+function hsTabellHtml(list, highlightEntry, rubrik) {
+  let html = `<h3>${rubrik || 'Topp 30'}</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>`;
   list.forEach((e, i) => {
     const m = Math.floor(e.time / 60), s = e.time % 60;
     const isCurrent = highlightEntry && e.date === highlightEntry.date && e.name === highlightEntry.name;
     html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(e.name)}</td><td>${e.score}%</td><td>${m}:${s.toString().padStart(2, '0')}</td></tr>`;
   });
-  html += '</tbody></table>';
-  container.innerHTML = html;
+  return html + '</tbody></table>';
 }
+
+async function renderHighscores(highlightEntry) {
+  const container = document.getElementById('highscore-list');
+  container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
+  const list = await getHighscores();
+  container.innerHTML = list.length === 0
+    ? '<div class="hs-empty">Inga sparade resultat ännu.</div>'
+    : hsTabellHtml(list, highlightEntry);
+}
+
+// ── Topplistemodalen: global och personlig lista, nåbar när som helst ──
+const topplistaModal = document.getElementById('topplista-modal');
+async function visaTopplista(flik) {
+  document.getElementById('hs-flik-alla').classList.toggle('aktiv', flik === 'alla');
+  document.getElementById('hs-flik-mina').classList.toggle('aktiv', flik === 'mina');
+  document.getElementById('topplista-region').textContent =
+    aktivRegionNamn + (bildlage ? ' — Bildquiz' : ' — Klassiskt Quiz');
+  const inneh = document.getElementById('topplista-innehall');
+  topplistaModal.style.display = 'flex';
+  inneh.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
+  const list = flik === 'alla' ? await getHighscores() : getLocalHighscores();
+  inneh.innerHTML = list.length === 0
+    ? `<div class="hs-empty">${flik === 'alla' ? 'Inga sparade resultat ännu.'
+        : 'Inga resultat på den här enheten ännu — kör ett quiz!'}</div>`
+    : hsTabellHtml(list, null, flik === 'alla' ? 'Topp 30 — alla spelare' : 'Dina resultat på den här enheten');
+}
+document.getElementById('topplista-knapp').addEventListener('click', () => visaTopplista('alla'));
+document.getElementById('topplista-knapp-klar').addEventListener('click', () => visaTopplista('mina'));
+document.getElementById('hs-flik-alla').addEventListener('click', () => visaTopplista('alla'));
+document.getElementById('hs-flik-mina').addEventListener('click', () => visaTopplista('mina'));
+document.getElementById('topplista-stang').addEventListener('click', () => {
+  topplistaModal.style.display = 'none';
+});
+topplistaModal.addEventListener('click', e => {
+  if (e.target === topplistaModal) topplistaModal.style.display = 'none';
+});
 
 // ── Namn-modal ──
 const nameModalOverlay = document.getElementById('name-modal-overlay');
@@ -2884,6 +2912,8 @@ document.addEventListener('keydown', e => {
   if (rm && rm.style.display !== 'none') rm.style.display = 'none';
   const fm = document.getElementById('feedback-modal');
   if (fm && fm.style.display !== 'none') fm.style.display = 'none';
+  const tm = document.getElementById('topplista-modal');
+  if (tm && tm.style.display !== 'none') tm.style.display = 'none';
 });
 
 // ══════════════════════

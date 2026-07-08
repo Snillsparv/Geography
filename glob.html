@@ -363,8 +363,20 @@
       filter: drop-shadow(0 2px 4px #000a); pointer-events: none; }
     .k9 { background: #e7c27d; }
     /* ── Världsresans pass ── */
-    #resa-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+    #resa-modal, #topplista-modal { position: fixed; inset: 0; z-index: 310;
+      background: rgba(2,6,13,.88);
       display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    /* topplistan: nåbar när som helst i quizläget via 🏆-knappen */
+    .topplista-knapp { display: block; margin: 0 auto 10px; padding: 7px 16px;
+      border-radius: 10px; border: 1px solid rgba(255,220,50,.35); background: #14243a;
+      color: #ffdc32; font-weight: 800; font-size: .85rem; cursor: pointer; }
+    .topplista-knapp:hover { background: #1b2f4c; }
+    .hs-flikar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .hs-flikar button { flex: 1; padding: 8px 10px; border-radius: 10px; border: none;
+      background: #0b1a2c; color: #9fc3e0; font-weight: 800; cursor: pointer; }
+    .hs-flikar button.aktiv { background: #ffdc32; color: #08131f; }
+    #topplista-stang { margin-top: 12px; padding: 9px 18px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
     .resa-pass { width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
       background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
       padding: 22px 24px; box-shadow: 0 24px 70px #000; }
@@ -497,6 +509,20 @@
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
 <button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
+
+<!-- Topplistan: global + personlig (den h&auml;r enheten) -->
+<div id="topplista-modal" style="display:none">
+  <div class="resa-pass">
+    <h2>&#127942; Topplista</h2>
+    <p class="resa-info" id="topplista-region"></p>
+    <div class="hs-flikar">
+      <button id="hs-flik-alla" class="aktiv">&#127757; Alla</button>
+      <button id="hs-flik-mina">&#127968; Mina</button>
+    </div>
+    <div id="topplista-innehall"></div>
+    <button id="topplista-stang">St&auml;ng</button>
+  </div>
+</div>
 
 <!-- Feedback: formul&auml;r som mejlas till Jonas -->
 <div id="feedback-modal" style="display:none">
@@ -632,6 +658,7 @@
       <div class="info-header"><h2>Klassiskt Quiz</h2></div>
 
       <div class="seterra-panel active" id="seterra-game">
+        <button class="topplista-knapp" id="topplista-knapp">&#127942; Topplista</button>
         <div class="seterra-target">
           <div class="label">Hitta detta land:</div>
           <div class="target-name" id="seterra-target-name">---</div>
@@ -684,6 +711,7 @@
         <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
 
         <div class="highscore-list" id="highscore-list"></div>
+        <button class="topplista-knapp" id="topplista-knapp-klar">&#127968; Se mina resultat</button>
 
         <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
         <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
@@ -763,7 +791,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=40"></script>
+<script src="glob-spel.js?v=41"></script>
 
 </body>
 </html>
