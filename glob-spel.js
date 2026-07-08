@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '39';
+const V = '40';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2083,6 +2083,16 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
   infoCard.classList.remove('active');
   infoDefault.style.display = '';
 });
+
+// ── Besöksräknare: en anonym pinne per sidladdning, bucketad per dag —
+// syns i Firebase-konsolen under 'besok'. Inga kakor, ingen spårning.
+// Lokala körningar och förhandskanaler räknas inte. ──
+if (firebaseDB && !/^(127\.|localhost)/.test(location.hostname)
+    && !location.hostname.includes('--pr')) {
+  const dag = new Date().toISOString().slice(0, 10);
+  firebaseDB.ref('besok/' + dag).transaction(c => (c || 0) + 1).catch(() => {});
+  firebaseDB.ref('besok/totalt').transaction(c => (c || 0) + 1).catch(() => {});
+}
 
 // ── Jonas high-five ──
 const jonasImg = document.getElementById('jonas-img');
