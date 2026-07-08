@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '37';
+const V = '38';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2100,6 +2100,7 @@ if (highfiveRef) {
 } else {
   sattHighfives(localStorage.getItem('highfive-count') || '0');
 }
+let hifiRaknade = 0;   // stoppar autoklickare: max 10 räknas per besök
 function geHighfive(img) {
   if (!ljudAv) {
     highfiveAudio.currentTime = 0;
@@ -2107,6 +2108,8 @@ function geHighfive(img) {
   }
   img.src = 'Jonas_2.webp';
   setTimeout(() => { img.src = 'Jonas_1.webp'; }, 1000);
+  if (hifiRaknade >= 10) return;   // festen fortsätter, men räknaren står still
+  hifiRaknade++;
   if (highfiveRef) highfiveRef.transaction(cur => (cur || 0) + 1);
   else {
     const count = parseInt(localStorage.getItem('highfive-count') || '0', 10) + 1;
