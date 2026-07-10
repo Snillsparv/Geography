@@ -11,7 +11,7 @@
           ".validate": "newData.hasChildren(['name', 'score', 'time', 'wrong', 'date'])",
           "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
           "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
-          "time":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 360000" },
+          "time":  { ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 360000" },
           "wrong": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
           "date":  { ".validate": "newData.isNumber() && newData.val() > 1500000000000 && newData.val() < now + 86400000" },
           "$other": { ".validate": false }
