@@ -148,7 +148,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '42';
+const V = '43';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1598,6 +1598,8 @@ async function startRegion(slug, flyg) {
   visaSpelVideo(slug);   // världsdelens film nås via play-knappen i headern
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
+  // hann någon välja quiz medan regionen laddade? starta det nu på riktigt
+  if (seterraVantarPaData && currentMode !== 'explore') startSeterra();
 
   // resten av världen grön, regionens länder täckta
   for (const f of regionsGj.features) {
@@ -1730,7 +1732,17 @@ function hideExploreTooltip() {
 // ══════════════════════
 // Klassiskt quiz
 // ══════════════════════
+let seterraVantarPaData = false;   // quiz begärt innan regionen laddat klart
 function startSeterra() {
+  if (!COUNTRIES.length) {
+    // regionen har inte laddat klart (t.ex. omladdning rakt in i spelet).
+    // Utan spärren startade ett 0-landsquiz som gav 100 % på 0 sekunder —
+    // vänta i stället: startRegion kör igång quizet när länderna finns.
+    seterraVantarPaData = true;
+    document.getElementById('seterra-target-name').textContent = 'Laddar …';
+    return;
+  }
+  seterraVantarPaData = false;
   resetOverlays();
   // bildquizet: konsten synlig hela tiden — man tränar på att koppla
   // bild till land innan man kör klassiska quizet helt utan stöd
@@ -1858,6 +1870,7 @@ function updateSeterraTimer() {
 }
 
 function endSeterra() {
+  if (!seterraTotal) return;   // ett quiz utan länder kan aldrig bli "klart"
   clearInterval(seterraTimerInterval);
   updateSeterraTimer();
   seterraTarget = null;
@@ -1930,7 +1943,9 @@ async function getHighscores() {
     const remote = [];
     snap.forEach(child => { remote.push(child.val()); });
     const remoteDates = new Set(remote.map(e => e.date));
-    const localOnly = local.filter(e => !remoteDates.has(e.date));
+    // synka aldrig upp omöjliga lokala poster (t.ex. gamla fuskresultat) —
+    // reglerna avvisar dem och skulle då stoppa hela uppladdningen
+    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= 5);
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -1953,6 +1968,9 @@ async function getHighscores() {
   }
 }
 async function saveHighscore(name, score, time, wrong) {
+  // omöjliga resultat sparas aldrig: quiz utan länder eller under 5 sekunder
+  // (databasreglerna avvisar dem också på serversidan)
+  if (!seterraTotal || time < 5) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
   const local = getLocalHighscores();
   local.push(entry);
