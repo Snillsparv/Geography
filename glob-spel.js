@@ -127,6 +127,9 @@ function flashWrong(gid) {
   setLand(gid, { fel: true, hover: false });
   setTimeout(() => setLand(gid, { fel: false }), 1200);
 }
+// pekskärmar får en förlåtande tryckyta runt de små prickarna
+const TRYCKMARGINAL = matchMedia('(pointer: coarse)').matches ? 10 : 0;
+
 function blinkHint(gid) {
   if (revealed.has(gid)) return;
   let n = 0;
@@ -148,7 +151,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '44';
+const V = '45';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -311,7 +314,7 @@ const FLAGG_ISO = { Afghanistan:'AF', Albanien:'AL', Algeriet:'DZ', Andorra:'AD'
   Kirgizistan:'KG', Kiribati:'KI', Komorerna:'KM', 'Kongo-Brazzaville':'CG', Kosovo:'XK',
   Kroatien:'HR', Kuba:'CU', Kuwait:'KW', Laos:'LA', Lesotho:'LS', Lettland:'LV',
   Libanon:'LB', Liberia:'LR', Libyen:'LY', Liechtenstein:'LI', Litauen:'LT', Luxembourg:'LU',
-  Madagaskar:'MG', Makedonien:'MK', Malawi:'MW', Malaysia:'MY', Maldiverna:'MV', Mali:'ML',
+  Madagaskar:'MG', Makedonien:'MK', Nordmakedonien:'MK', Malawi:'MW', Malaysia:'MY', Maldiverna:'MV', Mali:'ML',
   Malta:'MT', Marocko:'MA', 'Marshallöarna':'MH', Mauretanien:'MR', Mauritius:'MU',
   Mexiko:'MX', Mikronesien:'FM', Mocambique:'MZ', Moldavien:'MD', Monaco:'MC',
   Mongoliet:'MN', Montenegro:'ME', Namibia:'NA', Nauru:'NR', 'Nederländerna':'NL',
@@ -328,7 +331,7 @@ const FLAGG_ISO = { Afghanistan:'AF', Albanien:'AL', Algeriet:'DZ', Andorra:'AD'
   Tjeckien:'CZ', Togo:'TG', Tonga:'TO', 'Trinidad & Tobago':'TT', Tunisien:'TN',
   Turkiet:'TR', Turkmenistan:'TM', Tuvalu:'TV', Tyskland:'DE', USA:'US', Uganda:'UG',
   Ukraina:'UA', Ungern:'HU', Uruguay:'UY', Uzbekistan:'UZ', Vanuatu:'VU',
-  Vatikanstaten:'VA', Venezuela:'VE', Vietnam:'VN', Vitryssland:'BY', 'Västsahara':'EH',
+  Vatikanstaten:'VA', Venezuela:'VE', Vietnam:'VN', Vitryssland:'BY', Belarus:'BY', 'Västsahara':'EH',
   Wales:'gbwls', Zambia:'ZM', Zimbabwe:'ZW', 'Österrike':'AT', 'Östtimor':'TL' };
 function flagga(namn) {
   const kod = FLAGG_ISO[namn];
@@ -564,7 +567,15 @@ function initMap() {
     map.getCanvas().style.cursor = gid !== null ? 'pointer' : '';
   });
   map.on('click', e => {
-    const hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
+    let hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
+    if (!hits.length && TRYCKMARGINAL) {
+      // pekskärm: fingret missar lätt de små prickarna (Västindien!) —
+      // fånga träffar strax intill, men bara när exakta träffen är tom
+      hits = map.queryRenderedFeatures(
+        [[e.point.x - TRYCKMARGINAL, e.point.y - TRYCKMARGINAL],
+         [e.point.x + TRYCKMARGINAL, e.point.y + TRYCKMARGINAL]],
+        { layers: ['prickar', 'former', 'cover'] });
+    }
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
   });
@@ -2139,6 +2150,24 @@ function switchMode(mode, force) {
 }
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+});
+
+// ✨: blinka länderna man INTE hittat än — önskemål från träningsläget
+// när de sista gömda länderna är svåra att se på den ifyllda kartan
+let blinkKvarTimer = null;
+document.getElementById('blink-kvar-btn').addEventListener('click', () => {
+  const kvar = COUNTRIES.filter(c => !revealed.has(c.gid)).map(c => c.gid);
+  if (!kvar.length) return;
+  clearInterval(blinkKvarTimer);
+  let n = 0;
+  blinkKvarTimer = setInterval(() => {
+    for (const gid of kvar) if (!revealed.has(gid)) setLand(gid, { tips: n % 2 === 0 });
+    if (++n >= 6) {
+      clearInterval(blinkKvarTimer);
+      blinkKvarTimer = null;
+      for (const gid of kvar) setLand(gid, { tips: false });
+    }
+  }, 260);
 });
 
 document.getElementById('show-all-btn').addEventListener('click', () => {

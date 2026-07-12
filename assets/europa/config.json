@@ -62,14 +62,14 @@
       "imageAssociation": "En kalkon (TURKEY på engelska)"
     },
     {
-      "name": "Vitryssland",
+      "name": "Belarus",
       "file": "countries/vitryssland.webp",
       "left": 2131,
       "top": 1227,
       "width": 455,
       "height": 375,
       "filename": "vitryssland",
-      "desc": "Vitryssland, eller Belarus, är ett stort land i östeuropa som gränsar till bland annat Polen och Ryssland. Landet är känt för sina djupa skogar, där det fortfarande lever vilda visenter i Bialowieza-skogen. Huvudstaden Minsk är en modern stad som byggdes upp nästan helt efter andra världskriget.",
+      "desc": "Belarus, som tidigare kallades Vitryssland på svenska, är ett stort land i östeuropa som gränsar till bland annat Polen och Ryssland. Landet är känt för sina djupa skogar, där det fortfarande lever vilda visenter i Bialowieza-skogen. Huvudstaden Minsk är en modern stad som byggdes upp nästan helt efter andra världskriget.",
       "imageAssociation": "En sjöjungfru som lyssnar på havets BRUS"
     },
     {
@@ -315,7 +315,7 @@
       "imageAssociation": "En person som äter en BULLE"
     },
     {
-      "name": "Makedonien",
+      "name": "Nordmakedonien",
       "file": "countries/makedonien.webp",
       "left": 2041,
       "top": 2294,
