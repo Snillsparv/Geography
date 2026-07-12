@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jonas geografi &mdash; TV-grafik</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  /* 16:9-scen, centrerad och letterboxad oavsett fönster */
+  #scen { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16));
+    background: radial-gradient(ellipse 120% 90% at 50% 40%, #0a1730 0%, #050c1c 55%, #02060d 100%);
+    overflow: hidden; }
+  /* stjärnhimlen målas av skriptet */
+  .stjarna { position: absolute; border-radius: 50%; background: #cfe3ff; }
+  @keyframes blinka { 0%, 100% { opacity: .25; } 50% { opacity: .95; } }
+
+  /* ── scener ── */
+  .scen { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; opacity: 0; visibility: hidden;
+    transition: opacity .55s ease; }
+  .scen.synlig { opacity: 1; visibility: visible; }
+
+  /* intro/outro — globen klipps ur sin fyrkantiga platta (uppmätt cirkel) */
+  .glob { height: 46%; filter: drop-shadow(0 0 60px rgba(80, 150, 255, .35));
+    clip-path: circle(42.4% at 48.8% 47.2%); }
+  @keyframes svavar { 0%, 100% { transform: translateY(-1.2%) rotate(-1.5deg); }
+                      50% { transform: translateY(1.2%) rotate(1.5deg); } }
+  .glob { animation: svavar 7s ease-in-out infinite; }
+  .titel { font-size: 7.2vh; font-weight: 900; color: #ffdc32; margin-top: 3vh;
+    text-shadow: 0 4px 0 #00000088, 0 0 40px #ffdc3244; letter-spacing: .02em; }
+  .undertitel { font-size: 3.6vh; font-weight: 700; color: #cfe3f4; margin-top: 1.4vh; }
+  .platta .titel { animation: poppin .7s cubic-bezier(.2, 1.6, .4, 1) both; }
+  .platta .undertitel { animation: poppin .7s .25s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+  /* landkorten */
+  .kort { flex-direction: row; gap: 5%; padding: 0 6%; }
+  .kort img { height: 62%; max-width: 40%; object-fit: contain;
+    filter: drop-shadow(0 14px 40px #000c);
+    animation: poppin .8s cubic-bezier(.2, 1.7, .35, 1) both; }
+  @keyframes poppin { from { transform: scale(.2) rotate(-8deg); opacity: 0; }
+                      to { transform: scale(1) rotate(0); opacity: 1; } }
+  .kort .text { max-width: 46%; text-align: left; }
+  .kort .fraga { font-size: 3.4vh; font-weight: 700; color: #7ea6c4;
+    animation: infran .5s .3s both; }
+  .kort .assoc { font-size: 4.6vh; font-weight: 800; color: #eaf4ff; line-height: 1.3;
+    margin-top: 1.6vh; animation: infran .5s .55s both; }
+  .kort .assoc b { color: #ffdc32; }
+  .kort .pil { font-size: 4.4vh; margin-top: 2.2vh; color: #5fca77;
+    animation: infran .5s 1.1s both; }
+  .kort .namn { display: inline-block; font-size: 6.4vh; font-weight: 900; color: #5fca77;
+    text-shadow: 0 3px 0 #00000088; }
+  @keyframes infran { from { transform: translateX(4vh); opacity: 0; }
+                      to { transform: translateX(0); opacity: 1; } }
+
+  .url { position: absolute; bottom: 3.6vh; left: 0; right: 0; text-align: center;
+    font-size: 3vh; font-weight: 800; color: #ffdc32; letter-spacing: .04em;
+    text-shadow: 0 2px 0 #000a; }
+  .outro .titel { font-size: 6.4vh; }
+</style>
+</head>
+<body>
+<div id="scen">
+  <div class="scen platta synlig" id="scen-intro">
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+    <div class="titel">Jonas geografi</div>
+    <div class="undertitel">Alla v&auml;rldens l&auml;nder &mdash; som bilder du minns</div>
+  </div>
+  <div class="scen platta" id="scen-outro">
+    <img class="glob" src="assets/design/glob-art.webp" alt="">
+    <div class="titel">Redo att ta &ouml;ver v&auml;rlden? &#127757;</div>
+  </div>
+  <div class="url">jonasgeografi.se</div>
+</div>
+<script>
+  // ── stjärnhimlen: slumpad men lugn ──
+  const scen = document.getElementById('scen');
+  for (let i = 0; i < 130; i++) {
+    const s = document.createElement('div');
+    s.className = 'stjarna';
+    const d = Math.random() * 2.4 + .8;
+    s.style.width = s.style.height = d + 'px';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.animation = `blinka ${(Math.random() * 4 + 2.5).toFixed(1)}s ease-in-out ${(Math.random() * 4).toFixed(1)}s infinite`;
+    scen.insertBefore(s, scen.firstChild);
+  }
+
+  // ── landkorten: bild → minnesregel → landets namn ──
+  const LANDER = [
+    { namn: 'Italien', bild: 'assets/europa/countries/italien.webp',
+      assoc: 'En STÖVEL' },
+    { namn: 'Turkiet', bild: 'assets/europa/countries/turkiet.webp',
+      assoc: 'En kalkon — TURKEY på engelska' },
+    { namn: 'Belarus', bild: 'assets/europa/countries/vitryssland.webp',
+      assoc: 'En sjöjungfru som lyssnar på havets BRUS' },
+    { namn: 'Spanien', bild: 'assets/europa/countries/spanien.webp',
+      assoc: 'En spansk TJUR' },
+    { namn: 'Chile', bild: 'assets/sydamerika/countries/chile.webp',
+      assoc: 'En lång smal CHILI-peppar' },
+  ];
+  // versala nyckelord blir gula
+  const markera = t => t.replace(/([A-ZÅÄÖ]{2,}(?:-[a-zåäö]+)?)/g, '<b>$1</b>');
+  const kortEl = [];
+  for (const land of LANDER) {
+    const el = document.createElement('div');
+    el.className = 'scen kort';
+    el.innerHTML = `<img src="${land.bild}" alt="">
+      <div class="text">
+        <div class="fraga">Hur minns man var landet ligger?</div>
+        <div class="assoc">${markera(land.assoc)}</div>
+        <div class="pil">&rarr; <span class="namn">${land.namn}!</span></div>
+      </div>`;
+    scen.insertBefore(el, document.querySelector('.url'));
+    kortEl.push(el);
+  }
+
+  // ── tidslinjen: intro → fem kort → outro → om igen ──
+  const ordning = [
+    { el: document.getElementById('scen-intro'), tid: 4200 },
+    ...kortEl.map(el => ({ el, tid: 4600 })),
+    { el: document.getElementById('scen-outro'), tid: 4200 },
+  ];
+  let i = 0;
+  function visa(n) {
+    for (const o of ordning) o.el.classList.remove('synlig');
+    const o = ordning[n];
+    // starta om kortets animationer från noll
+    o.el.style.animation = 'none';
+    for (const b of o.el.querySelectorAll('img, .fraga, .assoc, .pil, .titel, .undertitel')) {
+      b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+    }
+    o.el.classList.add('synlig');
+    setTimeout(() => { i = (n + 1) % ordning.length; visa(i); }, o.tid);
+  }
+  visa(0);
+</script>
+</body>
+</html>
