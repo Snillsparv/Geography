@@ -4,80 +4,88 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jonas geografi &mdash; TV-grafik</title>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; background: #000; overflow: hidden;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-  /* 16:9-scen, centrerad och letterboxad oavsett fönster */
-  #scen { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16));
-    background: radial-gradient(ellipse 120% 90% at 50% 40%, #0a1730 0%, #050c1c 55%, #02060d 100%);
-    overflow: hidden; }
-  /* stjärnhimlen målas av skriptet */
-  .stjarna { position: absolute; border-radius: 50%; background: #cfe3ff; }
-  @keyframes blinka { 0%, 100% { opacity: .25; } 50% { opacity: .95; } }
+  html, body { width: 100%; height: 100%; background: #02060d; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; cursor: pointer; }
+  #karta { position: fixed; inset: 0; }
+  .maplibregl-ctrl-attrib { display: none !important; }
 
-  /* ── scener ── */
-  .scen { position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; opacity: 0; visibility: hidden;
-    transition: opacity .55s ease; }
-  .scen.synlig { opacity: 1; visibility: visible; }
+  /* stjärnor bakom globen */
+  .stjarna { position: fixed; border-radius: 50%; background: #cfe3ff; z-index: 1;
+    pointer-events: none; }
+  @keyframes blinka { 0%, 100% { opacity: .2; } 50% { opacity: .9; } }
+  #karta { z-index: 2; }
 
-  /* intro/outro — globen klipps ur sin fyrkantiga platta (uppmätt cirkel) */
-  .glob { height: 46%; filter: drop-shadow(0 0 60px rgba(80, 150, 255, .35));
-    clip-path: circle(42.4% at 48.8% 47.2%); }
-  @keyframes svavar { 0%, 100% { transform: translateY(-1.2%) rotate(-1.5deg); }
-                      50% { transform: translateY(1.2%) rotate(1.5deg); } }
-  .glob { animation: svavar 7s ease-in-out infinite; }
-  .titel { font-size: 7.2vh; font-weight: 900; color: #ffdc32; margin-top: 3vh;
-    text-shadow: 0 4px 0 #00000088, 0 0 40px #ffdc3244; letter-spacing: .02em; }
-  .undertitel { font-size: 3.6vh; font-weight: 700; color: #cfe3f4; margin-top: 1.4vh; }
-  .platta .titel { animation: poppin .7s cubic-bezier(.2, 1.6, .4, 1) both; }
-  .platta .undertitel { animation: poppin .7s .25s cubic-bezier(.2, 1.6, .4, 1) both; }
+  /* ── titelplattor (steg 1 och sista steget) ── */
+  .platta { position: fixed; left: 0; right: 0; bottom: 9vh; text-align: center;
+    z-index: 10; pointer-events: none; opacity: 0; transition: opacity .6s ease; }
+  .platta.synlig { opacity: 1; }
+  .platta .titel { font-size: 7vh; font-weight: 900; color: #ffdc32;
+    text-shadow: 0 4px 0 #000c, 0 0 44px #ffdc3233; }
+  .platta .undertitel { font-size: 3.4vh; font-weight: 700; color: #cfe3f4;
+    margin-top: 1.2vh; text-shadow: 0 2px 8px #000; }
 
-  /* landkorten */
-  .kort { flex-direction: row; gap: 5%; padding: 0 6%; }
-  .kort img { height: 62%; max-width: 40%; object-fit: contain;
-    filter: drop-shadow(0 14px 40px #000c);
-    animation: poppin .8s cubic-bezier(.2, 1.7, .35, 1) both; }
-  @keyframes poppin { from { transform: scale(.2) rotate(-8deg); opacity: 0; }
+  /* ── landkortet (till höger, kameran lämnar plats) ── */
+  #kort { position: fixed; top: 50%; right: 4vw; transform: translateY(-50%);
+    width: min(34vw, 62vh); background: #10233acc; border: 1px solid rgba(91,191,255,.25);
+    border-radius: 22px; padding: 3.2vh 2.6vw; z-index: 10; pointer-events: none;
+    backdrop-filter: blur(6px); box-shadow: 0 24px 70px #000c;
+    opacity: 0; transition: opacity .45s ease; }
+  #kort.synlig { opacity: 1; }
+  #kort img { display: block; max-width: 100%; max-height: 34vh; margin: 0 auto;
+    filter: drop-shadow(0 10px 30px #000c);
+    animation: poppin .75s cubic-bezier(.2, 1.7, .35, 1) both; }
+  @keyframes poppin { from { transform: scale(.25) rotate(-7deg); opacity: 0; }
                       to { transform: scale(1) rotate(0); opacity: 1; } }
-  .kort .text { max-width: 46%; text-align: left; }
-  .kort .fraga { font-size: 3.4vh; font-weight: 700; color: #7ea6c4;
-    animation: infran .5s .3s both; }
-  .kort .assoc { font-size: 4.6vh; font-weight: 800; color: #eaf4ff; line-height: 1.3;
-    margin-top: 1.6vh; animation: infran .5s .55s both; }
-  .kort .assoc b { color: #ffdc32; }
-  .kort .pil { font-size: 4.4vh; margin-top: 2.2vh; color: #5fca77;
-    animation: infran .5s 1.1s both; }
-  .kort .namn { display: inline-block; font-size: 6.4vh; font-weight: 900; color: #5fca77;
-    text-shadow: 0 3px 0 #00000088; }
-  @keyframes infran { from { transform: translateX(4vh); opacity: 0; }
+  #kort .fraga { font-size: 2.6vh; font-weight: 700; color: #7ea6c4; margin-top: 2.4vh;
+    animation: infran .5s .35s both; }
+  #kort .assoc { font-size: 3.8vh; font-weight: 800; color: #eaf4ff; line-height: 1.3;
+    margin-top: 1vh; animation: infran .5s .55s both; }
+  #kort .assoc b { color: #ffdc32; }
+  #kort .pil { font-size: 3.6vh; margin-top: 1.8vh; color: #5fca77;
+    animation: infran .5s 1.05s both; }
+  #kort .namn { font-size: 5.6vh; font-weight: 900; color: #5fca77;
+    text-shadow: 0 3px 0 #000a; }
+  @keyframes infran { from { transform: translateX(3vh); opacity: 0; }
                       to { transform: translateX(0); opacity: 1; } }
 
-  .url { position: absolute; bottom: 3.6vh; left: 0; right: 0; text-align: center;
-    font-size: 3vh; font-weight: 800; color: #ffdc32; letter-spacing: .04em;
-    text-shadow: 0 2px 0 #000a; }
-  .outro .titel { font-size: 6.4vh; }
+  .url { position: fixed; bottom: 3vh; left: 0; right: 0; text-align: center;
+    font-size: 2.8vh; font-weight: 800; color: #ffdc32; letter-spacing: .04em;
+    text-shadow: 0 2px 0 #000c; z-index: 10; pointer-events: none; }
+
+  /* diskret stegvisare + starttips */
+  #prickar { position: fixed; bottom: 3.2vh; left: 3vh; display: flex; gap: 1vh;
+    z-index: 10; pointer-events: none; }
+  #prickar i { width: 1.2vh; height: 1.2vh; border-radius: 50%; background: #ffffff2e; }
+  #prickar i.nu { background: #ffdc32aa; }
+  #tips { position: fixed; top: 3vh; left: 0; right: 0; text-align: center;
+    font-size: 2.2vh; color: #7ea6c4; z-index: 10; pointer-events: none;
+    opacity: 0; transition: opacity .6s ease; }
+  #tips.synlig { opacity: .8; }
 </style>
 </head>
 <body>
-<div id="scen">
-  <div class="scen platta synlig" id="scen-intro">
-    <img class="glob" src="assets/design/glob-art.webp" alt="">
-    <div class="titel">Jonas geografi</div>
-    <div class="undertitel">Alla v&auml;rldens l&auml;nder &mdash; som bilder du minns</div>
-  </div>
-  <div class="scen platta" id="scen-outro">
-    <img class="glob" src="assets/design/glob-art.webp" alt="">
-    <div class="titel">Redo att ta &ouml;ver v&auml;rlden? &#127757;</div>
-  </div>
-  <div class="url">jonasgeografi.se</div>
+<div id="karta"></div>
+
+<div class="platta" id="platta-intro">
+  <div class="titel">Jonas geografi</div>
+  <div class="undertitel">Alla v&auml;rldens l&auml;nder &mdash; som bilder du minns</div>
 </div>
+<div class="platta" id="platta-outro">
+  <div class="titel">Redo att ta &ouml;ver v&auml;rlden? &#127757;</div>
+</div>
+<div id="kort"></div>
+<div class="url">jonasgeografi.se</div>
+<div id="prickar"></div>
+<div id="tips">klicka, mellanslag eller &rarr; f&ouml;r n&auml;sta &middot; &larr; f&ouml;r f&ouml;reg&aring;ende</div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
 <script>
-  // ── stjärnhimlen: slumpad men lugn ──
-  const scen = document.getElementById('scen');
-  for (let i = 0; i < 130; i++) {
+  // ── stjärnhimmel ──
+  for (let i = 0; i < 120; i++) {
     const s = document.createElement('div');
     s.className = 'stjarna';
     const d = Math.random() * 2.4 + .8;
@@ -85,57 +93,119 @@
     s.style.left = Math.random() * 100 + '%';
     s.style.top = Math.random() * 100 + '%';
     s.style.animation = `blinka ${(Math.random() * 4 + 2.5).toFixed(1)}s ease-in-out ${(Math.random() * 4).toFixed(1)}s infinite`;
-    scen.insertBefore(s, scen.firstChild);
+    document.body.appendChild(s);
   }
 
-  // ── landkorten: bild → minnesregel → landets namn ──
-  const LANDER = [
-    { namn: 'Italien', bild: 'assets/europa/countries/italien.webp',
-      assoc: 'En STÖVEL' },
-    { namn: 'Turkiet', bild: 'assets/europa/countries/turkiet.webp',
-      assoc: 'En kalkon — TURKEY på engelska' },
-    { namn: 'Belarus', bild: 'assets/europa/countries/vitryssland.webp',
-      assoc: 'En sjöjungfru som lyssnar på havets BRUS' },
-    { namn: 'Spanien', bild: 'assets/europa/countries/spanien.webp',
-      assoc: 'En spansk TJUR' },
-    { namn: 'Chile', bild: 'assets/sydamerika/countries/chile.webp',
-      assoc: 'En lång smal CHILI-peppar' },
+  // ── den riktiga 3D-globen, samma konst-tiles som spelet ──
+  const protocol = new pmtiles.Protocol();
+  maplibregl.addProtocol('pmtiles', protocol.tile);
+  const map = new maplibregl.Map({
+    container: 'karta',
+    center: [10, 25], zoom: 1.5, maxZoom: 9.5,
+    interactive: false, attributionControl: false,
+    style: {
+      version: 8,
+      projection: { type: 'globe' },
+      sources: {
+        art: { type: 'raster', url: 'pmtiles://tiles/world.pmtiles?v=2', tileSize: 256 },
+        jorden: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: {
+          type: 'Polygon', coordinates: [[[-180, -89.9], [-180, 89.9], [180, 89.9],
+                                          [180, -89.9], [-180, -89.9]]] } } },
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } },
+        { id: 'hav', type: 'fill', source: 'jorden', paint: { 'fill-color': '#123050' } },
+        { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
+      ],
+    },
+  });
+
+  // långsam snurr på intro/outro
+  let snurrId = null;
+  function startaSnurr() {
+    stoppaSnurr();
+    let last = performance.now();
+    const tick = t => {
+      const dt = Math.min(0.1, (t - last) / 1000); last = t;
+      const c = map.getCenter();
+      map.setCenter([c.lng + 3.2 * dt, c.lat]);
+      snurrId = requestAnimationFrame(tick);
+    };
+    snurrId = requestAnimationFrame(tick);
+  }
+  function stoppaSnurr() { if (snurrId !== null) { cancelAnimationFrame(snurrId); snurrId = null; } }
+
+  // ── stegen: klicka fram i egen takt ──
+  const LANDKORT = {
+    chile:     { namn: 'Chile', bild: 'assets/sydamerika/countries/chile.webp',
+                 assoc: 'En lång smal CHILI-peppar' },
+    argentina: { namn: 'Argentina', bild: 'assets/sydamerika/countries/argentina.webp',
+                 assoc: 'En ARG kille som fått en kycklingklubba i ögat' },
+    colombia:  { namn: 'Colombia', bild: 'assets/sydamerika/countries/colombia.webp',
+                 assoc: 'En COOL ko med solglasögon' },
+    venezuela: { namn: 'Venezuela', bild: 'assets/sydamerika/countries/venezuela.webp',
+                 assoc: 'En VÄN som kommer springande och hälsar' },
+  };
+  const KORTPADDING = () => ({ right: Math.round(innerWidth * 0.30) });
+  const STEG = [
+    { kamera: { center: [10, 25], zoom: 1.5, duration: 2400 }, snurr: true,
+      platta: 'platta-intro' },
+    { kamera: { center: [-60, -22], zoom: 2.2, duration: 3200 } },
+    { kamera: { center: [-70.5, -34], zoom: 2.9, duration: 2200, padd: true }, kort: 'chile' },
+    { kamera: { center: [-62, -37], zoom: 2.9, duration: 2000, padd: true }, kort: 'argentina' },
+    { kamera: { center: [-73.1, 4.3], zoom: 3.8, duration: 2200, padd: true }, kort: 'colombia' },
+    { kamera: { center: [-66.8, 6.6], zoom: 3.8, duration: 2000, padd: true }, kort: 'venezuela' },
+    { kamera: { center: [10, 15], zoom: 1.5, duration: 3000 }, snurr: true,
+      platta: 'platta-outro' },
   ];
-  // versala nyckelord blir gula
+
+  const kortEl = document.getElementById('kort');
+  const prickarEl = document.getElementById('prickar');
+  STEG.forEach(() => prickarEl.appendChild(document.createElement('i')));
   const markera = t => t.replace(/([A-ZÅÄÖ]{2,}(?:-[a-zåäö]+)?)/g, '<b>$1</b>');
-  const kortEl = [];
-  for (const land of LANDER) {
-    const el = document.createElement('div');
-    el.className = 'scen kort';
-    el.innerHTML = `<img src="${land.bild}" alt="">
-      <div class="text">
+
+  let steg = -1;
+  function visaSteg(n) {
+    if (n < 0 || n >= STEG.length || n === steg) return;
+    steg = n;
+    const s = STEG[n];
+    stoppaSnurr();
+    map.stop();
+    map.flyTo({ center: s.kamera.center, zoom: s.kamera.zoom,
+                duration: s.kamera.duration, essential: true,
+                padding: s.kamera.padd ? KORTPADDING() : { right: 0 } });
+    if (s.snurr) {
+      map.once('moveend', () => { if (STEG[steg] && STEG[steg].snurr) startaSnurr(); });
+    }
+    // titelplattor
+    for (const id of ['platta-intro', 'platta-outro']) {
+      document.getElementById(id).classList.toggle('synlig', s.platta === id);
+    }
+    // landkort
+    if (s.kort) {
+      const l = LANDKORT[s.kort];
+      kortEl.innerHTML = `<img src="${l.bild}" alt="">
         <div class="fraga">Hur minns man var landet ligger?</div>
-        <div class="assoc">${markera(land.assoc)}</div>
-        <div class="pil">&rarr; <span class="namn">${land.namn}!</span></div>
-      </div>`;
-    scen.insertBefore(el, document.querySelector('.url'));
-    kortEl.push(el);
+        <div class="assoc">${markera(l.assoc)}</div>
+        <div class="pil">&rarr; <span class="namn">${l.namn}!</span></div>`;
+      kortEl.classList.add('synlig');
+    } else {
+      kortEl.classList.remove('synlig');
+    }
+    // stegvisare + tips
+    prickarEl.querySelectorAll('i').forEach((p, i) => p.classList.toggle('nu', i === n));
+    document.getElementById('tips').classList.toggle('synlig', n === 0);
   }
 
-  // ── tidslinjen: intro → fem kort → outro → om igen ──
-  const ordning = [
-    { el: document.getElementById('scen-intro'), tid: 4200 },
-    ...kortEl.map(el => ({ el, tid: 4600 })),
-    { el: document.getElementById('scen-outro'), tid: 4200 },
-  ];
-  let i = 0;
-  function visa(n) {
-    for (const o of ordning) o.el.classList.remove('synlig');
-    const o = ordning[n];
-    // starta om kortets animationer från noll
-    o.el.style.animation = 'none';
-    for (const b of o.el.querySelectorAll('img, .fraga, .assoc, .pil, .titel, .undertitel')) {
-      b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
-    }
-    o.el.classList.add('synlig');
-    setTimeout(() => { i = (n + 1) % ordning.length; visa(i); }, o.tid);
-  }
-  visa(0);
+  function nasta() { visaSteg(Math.min(steg + 1, STEG.length - 1)); }
+  function forra() { visaSteg(Math.max(steg - 1, 0)); }
+  document.addEventListener('click', nasta);
+  document.addEventListener('keydown', e => {
+    if ([' ', 'ArrowRight', 'PageDown', 'Enter'].includes(e.key)) { e.preventDefault(); nasta(); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); forra(); }
+  });
+
+  visaSteg(0);
 </script>
 </body>
 </html>
