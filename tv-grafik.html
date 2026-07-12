@@ -60,10 +60,6 @@
     z-index: 10; pointer-events: none; }
   #prickar i { width: 1.2vh; height: 1.2vh; border-radius: 50%; background: #ffffff2e; }
   #prickar i.nu { background: #ffdc32aa; }
-  #tips { position: fixed; top: 3vh; left: 0; right: 0; text-align: center;
-    font-size: 2.2vh; color: #7ea6c4; z-index: 10; pointer-events: none;
-    opacity: 0; transition: opacity .6s ease; }
-  #tips.synlig { opacity: .8; }
 </style>
 </head>
 <body>
@@ -79,7 +75,6 @@
 <div id="kort"></div>
 <div class="url">jonasgeografi.se</div>
 <div id="prickar"></div>
-<div id="tips">klicka, mellanslag eller &rarr; f&ouml;r n&auml;sta &middot; &larr; f&ouml;r f&ouml;reg&aring;ende</div>
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
@@ -97,6 +92,8 @@
   }
 
   // ── den riktiga 3D-globen, samma konst-tiles som spelet ──
+  const TACK = '#f2ead8', GUL = '#ffdc32', HOVERGUL = '#ffe9a8';
+  const DEMOLANDER = ['chile', 'argentina', 'colombia', 'venezuela'];
   const protocol = new pmtiles.Protocol();
   maplibregl.addProtocol('pmtiles', protocol.tile);
   const map = new maplibregl.Map({
@@ -111,14 +108,60 @@
         jorden: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: {
           type: 'Polygon', coordinates: [[[-180, -89.9], [-180, 89.9], [180, 89.9],
                                           [180, -89.9], [-180, -89.9]]] } } },
+        demo: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       },
       layers: [
         { id: 'bg', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } },
         { id: 'hav', type: 'fill', source: 'jorden', paint: { 'fill-color': '#123050' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
+        // spelets täcke: bleknar in över demoländerna, lyser gult när
+        // landet markeras och tonar bort när bilden avslöjas
+        { id: 'tacke', type: 'fill', source: 'demo',
+          paint: {
+            'fill-color': ['case',
+              ['boolean', ['feature-state', 'markerad'], false], HOVERGUL, TACK],
+            'fill-opacity': ['case',
+              ['boolean', ['feature-state', 'tackt'], false], 1, 0],
+            'fill-opacity-transition': { duration: 1600 },
+            'fill-color-transition': { duration: 350 },
+          } },
+        { id: 'tacke-kant', type: 'line', source: 'demo',
+          paint: {
+            'line-color': GUL, 'line-width': 4,
+            'line-opacity': ['case',
+              ['boolean', ['feature-state', 'markerad'], false], 1, 0],
+            'line-opacity-transition': { duration: 350 },
+          },
+          layout: { 'line-join': 'round', 'line-cap': 'round' } },
       ],
     },
   });
+  // demoländernas klickytor hämtas ur spelets riktiga geodata
+  const demoGid = {};
+  fetch('assets/art-regions.json?v=2').then(r => r.json()).then(gj => {
+    const val = gj.features.filter(f =>
+      DEMOLANDER.includes((f.properties.key || '').split('/')[1]));
+    for (const f of val) demoGid[(f.properties.key || '').split('/')[1]] = f.id;
+    const satt = () => {
+      const src = map.getSource('demo');
+      if (!src) { map.once('styledata', satt); return; }   // stilen inte klar än
+      src.setData({ type: 'FeatureCollection', features: val });
+      sattTillstand();   // ifall presentationen redan bläddrat vidare
+    };
+    satt();
+  });
+  // önskat tillstånd per land — appliceras idempotent (bakåtbläddring!)
+  let aktLage = { tacke: false, avslojade: [], markerat: null };
+  function sattTillstand() {
+    for (const namn of DEMOLANDER) {
+      const gid = demoGid[namn];
+      if (gid == null) continue;
+      map.setFeatureState({ source: 'demo', id: gid }, {
+        tackt: aktLage.tacke && !aktLage.avslojade.includes(namn),
+        markerad: namn === aktLage.markerat,
+      });
+    }
+  }
 
   // långsam snurr på intro/outro
   let snurrId = null;
@@ -147,16 +190,33 @@
                  assoc: 'En VÄN som kommer springande och hälsar' },
   };
   const KORTPADDING = () => ({ right: Math.round(innerWidth * 0.30) });
+  // varje land i två klick, precis som i spelet: först MARKERAS formen,
+  // sedan avslöjas bilden och kortet med minnesregeln visas
   const STEG = [
     { kamera: { center: [10, 25], zoom: 1.5, duration: 2400 }, snurr: true,
-      platta: 'platta-intro' },
-    { kamera: { center: [-60, -22], zoom: 2.2, duration: 3200 } },
-    { kamera: { center: [-70.5, -34], zoom: 2.9, duration: 2200, padd: true }, kort: 'chile' },
-    { kamera: { center: [-62, -37], zoom: 2.9, duration: 2000, padd: true }, kort: 'argentina' },
-    { kamera: { center: [-73.1, 4.3], zoom: 3.8, duration: 2200, padd: true }, kort: 'colombia' },
-    { kamera: { center: [-66.8, 6.6], zoom: 3.8, duration: 2000, padd: true }, kort: 'venezuela' },
+      platta: 'platta-intro',
+      lage: { tacke: false, avslojade: [], markerat: null } },
+    { kamera: { center: [-60, -22], zoom: 2.2, duration: 3200 },
+      lage: { tacke: true, avslojade: [], markerat: null } },
+    { kamera: { center: [-70.5, -34], zoom: 2.9, duration: 2200, padd: true },
+      lage: { tacke: true, avslojade: [], markerat: 'chile' } },
+    { kort: 'chile',
+      lage: { tacke: true, avslojade: ['chile'], markerat: null } },
+    { kamera: { center: [-62, -37], zoom: 2.9, duration: 2000, padd: true },
+      lage: { tacke: true, avslojade: ['chile'], markerat: 'argentina' } },
+    { kort: 'argentina',
+      lage: { tacke: true, avslojade: ['chile', 'argentina'], markerat: null } },
+    { kamera: { center: [-73.1, 4.3], zoom: 3.8, duration: 2200, padd: true },
+      lage: { tacke: true, avslojade: ['chile', 'argentina'], markerat: 'colombia' } },
+    { kort: 'colombia',
+      lage: { tacke: true, avslojade: ['chile', 'argentina', 'colombia'], markerat: null } },
+    { kamera: { center: [-66.8, 6.6], zoom: 3.8, duration: 2000, padd: true },
+      lage: { tacke: true, avslojade: ['chile', 'argentina', 'colombia'], markerat: 'venezuela' } },
+    { kort: 'venezuela',
+      lage: { tacke: true, avslojade: DEMOLANDER, markerat: null } },
     { kamera: { center: [10, 15], zoom: 1.5, duration: 3000 }, snurr: true,
-      platta: 'platta-outro' },
+      platta: 'platta-outro',
+      lage: { tacke: true, avslojade: DEMOLANDER, markerat: null } },
   ];
 
   const kortEl = document.getElementById('kort');
@@ -170,13 +230,18 @@
     steg = n;
     const s = STEG[n];
     stoppaSnurr();
-    map.stop();
-    map.flyTo({ center: s.kamera.center, zoom: s.kamera.zoom,
-                duration: s.kamera.duration, essential: true,
-                padding: s.kamera.padd ? KORTPADDING() : { right: 0 } });
+    if (s.kamera) {
+      map.stop();
+      map.flyTo({ center: s.kamera.center, zoom: s.kamera.zoom,
+                  duration: s.kamera.duration, essential: true,
+                  padding: s.kamera.padd ? KORTPADDING() : { right: 0 } });
+    }
     if (s.snurr) {
       map.once('moveend', () => { if (STEG[steg] && STEG[steg].snurr) startaSnurr(); });
     }
+    // spelmekaniken: täcke → markering → avslöjad bild
+    aktLage = s.lage;
+    sattTillstand();
     // titelplattor
     for (const id of ['platta-intro', 'platta-outro']) {
       document.getElementById(id).classList.toggle('synlig', s.platta === id);
@@ -194,7 +259,6 @@
     }
     // stegvisare + tips
     prickarEl.querySelectorAll('i').forEach((p, i) => p.classList.toggle('nu', i === n));
-    document.getElementById('tips').classList.toggle('synlig', n === 0);
   }
 
   function nasta() { visaSteg(Math.min(steg + 1, STEG.length - 1)); }
