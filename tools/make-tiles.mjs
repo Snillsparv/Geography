@@ -1832,6 +1832,20 @@ function writeRegions(regions, fills) {
 // småstater vars bild inte har landets form), den RIKTIGA Natural Earth-
 // formen som MultiPolygon. Spelet ritar formen + en klickbar prick/ring
 // när landet är täckt — bilden visas som vanligt när det avslöjas.
+//
+// Vissa emblem är flyttade i KONSTEN, bort från en grannes överdimensione-
+// rade teckning (Maltas riktiga koordinater ligger t.ex. under konst-
+// Sicilien). Prick + form måste följa med dit spelaren SER landet, annars
+// hamnar Maltas prick mitt på Sicilien. Värdena = klickregionens mittpunkt
+// i art-regions.json.
+const MARKOR_FLYTT = {
+  2:   [14.211, 34.342],    // Malta — nedanför konst-Sicilien
+  107: [104.227, -1.164],   // Singapore
+  194: [-62.908, 17.598],   // Antigua & Barbuda
+  195: [-63.825, 17.427],   // Saint Kitts & Nevis
+  199: [-60.320, 12.832],   // Saint Vincent & Grenadinerna
+  201: [-60.721, 12.118],   // Grenada
+};
 function writeMarkers(regions) {
   const extentDeg = (geometry, refLng) => {
     let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
@@ -1869,18 +1883,27 @@ function writeMarkers(regions) {
       const omf = +extentDeg(c.anchor, c.centroid[0]).toFixed(3);
       const badge = c.badge ? 1 : 0;
       const spridd = badge && omf > 2 ? 1 : 0;
+      const flytt = MARKOR_FLYTT[c.gid];
+      const mitt = flytt || c.centroid;
       features.push({
         type: 'Feature', id: c.gid,
         properties: { gid: c.gid, namn: c.name, badge, spridd, omfang: omf },
         geometry: { type: 'Point',
-          coordinates: [+c.centroid[0].toFixed(4), +c.centroid[1].toFixed(4)] },
+          coordinates: [+mitt[0].toFixed(4), +mitt[1].toFixed(4)] },
       });
       if (badge) {
         nForm++;
+        const geom = unwrapGeom(c.anchor, c.centroid[0]);
+        if (flytt) {
+          // formen följer med till emblemet — samma förskjutning som punkten
+          const dLng = flytt[0] - c.centroid[0], dLat = flytt[1] - c.centroid[1];
+          geom.coordinates = geom.coordinates.map(poly => poly.map(ring =>
+            ring.map(([lng, lat]) => [+(lng + dLng).toFixed(5), +(lat + dLat).toFixed(5)])));
+        }
         features.push({
           type: 'Feature', id: c.gid,
           properties: { gid: c.gid, namn: c.name, form: 1, spridd },
-          geometry: unwrapGeom(c.anchor, c.centroid[0]),
+          geometry: geom,
         });
       }
     }
