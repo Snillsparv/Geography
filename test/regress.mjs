@@ -86,7 +86,7 @@ async function prickHit(gid, lng, lat, zoom) {
   return n;
 }
 ok('Ukraina aldrig prick', (await prickHit(1, 31.32, 49.20, 1.4)) === 0 && (await prickHit(1, 31.32, 49.20, 5)) === 0);
-ok('Malta prick z5, borta z7', (await prickHit(2, 14.44, 35.89, 5)) > 0 && (await prickHit(2, 14.44, 35.89, 7)) === 0);
+ok('Malta prick z5, borta z7', (await prickHit(2, 14.211, 34.342, 5)) > 0 && (await prickHit(2, 14.211, 34.342, 7)) === 0);
 ok('Vatikanen prick kvar z7', (await prickHit(36, 12.43, 41.90, 7)) > 0);
 async function darkPix(gid, lng, lat, tackt) {
   await page.evaluate(`setLand(${gid}, { tackt: ${tackt}, gron: false, fel: false, tips: false })`);
