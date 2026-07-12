@@ -114,8 +114,8 @@
         { id: 'bg', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } },
         { id: 'hav', type: 'fill', source: 'jorden', paint: { 'fill-color': '#123050' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
-        // spelets täcke: bleknar in över demoländerna, lyser gult när
-        // landet markeras och tonar bort när bilden avslöjas
+        // spelets täcke: bleknar in över HELA Sydamerika (som testläget),
+        // lyser gult när ett land markeras och tonar bort vid avslöjandet
         { id: 'tacke', type: 'fill', source: 'demo',
           paint: {
             'fill-color': ['case',
@@ -125,6 +125,15 @@
             'fill-opacity-transition': { duration: 1600 },
             'fill-color-transition': { duration: 350 },
           } },
+        // landkonturerna på täcket — precis som i quizet på sajten
+        { id: 'konturer', type: 'line', source: 'demo',
+          paint: {
+            'line-color': '#0a0a0a', 'line-width': 1.8,
+            'line-opacity': ['case',
+              ['boolean', ['feature-state', 'tackt'], false], 0.85, 0],
+            'line-opacity-transition': { duration: 1600 },
+          },
+          layout: { 'line-join': 'round', 'line-cap': 'round' } },
         { id: 'tacke-kant', type: 'line', source: 'demo',
           paint: {
             'line-color': GUL, 'line-width': 4,
@@ -136,12 +145,13 @@
       ],
     },
   });
-  // demoländernas klickytor hämtas ur spelets riktiga geodata
-  const demoGid = {};
+  // hela Sydamerika hämtas ur spelets riktiga geodata — täcket ska ligga
+  // över alla länder (som testläget), bara demoländerna avslöjas sedan
+  const alla = [];   // { namn, gid } för varje sydamerikanskt land
   fetch('assets/art-regions.json?v=2').then(r => r.json()).then(gj => {
     const val = gj.features.filter(f =>
-      DEMOLANDER.includes((f.properties.key || '').split('/')[1]));
-    for (const f of val) demoGid[(f.properties.key || '').split('/')[1]] = f.id;
+      (f.properties.key || '').startsWith('sydamerika/'));
+    for (const f of val) alla.push({ namn: (f.properties.key || '').split('/')[1], gid: f.id });
     const satt = () => {
       const src = map.getSource('demo');
       if (!src) { map.once('styledata', satt); return; }   // stilen inte klar än
@@ -153,9 +163,7 @@
   // önskat tillstånd per land — appliceras idempotent (bakåtbläddring!)
   let aktLage = { tacke: false, avslojade: [], markerat: null };
   function sattTillstand() {
-    for (const namn of DEMOLANDER) {
-      const gid = demoGid[namn];
-      if (gid == null) continue;
+    for (const { namn, gid } of alla) {
       map.setFeatureState({ source: 'demo', id: gid }, {
         tackt: aktLage.tacke && !aktLage.avslojade.includes(namn),
         markerad: namn === aktLage.markerat,
