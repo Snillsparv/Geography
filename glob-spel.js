@@ -151,7 +151,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '45';
+const V = '46';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1633,11 +1633,17 @@ function spelPadding() {
 }
 
 async function startWorld(count) {
-  // proportionellt urval över regionerna (största rest-metoden)
+  // proportionellt urval över regionerna (största rest-metoden).
+  // Länder som ligger i flera regioner (Turkiet i Europa+Asien, Papua Nya
+  // Guinea i Asien+Oceanien) räknas bara EN gång — annars kan samma land
+  // dras två gånger och andra frågan går inte att besvara.
   const entries = [];
+  const sedda = new Set();
   for (const slug of WORLD_SLUGS) {
     const raw = await loadRegionConfig(slug);
-    entries.push({ slug, raw, countries: shuffle(buildCountries(slug, raw)) });
+    const unika = buildCountries(slug, raw)
+      .filter(c => !sedda.has(c.gid) && (sedda.add(c.gid), true));
+    entries.push({ slug, raw, countries: shuffle(unika) });
   }
   const totalCountries = entries.reduce((s, e) => s + e.countries.length, 0);
   if (count > totalCountries) count = totalCountries;
