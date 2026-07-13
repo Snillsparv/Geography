@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Jonas geografi — besöksstatistik</title>
+<style>
+  :root {
+    --yta: #0d1424;         /* sidans mörka yta */
+    --kort: #131c31;
+    --linje: #223049;       /* hårlinje för rutnät/ramar */
+    --text: #eef2fa;
+    --text2: #a8b3c7;
+    --text3: #6b7688;
+    --gul: #ffdc32;         /* varumärkesgult — accenter & hover */
+    --stapel: #e3b71e;      /* stapelguld, validerat mot ytan */
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--yta); color: var(--text);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh; padding: 24px 16px 48px;
+  }
+  .ram { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.15rem; font-weight: 700; color: var(--gul); letter-spacing: .02em; }
+  h1 a { color: inherit; text-decoration: none; }
+  .under { color: var(--text2); font-size: .9rem; margin-top: 4px; }
+
+  /* hjältesiffran + statplattor */
+  .hjalte { margin: 28px 0 8px; }
+  .hjalte .etikett { color: var(--text2); font-size: .95rem; }
+  .hjalte .varde { font-size: 56px; font-weight: 600; line-height: 1.15; }
+  .plattor { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 32px; }
+  .platta {
+    background: var(--kort); border: 1px solid var(--linje); border-radius: 12px;
+    padding: 12px 18px; min-width: 128px; flex: 0 1 auto;
+  }
+  .platta .etikett { color: var(--text2); font-size: .82rem; }
+  .platta .varde { font-size: 26px; font-weight: 600; margin-top: 2px; }
+
+  /* diagramkortet */
+  .kort {
+    background: var(--kort); border: 1px solid var(--linje); border-radius: 12px;
+    padding: 18px 18px 10px;
+  }
+  .kort h2 { font-size: 1rem; font-weight: 600; }
+  .kort .under { margin-bottom: 10px; }
+  #diagram { display: block; width: 100%; }
+  #diagram text { font-family: inherit; font-size: 11px; fill: var(--text3);
+                  font-variant-numeric: tabular-nums; }
+  #diagram .rut { stroke: var(--linje); stroke-width: 1; }
+  #diagram .stapel { fill: var(--stapel); pointer-events: none; }
+  #diagram .traff { fill: transparent; cursor: default; outline: none; }
+  #diagram .traff:hover + .stapel, #diagram .traff:focus-visible + .stapel { fill: var(--gul); }
+  #diagram .traff:focus-visible { stroke: var(--gul); stroke-width: 1.5; }
+
+  /* verktygstips: värdet först och störst, datumet under */
+  #tips {
+    position: fixed; pointer-events: none; display: none; z-index: 5;
+    background: #1a2440; border: 1px solid var(--linje); border-radius: 8px;
+    padding: 7px 11px; box-shadow: 0 4px 16px rgba(0,0,0,.45);
+  }
+  #tips .v { font-weight: 700; font-size: .95rem; }
+  #tips .d { color: var(--text2); font-size: .8rem; margin-top: 1px; }
+
+  /* tabellvyn — samma siffror utan att behöva hovra */
+  details { margin-top: 14px; color: var(--text2); }
+  summary { cursor: pointer; font-size: .88rem; padding: 6px 0; }
+  table { border-collapse: collapse; margin: 8px 0 12px; font-size: .88rem; }
+  th, td { text-align: left; padding: 4px 18px 4px 0; border-bottom: 1px solid var(--linje); }
+  td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  th { color: var(--text3); font-weight: 600; }
+
+  .fot { color: var(--text3); font-size: .82rem; margin-top: 26px; }
+  #fel { display: none; color: var(--text2); background: var(--kort);
+         border: 1px solid var(--linje); border-radius: 12px; padding: 18px; margin-top: 24px; }
+  @media (max-width: 560px) {
+    .hjalte .varde { font-size: 44px; }
+    .platta { min-width: calc(50% - 6px); }
+  }
+</style>
+</head>
+<body>
+<div class="ram">
+  <h1><a href="/">🌍 Jonas geografi</a> — statistik</h1>
+  <div class="under">Anonym besöksräknare — inga kakor, ingen spårning.</div>
+
+  <div id="fel">Kunde inte hämta statistiken just nu. Prova att ladda om sidan om en stund.</div>
+
+  <div id="allt" hidden>
+    <div class="hjalte">
+      <div class="etikett">Totalt antal besök</div>
+      <div class="varde" id="totalt">–</div>
+    </div>
+    <div class="plattor">
+      <div class="platta"><div class="etikett">Idag</div><div class="varde" id="idag">–</div></div>
+      <div class="platta"><div class="etikett">Igår</div><div class="varde" id="igar">–</div></div>
+      <div class="platta"><div class="etikett">Senaste 7 dagarna</div><div class="varde" id="vecka">–</div></div>
+      <div class="platta"><div class="etikett">High fives 🖐</div><div class="varde" id="hifi">–</div></div>
+    </div>
+
+    <div class="kort">
+      <h2>Besök per dag</h2>
+      <div class="under">Senaste 30 dagarna, till och med idag</div>
+      <svg id="diagram" role="img" aria-label="Stapeldiagram över antal besök per dag de senaste 30 dagarna"></svg>
+      <details>
+        <summary>Visa som tabell</summary>
+        <table><thead><tr><th>Dag</th><th>Besök</th></tr></thead><tbody id="tabell"></tbody></table>
+      </details>
+    </div>
+
+    <div class="fot">Dagarna byter vid midnatt UTC (svensk vintertid 01:00, sommartid 02:00) —
+      samma räkning som i databasen. Räknaren startade när sidan lanserades.</div>
+  </div>
+</div>
+<div id="tips"><div class="v"></div><div class="d"></div></div>
+
+<script>
+  const DB = 'https://geography-fa6a4-default-rtdb.europe-west1.firebasedatabase.app';
+  const $ = id => document.getElementById(id);
+  const tal = n => n.toLocaleString('sv-SE');
+  const MAN = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+  const fintDatum = iso => `${+iso.slice(8, 10)} ${MAN[+iso.slice(5, 7) - 1]}`;
+
+  // samma UTC-dygn som spelets räknare bucketar på
+  const DAGAR = [];
+  {
+    const nu = new Date();
+    for (let i = 29; i >= 0; i--) {
+      DAGAR.push(new Date(nu.getTime() - i * 86400e3).toISOString().slice(0, 10));
+    }
+  }
+
+  let serie = [];   // [{ dag, antal }] — ritas om vid fönsterändring
+  function rita() {
+    const svg = $('diagram');
+    const B = Math.max(320, svg.clientWidth || svg.parentNode.clientWidth - 36);
+    const H = 300, M = { upp: 14, hoger: 8, ner: 26, vanster: 46 };
+    const bredd = B - M.vanster - M.hoger, hojd = H - M.upp - M.ner;
+    const max = Math.max(1, ...serie.map(p => p.antal));
+    // rena tick-steg: minsta 1/2/5 × 10^n som ger högst fem steg till taket
+    let steg = Math.pow(10, Math.max(0, Math.floor(Math.log10(max)) - 1));
+    while (max / steg > 5) steg *= (('' + steg)[0] === '2') ? 2.5 : 2;
+    const tak = Math.ceil(max / steg) * steg;
+    const y = v => M.upp + hojd * (1 - v / tak);
+    const band = bredd / serie.length;
+    const sb = Math.min(24, band - 2);            // stapel ≤ 24px, minst 2px luft
+    let s = '';
+    // rutnät + y-etiketter (rena tal, tunn hårlinje)
+    for (let v = 0; v <= tak; v += steg) {
+      s += `<line class="rut" x1="${M.vanster}" x2="${B - M.hoger}" y1="${y(v)}" y2="${y(v)}"/>`
+         + `<text x="${M.vanster - 8}" y="${y(v) + 4}" text-anchor="end">${tal(v)}</text>`;
+    }
+    // staplar: 4px rundad topp, rak baslinje — och en bred träffyta per dag
+    serie.forEach((p, i) => {
+      const x = M.vanster + i * band + (band - sb) / 2;
+      const h = hojd * p.antal / tak, yt = y(p.antal);
+      const r = Math.min(4, h, sb / 2);
+      if (h > 0) {
+        var d = `M${x},${yt + h} L${x},${yt + r} Q${x},${yt} ${x + r},${yt} `
+              + `L${x + sb - r},${yt} Q${x + sb},${yt} ${x + sb},${yt + r} L${x + sb},${yt + h} Z`;
+      }
+      s += `<g><rect class="traff" data-i="${i}" data-topp="${yt}" tabindex="0" role="img"
+              aria-label="${fintDatum(p.dag)}: ${p.antal} besök"
+              x="${M.vanster + i * band}" y="${M.upp}" width="${band}" height="${hojd}"/>`
+         + (h > 0 ? `<path class="stapel" d="${d}"/>` : '') + `</g>`;
+      if (i % 5 === 0 || i === serie.length - 1) {
+        s += `<text x="${M.vanster + i * band + band / 2}" y="${H - 8}" text-anchor="middle">${fintDatum(p.dag)}</text>`;
+      }
+    });
+    svg.setAttribute('viewBox', `0 0 ${B} ${H}`);
+    svg.setAttribute('height', H);
+    svg.innerHTML = s;
+  }
+
+  // verktygstips per stapel — hela dagsbandet är träffyta
+  const tips = $('tips');
+  function visaTips(e, i) {
+    const p = serie[i];
+    tips.querySelector('.v').textContent = tal(p.antal) + ' besök';
+    tips.querySelector('.d').textContent = fintDatum(p.dag);
+    tips.style.display = 'block';
+    const r = (e.target).getBoundingClientRect();
+    const tx = ('clientX' in e) ? e.clientX : r.left + r.width / 2;
+    const b = tips.getBoundingClientRect();
+    // förankra vid stapelns topp, inte träffytans — samma skala som viewBoxen
+    const svgR = $('diagram').getBoundingClientRect();
+    const ty = svgR.top + (+e.target.dataset.topp) * (svgR.height / 300);
+    tips.style.left = Math.max(6, Math.min(innerWidth - b.width - 6, tx - b.width / 2)) + 'px';
+    tips.style.top = Math.max(6, ty - b.height - 10) + 'px';
+  }
+  $('diagram').addEventListener('pointermove', e => {
+    const i = e.target.dataset && e.target.dataset.i;
+    if (i !== undefined && i !== '') visaTips(e, +i); else tips.style.display = 'none';
+  });
+  $('diagram').addEventListener('pointerleave', () => tips.style.display = 'none');
+  $('diagram').addEventListener('focusin', e => {
+    if (e.target.dataset.i !== undefined) visaTips(e, +e.target.dataset.i);
+  });
+  $('diagram').addEventListener('focusout', () => tips.style.display = 'none');
+  addEventListener('resize', () => { if (serie.length) rita(); });
+
+  Promise.all([
+    fetch(DB + '/besok.json').then(r => r.json()),
+    fetch(DB + '/highfives2.json').then(r => r.json()).catch(() => null),
+  ]).then(([besok, hifi]) => {
+    besok = besok || {};
+    serie = DAGAR.map(dag => ({ dag, antal: +besok[dag] || 0 }));
+    $('totalt').textContent = tal(+besok.totalt || 0);
+    $('idag').textContent = tal(serie[29].antal);
+    $('igar').textContent = tal(serie[28].antal);
+    $('vecka').textContent = tal(serie.slice(23).reduce((a, p) => a + p.antal, 0));
+    $('hifi').textContent = hifi == null ? '–' : tal(+hifi);
+    $('tabell').innerHTML = '';
+    for (let i = serie.length - 1; i >= 0; i--) {
+      const rad = document.createElement('tr');
+      const c1 = document.createElement('td'), c2 = document.createElement('td');
+      c1.textContent = serie[i].dag; c2.textContent = tal(serie[i].antal);
+      rad.append(c1, c2); $('tabell').appendChild(rad);
+    }
+    $('allt').hidden = false;
+    rita();
+  }).catch(() => { $('fel').style.display = 'block'; });
+</script>
+</body>
+</html>
