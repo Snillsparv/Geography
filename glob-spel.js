@@ -151,7 +151,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '46';
+const V = '47';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1646,6 +1646,7 @@ async function startWorld(count) {
     entries.push({ slug, raw, countries: shuffle(unika) });
   }
   const totalCountries = entries.reduce((s, e) => s + e.countries.length, 0);
+  const helaPotten = count >= totalCountries;   // "Alla!"-knappen skickar ett tak-värde
   if (count > totalCountries) count = totalCountries;
   const alloc = entries.map(e => {
     const exact = (e.countries.length / totalCountries) * count;
@@ -1662,8 +1663,11 @@ async function startWorld(count) {
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
   aktivSlug = 'world';
-  aktivRegionNamn = 'hela världen';
-  HS_BAS = 'glob-world-highscores';
+  aktivRegionNamn = helaPotten
+    ? `hela världen (alla ${count} länder)` : `hela världen (${count} länder)`;
+  // egen rekordlista per antal — 10/20/30/50/100 länder tävlar var för sig,
+  // och "Alla!" har sin egen lista för de riktiga världsmästarna
+  HS_BAS = 'glob-world-highscores-' + (helaPotten ? 'alla' : count);
   uppdateraHsKey();
   isWorldTest = true;
   origSlug = null;                 // världstestet har ingen originalkarta
