@@ -151,7 +151,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '47';
+const V = '48';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2502,6 +2502,7 @@ function startLage(flyg) {
       gomStartSkal();
       if (document.body.classList.contains('startlage')) startaSnurr();
       if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
+      else setTimeout(startaFeedbackTips, 1500);   // återvändare: kort feedbacknotis
     };
     map.once('idle', klar);
     setTimeout(klar, 12000);   // säkerhetsnät om rutorna strular
@@ -2731,9 +2732,26 @@ const TOUR = [
   { el: () => document.getElementById('start-hifi'), bild: 'assets/jonas/smash.webp',
     hoger: true, spegel: true,
     text: 'Varje gång du känner dig extra nöjd med att ha lyckats minnas något är du välkommen att ge mig en high five i hörnet!' },
+  { el: () => document.getElementById('feedback-knapp'), rund: true,
+    bild: 'assets/jonas/upp.webp', spegel: true,
+    text: 'Och bakom brevet här uppe kan du tycka till om sidan! Jag tar jättegärna emot feedback och förslag på förbättringar.' },
   { stor: true, bild: 'assets/jonas/masken.webp', knapp: 'Nu kör vi!',
     text: 'Kör hårt!' },
 ];
+
+// kort engångsnotis för den som redan sett rundturen innan
+// feedbackknappen fanns: bara "psst, nu kan du tycka till"-steget
+const FEEDBACK_TIPS = [
+  { el: () => document.getElementById('feedback-knapp'), rund: true,
+    bild: 'assets/jonas/upp.webp', spegel: true, knapp: 'Tack, bra att veta!',
+    text: 'Psst — en nyhet! Bakom brevet här uppe kan du numera tycka till om sidan. Jag tar jättegärna emot feedback och förslag på förbättringar!' },
+];
+function startaFeedbackTips() {
+  if (localStorage.getItem('feedback-tips-klar')) return;
+  if (!document.body.classList.contains('startlage')) return;
+  if (introOverlay.style.display !== 'none') return;   // annan tur igång
+  startaTour(FEEDBACK_TIPS, 'feedback-tips-klar', null);
+}
 
 // spelvyns genomgång: förklarar lägena första gången man är inne.
 // På datorn ställer sig Jonas rakt under knappen han berättar om,
@@ -2797,7 +2815,8 @@ function visaHal(mal) {
 
 function visaTourSteg() {
   const s = aktivTour[tourSteg];
-  introHoppa.style.display = tourSteg === 0 ? '' : 'none';
+  // "Hoppa över" bara i riktiga turer — en ensam notis har redan en enda knapp
+  introHoppa.style.display = (tourSteg === 0 && aktivTour.length > 1) ? '' : 'none';
   introOverlay.classList.toggle('steg', !s.stor);
   introOverlay.classList.toggle('hoger', !!s.hoger);
   introJonas.classList.toggle('spegel', !!s.spegel);
@@ -2900,6 +2919,8 @@ function nastaSteg() {
   tourSteg++;
   if (tourSteg >= aktivTour.length) {
     localStorage.setItem(tourNyckel, '1');
+    // hela rundturen visar redan feedbackknappen — då behövs ingen notis sen
+    if (tourNyckel === 'rundtur-klar') localStorage.setItem('feedback-tips-klar', '1');
     snurrLas = false;
     if (tourSlut) tourSlut();
     else introOverlay.style.display = 'none';
