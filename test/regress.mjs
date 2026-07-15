@@ -11,7 +11,7 @@ const ok = (name, cond, detail = '') => {
 };
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
 const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
-await page.addInitScript("localStorage.setItem('rundtur-klar','1')");
+await page.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('feedback-tips-klar','1')");
 const pageErrors = [];
 const reqUrls = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
