@@ -174,6 +174,17 @@
     #feedback-status.tack { color: #5fca77; font-weight: 700; }
     #feedback-status.fel { color: #ff9d8a; }
     #feedback-status a { color: #7ec8e3; }
+    /* Utmaningar: skapa-/anta-rutorna — samma kortstil som feedbacken */
+    .utm-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .utm-detalj { color: #ffdc32 !important; font-weight: 800; }
+    #utm-skapa-btn, #utm-anta-btn, #utm-dela { padding: 9px 18px; border-radius: 10px;
+      border: none; background: #ffdc32; color: #08131f; font-weight: 800; cursor: pointer;
+      box-shadow: 0 3px 0 #0006; }
+    #utm-skapa-avbryt, #utm-kopiera, #utm-anta-nej, #utm-anta-stang, #utm-skapa-stang {
+      padding: 9px 18px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
+    #utm-skapa-status { margin-top: 10px; font-size: .9rem; color: #ff9d8a; }
     .start-hifi { position: fixed; right: 16px; bottom: 10px; text-align: center; z-index: 55;
       cursor: pointer; }
     .start-hifi img { width: 84px; display: block; margin: 0 auto;
@@ -546,6 +557,53 @@
   </div>
 </div>
 
+<!-- Utmaningar: skapa en l&auml;nk och utmana kompisar p&aring; exakt samma quiz -->
+<div id="utmaning-skapa-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#9876;&#65039; Utmana en kompis!</h2>
+    <p class="utm-detalj" id="utm-skapa-detalj"></p>
+    <div id="utm-skapa-form">
+      <p>Du f&aring;r en l&auml;nk att skicka till en kompis &mdash; eller hela klassen!
+        Alla som &ouml;ppnar l&auml;nken f&aring;r <b>exakt samma quiz</b> och hamnar i
+        samma duellista.</p>
+      <label for="utm-skapa-namn">Ditt namn i duellen</label>
+      <input id="utm-skapa-namn" type="text" maxlength="30">
+      <div class="feedback-knappar">
+        <button id="utm-skapa-btn" type="button">Skapa l&auml;nken!</button>
+        <button id="utm-skapa-avbryt" type="button">Avbryt</button>
+      </div>
+      <div id="utm-skapa-status"></div>
+    </div>
+    <div id="utm-skapa-klar" style="display:none">
+      <p>Klart! Skicka l&auml;nken till dem du vill utmana:</p>
+      <input id="utm-lank" type="text" readonly>
+      <div class="feedback-knappar">
+        <button id="utm-dela" type="button">Dela &#128232;</button>
+        <button id="utm-kopiera" type="button">Kopiera l&auml;nken</button>
+        <button id="utm-skapa-stang" type="button">St&auml;ng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="utmaning-anta-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2 id="utm-anta-rubrik"></h2>
+    <p id="utm-anta-text"></p>
+    <div id="utm-anta-form">
+      <label for="utm-anta-namn">Vad heter du?</label>
+      <input id="utm-anta-namn" type="text" maxlength="30">
+      <div class="feedback-knappar">
+        <button id="utm-anta-btn" type="button">Anta utmaningen! &#128293;</button>
+        <button id="utm-anta-nej" type="button">Inte nu</button>
+      </div>
+    </div>
+    <div class="feedback-knappar" id="utm-anta-felknappar" style="display:none">
+      <button id="utm-anta-stang" type="button">Till startsidan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Världsresan: kampanjpasset -->
 <div id="resa-modal" style="display:none">
   <div class="resa-pass">
@@ -717,6 +775,8 @@
         <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
         <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
         <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
+        <button class="restart-btn" id="utmana-btn" style="display:none">&#9876;&#65039; Utmana en kompis!</button>
+        <button class="restart-btn" id="utm-vidare-btn" style="display:none">Skicka utmaningen vidare &#128232;</button>
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
       </div>
     </div>
@@ -793,7 +853,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=48"></script>
+<script src="glob-spel.js?v=49"></script>
 
 </body>
 </html>

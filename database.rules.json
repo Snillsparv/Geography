@@ -34,6 +34,34 @@
       "$dag": {
         ".write": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || newData.val() === data.val() + 1)"
       }
+    },
+
+    "utmaningar": {
+      "$utmid": {
+        ".read": true,
+        ".write": "!data.exists() && newData.hasChildren(['namn', 'slug', 'antal', 'score', 'time', 'wrong', 'date'])",
+        "namn":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+        "slug":  { ".validate": "newData.isString() && newData.val().matches(/^(europa|afrika|asien|nordamerika|sydamerika|oceanien|vastindien|world)$/)" },
+        "antal": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 300" },
+        "lander": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+        "time":  { ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 360000" },
+        "wrong": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
+        "date":  { ".validate": "newData.isNumber() && newData.val() > 1500000000000 && newData.val() < now + 86400000" },
+        "resultat": {
+          "$post": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['name', 'score', 'time', 'wrong', 'date'])",
+            "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+            "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "time":  { ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 360000" },
+            "wrong": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
+            "date":  { ".validate": "newData.isNumber() && newData.val() > 1500000000000 && newData.val() < now + 86400000" },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
     }
   }
 }

@@ -65,6 +65,7 @@ function uppdateraHsKey() { HS_KEY = (bildlage ? 'bild-' : '') + HS_BAS; }
 let ASSET_BASE = '';
 let currentMode = 'explore';
 let isWorldTest = false;
+let aktivUtmaning = null;      // { id, data, namn } — pågående kompisutmaning
 let map = null;
 const revealed = new Set();       // gid
 let activeCountry = null;
@@ -151,7 +152,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '48';
+const V = '49';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1632,11 +1633,12 @@ function spelPadding() {
     : { top: 56, right: 0, bottom: 0, left: 0 });
 }
 
-async function startWorld(count) {
+async function startWorld(count, fastaGids) {
   // proportionellt urval över regionerna (största rest-metoden).
   // Länder som ligger i flera regioner (Turkiet i Europa+Asien, Papua Nya
   // Guinea i Asien+Oceanien) räknas bara EN gång — annars kan samma land
   // dras två gånger och andra frågan går inte att besvara.
+  // fastaGids: en utmaning spelas med exakt samma länder som utmanaren fick.
   const entries = [];
   const sedda = new Set();
   for (const slug of WORLD_SLUGS) {
@@ -1646,19 +1648,26 @@ async function startWorld(count) {
     entries.push({ slug, raw, countries: shuffle(unika) });
   }
   const totalCountries = entries.reduce((s, e) => s + e.countries.length, 0);
+  COUNTRIES = [];
+  if (fastaGids && fastaGids.length) {
+    const vill = new Set(fastaGids);
+    for (const e of entries) COUNTRIES.push(...e.countries.filter(c => vill.has(c.gid)));
+    // känns inga av länderna igen (trasig länk) → vanligt slumpurval i stället
+    if (COUNTRIES.length) count = COUNTRIES.length;
+  }
   const helaPotten = count >= totalCountries;   // "Alla!"-knappen skickar ett tak-värde
   if (count > totalCountries) count = totalCountries;
-  const alloc = entries.map(e => {
-    const exact = (e.countries.length / totalCountries) * count;
-    return { e, exact, n: Math.floor(exact) };
-  });
-  let allocated = alloc.reduce((s, a) => s + a.n, 0);
-  alloc.map((a, i) => ({ i, rem: a.exact - a.n }))
-    .sort((a, b) => b.rem - a.rem)
-    .forEach(r => { if (allocated < count) { alloc[r.i].n++; allocated++; } });
-
-  COUNTRIES = [];
-  for (const a of alloc) COUNTRIES.push(...a.e.countries.slice(0, a.n));
+  if (!COUNTRIES.length) {
+    const alloc = entries.map(e => {
+      const exact = (e.countries.length / totalCountries) * count;
+      return { e, exact, n: Math.floor(exact) };
+    });
+    let allocated = alloc.reduce((s, a) => s + a.n, 0);
+    alloc.map((a, i) => ({ i, rem: a.exact - a.n }))
+      .sort((a, b) => b.rem - a.rem)
+      .forEach(r => { if (allocated < count) { alloc[r.i].n++; allocated++; } });
+    for (const a of alloc) COUNTRIES.push(...a.e.countries.slice(0, a.n));
+  }
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
@@ -1940,7 +1949,15 @@ function endSeterra() {
     (!bildlage && !seterraIsRetry && score === 100) ? '' : 'none';
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = 'none';
-  if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
+  visaUtmanaKnapp(score);
+  // i en utmaning ersätter duellistan de vanliga topplistorna
+  document.getElementById('topplista-knapp-klar').style.display = aktivUtmaning ? 'none' : '';
+  document.getElementById('utm-vidare-btn').style.display = aktivUtmaning ? '' : 'none';
+  if (aktivUtmaning && !seterraIsRetry) {
+    sparaUtmaningsResultat(score);
+  } else if (aktivUtmaning) {
+    visaDuellLista(null);            // övningsrunda i utmaningen: bara duellen visas
+  } else if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
     showCelebration(m, s);
   } else if (!seterraIsRetry) {
     showNameModal(score, m, s);
@@ -2524,6 +2541,7 @@ function startLage(flyg) {
 // Tillbaka till starten UTAN sidladdning: städa pågående läge, flyg ut
 // till världsvyn och tona fram startöverlägget — samma glob hela tiden.
 function tillbakaTillStart() {
+  aktivUtmaning = null;          // utmaningen gäller bara tills man lämnar den
   if (seterraTimerInterval) clearInterval(seterraTimerInterval);
   seterraTarget = null;
   cursorLabel.style.display = 'none';
@@ -3104,6 +3122,193 @@ window.spel = {
 };
 
 // ══════════════════════
+// Utmaningar: efter ett klassiskt quiz kan man skapa en länk och utmana
+// kompisar. Länken låser region + (för världstestet) exakt samma länder,
+// och alla som spelar den hamnar i samma duellista. Ingen inloggning —
+// bara ett spelarnamn, precis som i topplistorna.
+// ══════════════════════
+const UTM_NAMN_KEY = 'spelarnamn';
+const utmUrl = id => location.origin + location.pathname + '?utmaning=' + id;
+const utmTid = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+const utmRegionNamn = slug => RESA_NAMN[slug] || slug;
+const utmDelText = (namn, d, id) =>
+  `${namn} utmanar dig i Jonas geografi! ${utmRegionNamn(d.slug)}: ` +
+  `${d.score} % på ${utmTid(d.time)} — kan du slå det? ${utmUrl(id)}`;
+
+const utmanaBtn = document.getElementById('utmana-btn');
+const utmSkapaModal = document.getElementById('utmaning-skapa-modal');
+function visaUtmanaKnapp(score) {
+  // bara riktiga, hela klassiska omgångar går att utmana på — och inte
+  // inne i någon annans utmaning (då delar man vidare i stället)
+  utmanaBtn.style.display =
+    (firebaseDB && !bildlage && !seterraIsRetry && !aktivUtmaning && seterraTotal) ? '' : 'none';
+  utmanaBtn.dataset.score = score;
+}
+utmanaBtn.addEventListener('click', () => {
+  document.getElementById('utm-skapa-form').style.display = '';
+  document.getElementById('utm-skapa-klar').style.display = 'none';
+  document.getElementById('utm-skapa-status').textContent = '';
+  document.getElementById('utm-skapa-detalj').textContent =
+    `${utmRegionNamn(aktivSlug)} — du fick ${utmanaBtn.dataset.score} % på ${utmTid(seterraElapsed)}`;
+  const namn = document.getElementById('utm-skapa-namn');
+  namn.value = localStorage.getItem(UTM_NAMN_KEY) || '';
+  utmSkapaModal.style.display = 'flex';
+  if (!namn.value) setTimeout(() => namn.focus(), 100);
+});
+document.getElementById('utm-skapa-avbryt').addEventListener('click', () => {
+  utmSkapaModal.style.display = 'none';
+});
+document.getElementById('utm-skapa-stang').addEventListener('click', () => {
+  utmSkapaModal.style.display = 'none';
+});
+utmSkapaModal.addEventListener('click', e => {
+  if (e.target === utmSkapaModal) utmSkapaModal.style.display = 'none';
+});
+document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
+  const namnEl = document.getElementById('utm-skapa-namn');
+  const namn = namnEl.value.trim();
+  if (!namn) { namnEl.focus(); return; }
+  localStorage.setItem(UTM_NAMN_KEY, namn);
+  const post = {
+    namn, slug: aktivSlug, antal: seterraTotal,
+    score: +utmanaBtn.dataset.score, time: seterraElapsed,
+    wrong: seterraWrong, date: Date.now(),
+  };
+  if (isWorldTest) post.lander = COUNTRIES.map(c => c.gid).join(',');
+  const status = document.getElementById('utm-skapa-status');
+  status.textContent = 'Skapar länken …';
+  try {
+    const ref = await firebaseDB.ref('utmaningar').push(post);
+    status.textContent = '';
+    document.getElementById('utm-skapa-form').style.display = 'none';
+    document.getElementById('utm-skapa-klar').style.display = '';
+    document.getElementById('utm-lank').value = utmUrl(ref.key);
+    document.getElementById('utm-dela').onclick = async () => {
+      const text = utmDelText(namn, post, ref.key);
+      if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) {} }
+      kopieraUtmLank();
+    };
+  } catch (e) {
+    status.textContent = 'Kunde inte skapa länken — kolla nätet och prova igen.';
+  }
+});
+function kopieraUtmLank() {
+  const inp = document.getElementById('utm-lank');
+  inp.select(); inp.setSelectionRange(0, 300);
+  (navigator.clipboard ? navigator.clipboard.writeText(inp.value)
+                       : Promise.reject()).catch(() => document.execCommand('copy'));
+  const k = document.getElementById('utm-kopiera');
+  k.textContent = 'Kopierad!';
+  setTimeout(() => { k.textContent = 'Kopiera länken'; }, 1600);
+}
+document.getElementById('utm-kopiera').addEventListener('click', kopieraUtmLank);
+
+// mottagarsidan: ?utmaning=<id> — spelplanen görs i ordning bakom
+// anta-rutan, själva quizet startar först när man antagit utmaningen
+async function forberedUtmaning(id) {
+  let data = null;
+  if (firebaseDB) {
+    try { data = (await firebaseDB.ref('utmaningar/' + id).once('value')).val(); }
+    catch (e) { /* nätfel → samma felruta som saknad utmaning */ }
+  }
+  const modal = document.getElementById('utmaning-anta-modal');
+  if (!data || !RESA_NAMN[data.slug]) {
+    startLage();
+    document.getElementById('utm-anta-rubrik').textContent = 'Hoppsan!';
+    document.getElementById('utm-anta-text').textContent =
+      'Utmaningen kunde inte hittas — länken kan vara trasig eller nätet nere.';
+    document.getElementById('utm-anta-form').style.display = 'none';
+    document.getElementById('utm-anta-felknappar').style.display = '';
+    modal.style.display = 'flex';
+    return;
+  }
+  aktivUtmaning = { id, data };
+  if (data.slug === 'world') {
+    document.title = 'Hela världen – Jonas geografi';
+    document.querySelector('header h1').textContent = 'Hela världen 🌍';
+    document.getElementById('view-orig').style.display = 'none';
+    visaSpelVideo(null);
+    spelPadding();
+    for (const f of regionsGj.features) setLand(f.id, { gron: false, tackt: false });
+    map.jumpTo({ center: KAMERA.world.center, zoom: KAMERA.world.zoom });
+  } else {
+    await startRegion(data.slug);
+  }
+  document.getElementById('utm-anta-rubrik').textContent = '⚔️ Utmaning!';
+  document.getElementById('utm-anta-text').innerHTML =
+    `<b>${escHtml(data.namn)}</b> utmanar dig på <b>${escHtml(utmRegionNamn(data.slug))}</b>` +
+    (data.slug === 'world' ? ` med <b>${data.antal} länder</b>` : '') +
+    `!<br>Resultatet att slå: <b>${data.score} %</b> på <b>${utmTid(data.time)}</b>.`;
+  const namn = document.getElementById('utm-anta-namn');
+  namn.value = localStorage.getItem(UTM_NAMN_KEY) || '';
+  document.getElementById('utm-anta-form').style.display = '';
+  document.getElementById('utm-anta-felknappar').style.display = 'none';
+  modal.style.display = 'flex';
+}
+document.getElementById('utm-anta-btn').addEventListener('click', async () => {
+  const namnEl = document.getElementById('utm-anta-namn');
+  const namn = namnEl.value.trim();
+  if (!namn) { namnEl.focus(); return; }
+  localStorage.setItem(UTM_NAMN_KEY, namn);
+  aktivUtmaning.namn = namn;
+  document.getElementById('utmaning-anta-modal').style.display = 'none';
+  const d = aktivUtmaning.data;
+  if (d.slug === 'world') {
+    const gids = (d.lander || '').split(',').filter(Boolean).map(Number);
+    await startWorld(d.antal, gids);
+  } else {
+    switchMode('seterra', true);   // startar quizet — länderna är redan laddade
+  }
+});
+const utmAntaNej = () => { location.href = location.pathname; };
+document.getElementById('utm-anta-nej').addEventListener('click', utmAntaNej);
+document.getElementById('utm-anta-stang').addEventListener('click', utmAntaNej);
+
+async function sparaUtmaningsResultat(score) {
+  const u = aktivUtmaning;
+  const entry = { name: u.namn || 'Jag', score, time: seterraElapsed,
+                  wrong: seterraWrong, date: Date.now() };
+  // samma fuskspärr som topplistorna: under 5 sekunder sparas aldrig
+  if (firebaseDB && seterraTotal && entry.time >= 5) {
+    try { await firebaseDB.ref('utmaningar/' + u.id + '/resultat').push(entry); }
+    catch (e) { /* duellen visas ändå, med det som gick att läsa */ }
+  }
+  visaDuellLista(entry);
+}
+async function visaDuellLista(egen) {
+  const u = aktivUtmaning;
+  const el = document.getElementById('highscore-list');
+  el.innerHTML = '<div class="hs-empty">Hämtar duellen …</div>';
+  const alla = [{ name: u.data.namn + ' 👑', score: u.data.score,
+                  time: u.data.time, date: u.data.date }];
+  if (firebaseDB) {
+    try {
+      const snap = await firebaseDB.ref('utmaningar/' + u.id + '/resultat').once('value');
+      snap.forEach(ch => alla.push(ch.val()));
+    } catch (e) {}
+  }
+  const basta = new Map();   // bästa försöket per namn — man får försöka igen!
+  for (const e of alla) {
+    const f = basta.get(e.name);
+    if (!f || e.score > f.score || (e.score === f.score && e.time < f.time)) basta.set(e.name, e);
+  }
+  const lista = [...basta.values()].sort((a, b) => b.score - a.score || a.time - b.time);
+  el.innerHTML = hsTabellHtml(lista, egen, '⚔️ Duellen hittills');
+}
+document.getElementById('utm-vidare-btn').addEventListener('click', async () => {
+  const u = aktivUtmaning;
+  if (!u) return;
+  if (navigator.share) {
+    try { await navigator.share({ text: utmDelText(u.data.namn, u.data, u.id) }); return; }
+    catch (e) {}
+  }
+  try { await navigator.clipboard.writeText(utmUrl(u.id)); } catch (e) {}
+  const b = document.getElementById('utm-vidare-btn');
+  b.textContent = 'Länken kopierad! 📋';
+  setTimeout(() => { b.textContent = 'Skicka utmaningen vidare 📨'; }, 1800);
+});
+
+// ══════════════════════
 // Uppstart
 // ══════════════════════
 // PWA: installerbar + offline (service workern cachar kartarkiv och data)
@@ -3114,10 +3319,11 @@ if ('serviceWorker' in navigator) {
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const region = params.get('region');
+  const utmaningId = params.get('utmaning');
 
-  if (region) showGame(); else visaStartSkal();
+  if (region || utmaningId) showGame(); else visaStartSkal();
   const loadTxt = document.getElementById('spel-load-txt');
-  if (region) {
+  if (region || utmaningId) {
     document.getElementById('spel-load').style.display = '';   // dold i markupen numera
     loadTxt.textContent = 'Startar …';
   }
@@ -3127,7 +3333,7 @@ if ('serviceWorker' in navigator) {
   // beröring av globen, regionsval eller en stunds kvarstannande.
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
-    if (region) {
+    if (region || utmaningId) {
       startaForladdning();               // direktlänk in i spelet = engagerad
     } else {
       // återbesökare: arkivet ligger redan i SW-cachen → förladda gratis
@@ -3149,9 +3355,11 @@ if ('serviceWorker' in navigator) {
     throw e;
   }
   document.getElementById('spel-load').style.display = 'none';
-  if (!region) document.querySelector('.game-container').style.display = '';
+  if (!region && !utmaningId) document.querySelector('.game-container').style.display = '';
 
-  if (region === 'world') {
+  if (utmaningId) {
+    await forberedUtmaning(utmaningId);   // ingen rundtur — kompisen vill duellera
+  } else if (region === 'world') {
     worldFlow();
   } else if (WORLD_SLUGS.includes(region)) {
     await startRegion(region);
