@@ -9,7 +9,12 @@
     "public": ".",
     "ignore": [
       "firebase.json",
-      "**/.*",
+      ".git/**",
+      ".github/**",
+      ".claude/**",
+      ".gitignore",
+      ".gitattributes",
+      ".firebaserc",
       "**/node_modules/**",
       "tools/**",
       "test/**",

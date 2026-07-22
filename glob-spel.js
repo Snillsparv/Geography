@@ -152,7 +152,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '49';
+const V = '50';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -3306,6 +3306,46 @@ document.getElementById('utm-vidare-btn').addEventListener('click', async () => 
   const b = document.getElementById('utm-vidare-btn');
   b.textContent = 'Länken kopierad! 📋';
   setTimeout(() => { b.textContent = 'Skicka utmaningen vidare 📨'; }, 1800);
+});
+
+// ══════════════════════
+// "Installera appen": riktiga installationsdialogen där webbläsaren har en
+// (Chrome på Android/desktop), annars steg-för-steg-instruktioner. Knappen
+// syns bara när det finns något att göra — aldrig inne i den installerade
+// appen själv.
+// ══════════════════════
+const installKnapp = document.getElementById('installera-knapp');
+const installModal = document.getElementById('installera-modal');
+const arIos = /iphone|ipod|ipad/i.test(navigator.userAgent)
+  || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+const korSomApp = matchMedia('(display-mode: standalone)').matches
+  || navigator.standalone === true;
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();               // vi visar en egen knapp i stället för bannern
+  installPrompt = e;
+  if (!korSomApp) installKnapp.style.display = '';
+});
+if (arIos && !korSomApp) installKnapp.style.display = '';
+installKnapp.addEventListener('click', () => {
+  if (installPrompt) {
+    // dialogen får bara visas en gång per händelse — avböjer man får
+    // man instruktionerna nästa gång i stället
+    const p = installPrompt;
+    installPrompt = null;
+    p.prompt();
+    return;
+  }
+  document.getElementById('installera-ios').style.display = arIos ? '' : 'none';
+  document.getElementById('installera-android').style.display = arIos ? 'none' : '';
+  installModal.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => { installKnapp.style.display = 'none'; });
+document.getElementById('installera-stang').addEventListener('click', () => {
+  installModal.style.display = 'none';
+});
+installModal.addEventListener('click', e => {
+  if (e.target === installModal) installModal.style.display = 'none';
 });
 
 // ══════════════════════

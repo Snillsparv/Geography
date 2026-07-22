@@ -141,6 +141,11 @@
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
       font-size: 1.05rem; cursor: pointer; z-index: 60; }
     body:not(.startlage) #feedback-knapp { display: none; }
+    /* installera appen: under brevet — syns bara när installation går att göra */
+    #installera-knapp { position: fixed; top: 60px; left: 14px; width: 38px; height: 38px;
+      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
+      font-size: 1.05rem; cursor: pointer; z-index: 60; }
+    body:not(.startlage) #installera-knapp { display: none !important; }
     /* spelvyns ?-knapp: kör om genomgången av lägena (ovanför ljudknappen) */
     #spel-hjalp { position: fixed; left: 10px; bottom: 80px; width: 38px; height: 38px;
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
@@ -181,7 +186,8 @@
     #utm-skapa-btn, #utm-anta-btn, #utm-dela { padding: 9px 18px; border-radius: 10px;
       border: none; background: #ffdc32; color: #08131f; font-weight: 800; cursor: pointer;
       box-shadow: 0 3px 0 #0006; }
-    #utm-skapa-avbryt, #utm-kopiera, #utm-anta-nej, #utm-anta-stang, #utm-skapa-stang {
+    #utm-skapa-avbryt, #utm-kopiera, #utm-anta-nej, #utm-anta-stang, #utm-skapa-stang,
+    #installera-stang {
       padding: 9px 18px; border-radius: 10px; border: none;
       background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
     #utm-skapa-status { margin-top: 10px; font-size: .9rem; color: #ff9d8a; }
@@ -519,7 +525,32 @@
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
+<button id="installera-knapp" title="Installera appen" style="display:none">&#128241;</button>
 <button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
+
+<!-- Installera appen: riktig dialog d&auml;r det g&aring;r, annars steg-f&ouml;r-steg -->
+<div id="installera-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#128241; Installera appen</h2>
+    <p>Jonas geografi funkar som en riktig app &mdash; egen ikon p&aring; hemsk&auml;rmen,
+      helsk&auml;rm och st&ouml;d f&ouml;r d&aring;ligt n&auml;t. Alla resultat sparas precis som vanligt.</p>
+    <div id="installera-ios" style="display:none">
+      <p><b>S&aring; h&auml;r g&ouml;r du p&aring; iPhone/iPad:</b></p>
+      <p>1. &Ouml;ppna sidan i <b>Safari</b><br>
+         2. Tryck p&aring; <b>dela-knappen</b> (fyrkanten med pilen upp&aring;t)<br>
+         3. V&auml;lj <b>&rdquo;L&auml;gg till p&aring; hemsk&auml;rmen&rdquo;</b><br>
+         4. Klart! Leta upp jordglobs-ikonen &#127757;</p>
+    </div>
+    <div id="installera-android" style="display:none">
+      <p><b>S&aring; h&auml;r g&ouml;r du:</b></p>
+      <p>&Ouml;ppna webbl&auml;sarens meny (&#8942; uppe till h&ouml;ger) och v&auml;lj
+        <b>&rdquo;Installera app&rdquo;</b> eller <b>&rdquo;L&auml;gg till p&aring; startsk&auml;rmen&rdquo;</b>.</p>
+    </div>
+    <div class="feedback-knappar">
+      <button id="installera-stang" type="button">St&auml;ng</button>
+    </div>
+  </div>
+</div>
 
 <!-- Topplistan: global + personlig (den h&auml;r enheten) -->
 <div id="topplista-modal" style="display:none">
@@ -853,7 +884,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=49"></script>
+<script src="glob-spel.js?v=50"></script>
 
 </body>
 </html>
