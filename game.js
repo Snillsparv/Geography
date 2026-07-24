@@ -744,23 +744,33 @@ function endSeterra() {
 // ══════════════════════
 // High scores
 // ══════════════════════
+// Ingen människa klarar ett land på under en sekund — allt under så många
+// sekunder som rundan har länder är bluff. Golvet gäller sparande,
+// uppladdning och visning (samma skydd som glob-sidan).
+function rimligMinTid() {
+  // världslistan här delas av alla rundstorlekar (10–100 länder) —
+  // golvet får bara anta den minsta rundan
+  if (HS_KEY === 'world-highscores') return 10;
+  return Math.max(5, COUNTRIES.length || seterraTotal || 0);
+}
 function getLocalHighscores() {
   try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
   catch { return []; }
 }
 
 async function getHighscores() {
+  const minTid = rimligMinTid();
   const local = getLocalHighscores();
 
-  if (!firebaseDB) return local;
+  if (!firebaseDB) return local.filter(e => e.time >= minTid);
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
     snap.forEach(child => { remote.push(child.val()); });
 
-    // Sync: push any local-only entries to Firebase
+    // Sync: push any local-only entries to Firebase (aldrig omöjliga tider)
     const remoteDates = new Set(remote.map(e => e.date));
-    const localOnly = local.filter(e => !remoteDates.has(e.date));
+    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= minTid);
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -784,14 +794,16 @@ async function getHighscores() {
     // Cache merged result so offline fallback shows all entries
     localStorage.setItem(HS_KEY, JSON.stringify(merged));
 
-    return merged;
+    return merged.filter(e => e.time >= minTid);
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
-    return local;
+    return local.filter(e => e.time >= minTid);
   }
 }
 
 async function saveHighscore(name, score, time, wrong) {
+  // omöjliga resultat sparas aldrig: quiz utan länder eller orimligt snabbt
+  if (!seterraTotal || time < rimligMinTid()) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
 
   // Always save locally as backup

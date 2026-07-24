@@ -7,11 +7,11 @@
       "$lista": {
         ".read": true,
         "$post": {
-          ".write": true,
+          ".write": "!data.exists() || !newData.exists()",
           ".validate": "newData.hasChildren(['name', 'score', 'time', 'wrong', 'date'])",
           "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
           "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
-          "time":  { ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 360000" },
+          "time":  { ".validate": "newData.isNumber() && newData.val() <= 360000 && newData.val() >= ($lista.matches(/glob-(afrika|asien|europa|usa)-highscores$/) ? 40 : $lista.matches(/glob-sverige-highscores$/) ? 22 : $lista.matches(/glob-(nordamerika|oceanien)-highscores$/) ? 11 : $lista.matches(/glob-sydamerika-highscores$/) ? 10 : $lista.matches(/glob-vastindien-highscores$/) ? 7 : $lista.matches(/glob-world-highscores-alla$/) ? 170 : $lista.matches(/glob-world-highscores-100$/) ? 85 : $lista.matches(/glob-world-highscores-50$/) ? 40 : $lista.matches(/glob-world-highscores-30$/) ? 25 : $lista.matches(/glob-world-highscores-20$/) ? 16 : $lista.matches(/glob-world-highscores-10$/) ? 8 : 5)" },
           "wrong": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
           "date":  { ".validate": "newData.isNumber() && newData.val() > 1500000000000 && newData.val() < now + 86400000" },
           "$other": { ".validate": false }

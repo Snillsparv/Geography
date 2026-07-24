@@ -408,6 +408,9 @@
     .resa-rad.last { opacity: .45; }
     .resa-res { padding: 7px 14px; border-radius: 8px; border: none; background: #ffdc32;
       font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    /* klarade stopp går att resa tillbaka till — dämpad knapp så att det
+       aktuella stoppets gula "Res hit!" fortfarande dominerar */
+    .resa-res.igen { background: #1d3550; color: #cfe3f4; }
     #resa-klart { color: #ffdc32; margin: 10px 0; }
     #resa-stang { margin-top: 10px; padding: 9px 18px; border-radius: 10px; border: none;
       background: #e8eef4; color: #56718c; font-weight: 800; cursor: pointer; }
@@ -640,8 +643,9 @@
   <div class="resa-pass">
     <h2>&#129523; Jorden runt</h2>
     <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
-      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Du kan f&ouml;rst&aring;s
-      alltid spela fritt ocks&aring;!</p>
+      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Klarade stopp kan du
+      alltid resa tillbaka till och spela igen &mdash; ett b&auml;ttre resultat uppdaterar
+      st&auml;mpeln. Du kan f&ouml;rst&aring;s alltid spela fritt ocks&aring;!</p>
     <div id="resa-lista"></div>
     <p id="resa-klart" style="display:none">&#127942; <b>Hela Jorden runt-resan &auml;r klar &mdash; du
       &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
@@ -884,7 +888,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=50"></script>
+<script src="glob-spel.js?v=51"></script>
 
 </body>
 </html>

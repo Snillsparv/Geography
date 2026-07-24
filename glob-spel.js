@@ -128,8 +128,9 @@ function flashWrong(gid) {
   setLand(gid, { fel: true, hover: false });
   setTimeout(() => setLand(gid, { fel: false }), 1200);
 }
-// pekskärmar får en förlåtande tryckyta runt de små prickarna
-const TRYCKMARGINAL = matchMedia('(pointer: coarse)').matches ? 10 : 0;
+// pekskärmar får en förlåtande tryckyta runt de små prickarna — musen en
+// mindre (tunna öar som Kuba är svåra att pricka exakt även med pekare)
+const TRYCKMARGINAL = matchMedia('(pointer: coarse)').matches ? 10 : 4;
 
 function blinkHint(gid) {
   if (revealed.has(gid)) return;
@@ -152,7 +153,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '50';
+const V = '51';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -236,6 +237,9 @@ async function preloadTiles(onProgress) {
 async function loadRegions() {
   regionsGj = await fetchJson('assets/art-regions.json?v=' + V);
   for (const f of regionsGj.features) {
+    // dekordelar (Malaysias ögon/spröt i havet) delar id med sitt land men
+    // huvudfeaturen ska äga uppslagen
+    if (f.properties.dekor) continue;
     featureByFilename.set(f.properties.key.split('/')[1], f);
     featureByGid.set(f.id, f);
   }
@@ -253,7 +257,8 @@ async function loadMarkers() {
     markerPts = markersGj.features
       .filter(f => f.geometry.type === 'Point')
       .map(f => ({ gid: f.id, lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1],
-                   omfang: f.properties.omfang, spridd: f.properties.spridd ? 1 : 0, _vis: null }));
+                   omfang: f.properties.omfang, smal: f.properties.smal,
+                   spridd: f.properties.spridd ? 1 : 0, _vis: null }));
   } catch (e) { console.warn('kunde inte läsa art-markers.json', e); }
 }
 
@@ -268,12 +273,24 @@ const CIRKEL_GRAD = 0.6;   // radie i grader
 // (under så här många skärmpixlar) — större länder klarar sig utan. Spridda
 // ö-nationer har alltid sin cirkel: atollerna syns aldrig hur man än zoomar.
 const PRICK_SYNS_PX = 18;
+// avlånga länder (Kuba! Gambia!) är "stora" på längden men bara några pixlar
+// tjocka och går inte att träffa ändå — smal (tjockleken ur artgeometrin,
+// yta/längsta axel) ger dem prick tills de är tjocka nog att tryckas på,
+// så länge de inte redan dominerar vyn på längden
+const PRICK_SMAL_PX = 8;
+const PRICK_SMAL_MAX = 120;
+// pricken får aldrig krympa till en ohittbar fläck — det var precis så
+// Jamaica "tappade sin pil" på översiktszoomarna
+const PRICK_MIN_RADIE = 5;
 function prickRadiePx(zoomPx) {
   // zoomPx = kartpixlar per grad vid aktuell zoom/skala
-  return CIRKEL_GRAD * zoomPx;
+  return Math.max(PRICK_MIN_RADIE, CIRKEL_GRAD * zoomPx);
 }
 function prickSyns(m, zoomPx) {
-  return m.spridd ? true : m.omfang * zoomPx < PRICK_SYNS_PX;
+  if (m.spridd) return true;
+  if (m.omfang * zoomPx < PRICK_SYNS_PX) return true;
+  return (m.smal || m.omfang) * zoomPx < PRICK_SMAL_PX &&
+         m.omfang * zoomPx < PRICK_SMAL_MAX;
 }
 // GL-lagrets radie/kontur: ett stopp per zoomsteg där landet antingen får
 // sin fasta kartradie (om det fortfarande är litet på skärmen) eller 0 —
@@ -284,7 +301,11 @@ function prickStops(vardeFn) {
     const pxDeg = 512 * Math.pow(2, z) / 360;
     stops.push(z, ['case', ['boolean', ['feature-state', 'tackt'], false],
       ['case', ['==', ['get', 'spridd'], 1], vardeFn(true, pxDeg),
-        ['case', ['<', ['get', 'omfang'], PRICK_SYNS_PX / pxDeg],
+        ['case', ['any',
+          ['<', ['get', 'omfang'], PRICK_SYNS_PX / pxDeg],
+          ['all',
+            ['<', ['coalesce', ['get', 'smal'], ['get', 'omfang']], PRICK_SMAL_PX / pxDeg],
+            ['<', ['get', 'omfang'], PRICK_SMAL_MAX / pxDeg]]],
           vardeFn(false, pxDeg), 0]],
       0]);
   }
@@ -449,7 +470,9 @@ function initMap() {
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
         // täcket: badge-öar (bilden ligger i havet men har inte landets
         // form) döljs med HAVSFÄRG när de är täckta/gröna — den riktiga
-        // formen och pricken nedanför visar var landet faktiskt finns
+        // formen och pricken nedanför visar var landet faktiskt finns.
+        // Samma sak för dekordelar (Malaysias ögon och spröt är ritade i
+        // havet): täckta ska de försvinna i havet, inte bli pappersformer.
         { id: 'cover', type: 'fill', source: 'regioner',
           paint: {
             // hover: landet LYSER UPP helt opakt (ljusgrönt/ljusgult) —
@@ -459,7 +482,9 @@ function initMap() {
             'fill-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
-              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#123050',
+              ['any',
+                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+                ['==', ['get', 'dekor'], 1]], '#123050',
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['boolean', ['feature-state', 'gron'], false], LJUSGRON,
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
@@ -469,7 +494,9 @@ function initMap() {
             'fill-opacity': ['case',
               ['boolean', ['feature-state', 'fel'], false], 0.92,
               ['boolean', ['feature-state', 'tips'], false], 0.92,
-              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+              ['any',
+                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+                ['==', ['get', 'dekor'], 1]],
                 ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
                                  ['boolean', ['feature-state', 'tackt'], false]], 1, 0],
               ['boolean', ['feature-state', 'hover'], false],
@@ -483,7 +510,9 @@ function initMap() {
         // klickytan — en kantlinje i havsfärg sväljer den så inga
         // konturrester av den dolda bilden skymtar på havet
         { id: 'cover-kant', type: 'line', source: 'regioner',
-          filter: ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+          filter: ['any',
+            ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+            ['==', ['get', 'dekor'], 1]],
           paint: {
             'line-color': '#123050',
             'line-width': 3,
@@ -515,10 +544,12 @@ function initMap() {
           } },
         { id: 'borders', type: 'line', source: 'borders',
           paint: { 'line-color': '#0a0a0a', 'line-width': 1.5,
-            // badge-blobbarnas konturer (egna features, id = gid) släcks när
-            // landet är täckt/grönt — bilden de ramar in är ju dold då
+            // badge-blobbarnas och dekordelarnas konturer (egna features,
+            // id = gid) släcks när landet är täckt/grönt — bilden de ramar
+            // in är ju dold då
             'line-opacity': ['case',
-              ['all', ['==', ['get', 'badge'], 1],
+              ['all',
+                ['any', ['==', ['get', 'badge'], 1], ['==', ['get', 'dekor'], 1]],
                 ['any', ['boolean', ['feature-state', 'tackt'], false],
                         ['boolean', ['feature-state', 'gron'], false]]],
               0, 0.9] },
@@ -576,6 +607,17 @@ function initMap() {
         [[e.point.x - TRYCKMARGINAL, e.point.y - TRYCKMARGINAL],
          [e.point.x + TRYCKMARGINAL, e.point.y + TRYCKMARGINAL]],
         { layers: ['prickar', 'former', 'cover'] });
+      if (hits.length > 1) {
+        // närmsta pricken vinner — i prickgyttret (Västindien utzoomat)
+        // fick annars den överst ritade alla närliggande tryck
+        const avst = f => {
+          const m = markerPts.find(m2 => m2.gid === f.id);
+          if (!m) return Infinity;         // polygonträff — prickarna först
+          const p = map.project([m.lng, m.lat]);
+          return Math.hypot(p.x - e.point.x, p.y - e.point.y);
+        };
+        hits.sort((a, b) => avst(a) - avst(b));
+      }
     }
     if (!hits.length) return;
     handleMapClick(hits[0].id, e.originalEvent);
@@ -693,7 +735,9 @@ let patch = null;                 // högupplöst tile-utsnitt {z,tx0,ty0,W,H,da
 fetchJson('assets/art-borders.json?v=' + V)
   .then(gj => {
     borderFeats = gj.features.map(f => ({
-      gid: f.properties && f.properties.badge ? f.properties.gid : 0,
+      // badge-blobbar OCH dekordelar (Malaysias ansikte) bär sitt gid så
+      // konturerna kan släckas medan landet är täckt
+      gid: f.properties && (f.properties.badge || f.properties.dekor) ? f.properties.gid : 0,
       lines: f.geometry.coordinates,
     }));
     flatDirty();
@@ -925,7 +969,10 @@ function composeFlat() {
   const SJO = 'rgb(205,228,246)';        // väggkartans havston
   for (const f of regionsGj.features) {
     const t = landState(f.id);
-    const havBadge = f.properties.badge === 1 && f.properties.hav === 1;
+    // havs-badges och dekordelar (Malaysias ansikte) döljs i havsfärg när
+    // landet är täckt — de har ingen landform att visa som papper
+    const havBadge = (f.properties.badge === 1 && f.properties.hav === 1) ||
+                     f.properties.dekor === 1;
     let color = null, alpha = 1;
     if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
@@ -1023,18 +1070,25 @@ function flatHit(ev) {
   const ll = robinson.inverse(pr[0], pr[1]);
   if (!ll) return null;
   // prickarna testas FÖRST: de indikerar länder som är för små att träffa
-  // på landmassan (Vatikanens prick ligger t.ex. ovanpå Italiens yta)
+  // på landmassan (Vatikanens prick ligger t.ex. ovanpå Italiens yta).
+  // Närmsta pricken inom tryckytan vinner — inte den första i datan.
   const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
+  let prickGid = null, prickAvst = Infinity;
   for (const m of markerPts) {
     const t = landState(m.gid);
     if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
     const [mx, my] = projPt(m.lng, m.lat);
-    if (Math.hypot(mx - px, my - py) <= prickRadiePx(pxPerDeg) + 4) {
-      return featureByGid.get(m.gid) || null;
+    const d = Math.hypot(mx - px, my - py);
+    if (d <= prickRadiePx(pxPerDeg) + TRYCKMARGINAL + 4 && d < prickAvst) {
+      prickGid = m.gid; prickAvst = d;
     }
   }
+  if (prickGid !== null) return featureByGid.get(prickGid) || null;
   const lng = ll[0] / D2R, lat = ll[1] / D2R;
-  for (const f of regionsGj.features) {
+  // baklänges = samma företräde som globen: queryRenderedFeatures ger den
+  // ÖVERST ritade featuren, och ritordningen är filordningen
+  for (let fi = regionsGj.features.length - 1; fi >= 0; fi--) {
+    const f = regionsGj.features[fi];
     let inside = false;
     for (const poly of f.geometry.coordinates) {
       for (const ring of poly) {
@@ -1940,6 +1994,13 @@ function endSeterra() {
         document.getElementById('seterra-final-detail').innerHTML +=
           `<br><span class="resa-stampel">🧳 Stämpel i passet!` +
           (nasta ? ` Nästa stopp: <b>${RESA_NAMN[nasta]}</b>` : ' HELA JORDEN RUNT-RESAN ÄR KLAR! 🏆') + '</span>';
+      } else if (resa.klara[aktivSlug] != null && score > resa.klara[aktivSlug]) {
+        // återbesök på ett redan klarat stopp: bättre resultat uppdaterar
+        // stämpeln (steg härleds ur stämplarna, så resan flyttas inte)
+        resa.klara[aktivSlug] = score;
+        localStorage.setItem('varldsresa', JSON.stringify(resa));
+        document.getElementById('seterra-final-detail').innerHTML +=
+          `<br><span class="resa-stampel">🧳 Ny stämpel — bättre resultat på ${RESA_NAMN[aktivSlug]}!</span>`;
       }
     }
   }
@@ -1953,10 +2014,10 @@ function endSeterra() {
   // i en utmaning ersätter duellistan de vanliga topplistorna
   document.getElementById('topplista-knapp-klar').style.display = aktivUtmaning ? 'none' : '';
   document.getElementById('utm-vidare-btn').style.display = aktivUtmaning ? '' : 'none';
-  if (aktivUtmaning && !seterraIsRetry) {
+  if (aktivUtmaning && !seterraIsRetry && !bildlage) {
     sparaUtmaningsResultat(score);
   } else if (aktivUtmaning) {
-    visaDuellLista(null);            // övningsrunda i utmaningen: bara duellen visas
+    visaDuellLista(null);            // övnings-/bildrunda i utmaningen: bara duellen visas
   } else if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
     showCelebration(m, s);
   } else if (!seterraIsRetry) {
@@ -1969,13 +2030,44 @@ function endSeterra() {
 // ══════════════════════
 // Topplistor (Firebase + lokalt) — samma som originalsidan
 // ══════════════════════
+// Ingen människa klarar ett land på under en sekund (läsa namnet, hitta
+// landet, klicka) — allt under så många sekunder som listan har länder är
+// bluff. Golvet gäller sparande, uppladdning OCH visning, så gamla
+// fuskposter i databasen försvinner ur listorna direkt.
+function rimligMinTid() {
+  return Math.max(5, COUNTRIES.length || seterraTotal || 0);
+}
 function getLocalHighscores() {
   try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
   catch { return []; }
 }
+// den sammanslagna världslistan cachas under EGEN nyckel: när den låg i
+// HS_KEY laddade synken upp ANDRAS (rensade) poster igen från varje
+// spelares enhet, och skräpet återuppstod hur ofta det än städades
+function getCachadeHighscores() {
+  try { return JSON.parse(localStorage.getItem('cache-' + HS_KEY)) || []; }
+  catch { return []; }
+}
+function migreraGammalCache() {
+  // äldre versioner blandade egna resultat och den nedladdade världslistan
+  // i HS_KEY — flytta alltihop till cachen så inget främmande synkas upp
+  if (localStorage.getItem('cache-' + HS_KEY) === null && localStorage.getItem(HS_KEY) !== null) {
+    localStorage.setItem('cache-' + HS_KEY, localStorage.getItem(HS_KEY));
+    localStorage.removeItem(HS_KEY);
+  }
+}
 async function getHighscores() {
+  migreraGammalCache();
+  const minTid = rimligMinTid();
   const local = getLocalHighscores();
-  if (!firebaseDB) return local;
+  if (!firebaseDB) {
+    const seen = new Set(local.map(e => e.date));
+    const merged = [...local];
+    for (const e of getCachadeHighscores()) if (!seen.has(e.date)) merged.push(e);
+    merged.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (merged.length > 30) merged.length = 30;
+    return merged.filter(e => e.time >= minTid);
+  }
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
@@ -1983,7 +2075,7 @@ async function getHighscores() {
     const remoteDates = new Set(remote.map(e => e.date));
     // synka aldrig upp omöjliga lokala poster (t.ex. gamla fuskresultat) —
     // reglerna avvisar dem och skulle då stoppa hela uppladdningen
-    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= 5);
+    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= minTid);
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -1998,33 +2090,42 @@ async function getHighscores() {
     for (const e of local) if (!seen.has(e.date)) merged.push(e);
     merged.sort((a, b) => b.score - a.score || a.time - b.time);
     if (merged.length > 30) merged.length = 30;
-    localStorage.setItem(HS_KEY, JSON.stringify(merged));
-    return merged;
+    localStorage.setItem('cache-' + HS_KEY, JSON.stringify(merged));
+    return merged.filter(e => e.time >= minTid);
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
-    return local;
+    return local.filter(e => e.time >= minTid);
   }
 }
 async function saveHighscore(name, score, time, wrong) {
-  // omöjliga resultat sparas aldrig: quiz utan länder eller under 5 sekunder
+  // omöjliga resultat sparas aldrig: quiz utan länder eller orimligt snabbt
   // (databasreglerna avvisar dem också på serversidan)
-  if (!seterraTotal || time < 5) return null;
+  if (!seterraTotal || time < rimligMinTid()) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
   const local = getLocalHighscores();
   local.push(entry);
   local.sort((a, b) => b.score - a.score || a.time - b.time);
   if (local.length > 30) local.length = 30;
   localStorage.setItem(HS_KEY, JSON.stringify(local));
-  if (firebaseDB) {
+  // felsökningsläget (window.spel aktivt) skriver aldrig till den delade
+  // listan — skriptade rundor ska inte kunna smyga in via ?debug
+  if (firebaseDB && !window.spel) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
       const snap = await firebaseDB.ref('highscores/' + HS_KEY).orderByChild('score').once('value');
       const all = [];
       snap.forEach(child => { all.push({ key: child.key, ...child.val() }); });
       all.sort((a, b) => b.score - a.score || a.time - b.time);
-      if (all.length > 30) {
-        const removes = {};
-        for (let i = 30; i < all.length; i++) removes[all[i].key] = null;
+      // trimma till topp 30 och rensa samtidigt bort omöjliga tider som
+      // ligger kvar sedan tidigare versioner
+      const minTid = rimligMinTid();
+      const removes = {};
+      let kvar = 0;
+      for (const e of all) {
+        if (e.time < minTid || kvar >= 30) removes[e.key] = null;
+        else kvar++;
+      }
+      if (Object.keys(removes).length > 0) {
         await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
       }
     } catch (e) { console.warn('Firebase write failed:', e); }
@@ -2091,11 +2192,14 @@ function showNameModal(score, m, s) {
 function closeNameModal() { nameModalOverlay.classList.remove('active'); }
 
 document.getElementById('hs-save').addEventListener('click', async () => {
+  const knapp = document.getElementById('hs-save');
   const name = document.getElementById('hs-name').value.trim();
-  if (!name) return;
+  if (!name || knapp.disabled) return;
+  knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
+  knapp.disabled = false;
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = '';
   await renderHighscores(entry);
@@ -2125,11 +2229,15 @@ document.getElementById('seterra-restart').addEventListener('click', () => start
 document.getElementById('seterra-vidare').addEventListener('click', () => switchMode('seterra'));
 document.getElementById('seterra-retry').addEventListener('click', startSeterraRetry);
 document.getElementById('modal-save').addEventListener('click', async () => {
+  const knapp = document.getElementById('modal-save');
   const name = modalNameInput.value.trim();
   if (!name) { modalNameInput.focus(); return; }
+  if (knapp.disabled) return;
+  knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
+  knapp.disabled = false;
   closeNameModal();
   await renderHighscores(entry);
 });
@@ -2651,7 +2759,8 @@ function visaResa() {
   lista.innerHTML = RESA_ORDNING.map((slug, i) => {
     const namn = RESA_NAMN[slug];
     if (resa.klara[slug] != null)
-      return `<div class="resa-rad klar">✅ <b>${namn}</b><i>${resa.klara[slug]} %</i></div>`;
+      return `<div class="resa-rad klar">✅ <b>${namn}</b><i>${resa.klara[slug]} %</i>` +
+        `<button class="resa-res igen" data-slug="${slug}" title="Res tillbaka och spela igen">Res igen</button></div>`;
     if (i === resa.steg)
       return `<div class="resa-rad nu">▶ <b>${namn}</b><button class="resa-res" data-slug="${slug}">Res hit!</button></div>`;
     return `<div class="resa-rad last">🔒 <b>${namn}</b></div>`;
@@ -3107,19 +3216,24 @@ function showGame() {
   });
 }
 
-// litet API för tester och felsökning
-window.spel = {
-  get map() { return map; },
-  get countries() { return COUNTRIES; },
-  get revealed() { return revealed; },
-  get target() { return seterraTarget; },
-  get mode() { return currentMode; },
-  get vy() { return aktivVy; },
-  get flat() { return flat; },
-  get origZoom() { return origZoom; },
-  klick: gid => handleMapClick(gid, null),
-  setLand, landState, setView, flatZoomTo, origSetZoom,
-};
+// litet API för tester och felsökning — INTE i produktion: med klick()
+// och target i konsolen kunde vem som helst skripta ett perfekt quiz
+// på sekunder och toppa listorna med omöjliga tider
+if (/^(127\.|localhost)/.test(location.hostname) ||
+    new URLSearchParams(location.search).has('debug')) {
+  window.spel = {
+    get map() { return map; },
+    get countries() { return COUNTRIES; },
+    get revealed() { return revealed; },
+    get target() { return seterraTarget; },
+    get mode() { return currentMode; },
+    get vy() { return aktivVy; },
+    get flat() { return flat; },
+    get origZoom() { return origZoom; },
+    klick: gid => handleMapClick(gid, null),
+    setLand, landState, setView, flatZoomTo, origSetZoom,
+  };
+}
 
 // ══════════════════════
 // Utmaningar: efter ett klassiskt quiz kan man skapa en länk och utmana
