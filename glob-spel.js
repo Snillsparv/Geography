@@ -2354,6 +2354,9 @@ function switchMode(mode, force) {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
     document.getElementById('explore-toggle-buttons').style.display = 'none';
+    // en kvardröjande utforska-tooltip (timern löper i upp till 4 s) skulle
+    // annars gömma quizets markörtext mitt i rundan när timern slår till
+    hideExploreTooltip();
     headerHint.textContent = bildlage ? 'Bilderna hjälper dig — klicka på rätt land!'
                                       : 'Klicka där du tror landet är!';
     startSeterra();
@@ -2539,7 +2542,7 @@ function showCelebration(m, s) {
     toggle = !toggle;
     jonasEl.src = toggle ? 'Jonas_2.webp' : 'Jonas_1.webp';
   }, 300);
-  const celebAudio = new Audio('high_five.wav');
+  const celebAudio = new Audio('high_five.wav?v=' + V);
   celebAudio.play().catch(() => {});
   const soundInterval = setInterval(() => {
     celebAudio.currentTime = 0;
@@ -2813,7 +2816,10 @@ function visaMedaljInfo(span, slug) {
   const pct = +localStorage.getItem('medalj-' + slug) || 0;
   ruta.textContent = `${medaljFor(pct)} Ditt rekord: ${pct} %`;
   const r = span.getBoundingClientRect();
-  ruta.style.left = (r.left + r.width / 2) + 'px';
+  // klampa in i vyn — medaljerna vid kanten fick annars bubblan avklippt
+  // utanför skärmen på smala mobiler
+  const halv = ruta.getBoundingClientRect().width / 2 + 8;
+  ruta.style.left = Math.max(halv, Math.min(window.innerWidth - halv, r.left + r.width / 2)) + 'px';
   ruta.style.top = (r.top - 10) + 'px';
   ruta.classList.add('synlig');
   clearTimeout(visaMedaljInfo._timer);

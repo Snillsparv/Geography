@@ -1207,7 +1207,8 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
 // Jonas high-five (global counter via Firebase)
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
-const highfiveAudio = new Audio('high_five.wav');
+// ?v: service workern cachar ljudfiler för evigt — nya klatschen kräver ny URL
+const highfiveAudio = new Audio('high_five.wav?v=51');
 const highfiveRef = firebaseDB ? firebaseDB.ref('highfives') : null;
 
 // Load initial count
@@ -2160,7 +2161,7 @@ function showCelebration(elapsed, m, s) {
   }, 300);
 
   // Play high-five sound repeatedly
-  const celebAudio = new Audio('high_five.wav');
+  const celebAudio = new Audio('high_five.wav?v=51');
   celebAudio.play().catch(() => {});
   const soundInterval = setInterval(() => {
     celebAudio.currentTime = 0;
