@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=51">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -69,12 +69,15 @@
       text-align: left; border: none; }
     /* Infokortet på mobilen: landbilden i en nästan kvadratisk ruta till
        vänster och info-knappen/texten direkt intill — den breda botten-
-       panelen gjorde annars landbilden pytteliten ovanför texten. */
+       panelen gjorde annars landbilden pytteliten ovanför texten.
+       Namnet med flaggan står i högerspalten, rakt ovanför minnesregeln,
+       i stället för längst ut till vänster ovanför bilden. */
     @media (max-width: 900px) {
       #info-card.active {
         display: grid;
         grid-template-columns: clamp(96px, 30%, 150px) 1fr;
-        grid-template-areas: "namn namn" "bild sido" "hint hint";
+        grid-template-areas: "bild namn" "bild sido" "hint hint";
+        grid-template-rows: auto 1fr;
         gap: 6px 10px;
         align-items: start;
         padding: 8px 14px 10px;
@@ -375,9 +378,15 @@
       .header-hint { display: none; }
       .maplibregl-ctrl-top-right { display: none !important; }
     }
-    /* ── Medaljer på startknapparna ── */
+    /* ── Medaljer på startknapparna — klickbara: visar rekordet ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
-      filter: drop-shadow(0 2px 4px #000a); pointer-events: none; }
+      filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    #medalj-info { position: fixed; z-index: 400; transform: translate(-50%, -100%);
+      background: #10233a; border: 1px solid rgba(255,220,50,.5); border-radius: 10px;
+      padding: 8px 14px; color: #ffdc32; font-weight: 800; font-size: .9rem;
+      pointer-events: none; opacity: 0; transition: opacity .2s; white-space: nowrap;
+      box-shadow: 0 8px 30px #000a; }
+    #medalj-info.synlig { opacity: 1; }
     .k9 { background: #e7c27d; }
     /* ── Världsresans pass ── */
     #resa-modal, #topplista-modal { position: fixed; inset: 0; z-index: 310;
@@ -396,7 +405,14 @@
       background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
     .resa-pass { width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
       background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
-      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; position: relative; }
+    /* kryss högst upp — långa topplistor ska gå att stänga utan att
+       scrolla hela vägen ner till Stäng-knappen */
+    .modal-kryss { position: sticky; top: 0; float: right; margin: -6px -8px 0 0;
+      width: 34px; height: 34px; border-radius: 50%; border: none; z-index: 2;
+      background: #1d3550; color: #cfe3f4; font-size: 1rem; font-weight: 800;
+      cursor: pointer; }
+    .modal-kryss:hover { background: #29496e; }
     .resa-pass h2 { color: #ffdc32; margin-bottom: 8px; }
     .resa-info { color: #9fc3e0; font-size: .88rem; margin-bottom: 14px; line-height: 1.45; }
     .resa-rad { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
@@ -558,6 +574,7 @@
 <!-- Topplistan: global + personlig (den h&auml;r enheten) -->
 <div id="topplista-modal" style="display:none">
   <div class="resa-pass">
+    <button class="modal-kryss" id="topplista-kryss" title="St&auml;ng">&#10005;</button>
     <h2>&#127942; Topplista</h2>
     <p class="resa-info" id="topplista-region"></p>
     <div class="hs-flikar">

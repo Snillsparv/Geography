@@ -13,6 +13,11 @@ const GUL = '#ffdc32';         // ledtrådsblink / cirkelhover
 const LJUSGRON = '#5fca77';    // hover på grönt land — lyser upp, helt opakt
 const HOVERGUL = '#ffe9a8';    // hover på täckt land — ljust och OPAKT (bilden avslöjas först vid klick)
 const ROD = '#e05252';         // felklick
+// kvitto i klassiska quizet: hur många försök landet tog. Tonas halv-
+// genomskinligt ÖVER bilden så att man både ser landet och hur det gick.
+// index = antal försök (1 = rätt direkt), 4 täcker även fler försök
+const SVAR_FARG = [null, '#1f7a3c', '#ffdc32', '#ff8c2e', '#e05252'];
+const SVAR_ALFA = 0.4;
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 const KAMERA = {
@@ -121,7 +126,8 @@ function revealCountry(gid) {
 }
 function coverCountry(gid) {
   revealed.delete(gid);
-  setLand(gid, { tackt: true });
+  // svar (quizets försöksfärg) nollas — ett täckt land ska vara papper igen
+  setLand(gid, { tackt: true, svar: 0 });
 }
 function flashWrong(gid) {
   if (revealed.has(gid)) return;
@@ -377,6 +383,23 @@ function spela(typ) {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const t = audioCtx.currentTime;
+    if (typ === 'klick') {
+      // mjukt "tick" när länder tänds/släcks i Utforska: en kort dämpad
+      // brusstöt genom bandpass — som ett lätt knäpp, inte en pling
+      const n = Math.round(audioCtx.sampleRate * 0.04);
+      const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.18));
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 1.4;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.25;
+      src.connect(bp); bp.connect(g); g.connect(audioCtx.destination);
+      src.start(t);
+      return;
+    }
     const toner = typ === 'ratt' ? [[523.25, 0, .09], [659.25, .08, .09], [783.99, .16, .18]]
       : typ === 'fel' ? [[196, 0, .16], [155.56, .1, .22]]
       : [[523.25, 0, .12], [659.25, .1, .12], [783.99, .2, .12], [1046.5, .3, .34]];
@@ -490,6 +513,11 @@ function initMap() {
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
                          '#ffffff'],
               ['boolean', ['feature-state', 'gron'], false], GRON,
+              // kvittotonen över besvarade länder i klassiska quizet
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 1], SVAR_FARG[1],
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 2], SVAR_FARG[2],
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 3], SVAR_FARG[3],
+              ['>=', ['coalesce', ['feature-state', 'svar'], 0], 4], SVAR_FARG[4],
               TACK],
             'fill-opacity': ['case',
               ['boolean', ['feature-state', 'fel'], false], 0.92,
@@ -504,6 +532,7 @@ function initMap() {
                                  ['boolean', ['feature-state', 'tackt'], false]], 1, 0.25],
               ['boolean', ['feature-state', 'gron'], false], 1,
               ['boolean', ['feature-state', 'tackt'], false], 1,
+              ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1], SVAR_ALFA,
               0],
           } },
         // bildens antialiasing-frans (alfa < 128) ligger strax UTANFÖR
@@ -535,6 +564,12 @@ function initMap() {
           paint: {
             'fill-color': ['case',
               ['boolean', ['feature-state', 'gron'], false], '#45b45e',
+              // badge-öarnas riktiga form bär kvittofärgen helt opakt —
+              // formen är för liten för en genomskinlig ton
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 1], SVAR_FARG[1],
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 2], SVAR_FARG[2],
+              ['==', ['coalesce', ['feature-state', 'svar'], 0], 3], SVAR_FARG[3],
+              ['>=', ['coalesce', ['feature-state', 'svar'], 0], 4], SVAR_FARG[4],
               TACK],
             'fill-opacity': ['case',
               ['boolean', ['feature-state', 'gron'], false], 1,
@@ -989,6 +1024,7 @@ function composeFlat() {
     }
     else if (t.gron) color = GRON;
     else if (t.tackt) color = TACK;
+    else if (t.svar) { color = SVAR_FARG[Math.min(t.svar, 4)]; alpha = SVAR_ALFA; }
     if (!color) continue;
     flatCtx.globalAlpha = alpha;
     flatCtx.fillStyle = color;
@@ -1012,7 +1048,7 @@ function composeFlat() {
     let color = null;
     const alpha = 1;
     if (t.gron) color = '#45b45e';
-    else if (!t.tackt) color = TACK;
+    else if (!t.tackt) color = t.svar ? SVAR_FARG[Math.min(t.svar, 4)] : TACK;
     if (!color) continue;
     flatCtx.globalAlpha = alpha;
     flatCtx.fillStyle = color;
@@ -1482,6 +1518,14 @@ function origApplyState(gid, t) {
     el.classList.remove('flash-wrong');
     el.classList.toggle('visible', !t.tackt);
   }
+  // kvittot i originalvyn: en färgad gloria runt landbilden — en ton ÖVER
+  // bilden går inte här (bilden ÄR landet), men glorian följer konturen
+  if (!t.tackt && t.svar) {
+    const f = SVAR_FARG[Math.min(t.svar, 4)];
+    el.style.filter = `drop-shadow(0 0 3px ${f}) drop-shadow(0 0 5px ${f})`;
+  } else {
+    el.style.filter = '';
+  }
   const glow = !t.fel && !!t.tackt && (!!t.hover || !!t.tips);
   const hv = origHoverEls[a.filename];
   if (hv) hv.classList.toggle('active', glow);
@@ -1773,14 +1817,19 @@ function preloadCountryImages() {
     return i;
   });
 }
-// beskrivningen ligger hopfälld bakom en knapp — fäll ihop vid varje nytt land
+// beskrivningen ligger hopfälld bakom en knapp — och den som fällt ut den
+// vill läsa om NÄSTA land också, så valet följer med mellan länderna
 const infoToggle = document.getElementById('info-toggle');
 const infoExtra = document.getElementById('info-extra');
+let infoUtfalld = false;
+function visaInfoUtfalld() {
+  infoExtra.style.display = infoUtfalld ? '' : 'none';
+  infoToggle.classList.toggle('open', infoUtfalld);
+  infoToggle.textContent = infoUtfalld ? 'Dölj info om landet' : 'Visa info om landet';
+}
 infoToggle.addEventListener('click', () => {
-  const open = infoExtra.style.display !== 'none';
-  infoExtra.style.display = open ? 'none' : '';
-  infoToggle.classList.toggle('open', !open);
-  infoToggle.textContent = open ? 'Visa info om landet' : 'Dölj info om landet';
+  infoUtfalld = infoExtra.style.display === 'none';
+  visaInfoUtfalld();
 });
 function showInfoCard(c) {
   activeCountry = c.gid;
@@ -1790,24 +1839,26 @@ function showInfoCard(c) {
   infoAssoc.textContent = c.assoc || '';
   infoAssoc.style.display = c.assoc ? '' : 'none';   // minnesregeln syns alltid
   infoDesc.innerHTML = escHtml(c.desc);
-  infoExtra.style.display = 'none';
-  infoToggle.classList.remove('open');
-  infoToggle.textContent = 'Visa info om landet';
+  visaInfoUtfalld();
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
 }
 function exploreClick(c, e) {
   if (revealed.has(c.gid)) coverCountry(c.gid);
   else revealCountry(c.gid);
+  spela('klick');
   showInfoCard(c);
   if (e) {
     clearTimeout(exploreTooltipTimer);
-    cursorLabel.textContent = c.name;
+    // minnesregeln direkt vid pekaren — och längre tid när det finns
+    // en regel att hinna läsa
+    cursorLabel.innerHTML = `<b>${flagga(c.name)} ${escHtml(c.name)}</b>` +
+      (c.assoc ? `<div class="tt-assoc">💡 ${escHtml(c.assoc)}</div>` : '');
     cursorLabel.classList.add('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(hideExploreTooltip, 1400);
+    exploreTooltipTimer = setTimeout(hideExploreTooltip, c.assoc ? 4000 : 1400);
   }
   exploredCountEl.textContent = revealed.size;
 }
@@ -1816,6 +1867,14 @@ function hideExploreTooltip() {
   cursorLabel.style.display = 'none';
   cursorLabel.classList.remove('explore-tooltip');
 }
+// tooltipen följer pekaren på FÖNSTERNIVÅ: kartans egna mousemove tystnar
+// medan man drar i globen, och då blev rutan stående där den var
+window.addEventListener('mousemove', ev => {
+  if (cursorLabel.classList.contains('explore-tooltip') && cursorLabel.style.display === 'block') {
+    cursorLabel.style.left = ev.clientX + 'px';
+    cursorLabel.style.top = ev.clientY + 'px';
+  }
+});
 
 // ══════════════════════
 // Klassiskt quiz
@@ -1909,6 +1968,9 @@ function seterraClick(c) {
 
   if (c.gid === seterraTarget.gid) {
     seterraCorrect++;
+    // kvitto på landet: mörkgrönt = rätt direkt, gult = andra försöket,
+    // orange = tredje, rött = fler
+    const svar = Math.min(seterraTargetMisses + 1, 4);
     seterraTargetMisses = 0;
     spela('ratt');
     if (bildlage) {
@@ -1916,6 +1978,7 @@ function seterraClick(c) {
       setLand(c.gid, { gron: true, fel: false, tips: false, hover: false });
     } else {
       revealCountry(c.gid);
+      setLand(c.gid, { svar });
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
@@ -2041,16 +2104,18 @@ function endSeterra() {
 function rimligMinTid() {
   return Math.max(5, COUNTRIES.length || seterraTotal || 0);
 }
+// egna resultat under EGEN nyckel: gamla HS_KEY blandade ihop egna
+// resultat med hela den nedladdade världslistan, så "Mina resultat"
+// visade i praktiken den globala listan. Den gamla nyckeln lämnas orörd
+// (går inte att skilja eget från nedladdat i efterhand) — mina-listan
+// byggs upp på nytt av kommande rundor.
 function getLocalHighscores() {
-  try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
+  try { return JSON.parse(localStorage.getItem('mina-' + HS_KEY)) || []; }
   catch { return []; }
 }
-// den sammanslagna världslistan cachas under EGEN nyckel: när den låg i
-// HS_KEY laddade synken upp ANDRAS (rensade) poster igen från varje
-// spelares enhet, och skräpet återuppstod hur ofta det än städades.
-// HS_KEY rörs inte (den rymmer äldre versioners blandinnehåll plus egna
-// nya resultat) — men inget nedladdat skrivs dit längre, så blandningen
-// växer inte och egna resultat går aldrig förlorade.
+// den sammanslagna världslistan cachas också under egen nyckel — när den
+// låg i HS_KEY laddade synken upp ANDRAS (rensade) poster igen från
+// varje spelares enhet, och skräpet återuppstod hur ofta det än städades
 function getCachadeHighscores() {
   try { return JSON.parse(localStorage.getItem('cache-' + HS_KEY)) || []; }
   catch { return []; }
@@ -2116,7 +2181,7 @@ async function saveHighscore(name, score, time, wrong) {
   local.push(entry);
   local.sort((a, b) => b.score - a.score || a.time - b.time);
   if (local.length > 30) local.length = 30;
-  localStorage.setItem(HS_KEY, JSON.stringify(local));
+  localStorage.setItem('mina-' + HS_KEY, JSON.stringify(local));
   if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
@@ -2180,6 +2245,9 @@ document.getElementById('topplista-knapp-klar').addEventListener('click', () => 
 document.getElementById('hs-flik-alla').addEventListener('click', () => visaTopplista('alla'));
 document.getElementById('hs-flik-mina').addEventListener('click', () => visaTopplista('mina'));
 document.getElementById('topplista-stang').addEventListener('click', () => {
+  topplistaModal.style.display = 'none';
+});
+document.getElementById('topplista-kryss').addEventListener('click', () => {
   topplistaModal.style.display = 'none';
 });
 topplistaModal.addEventListener('click', e => {
@@ -2339,7 +2407,9 @@ if (firebaseDB && !/^(127\.|localhost)/.test(location.hostname)
 // ── Jonas high-five ──
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
-const highfiveAudio = new Audio('high_five.wav');
+// ?v: service workern cachar ljudfiler för evigt — nya klatschen (syntad
+// handklapp i stället för den gamla plingen) måste få en ny URL
+const highfiveAudio = new Audio('high_five.wav?v=' + V);
 // 'highfives2': räknaren flyttade hit när gamla nyckeln autoklickades
 // sönder — gamla klienter är strandade av databasreglerna
 const highfiveRef = firebaseDB ? firebaseDB.ref('highfives2') : null;
@@ -2731,14 +2801,43 @@ window.addEventListener('popstate', () => {
 // brons 70) — visas som märken på startsidans knappar
 // ══════════════════════
 function medaljFor(pct) { return pct >= 100 ? '🥇' : pct >= 90 ? '🥈' : pct >= 70 ? '🥉' : ''; }
+// klick på medaljen visar resultatet bakom den — utan att knappen
+// under hinner resa i väg till regionen
+function visaMedaljInfo(span, slug) {
+  let ruta = document.getElementById('medalj-info');
+  if (!ruta) {
+    ruta = document.createElement('div');
+    ruta.id = 'medalj-info';
+    document.body.appendChild(ruta);
+  }
+  const pct = +localStorage.getItem('medalj-' + slug) || 0;
+  ruta.textContent = `${medaljFor(pct)} Ditt rekord: ${pct} %`;
+  const r = span.getBoundingClientRect();
+  ruta.style.left = (r.left + r.width / 2) + 'px';
+  ruta.style.top = (r.top - 10) + 'px';
+  ruta.classList.add('synlig');
+  clearTimeout(visaMedaljInfo._timer);
+  visaMedaljInfo._timer = setTimeout(() => ruta.classList.remove('synlig'), 2200);
+}
 function visaMedaljer() {
   document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
     const slug = new URL(a.href, location.href).searchParams.get('region');
-    const m = medaljFor(+localStorage.getItem('medalj-' + slug) || 0);
+    const pct = +localStorage.getItem('medalj-' + slug) || 0;
+    const m = medaljFor(pct);
     let span = a.querySelector('.medalj');
     if (!m) { if (span) span.remove(); return; }
-    if (!span) { span = document.createElement('span'); span.className = 'medalj'; a.appendChild(span); }
+    if (!span) {
+      span = document.createElement('span');
+      span.className = 'medalj';
+      span.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        visaMedaljInfo(span, slug);
+      });
+      a.appendChild(span);
+    }
     span.textContent = m;
+    span.title = `Ditt rekord: ${pct} %`;
   });
 }
 
