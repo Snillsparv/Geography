@@ -788,13 +788,16 @@ async function getHighscores() {
       if (!seen.has(e.date)) merged.push(e);
     }
 
-    merged.sort((a, b) => b.score - a.score || a.time - b.time);
-    if (merged.length > 30) merged.length = 30;
+    // golvet FÖRE topp 30-kapningen — annars upptar dolda fuskposter
+    // platserna och äkta resultat trillar ur listan
+    const lista = merged.filter(e => e.time >= minTid);
+    lista.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (lista.length > 30) lista.length = 30;
 
     // Cache merged result so offline fallback shows all entries
-    localStorage.setItem(HS_KEY, JSON.stringify(merged));
+    localStorage.setItem(HS_KEY, JSON.stringify(lista));
 
-    return merged.filter(e => e.time >= minTid);
+    return lista;
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
     return local.filter(e => e.time >= minTid);
@@ -817,15 +820,22 @@ async function saveHighscore(name, score, time, wrong) {
   if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
-      // Trim to top 30: read all, delete excess
+      // Trim to top 30: read all, delete excess — och rensa samtidigt bort
+      // omöjliga tider som annars upptar platser osynligt och knuffar ut
+      // äkta resultat ur listan
       const snap = await firebaseDB.ref('highscores/' + HS_KEY)
         .orderByChild('score').once('value');
       const all = [];
       snap.forEach(child => { all.push({ key: child.key, ...child.val() }); });
       all.sort((a, b) => b.score - a.score || a.time - b.time);
-      if (all.length > 30) {
-        const removes = {};
-        for (let i = 30; i < all.length; i++) removes[all[i].key] = null;
+      const minTid = rimligMinTid();
+      const removes = {};
+      let kvar = 0;
+      for (const e of all) {
+        if (e.time < minTid || kvar >= 30) removes[e.key] = null;
+        else kvar++;
+      }
+      if (Object.keys(removes).length > 0) {
         await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
       }
     } catch (e) {

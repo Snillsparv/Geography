@@ -609,10 +609,14 @@ function initMap() {
         { layers: ['prickar', 'former', 'cover'] });
       if (hits.length > 1) {
         // närmsta pricken vinner — i prickgyttret (Västindien utzoomat)
-        // fick annars den överst ritade alla närliggande tryck
+        // fick annars den överst ritade alla närliggande tryck. Gäller BARA
+        // träffar i prickLAGRET: polygonträffar behåller ritordningen
+        // (sorteringen är stabil), annars vinner grannen vars mittpunkt
+        // råkar ligga närmast i stället för landet man faktiskt nuddade
         const avst = f => {
+          if (!f.layer || f.layer.id !== 'prickar') return Infinity;
           const m = markerPts.find(m2 => m2.gid === f.id);
-          if (!m) return Infinity;         // polygonträff — prickarna först
+          if (!m) return Infinity;
           const p = map.project([m.lng, m.lat]);
           return Math.hypot(p.x - e.point.x, p.y - e.point.y);
         };
@@ -2043,31 +2047,34 @@ function getLocalHighscores() {
 }
 // den sammanslagna världslistan cachas under EGEN nyckel: när den låg i
 // HS_KEY laddade synken upp ANDRAS (rensade) poster igen från varje
-// spelares enhet, och skräpet återuppstod hur ofta det än städades
+// spelares enhet, och skräpet återuppstod hur ofta det än städades.
+// HS_KEY rörs inte (den rymmer äldre versioners blandinnehåll plus egna
+// nya resultat) — men inget nedladdat skrivs dit längre, så blandningen
+// växer inte och egna resultat går aldrig förlorade.
 function getCachadeHighscores() {
   try { return JSON.parse(localStorage.getItem('cache-' + HS_KEY)) || []; }
   catch { return []; }
 }
-function migreraGammalCache() {
-  // äldre versioner blandade egna resultat och den nedladdade världslistan
-  // i HS_KEY — flytta alltihop till cachen så inget främmande synkas upp
-  if (localStorage.getItem('cache-' + HS_KEY) === null && localStorage.getItem(HS_KEY) !== null) {
-    localStorage.setItem('cache-' + HS_KEY, localStorage.getItem(HS_KEY));
-    localStorage.removeItem(HS_KEY);
-  }
+// golvet läggs FÖRE topp 30-kapningen — annars upptar dolda fuskposter
+// platserna och äkta resultat trillar ur listan
+function toppNTid(list, minTid) {
+  const ok = list.filter(e => e.time >= minTid);
+  ok.sort((a, b) => b.score - a.score || a.time - b.time);
+  if (ok.length > 30) ok.length = 30;
+  return ok;
 }
 async function getHighscores() {
-  migreraGammalCache();
   const minTid = rimligMinTid();
   const local = getLocalHighscores();
-  if (!firebaseDB) {
+  // reservvyn (offline eller trasig läsning): egna resultat + senast
+  // nedladdade listan
+  const lokalVy = () => {
     const seen = new Set(local.map(e => e.date));
     const merged = [...local];
     for (const e of getCachadeHighscores()) if (!seen.has(e.date)) merged.push(e);
-    merged.sort((a, b) => b.score - a.score || a.time - b.time);
-    if (merged.length > 30) merged.length = 30;
-    return merged.filter(e => e.time >= minTid);
-  }
+    return toppNTid(merged, minTid);
+  };
+  if (!firebaseDB) return lokalVy();
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
@@ -2088,13 +2095,12 @@ async function getHighscores() {
     const seen = new Set(remote.map(e => e.date));
     const merged = [...remote];
     for (const e of local) if (!seen.has(e.date)) merged.push(e);
-    merged.sort((a, b) => b.score - a.score || a.time - b.time);
-    if (merged.length > 30) merged.length = 30;
-    localStorage.setItem('cache-' + HS_KEY, JSON.stringify(merged));
-    return merged.filter(e => e.time >= minTid);
+    const lista = toppNTid(merged, minTid);
+    localStorage.setItem('cache-' + HS_KEY, JSON.stringify(lista));
+    return lista;
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
-    return local.filter(e => e.time >= minTid);
+    return lokalVy();
   }
 }
 async function saveHighscore(name, score, time, wrong) {
@@ -2102,14 +2108,16 @@ async function saveHighscore(name, score, time, wrong) {
   // (databasreglerna avvisar dem också på serversidan)
   if (!seterraTotal || time < rimligMinTid()) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
+  // felsökningsläget (window.spel aktivt) sparar INGENTING — inte ens
+  // lokalt, för allt i HS_KEY synkas förr eller senare upp till den
+  // delade listan. Skriptade rundor via ?debug ska aldrig kunna smyga in.
+  if (window.spel) return entry;
   const local = getLocalHighscores();
   local.push(entry);
   local.sort((a, b) => b.score - a.score || a.time - b.time);
   if (local.length > 30) local.length = 30;
   localStorage.setItem(HS_KEY, JSON.stringify(local));
-  // felsökningsläget (window.spel aktivt) skriver aldrig till den delade
-  // listan — skriptade rundor ska inte kunna smyga in via ?debug
-  if (firebaseDB && !window.spel) {
+  if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
       const snap = await firebaseDB.ref('highscores/' + HS_KEY).orderByChild('score').once('value');
