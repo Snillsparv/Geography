@@ -60,17 +60,6 @@
       "imageAssociation": "En mikrofon som malen sjunger SING-A-long i"
     },
     {
-      "name": "Papua Nya Guinea",
-      "file": "countries/papua_nya_guinea.webp",
-      "filename": "papua_nya_guinea",
-      "left": 3468,
-      "top": 3167,
-      "width": 496,
-      "height": 381,
-      "desc": "Papua Nya Guinea ligger på den östra halvan av ön Nya Guinea och är ett av världens mest språkligt diversifierade länder med över 800 språk. Landets regnskog är hem för en mängd unika djurarter, inklusive paradisfåglar med otroligt färggranna fjädrar. Många samhällen lever fortfarande traditionellt och är relativt isolerade på grund av den bergiga terrängen.",
-      "imageAssociation": "En PAPP-dinosaurie som ska bli ditt NYA marsvin (GUINEA pig)"
-    },
-    {
       "name": "Malaysia",
       "file": "countries/malaysia.webp",
       "filename": "malaysia",
@@ -571,5 +560,77 @@
   "mapOffset": {
     "left": 44,
     "top": 0
-  }
+  },
+  "delar": [
+    {
+      "id": "vast",
+      "namn": "Västra Asien",
+      "videoStart": 0,
+      "lander": [
+        "Turkiet",
+        "Bahrain",
+        "Iran",
+        "Georgien",
+        "Azerbajdzjan",
+        "Armenien",
+        "Irak",
+        "Saudiarabien",
+        "Jordanien",
+        "Libanon",
+        "Syrien",
+        "Palestina",
+        "Israel",
+        "Kuwait",
+        "Qatar",
+        "Förenade Arabemiraten",
+        "Oman",
+        "Jemen"
+      ]
+    },
+    {
+      "id": "mitt",
+      "namn": "Centrala Asien",
+      "videoStart": 262,
+      "lander": [
+        "Sri Lanka",
+        "Indien",
+        "Bangladesh",
+        "Bhutan",
+        "Nepal",
+        "Afghanistan",
+        "Pakistan",
+        "Tadzjikistan",
+        "Kirgizistan",
+        "Maldiverna",
+        "Kazakstan",
+        "Uzbekistan",
+        "Turkmenistan"
+      ]
+    },
+    {
+      "id": "ost",
+      "namn": "Östra Asien",
+      "videoStart": 495,
+      "lander": [
+        "Indonesien",
+        "Singapore",
+        "Malaysia",
+        "Filippinerna",
+        "Taiwan",
+        "Kina",
+        "Östtimor",
+        "Burma",
+        "Thailand",
+        "Kambodja",
+        "Vietnam",
+        "Laos",
+        "Japan",
+        "Ryssland",
+        "Nordkorea",
+        "Sydkorea",
+        "Mongoliet",
+        "Brunei"
+      ]
+    }
+  ]
 }

@@ -44,6 +44,23 @@ node make-tiles.mjs --outline 0 --borders assets/art-borders.json \
 python3 postprocess-art-data.py   # OBS: alltid efteråt!
 ```
 
+`--borders`/`--regions` kör BARA ownership-passet på z6 och skriver inga
+rutor — själva tilebakningen är en separat körning. Rutorna tar ~20–40 min
+och den native-rastraren kan segfaulta när cachen fylls, så bakningen körs
+med `--save DIR` (återupptagbar: redan skrivna rutor hoppas över) och
+upprepas tills den går igenom, innan arkivet packas:
+
+```bash
+until node --max-old-space-size=12288 make-tiles.mjs --maxzoom 7 \
+        --outline 0 --save tiles-build; do echo "kraschade — kör igen"; done
+node make-tiles.mjs --maxzoom 7 --outline 0 --save tiles-build --assemble
+```
+
+Sökvägen till `--save` tolkas från REPOROTEN (inte från tools/).
+Efter en ny bakning måste cachenycklarna bytas, annars serveras de gamla
+rutorna för evigt: `TILE_URL`-versionen i glob-spel.js **och**
+`TILE_CACHE`-namnet i sw.js.
+
 `postprocess-art-data.py` måste köras efter varje omgenerering av
 art-datafilerna: den bryter ut Malaysias havsritade ansikte till
 dekor-features (annars syns ögonen/spröten som pappersformer när landet

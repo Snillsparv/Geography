@@ -2,33 +2,53 @@
 """Efterbearbetning av art-datafilerna som make-tiles.mjs skriver.
 
 Körs EFTER en omgenerering av assets/art-regions.json, art-borders.json
-och art-markers.json — annars försvinner två fixar som spelet förlitar
-sig på (idempotent: säkert att köra flera gånger):
+och art-markers.json — annars försvinner fixarna som spelet förlitar sig
+på (idempotent: säkert att köra flera gånger).
 
-1. MALAYSIAS ANSIKTE (dekor-delning). Malaysias mal är ritad med ögon,
-   mun och spröt i öppet hav mellan halvön och Borneodelen. Pipelinens
-   pixelägarskap gör havsdelarna till klickpolygoner och konturlinjer,
-   och utan delning målas de som pappersfärgade ansiktssiluetter när
-   landet är täckt. Här bryts de ut till egna features med dekor: 1
-   (samma id 109 → samma feature-state), som spelet döljer i havsfärg
-   och släcker konturerna för, precis som havs-badges.
+1. DEKORDELAR. Vissa länders konst har delar ritade ute i havet:
+   Malaysias mal har ögon, mun och spröt mellan halvön och Borneo, och
+   Kubas cigarr ryker in över Bahamas. Pipelinens pixelägarskap gör dem
+   till klickpolygoner och konturlinjer, och utan delning målas de som
+   pappersformer när landet är täckt. Här bryts de ut till egna features
+   med dekor: 1 (samma id → samma feature-state), som spelet döljer i
+   havsfärg och släcker konturerna för, precis som havs-emblemen.
+   Vilka delar som är dekor avgörs geometriskt: en del vars yta ligger
+   utanför landets VERKLIGA gränser (world-borders.json, med lite
+   marginal) är ritad i havet.
 
-2. SMAL (tjocklek) i art-markers. omfang är längsta bbox-axeln — avlånga
+2. EMBLEMLÄNDER. Bahamas är ritat som bananer utspridda över ögruppen —
+   som pappersform ser den inte ut som ett land. Landet befordras därför
+   till "emblem" (badge): konstblobben döljs i havsfärg medan landet är
+   täckt, och i stället visas landets riktiga Natural Earth-form plus
+   den klickbara cirkeln. Samma mekanism som Malta, Monaco och de andra
+   ö-nationerna redan använder.
+
+3. SMAL (tjocklek) i art-markers. omfang är längsta bbox-axeln — avlånga
    länder (Kuba: 10,75° långt men under 1° tjockt) räknades som "stora
    nog att klicka på" och fick aldrig sin prick. smal = max över
    artpolygondelarna av (yta / längsta axel), dvs. tjockleken på den
    fetaste delen. Spelet visar prick när smal är under ~8 px på skärmen
-   (glob-spel.js: prickSyns). Badge-länder hoppas över (deras prickar
-   ska styras av landets verkliga storlek, inte den stora badge-blobben).
+   (glob-spel.js: prickSyns). Emblemländer hoppas över — deras prickar
+   styrs av landets verkliga storlek, inte den stora konstblobben.
 """
 import json
 import math
 import os
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MALAYSIA_GID = 109
+
+# konstdelar i havet bryts ut till dekor-features för de här länderna
+DEKOR_LANDER = ['asien/malaysia', 'nordamerika/kuba']
+# länder som befordras till emblem: konsten döljs, riktiga formen visas
+EMBLEM_LANDER = ['vastindien/bahamas']
+# hur långt utanför den verkliga landytan en del måste ligga för att
+# räknas som dekor (grader) och hur stor andel av delen som får ligga på
+# riktig mark
+MARK_BUFFERT = 0.25
+MARK_ANDEL = 50
 
 
+# ── geometrihjälpare ──────────────────────────────────────────────────
 def part_bbox(ring):
     xs = [p[0] for p in ring]
     ys = [p[1] for p in ring]
@@ -70,83 +90,244 @@ def dist_to_ring(x, y, ring):
     return best
 
 
+def ringar(geom):
+    if geom['type'] == 'Polygon':
+        return [geom['coordinates'][0]]
+    return [poly[0] for poly in geom['coordinates']]
+
+
+def prov_i_ring(ring, rutor=12):
+    """Rutnätsprov av punkter inuti ringen (minst centroiden)."""
+    x0, y0, x1, y1 = part_bbox(ring)
+    steg = max(x1 - x0, y1 - y0) / rutor
+    prov = []
+    if steg > 0:
+        y = y0
+        while y <= y1:
+            x = x0
+            while x <= x1:
+                if point_in_ring(x, y, ring):
+                    prov.append((x, y))
+                x += steg
+            y += steg
+    if not prov:
+        prov = [(sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring))]
+    return prov
+
+
+def pa_riktig_mark(ring, sanna_ringar):
+    """Andel (%) av delens yta som ligger på landets verkliga geografi."""
+    prov = prov_i_ring(ring)
+    traff = sum(1 for (x, y) in prov
+                if any(point_in_ring(x, y, sr) or dist_to_ring(x, y, sr) < MARK_BUFFERT
+                       for sr in sanna_ringar))
+    return traff * 100 // len(prov)
+
+
 def spara(path, data):
     with open(path, 'w') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 
 
-def dela_malaysia(regions):
-    """Bryt ut Malaysias havsritade ansiktsdelar till en dekor-feature."""
-    if any(f['properties'].get('dekor') and f['properties'].get('gid') == MALAYSIA_GID
-           for f in regions['features']):
-        print('art-regions: dekor-delningen finns redan — hoppar över')
+def hitta(features, key):
+    return next((f for f in features
+                 if f['properties'].get('key') == key and not f['properties'].get('dekor')), None)
+
+
+def sanna_ringar_for(varlden, namn):
+    return [sr for f in varlden['features']
+            if (f['properties'].get('namn') or f['properties'].get('name')) == namn
+            for sr in ringar(f['geometry'])]
+
+
+def unwrap(geom, ref_lng):
+    """Lyft longituderna kring landets mittpunkt (Fiji över antimeridianen)."""
+    def fix(ring):
+        ut = []
+        for lng, lat in [(p[0], p[1]) for p in ring]:
+            while lng - ref_lng > 180:
+                lng -= 360
+            while lng - ref_lng < -180:
+                lng += 360
+            ut.append([round(lng, 5), round(lat, 5)])
+        return ut
+    polys = [geom['coordinates']] if geom['type'] == 'Polygon' else geom['coordinates']
+    return {'type': 'MultiPolygon', 'coordinates': [[fix(r) for r in poly] for poly in polys]}
+
+
+# ── 1. dekordelar ─────────────────────────────────────────────────────
+def dela_dekor(regions, varlden, key):
+    """Bryt ut de konstdelar som är ritade i havet till en dekor-feature."""
+    gid = None
+    for i, f in enumerate(regions['features']):
+        if f['properties'].get('key') == key and f['properties'].get('dekor'):
+            print(f'  {key}: dekor-delningen finns redan')
+            return None
+    idx = next((i for i, f in enumerate(regions['features'])
+                if f['properties'].get('key') == key), None)
+    if idx is None:
+        print(f'  {key}: finns inte i art-regions — hoppar över')
         return None
-    idx, mal = next((i, f) for i, f in enumerate(regions['features'])
-                    if f['properties'].get('gid') == MALAYSIA_GID)
-    polys = mal['geometry']['coordinates']
-    # landdelarna = de två största (halvön + Borneodelen), resten är ansiktet
-    ordnade = sorted(range(len(polys)), key=lambda i: shoelace(polys[i][0]), reverse=True)
-    land_idx = sorted(ordnade[:2])
-    face_idx = sorted(ordnade[2:])
-    if not face_idx:
-        print('art-regions: Malaysia har inga havsdelar — inget att dela')
+    land = regions['features'][idx]
+    gid = land['properties']['gid']
+    sanna = sanna_ringar_for(varlden, land['properties']['namn'])
+    if not sanna:
+        print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
         return None
-    face_polys = [polys[i] for i in face_idx]
-    mal['geometry']['coordinates'] = [polys[i] for i in land_idx]
+    polys = land['geometry']['coordinates']
+    mark, dekor = [], []
+    for poly in polys:
+        (mark if pa_riktig_mark(poly[0], sanna) >= MARK_ANDEL else dekor).append(poly)
+    if not dekor:
+        print(f'  {key}: inga havsritade delar')
+        return None
+    if not mark:
+        print(f'  {key}: ALLA delar ligger utanför riktig mark — hoppar över (kolla datan!)')
+        return None
+    land['geometry']['coordinates'] = mark
     regions['features'].insert(idx + 1, {
-        'type': 'Feature', 'id': MALAYSIA_GID,
-        'properties': {'gid': MALAYSIA_GID, 'key': mal['properties']['key'],
-                       'namn': mal['properties']['namn'], 'dekor': 1},
-        'geometry': {'type': 'MultiPolygon', 'coordinates': face_polys},
+        'type': 'Feature', 'id': gid,
+        'properties': {'gid': gid, 'key': key, 'namn': land['properties']['namn'], 'dekor': 1},
+        'geometry': {'type': 'MultiPolygon', 'coordinates': dekor},
     })
-    print(f'art-regions: {len(face_polys)} ansiktsdelar utbrutna till dekor-feature')
-    return face_polys
+    print(f'  {key}: {len(dekor)} havsritade delar utbrutna ({len(mark)} landdelar kvar)')
+    return {'gid': gid, 'namn': land['properties']['namn'], 'polys': dekor}
 
 
-def dela_borders(borders, face_polys):
-    """Flytta ansiktsdelarnas konturlinjer till en egen dekor-feature."""
-    if any(f['properties'].get('dekor') for f in borders['features']):
-        print('art-borders: dekor-featuren finns redan — hoppar över')
-        return
-    gen = borders['features'][0]          # den generella, egenskapslösa linjefeaturen
-    face_rings = [poly[0] for poly in face_polys]
-    face_boxes = [part_bbox(r) for r in face_rings]
+def flytta_konturer(borders, mal, egenskaper):
+    """Flytta konturlinjerna som ligger på mal-polygonerna till egen feature."""
+    gid = egenskaper['gid']
+    if any(f['properties'].get('gid') == gid and f['properties'].get(egenskaper['flagga'])
+           for f in borders['features']):
+        return 0
+    gen = borders['features'][0]      # den generella, egenskapslösa linjefeaturen
+    mal_ringar = [poly[0] for poly in mal]
+    boxar = [part_bbox(r) for r in mal_ringar]
 
-    def nara_ansiktet(x, y):
-        for box, ring in zip(face_boxes, face_rings):
+    def pa_malet(x, y):
+        for box, ring in zip(boxar, mal_ringar):
             if x < box[0] - 0.1 or x > box[2] + 0.1 or y < box[1] - 0.1 or y > box[3] + 0.1:
                 continue
             if point_in_ring(x, y, ring) or dist_to_ring(x, y, ring) < 0.05:
                 return True
         return False
 
-    kept, moved = [], []
+    kvar, flyttade = [], []
     for line in gen['geometry']['coordinates']:
-        if all(nara_ansiktet(pt[0], pt[1]) for pt in line):
-            moved.append(line)
-        else:
-            kept.append(line)
-    gen['geometry']['coordinates'] = kept
+        (flyttade if all(pa_malet(p[0], p[1]) for p in line) else kvar).append(line)
+    if not flyttade:
+        return 0
+    gen['geometry']['coordinates'] = kvar
+    props = {'gid': gid, 'namn': egenskaper['namn'], egenskaper['flagga']: 1}
     borders['features'].append({
-        'type': 'Feature', 'id': MALAYSIA_GID,
-        'properties': {'gid': MALAYSIA_GID, 'namn': 'Malaysia', 'dekor': 1},
-        'geometry': {'type': 'MultiLineString', 'coordinates': moved},
+        'type': 'Feature', 'id': gid, 'properties': props,
+        'geometry': {'type': 'MultiLineString', 'coordinates': flyttade},
     })
-    print(f'art-borders: {len(moved)} konturlinjer flyttade till dekor-feature')
+    return len(flyttade)
 
 
+# ── 2. emblemländer ───────────────────────────────────────────────────
+def befordra_emblem(regions, markers, varlden, key):
+    """Dölj konstblobben och visa landets riktiga form + cirkel i stället."""
+    land = hitta(regions['features'], key)
+    if land is None:
+        print(f'  {key}: finns inte i art-regions — hoppar över')
+        return None
+    if land['properties'].get('badge') == 1:
+        print(f'  {key}: är redan emblem')
+        return None
+    gid = land['properties']['gid']
+    namn = land['properties']['namn']
+    sant = next((f for f in varlden['features']
+                 if (f['properties'].get('namn') or f['properties'].get('name')) == namn), None)
+    if sant is None:
+        print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
+        return None
+    land['properties']['badge'] = 1
+    punkt = next((f for f in markers['features']
+                  if f['properties'].get('gid') == gid and f['geometry']['type'] == 'Point'), None)
+    if punkt is None:
+        print(f'  {key}: saknar markörpunkt — hoppar över')
+        return None
+    punkt['properties']['badge'] = 1
+    # utspridda ö-nationer (över 2° långa) behåller alltid sin cirkel
+    punkt['properties']['spridd'] = 1 if punkt['properties'].get('omfang', 0) > 2 else 0
+    punkt['properties'].pop('smal', None)      # emblem styrs av verklig storlek
+    if not any(f['properties'].get('gid') == gid and f['properties'].get('form') == 1
+               for f in markers['features']):
+        markers['features'].append({
+            'type': 'Feature', 'id': gid,
+            'properties': {'gid': gid, 'namn': namn, 'form': 1},
+            'geometry': unwrap(sant['geometry'], punkt['geometry']['coordinates'][0]),
+        })
+    print(f'  {key}: befordrat till emblem (spridd={punkt["properties"]["spridd"]})')
+    return {'gid': gid, 'namn': namn, 'polys': land['geometry']['coordinates']}
+
+
+# ── 3. emblem på land ─────────────────────────────────────────────────
+def emblem_pa_land(regions, markers, varlden):
+    """Emblem vars konstblobb ligger på ett annat lands mark kan inte döljas
+    i havsfärg — deras blobb målas som papper och silhuetten avslöjar
+    konstverket (Vatikanstatens kors mitt i Italien). De får i stället en
+    täckradie: spelet ritar en pappersCIRKEL som är stor nog att svälja
+    hela konstblobben, så det som syns är en cirkel och inget annat.
+    Emblem som visar sig ligga i öppet hav får hav: 1 och döljs som de
+    andra ö-emblemen."""
+    punkt = {f['properties']['gid']: f for f in markers['features']
+             if f['geometry']['type'] == 'Point'}
+    # VERKLIG landyta (world-borders) avgör om blobben ligger på land —
+    # konstytorna duger inte: emblemet äger sina egna pixlar, så värdlandets
+    # artpolygon har ett hål precis där blobben ligger
+    land_ringar = []
+    for f in varlden['features']:
+        for r in ringar(f['geometry']):
+            land_ringar.append((part_bbox(r), r))
+    andrad = False
+    for f in regions['features']:
+        p = f['properties']
+        if p.get('badge') != 1 or p.get('hav') == 1 or p.get('dekor'):
+            continue
+        m = punkt.get(p['gid'])
+        if not m:
+            continue
+        andrad = True
+        prov = [q for poly in f['geometry']['coordinates'] for q in prov_i_ring(poly[0], 8)]
+
+        def pa_riktigt_land(x, y):
+            for (bx0, by0, bx1, by1), r in land_ringar:
+                if bx0 <= x <= bx1 and by0 <= y <= by1 and point_in_ring(x, y, r):
+                    return True
+            return False
+
+        pa_land = sum(1 for (x, y) in prov if pa_riktigt_land(x, y))
+        if pa_land * 100 // max(len(prov), 1) < 25:
+            p['hav'] = 1                       # ligger i öppet hav ändå
+            m['properties'].pop('tackradie', None)
+            print(f"  {p['namn']}: konsten ligger i havet → döljs i havsfärg")
+        else:
+            cx, cy = m['geometry']['coordinates']
+            rad = max(math.hypot(q[0] - cx, q[1] - cy)
+                      for poly in f['geometry']['coordinates'] for q in poly[0])
+            m['properties']['tackradie'] = round(rad * 1.02, 3)
+            print(f"  {p['namn']}: på annat lands mark → täckcirkel {rad * 1.02:.2f}°")
+    return andrad
+
+
+# ── 4. smal (tjocklek) ────────────────────────────────────────────────
 def satt_smal(markers, regions):
-    """smal = tjockleken på landets fetaste artpolygondel (icke-badge)."""
-    art_by_gid = {}
+    art = {}
     for f in regions['features']:
         if f['properties'].get('dekor'):
             continue
-        art_by_gid[f['properties']['gid']] = f['geometry']['coordinates']
+        art[f['properties']['gid']] = f['geometry']['coordinates']
     n = 0
     for f in markers['features']:
-        if f['geometry']['type'] != 'Point' or f['properties'].get('badge'):
+        if f['geometry']['type'] != 'Point':
             continue
-        polys = art_by_gid.get(f['properties']['gid'])
+        if f['properties'].get('badge'):
+            f['properties'].pop('smal', None)
+            continue
+        polys = art.get(f['properties']['gid'])
         if not polys:
             continue
         best = 0.0
@@ -166,25 +347,44 @@ def main():
     reg_p = os.path.join(REPO, 'assets/art-regions.json')
     bor_p = os.path.join(REPO, 'assets/art-borders.json')
     mar_p = os.path.join(REPO, 'assets/art-markers.json')
+    var_p = os.path.join(REPO, 'assets/world-borders.json')
     regions = json.load(open(reg_p))
     borders = json.load(open(bor_p))
     markers = json.load(open(mar_p))
+    varlden = json.load(open(var_p))
+    andrad_reg = andrad_bor = False
 
-    face_polys = dela_malaysia(regions)
-    if face_polys:
-        spara(reg_p, regions)
-    else:
-        # regionerna var redan delade — hämta ansiktet därifrån så att
-        # gränserna ändå kan delas om bara art-borders.json regenererats
-        dekor = next((f for f in regions['features']
-                      if f['properties'].get('dekor') and f['properties'].get('gid') == MALAYSIA_GID), None)
-        face_polys = dekor['geometry']['coordinates'] if dekor else None
-    if face_polys:
-        innan = len(borders['features'])
-        dela_borders(borders, face_polys)
-        if len(borders['features']) != innan:
-            spara(bor_p, borders)
+    print('art-regions: dekordelar')
+    for key in DEKOR_LANDER:
+        res = dela_dekor(regions, varlden, key)
+        if res:
+            andrad_reg = True
+            n = flytta_konturer(borders, res['polys'],
+                                {'gid': res['gid'], 'namn': res['namn'], 'flagga': 'dekor'})
+            if n:
+                andrad_bor = True
+                print(f'    art-borders: {n} konturlinjer flyttade')
+
+    print('art-regions: emblemländer')
+    for key in EMBLEM_LANDER:
+        res = befordra_emblem(regions, markers, varlden, key)
+        if res:
+            andrad_reg = True
+            n = flytta_konturer(borders, res['polys'],
+                                {'gid': res['gid'], 'namn': res['namn'], 'flagga': 'badge'})
+            if n:
+                andrad_bor = True
+                print(f'    art-borders: {n} konturlinjer flyttade')
+
+    print('art-regions: emblem på land')
+    if emblem_pa_land(regions, markers, varlden):
+        andrad_reg = True
+
     satt_smal(markers, regions)
+    if andrad_reg:
+        spara(reg_p, regions)
+    if andrad_bor:
+        spara(bor_p, borders)
     spara(mar_p, markers)
     print('klart')
 

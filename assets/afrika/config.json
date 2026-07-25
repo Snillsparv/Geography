@@ -617,5 +617,83 @@
   "mapOffset": {
     "left": 150,
     "top": 122
-  }
+  },
+  "delar": [
+    {
+      "id": "norr",
+      "namn": "Norra Afrika",
+      "videoDel": 0,
+      "lander": [
+        "Algeriet",
+        "Marocko",
+        "Västsahara",
+        "Mauretanien",
+        "Mali",
+        "Gambia",
+        "Senegal",
+        "Guinea-Bissau",
+        "Burkina Faso",
+        "Tchad",
+        "Niger",
+        "Libyen",
+        "Tunisien",
+        "Egypten",
+        "Sudan",
+        "Eritrea",
+        "Djibouti",
+        "Kap Verde"
+      ]
+    },
+    {
+      "id": "mitt",
+      "namn": "Centrala Afrika",
+      "videoDel": 1,
+      "lander": [
+        "Sao Tome & Principe",
+        "Guinea",
+        "Sierra Leone",
+        "Elfenbenskusten",
+        "Liberia",
+        "Benin",
+        "Togo",
+        "Ghana",
+        "Kamerun",
+        "Nigeria",
+        "Demokratiska Republiken Kongo",
+        "Sydsudan",
+        "Centralafrikanska Republiken",
+        "Kenya",
+        "Uganda",
+        "Somalia",
+        "Etiopien",
+        "Tanzania",
+        "Rwanda",
+        "Burundi",
+        "Kongo-Brazzaville",
+        "Gabon",
+        "Ekvatorialguinea",
+        "Seychellerna"
+      ]
+    },
+    {
+      "id": "syd",
+      "namn": "Södra Afrika",
+      "videoDel": 2,
+      "lander": [
+        "Zambia",
+        "Malawi",
+        "Mocambique",
+        "Madagaskar",
+        "Angola",
+        "Namibia",
+        "Zimbabwe",
+        "Botswana",
+        "Sydafrika",
+        "Eswatini",
+        "Komorerna",
+        "Mauritius",
+        "Lesotho"
+      ]
+    }
+  ]
 }
