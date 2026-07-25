@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest?v=51">
 <meta name="theme-color" content="#02060d">
 <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
   <link rel="stylesheet" href="style.css?v=51">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
@@ -144,11 +145,17 @@
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
       font-size: 1.05rem; cursor: pointer; z-index: 60; }
     body:not(.startlage) #feedback-knapp { display: none; }
-    /* installera appen: under brevet — syns bara när installation går att göra */
-    #installera-knapp { position: fixed; top: 60px; left: 14px; width: 38px; height: 38px;
-      border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
-      font-size: 1.05rem; cursor: pointer; z-index: 60; }
+    /* installera appen: tydlig knapp längst ner i mitten — den gamla
+       ikonknappen uppe till vänster låg över rubriktexten på mobilen.
+       Syns bara när installation går att göra, och aldrig på datorn. */
+    #installera-knapp { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      padding: 9px 18px; border-radius: 999px; border: 2px solid #2e9eff88;
+      background: #0a1526ee; color: #7ec8e3; font-weight: 800; font-size: .9rem;
+      cursor: pointer; z-index: 60; box-shadow: 0 4px 18px #000a; white-space: nowrap; }
     body:not(.startlage) #installera-knapp { display: none !important; }
+    @media (min-width: 901px) {
+      #installera-knapp { display: none !important; }
+    }
     /* spelvyns ?-knapp: kör om genomgången av lägena (ovanför ljudknappen) */
     #spel-hjalp { position: fixed; left: 10px; bottom: 80px; width: 38px; height: 38px;
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
@@ -544,7 +551,7 @@
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
-<button id="installera-knapp" title="Installera appen" style="display:none">&#128241;</button>
+<button id="installera-knapp" title="Installera appen" style="display:none">&#128241; Installera appen</button>
 <button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
 
 <!-- Installera appen: riktig dialog d&auml;r det g&aring;r, annars steg-f&ouml;r-steg -->

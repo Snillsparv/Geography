@@ -1,6 +1,6 @@
 {
-  "name": "Jonas geografi",
-  "short_name": "Geografi",
+  "name": "Jonas Geografi",
+  "short_name": "Jonas Geografi",
   "description": "Lär dig världens länder med Jonas handritade kartvärld",
   "start_url": "glob.html",
   "display": "standalone",
