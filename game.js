@@ -744,23 +744,33 @@ function endSeterra() {
 // ══════════════════════
 // High scores
 // ══════════════════════
+// Ingen människa klarar ett land på under en sekund — allt under så många
+// sekunder som rundan har länder är bluff. Golvet gäller sparande,
+// uppladdning och visning (samma skydd som glob-sidan).
+function rimligMinTid() {
+  // världslistan här delas av alla rundstorlekar (10–100 länder) —
+  // golvet får bara anta den minsta rundan
+  if (HS_KEY === 'world-highscores') return 10;
+  return Math.max(5, COUNTRIES.length || seterraTotal || 0);
+}
 function getLocalHighscores() {
   try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
   catch { return []; }
 }
 
 async function getHighscores() {
+  const minTid = rimligMinTid();
   const local = getLocalHighscores();
 
-  if (!firebaseDB) return local;
+  if (!firebaseDB) return local.filter(e => e.time >= minTid);
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
     snap.forEach(child => { remote.push(child.val()); });
 
-    // Sync: push any local-only entries to Firebase
+    // Sync: push any local-only entries to Firebase (aldrig omöjliga tider)
     const remoteDates = new Set(remote.map(e => e.date));
-    const localOnly = local.filter(e => !remoteDates.has(e.date));
+    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= minTid);
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -778,20 +788,25 @@ async function getHighscores() {
       if (!seen.has(e.date)) merged.push(e);
     }
 
-    merged.sort((a, b) => b.score - a.score || a.time - b.time);
-    if (merged.length > 30) merged.length = 30;
+    // golvet FÖRE topp 30-kapningen — annars upptar dolda fuskposter
+    // platserna och äkta resultat trillar ur listan
+    const lista = merged.filter(e => e.time >= minTid);
+    lista.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (lista.length > 30) lista.length = 30;
 
     // Cache merged result so offline fallback shows all entries
-    localStorage.setItem(HS_KEY, JSON.stringify(merged));
+    localStorage.setItem(HS_KEY, JSON.stringify(lista));
 
-    return merged;
+    return lista;
   } catch (e) {
     console.warn('Firebase read failed, using local:', e);
-    return local;
+    return local.filter(e => e.time >= minTid);
   }
 }
 
 async function saveHighscore(name, score, time, wrong) {
+  // omöjliga resultat sparas aldrig: quiz utan länder eller orimligt snabbt
+  if (!seterraTotal || time < rimligMinTid()) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
 
   // Always save locally as backup
@@ -805,15 +820,22 @@ async function saveHighscore(name, score, time, wrong) {
   if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
-      // Trim to top 30: read all, delete excess
+      // Trim to top 30: read all, delete excess — och rensa samtidigt bort
+      // omöjliga tider som annars upptar platser osynligt och knuffar ut
+      // äkta resultat ur listan
       const snap = await firebaseDB.ref('highscores/' + HS_KEY)
         .orderByChild('score').once('value');
       const all = [];
       snap.forEach(child => { all.push({ key: child.key, ...child.val() }); });
       all.sort((a, b) => b.score - a.score || a.time - b.time);
-      if (all.length > 30) {
-        const removes = {};
-        for (let i = 30; i < all.length; i++) removes[all[i].key] = null;
+      const minTid = rimligMinTid();
+      const removes = {};
+      let kvar = 0;
+      for (const e of all) {
+        if (e.time < minTid || kvar >= 30) removes[e.key] = null;
+        else kvar++;
+      }
+      if (Object.keys(removes).length > 0) {
         await firebaseDB.ref('highscores/' + HS_KEY).update(removes);
       }
     } catch (e) {
@@ -1185,7 +1207,8 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
 // Jonas high-five (global counter via Firebase)
 const jonasImg = document.getElementById('jonas-img');
 const highfiveCountEl = document.getElementById('highfive-count');
-const highfiveAudio = new Audio('high_five.wav');
+// ?v: service workern cachar ljudfiler för evigt — nya klatschen kräver ny URL
+const highfiveAudio = new Audio('high_five.wav?v=51');
 const highfiveRef = firebaseDB ? firebaseDB.ref('highfives') : null;
 
 // Load initial count
@@ -2138,7 +2161,7 @@ function showCelebration(elapsed, m, s) {
   }, 300);
 
   // Play high-five sound repeatedly
-  const celebAudio = new Audio('high_five.wav');
+  const celebAudio = new Audio('high_five.wav?v=51');
   celebAudio.play().catch(() => {});
   const soundInterval = setInterval(() => {
     celebAudio.currentTime = 0;

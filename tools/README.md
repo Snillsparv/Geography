@@ -41,7 +41,15 @@ tiles change:
 ```bash
 node make-tiles.mjs --outline 0 --borders assets/art-borders.json \
                     --regions assets/art-regions.json
+python3 postprocess-art-data.py   # OBS: alltid efteråt!
 ```
+
+`postprocess-art-data.py` måste köras efter varje omgenerering av
+art-datafilerna: den bryter ut Malaysias havsritade ansikte till
+dekor-features (annars syns ögonen/spröten som pappersformer när landet
+är täckt) och sätter `smal`-egenskapen (tjockleken) i art-markers.json
+som ger avlånga länder som Kuba sin klickprick. Idempotent — säkert att
+köra flera gånger.
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).

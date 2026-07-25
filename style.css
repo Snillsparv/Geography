@@ -1,4 +1,7 @@
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* -webkit-tap-highlight: mobilens blå blixtruta vid varje tryck på
+       knappar/länkar — bort; egna hover/active-stilar ger återkopplingen */
+    * { margin: 0; padding: 0; box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent; }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -222,11 +225,44 @@
       transform: translate(14px, 14px);
     }
 
+    /* utforska-tooltipen: landsnamnet i sin vanliga bubbla och minnes-
+       regeln i en EGEN gul ruta under (samma stil som i sidopanelen) —
+       ytterelementet är bara en osynlig hållare för de två rutorna */
     .cursor-label.explore-tooltip {
-      white-space: pre-line;
-      max-width: 260px;
+      background: none;
+      border: none;
+      padding: 0;
+      max-width: 300px;
       text-align: left;
+      white-space: normal;
     }
+
+    .cursor-label .tt-namn {
+      display: inline-block;
+      background: rgba(16, 28, 48, 0.92);
+      color: #5bbfff;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(91,191,255,0.3);
+      white-space: nowrap;
+    }
+
+    .cursor-label .tt-assoc {
+      margin-top: 6px;
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      line-height: 1.4;
+      color: #ffe9a8;
+      background: linear-gradient(rgba(255, 220, 50, .12), rgba(255, 220, 50, .12)),
+                  rgba(16, 28, 48, 0.94);
+      border: 1.5px solid rgba(255, 220, 50, .5);
+      box-shadow: 0 0 16px rgba(255, 220, 50, .12);
+    }
+
+    .cursor-label .tt-assoc::before { content: '💡 '; }
 
     /* ── Info panel ── */
     .info-panel {
@@ -804,6 +840,10 @@
       animation: modalIn 0.3s ease;
     }
 
+    @media (max-width: 480px) {
+      .name-modal { padding: 22px 16px; }
+    }
+
     @keyframes modalIn {
       from { opacity: 0; transform: scale(0.9) translateY(20px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
@@ -831,12 +871,16 @@
 
     .name-modal .modal-input-row {
       display: flex;
+      /* smala mobiler: hellre att spara-knappen radbryts än att den
+         sticker ut utanför rutan */
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 12px;
     }
 
     .name-modal .modal-input-row input {
-      flex: 1;
+      flex: 1 1 140px;
+      min-width: 0;
       padding: 12px 16px;
       border-radius: 10px;
       border: 1px solid rgba(91,191,255,0.3);
@@ -1377,6 +1421,8 @@
       .info-default .arrow-icon {
         font-size: 2rem;
         margin-bottom: 8px;
+        /* på mobilen ligger kartan OVANFÖR panelen — vrid ← till ↑ */
+        transform: rotate(90deg);
       }
 
       .info-default p {

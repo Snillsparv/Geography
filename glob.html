@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest?v=51">
 <meta name="theme-color" content="#02060d">
 <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=51">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -69,12 +70,15 @@
       text-align: left; border: none; }
     /* Infokortet på mobilen: landbilden i en nästan kvadratisk ruta till
        vänster och info-knappen/texten direkt intill — den breda botten-
-       panelen gjorde annars landbilden pytteliten ovanför texten. */
+       panelen gjorde annars landbilden pytteliten ovanför texten.
+       Namnet med flaggan står i högerspalten, rakt ovanför minnesregeln,
+       i stället för längst ut till vänster ovanför bilden. */
     @media (max-width: 900px) {
       #info-card.active {
         display: grid;
         grid-template-columns: clamp(96px, 30%, 150px) 1fr;
-        grid-template-areas: "namn namn" "bild sido" "hint hint";
+        grid-template-areas: "bild namn" "bild sido" "hint hint";
+        grid-template-rows: auto 1fr;
         gap: 6px 10px;
         align-items: start;
         padding: 8px 14px 10px;
@@ -141,6 +145,17 @@
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526;
       font-size: 1.05rem; cursor: pointer; z-index: 60; }
     body:not(.startlage) #feedback-knapp { display: none; }
+    /* installera appen: tydlig knapp längst ner i mitten — den gamla
+       ikonknappen uppe till vänster låg över rubriktexten på mobilen.
+       Syns bara när installation går att göra, och aldrig på datorn. */
+    #installera-knapp { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      padding: 9px 18px; border-radius: 999px; border: 2px solid #2e9eff88;
+      background: #0a1526ee; color: #7ec8e3; font-weight: 800; font-size: .9rem;
+      cursor: pointer; z-index: 60; box-shadow: 0 4px 18px #000a; white-space: nowrap; }
+    body:not(.startlage) #installera-knapp { display: none !important; }
+    @media (min-width: 901px) {
+      #installera-knapp { display: none !important; }
+    }
     /* spelvyns ?-knapp: kör om genomgången av lägena (ovanför ljudknappen) */
     #spel-hjalp { position: fixed; left: 10px; bottom: 80px; width: 38px; height: 38px;
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
@@ -174,6 +189,18 @@
     #feedback-status.tack { color: #5fca77; font-weight: 700; }
     #feedback-status.fel { color: #ff9d8a; }
     #feedback-status a { color: #7ec8e3; }
+    /* Utmaningar: skapa-/anta-rutorna — samma kortstil som feedbacken */
+    .utm-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
+      display: flex; align-items: center; justify-content: center; padding: 3vmin; }
+    .utm-detalj { color: #ffdc32 !important; font-weight: 800; }
+    #utm-skapa-btn, #utm-anta-btn, #utm-dela { padding: 9px 18px; border-radius: 10px;
+      border: none; background: #ffdc32; color: #08131f; font-weight: 800; cursor: pointer;
+      box-shadow: 0 3px 0 #0006; }
+    #utm-skapa-avbryt, #utm-kopiera, #utm-anta-nej, #utm-anta-stang, #utm-skapa-stang,
+    #installera-stang {
+      padding: 9px 18px; border-radius: 10px; border: none;
+      background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
+    #utm-skapa-status { margin-top: 10px; font-size: .9rem; color: #ff9d8a; }
     .start-hifi { position: fixed; right: 16px; bottom: 10px; text-align: center; z-index: 55;
       cursor: pointer; }
     .start-hifi img { width: 84px; display: block; margin: 0 auto;
@@ -358,9 +385,15 @@
       .header-hint { display: none; }
       .maplibregl-ctrl-top-right { display: none !important; }
     }
-    /* ── Medaljer på startknapparna ── */
+    /* ── Medaljer på startknapparna — klickbara: visar rekordet ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
-      filter: drop-shadow(0 2px 4px #000a); pointer-events: none; }
+      filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    #medalj-info { position: fixed; z-index: 400; transform: translate(-50%, -100%);
+      background: #10233a; border: 1px solid rgba(255,220,50,.5); border-radius: 10px;
+      padding: 8px 14px; color: #ffdc32; font-weight: 800; font-size: .9rem;
+      pointer-events: none; opacity: 0; transition: opacity .2s; white-space: nowrap;
+      box-shadow: 0 8px 30px #000a; }
+    #medalj-info.synlig { opacity: 1; }
     .k9 { background: #e7c27d; }
     /* ── Världsresans pass ── */
     #resa-modal, #topplista-modal { position: fixed; inset: 0; z-index: 310;
@@ -379,7 +412,14 @@
       background: #1d3550; color: #cfe3f4; font-weight: 700; cursor: pointer; }
     .resa-pass { width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
       background: #10233a; border: 1px solid rgba(91,191,255,.2); border-radius: 18px;
-      padding: 22px 24px; box-shadow: 0 24px 70px #000; }
+      padding: 22px 24px; box-shadow: 0 24px 70px #000; position: relative; }
+    /* kryss högst upp — långa topplistor ska gå att stänga utan att
+       scrolla hela vägen ner till Stäng-knappen */
+    .modal-kryss { position: sticky; top: 0; float: right; margin: -6px -8px 0 0;
+      width: 34px; height: 34px; border-radius: 50%; border: none; z-index: 2;
+      background: #1d3550; color: #cfe3f4; font-size: 1rem; font-weight: 800;
+      cursor: pointer; }
+    .modal-kryss:hover { background: #29496e; }
     .resa-pass h2 { color: #ffdc32; margin-bottom: 8px; }
     .resa-info { color: #9fc3e0; font-size: .88rem; margin-bottom: 14px; line-height: 1.45; }
     .resa-rad { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
@@ -391,6 +431,9 @@
     .resa-rad.last { opacity: .45; }
     .resa-res { padding: 7px 14px; border-radius: 8px; border: none; background: #ffdc32;
       font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #0006; }
+    /* klarade stopp går att resa tillbaka till — dämpad knapp så att det
+       aktuella stoppets gula "Res hit!" fortfarande dominerar */
+    .resa-res.igen { background: #1d3550; color: #cfe3f4; }
     #resa-klart { color: #ffdc32; margin: 10px 0; }
     #resa-stang { margin-top: 10px; padding: 9px 18px; border-radius: 10px; border: none;
       background: #e8eef4; color: #56718c; font-weight: 800; cursor: pointer; }
@@ -449,7 +492,7 @@
 <div class="region-selector" id="region-selector" style="display:none">
   <div id="ladd-rida"></div>
   <h1 class="start-titel">Redo att ta &ouml;ver v&auml;rlden? &#127757;</h1>
-  <div class="start-hint">Snurra p&aring; jordgloben &mdash; eller v&auml;lj var du vill b&ouml;rja!</div>
+  <div class="start-hint">Snurra p&aring; jordgloben &mdash; och klicka p&aring; en v&auml;rldsdel f&ouml;r att b&ouml;rja tr&auml;na!</div>
   <div id="ladd-skarm">
     <div class="ladd-glob ladd-glob-v1"><img src="assets/design/glob-art.webp" alt="">
       <div class="omlopp"><span></span></div></div>
@@ -508,11 +551,37 @@
 
 <button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
+<button id="installera-knapp" title="Installera appen" style="display:none">&#128241; Installera appen</button>
 <button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
+
+<!-- Installera appen: riktig dialog d&auml;r det g&aring;r, annars steg-f&ouml;r-steg -->
+<div id="installera-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#128241; Installera appen</h2>
+    <p>Jonas geografi funkar som en riktig app &mdash; egen ikon p&aring; hemsk&auml;rmen,
+      helsk&auml;rm och st&ouml;d f&ouml;r d&aring;ligt n&auml;t. Alla resultat sparas precis som vanligt.</p>
+    <div id="installera-ios" style="display:none">
+      <p><b>S&aring; h&auml;r g&ouml;r du p&aring; iPhone/iPad:</b></p>
+      <p>1. &Ouml;ppna sidan i <b>Safari</b><br>
+         2. Tryck p&aring; <b>dela-knappen</b> (fyrkanten med pilen upp&aring;t)<br>
+         3. V&auml;lj <b>&rdquo;L&auml;gg till p&aring; hemsk&auml;rmen&rdquo;</b><br>
+         4. Klart! Leta upp jordglobs-ikonen &#127757;</p>
+    </div>
+    <div id="installera-android" style="display:none">
+      <p><b>S&aring; h&auml;r g&ouml;r du:</b></p>
+      <p>&Ouml;ppna webbl&auml;sarens meny (&#8942; uppe till h&ouml;ger) och v&auml;lj
+        <b>&rdquo;Installera app&rdquo;</b> eller <b>&rdquo;L&auml;gg till p&aring; startsk&auml;rmen&rdquo;</b>.</p>
+    </div>
+    <div class="feedback-knappar">
+      <button id="installera-stang" type="button">St&auml;ng</button>
+    </div>
+  </div>
+</div>
 
 <!-- Topplistan: global + personlig (den h&auml;r enheten) -->
 <div id="topplista-modal" style="display:none">
   <div class="resa-pass">
+    <button class="modal-kryss" id="topplista-kryss" title="St&auml;ng">&#10005;</button>
     <h2>&#127942; Topplista</h2>
     <p class="resa-info" id="topplista-region"></p>
     <div class="hs-flikar">
@@ -546,13 +615,61 @@
   </div>
 </div>
 
+<!-- Utmaningar: skapa en l&auml;nk och utmana kompisar p&aring; exakt samma quiz -->
+<div id="utmaning-skapa-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2>&#9876;&#65039; Utmana en kompis!</h2>
+    <p class="utm-detalj" id="utm-skapa-detalj"></p>
+    <div id="utm-skapa-form">
+      <p>Du f&aring;r en l&auml;nk att skicka till en kompis &mdash; eller hela klassen!
+        Alla som &ouml;ppnar l&auml;nken f&aring;r <b>exakt samma quiz</b> och hamnar i
+        samma duellista.</p>
+      <label for="utm-skapa-namn">Ditt namn i duellen</label>
+      <input id="utm-skapa-namn" type="text" maxlength="30">
+      <div class="feedback-knappar">
+        <button id="utm-skapa-btn" type="button">Skapa l&auml;nken!</button>
+        <button id="utm-skapa-avbryt" type="button">Avbryt</button>
+      </div>
+      <div id="utm-skapa-status"></div>
+    </div>
+    <div id="utm-skapa-klar" style="display:none">
+      <p>Klart! Skicka l&auml;nken till dem du vill utmana:</p>
+      <input id="utm-lank" type="text" readonly>
+      <div class="feedback-knappar">
+        <button id="utm-dela" type="button">Dela &#128232;</button>
+        <button id="utm-kopiera" type="button">Kopiera l&auml;nken</button>
+        <button id="utm-skapa-stang" type="button">St&auml;ng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="utmaning-anta-modal" class="utm-modal" style="display:none">
+  <div class="feedback-kort">
+    <h2 id="utm-anta-rubrik"></h2>
+    <p id="utm-anta-text"></p>
+    <div id="utm-anta-form">
+      <label for="utm-anta-namn">Vad heter du?</label>
+      <input id="utm-anta-namn" type="text" maxlength="30">
+      <div class="feedback-knappar">
+        <button id="utm-anta-btn" type="button">Anta utmaningen! &#128293;</button>
+        <button id="utm-anta-nej" type="button">Inte nu</button>
+      </div>
+    </div>
+    <div class="feedback-knappar" id="utm-anta-felknappar" style="display:none">
+      <button id="utm-anta-stang" type="button">Till startsidan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Världsresan: kampanjpasset -->
 <div id="resa-modal" style="display:none">
   <div class="resa-pass">
     <h2>&#129523; Jorden runt</h2>
     <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
-      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Du kan f&ouml;rst&aring;s
-      alltid spela fritt ocks&aring;!</p>
+      f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Klarade stopp kan du
+      alltid resa tillbaka till och spela igen &mdash; ett b&auml;ttre resultat uppdaterar
+      st&auml;mpeln. Du kan f&ouml;rst&aring;s alltid spela fritt ocks&aring;!</p>
     <div id="resa-lista"></div>
     <p id="resa-klart" style="display:none">&#127942; <b>Hela Jorden runt-resan &auml;r klar &mdash; du
       &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
@@ -717,6 +834,8 @@
         <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
         <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
         <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
+        <button class="restart-btn" id="utmana-btn" style="display:none">&#9876;&#65039; Utmana en kompis!</button>
+        <button class="restart-btn" id="utm-vidare-btn" style="display:none">Skicka utmaningen vidare &#128232;</button>
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
       </div>
     </div>
@@ -793,7 +912,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=48"></script>
+<script src="glob-spel.js?v=51"></script>
 
 </body>
 </html>
