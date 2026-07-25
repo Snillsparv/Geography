@@ -13,7 +13,7 @@ const GUL = '#ffdc32';         // ledtrådsblink / cirkelhover
 const LJUSGRON = '#5fca77';    // hover på grönt land — lyser upp, helt opakt
 const HOVERGUL = '#ffe9a8';    // hover på täckt land — ljust och OPAKT (bilden avslöjas först vid klick)
 const ROD = '#e05252';         // felklick
-// kvitto i klassiska quizet: hur många försök landet tog. Tonas halv-
+// kvitto i bildquizet: hur många försök landet tog. Tonas halv-
 // genomskinligt ÖVER bilden så att man både ser landet och hur det gick.
 // index = antal försök (1 = rätt direkt), 4 täcker även fler försök
 const SVAR_FARG = [null, '#1f7a3c', '#ffdc32', '#ff8c2e', '#e05252'];
@@ -126,8 +126,10 @@ function revealCountry(gid) {
 }
 function coverCountry(gid) {
   revealed.delete(gid);
-  // svar (quizets försöksfärg) nollas — ett täckt land ska vara papper igen
-  setLand(gid, { tackt: true, svar: 0 });
+  // quizens markeringar nollas också — gron hängde annars kvar från
+  // bildquizet in i nästa läge, så det såg ut som att gamla rundan
+  // fortsatte fast en ny börjat
+  setLand(gid, { tackt: true, svar: 0, gron: false });
 }
 function flashWrong(gid) {
   if (revealed.has(gid)) return;
@@ -207,7 +209,7 @@ function startaForladdning() {
     }
     const el = document.querySelector('.start-hint');
     if (el && document.body.classList.contains('startlage')) {
-      el.textContent = text || 'Snurra på jordgloben — eller välj var du vill börja!';
+      el.textContent = text || 'Snurra på jordgloben — och klicka på en världsdel för att börja träna!';
     }
   });
 }
@@ -249,6 +251,37 @@ async function loadRegions() {
     featureByFilename.set(f.properties.key.split('/')[1], f);
     featureByGid.set(f.id, f);
   }
+}
+
+// ── Startsidan: klick på en världsdel på globen öppnar dess träningsläge ──
+// nyckelns prefix (europa/ukraina → europa) pekar ut världsdelen; bara
+// riktiga regioner räknas (Grönland/Antarktis m.fl. har inga spellägen)
+function startRegionSlug(gid) {
+  const f = featureByGid.get(gid);
+  const slug = f && f.properties.key.split('/')[0];
+  return slug && KAMERA[slug] && slug !== 'world' ? slug : null;
+}
+const regionGidsCache = new Map();
+function regionGids(slug) {
+  if (!regionGidsCache.has(slug)) {
+    regionGidsCache.set(slug, regionsGj.features
+      .filter(f => !f.properties.dekor && f.properties.key.split('/')[0] === slug)
+      .map(f => f.id));
+  }
+  return regionGidsCache.get(slug);
+}
+// hover-glansen på hela världsdelen sätts DIREKT i kartans feature-state
+// (inte via setLand): den är flyktig och ska inte fastna i speltillståndet
+let startHoverSlug = null;
+function sattStartHover(slug, pa) {
+  if (!slug || !map) return;
+  for (const gid of regionGids(slug)) {
+    try { map.setFeatureState({ source: 'regioner', id: gid }, { hover: pa }); } catch (e) {}
+  }
+}
+function slappStartHover() {
+  sattStartHover(startHoverSlug, false);
+  startHoverSlug = null;
 }
 
 // Markörerna: badge-ländernas RIKTIGA former + alla länders mittpunkter.
@@ -513,7 +546,7 @@ function initMap() {
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
                          '#ffffff'],
               ['boolean', ['feature-state', 'gron'], false], GRON,
-              // kvittotonen över besvarade länder i klassiska quizet
+              // kvittotonen över besvarade länder i bildquizet
               ['==', ['coalesce', ['feature-state', 'svar'], 0], 1], SVAR_FARG[1],
               ['==', ['coalesce', ['feature-state', 'svar'], 0], 2], SVAR_FARG[2],
               ['==', ['coalesce', ['feature-state', 'svar'], 0], 3], SVAR_FARG[3],
@@ -624,6 +657,17 @@ function initMap() {
     }
     const hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
     const gid = hits.length ? hits[0].id : null;
+    if (document.body.classList.contains('startlage')) {
+      // startsidan: hela världsdelen skimrar när man pekar på den
+      const slug = gid !== null ? startRegionSlug(gid) : null;
+      if (slug !== startHoverSlug) {
+        sattStartHover(startHoverSlug, false);
+        sattStartHover(slug, true);
+        startHoverSlug = slug;
+      }
+      map.getCanvas().style.cursor = slug ? 'pointer' : '';
+      return;
+    }
     const c = gid !== null ? aktivByGid.get(gid) : null;
     const newHover = c && !revealed.has(gid) ? gid : null;
     if (newHover !== hoverGid) {
@@ -659,6 +703,12 @@ function initMap() {
       }
     }
     if (!hits.length) return;
+    // startsidan: klick på en världsdel flyger dit och öppnar träningsläget
+    if (document.body.classList.contains('startlage')) {
+      const slug = startRegionSlug(hits[0].id);
+      if (slug) gaTillRegion(slug);
+      return;
+    }
     handleMapClick(hits[0].id, e.originalEvent);
   });
   // snurren på startsidan släpper vid beröring men återupptas efteråt —
@@ -1852,8 +1902,8 @@ function exploreClick(c, e) {
     clearTimeout(exploreTooltipTimer);
     // minnesregeln direkt vid pekaren — och längre tid när det finns
     // en regel att hinna läsa
-    cursorLabel.innerHTML = `<b>${flagga(c.name)} ${escHtml(c.name)}</b>` +
-      (c.assoc ? `<div class="tt-assoc">💡 ${escHtml(c.assoc)}</div>` : '');
+    cursorLabel.innerHTML = `<div class="tt-namn">${flagga(c.name)} ${escHtml(c.name)}</div>` +
+      (c.assoc ? `<div class="tt-assoc">${escHtml(c.assoc)}</div>` : '');
     cursorLabel.classList.add('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
@@ -1968,17 +2018,16 @@ function seterraClick(c) {
 
   if (c.gid === seterraTarget.gid) {
     seterraCorrect++;
-    // kvitto på landet: mörkgrönt = rätt direkt, gult = andra försöket,
-    // orange = tredje, rött = fler
+    // kvitto på landet i bildquizet: mörkgrönt = rätt direkt, gult =
+    // andra försöket, orange = tredje, rött = fler
     const svar = Math.min(seterraTargetMisses + 1, 4);
     seterraTargetMisses = 0;
     spela('ratt');
     if (bildlage) {
       revealed.add(c.gid);
-      setLand(c.gid, { gron: true, fel: false, tips: false, hover: false });
+      setLand(c.gid, { svar, fel: false, tips: false, hover: false });
     } else {
       revealCountry(c.gid);
-      setLand(c.gid, { svar });
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
     seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
@@ -2759,6 +2808,7 @@ function fallIhopRattigheter() {
 let selGomTimer = null;
 function lamnaStart() {
   stoppaSnurr();
+  slappStartHover();   // världsdels-skimret får inte fastna i kartans state
   fallIhopRattigheter();
   const sel = document.getElementById('region-selector');
   sel.classList.remove('synlig');

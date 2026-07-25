@@ -222,19 +222,44 @@
       transform: translate(14px, 14px);
     }
 
+    /* utforska-tooltipen: landsnamnet i sin vanliga bubbla och minnes-
+       regeln i en EGEN gul ruta under (samma stil som i sidopanelen) —
+       ytterelementet är bara en osynlig hållare för de två rutorna */
     .cursor-label.explore-tooltip {
-      white-space: pre-line;
-      max-width: 280px;
+      background: none;
+      border: none;
+      padding: 0;
+      max-width: 300px;
       text-align: left;
+      white-space: normal;
     }
 
-    /* minnesregeln under landsnamnet i utforska-tooltipen */
-    .cursor-label .tt-assoc {
-      margin-top: 4px;
-      font-size: 0.82rem;
+    .cursor-label .tt-namn {
+      display: inline-block;
+      background: rgba(16, 28, 48, 0.92);
+      color: #5bbfff;
       font-weight: 600;
-      color: #7ec8e3;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(91,191,255,0.3);
+      white-space: nowrap;
     }
+
+    .cursor-label .tt-assoc {
+      margin-top: 6px;
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      line-height: 1.4;
+      color: #ffe9a8;
+      background: linear-gradient(rgba(255, 220, 50, .12), rgba(255, 220, 50, .12)),
+                  rgba(16, 28, 48, 0.94);
+      border: 1.5px solid rgba(255, 220, 50, .5);
+      box-shadow: 0 0 16px rgba(255, 220, 50, .12);
+    }
+
+    .cursor-label .tt-assoc::before { content: '💡 '; }
 
     /* ── Info panel ── */
     .info-panel {
