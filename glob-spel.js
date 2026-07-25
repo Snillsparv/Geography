@@ -13,11 +13,10 @@ const GUL = '#ffdc32';         // ledtrådsblink / cirkelhover
 const LJUSGRON = '#5fca77';    // hover på grönt land — lyser upp, helt opakt
 const HOVERGUL = '#ffe9a8';    // hover på täckt land — ljust och OPAKT (bilden avslöjas först vid klick)
 const ROD = '#e05252';         // felklick
-// kvitto i bildquizet: hur många försök landet tog. Tonas halv-
-// genomskinligt ÖVER bilden så att man både ser landet och hur det gick.
+// kvitto i bildquizet: hur många försök landet tog. Landformen målas HELT
+// i kvittofärgen — bilden är redan avklarad och färgen är facit.
 // index = antal försök (1 = rätt direkt), 4 täcker även fler försök
 const SVAR_FARG = [null, '#1f7a3c', '#ffdc32', '#ff8c2e', '#e05252'];
-const SVAR_ALFA = 0.4;
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 const KAMERA = {
@@ -555,17 +554,20 @@ function initMap() {
             'fill-opacity': ['case',
               ['boolean', ['feature-state', 'fel'], false], 0.92,
               ['boolean', ['feature-state', 'tips'], false], 0.92,
+              // havs-badges/dekordelar döljs i havet även när landet fått
+              // sin kvittofärg — bara den riktiga formen ska bära färgen
               ['any',
                 ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
                 ['==', ['get', 'dekor'], 1]],
                 ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
-                                 ['boolean', ['feature-state', 'tackt'], false]], 1, 0],
+                                 ['boolean', ['feature-state', 'tackt'], false],
+                                 ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1, 0],
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
                                  ['boolean', ['feature-state', 'tackt'], false]], 1, 0.25],
               ['boolean', ['feature-state', 'gron'], false], 1,
               ['boolean', ['feature-state', 'tackt'], false], 1,
-              ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1], SVAR_ALFA,
+              ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1], 1,
               0],
           } },
         // bildens antialiasing-frans (alfa < 128) ligger strax UTANFÖR
@@ -585,7 +587,8 @@ function initMap() {
                 ['boolean', ['feature-state', 'hover'], false]], 0,
               ['any',
                 ['boolean', ['feature-state', 'tackt'], false],
-                ['boolean', ['feature-state', 'gron'], false]], 1,
+                ['boolean', ['feature-state', 'gron'], false],
+                ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1,
               0],
           },
           layout: { 'line-join': 'round' } },
@@ -613,13 +616,14 @@ function initMap() {
         { id: 'borders', type: 'line', source: 'borders',
           paint: { 'line-color': '#0a0a0a', 'line-width': 1.5,
             // badge-blobbarnas och dekordelarnas konturer (egna features,
-            // id = gid) släcks när landet är täckt/grönt — bilden de ramar
-            // in är ju dold då
+            // id = gid) släcks när landet är täckt/grönt/kvittofärgat —
+            // bilden de ramar in är ju dold då
             'line-opacity': ['case',
               ['all',
                 ['any', ['==', ['get', 'badge'], 1], ['==', ['get', 'dekor'], 1]],
                 ['any', ['boolean', ['feature-state', 'tackt'], false],
-                        ['boolean', ['feature-state', 'gron'], false]]],
+                        ['boolean', ['feature-state', 'gron'], false],
+                        ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]]],
               0, 0.9] },
           layout: { 'line-join': 'round', 'line-cap': 'round' } },
         // klickbar cirkel på täckta småländer. ABSOLUT storlek på kartan
@@ -1059,13 +1063,13 @@ function composeFlat() {
   for (const f of regionsGj.features) {
     const t = landState(f.id);
     // havs-badges och dekordelar (Malaysias ansikte) döljs i havsfärg när
-    // landet är täckt — de har ingen landform att visa som papper
+    // landet är täckt eller kvittofärgat — de har ingen landform att visa
     const havBadge = (f.properties.badge === 1 && f.properties.hav === 1) ||
                      f.properties.dekor === 1;
     let color = null, alpha = 1;
     if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
-    else if (havBadge) { if (t.gron || t.tackt) color = SJO; }
+    else if (havBadge) { if (t.gron || t.tackt || t.svar) color = SJO; }
     else if (t.hover) {
       // opak uppljusning — bilden under täcket får inte skymta
       if (t.gron) color = LJUSGRON;
@@ -1074,7 +1078,7 @@ function composeFlat() {
     }
     else if (t.gron) color = GRON;
     else if (t.tackt) color = TACK;
-    else if (t.svar) { color = SVAR_FARG[Math.min(t.svar, 4)]; alpha = SVAR_ALFA; }
+    else if (t.svar) color = SVAR_FARG[Math.min(t.svar, 4)];
     if (!color) continue;
     flatCtx.globalAlpha = alpha;
     flatCtx.fillStyle = color;
@@ -1119,7 +1123,7 @@ function composeFlat() {
       if (bf.gid) {
         // badge-blobbens kontur ritas bara när bilden faktiskt syns
         const t = landState(bf.gid);
-        if (t.tackt || t.gron) continue;
+        if (t.tackt || t.gron || t.svar) continue;
       }
       for (const line of bf.lines) {
         let prev = null;
@@ -1557,6 +1561,25 @@ function origHitTest(clientX, clientY) {
   return null;
 }
 
+// bildquizets kvitto i originalvyn: landbildens alfakanal fylls med
+// kvittofärgen — exakt samma form, men som enfärgad siluett
+const svarSilhuettCache = new Map();
+function origSvarSilhuett(filename, svar) {
+  const nyckel = `${filename}:${svar}`;
+  if (svarSilhuettCache.has(nyckel)) return svarSilhuettCache.get(nyckel);
+  const hd = origHitData[filename];
+  if (!hd || !hd.canvas) return null;      // träffdatan laddar ännu — appliceras om efteråt
+  const cv = document.createElement('canvas');
+  cv.width = hd.w; cv.height = hd.h;
+  const cx = cv.getContext('2d');
+  cx.drawImage(hd.canvas, 0, 0);
+  cx.globalCompositeOperation = 'source-in';
+  cx.fillStyle = SVAR_FARG[svar];
+  cx.fillRect(0, 0, hd.w, hd.h);
+  const url = cv.toDataURL();
+  svarSilhuettCache.set(nyckel, url);
+  return url;
+}
 // spegla speltillståndet till originalvyns element
 function origApplyState(gid, t) {
   const a = aktivByGid.get(gid);
@@ -1568,13 +1591,16 @@ function origApplyState(gid, t) {
     el.classList.remove('flash-wrong');
     el.classList.toggle('visible', !t.tackt);
   }
-  // kvittot i originalvyn: en färgad gloria runt landbilden — en ton ÖVER
-  // bilden går inte här (bilden ÄR landet), men glorian följer konturen
   if (!t.tackt && t.svar) {
-    const f = SVAR_FARG[Math.min(t.svar, 4)];
-    el.style.filter = `drop-shadow(0 0 3px ${f}) drop-shadow(0 0 5px ${f})`;
-  } else {
-    el.style.filter = '';
+    const nivaa = Math.min(t.svar, 4);
+    const silu = origSvarSilhuett(a.filename, nivaa);
+    if (silu && el.dataset.svar !== String(nivaa)) {
+      el.src = silu;
+      el.dataset.svar = String(nivaa);
+    }
+  } else if (el.dataset.svar) {
+    el.src = `assets/${origSlug}/countries/${a.filename}.webp`;
+    delete el.dataset.svar;
   }
   const glow = !t.fel && !!t.tackt && (!!t.hover || !!t.tips);
   const hv = origHoverEls[a.filename];
@@ -1917,10 +1943,14 @@ function hideExploreTooltip() {
   cursorLabel.style.display = 'none';
   cursorLabel.classList.remove('explore-tooltip');
 }
-// tooltipen följer pekaren på FÖNSTERNIVÅ: kartans egna mousemove tystnar
-// medan man drar i globen, och då blev rutan stående där den var
+// pekaretiketterna följer pekaren på FÖNSTERNIVÅ: kartans egna mousemove
+// tystnar medan man drar i globen, och då blev rutan stående där den var.
+// Gäller både utforska-tooltipen och quizens "Hitta detta land"-etikett.
 window.addEventListener('mousemove', ev => {
-  if (cursorLabel.classList.contains('explore-tooltip') && cursorLabel.style.display === 'block') {
+  if (cursorLabel.style.display !== 'block') return;
+  const quizEtikett = (currentMode === 'seterra' || currentMode === 'bildquiz') &&
+                      seterraTarget && !seterraLocked;
+  if (cursorLabel.classList.contains('explore-tooltip') || quizEtikett) {
     cursorLabel.style.left = ev.clientX + 'px';
     cursorLabel.style.top = ev.clientY + 'px';
   }
