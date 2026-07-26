@@ -62,6 +62,9 @@ HAVS_BUFFERT = 0.08
 # hur korta linjestumpar klippet får kasta (grader)
 KONTUR_MARGINAL = 0.02
 KONTUR_MINSTA = 0.01
+# stumpar närmare dekorytan än så här, som inte nuddar landdelen, räknas
+# också som dekor (annars blir strålens kant kvar som streck i havet)
+KONTUR_ENSAM = 0.15
 
 
 _land_cache = []
@@ -287,22 +290,27 @@ def dela_dekor(regions, varlden, key, mask=None):
     print(f'  {key}: {dekor_g.area:.2f}° dekor utbruten ({varfor}, {len(dekor)} bitar), '
           f'{mark_g.area:.2f}° kvar som land')
     return {'gid': gid, 'namn': land['properties']['namn'], 'polys': dekor,
-            'mask': mask is not None}
+            'mark': mark, 'mask': mask is not None}
 
 
-def dela_konturer(borders, dekor_polys, egenskaper):
+def dela_konturer(borders, dekor_polys, mark_polys, egenskaper):
     """Klipp konturlinjerna längs dekorytan i stället för att flytta hela
     linjer. Ecuadors kontur är EN kedja runt både slangen och strålen, så
     den måste skäras: strålens del ska släckas när landet är täckt, kustens
-    del ska lysa kvar."""
+    del ska lysa kvar. Stumpar som blir kvar utan att nudda landdelen (de
+    ritar bara strålens kant) följer med de flyttade."""
     from shapely.geometry import shape, LineString, MultiLineString
     from shapely.ops import unary_union
     gid = egenskaper['gid']
     if any(f['properties'].get('gid') == gid and f['properties'].get(egenskaper['flagga'])
            for f in borders['features']):
         return 0
-    inne = unary_union([shape({'type': 'Polygon', 'coordinates': p}).buffer(0)
-                        for p in dekor_polys]).buffer(KONTUR_MARGINAL)
+    def yta(polys):
+        return unary_union([shape({'type': 'Polygon', 'coordinates': p}).buffer(0)
+                            for p in polys])
+    dekor_g = yta(dekor_polys)
+    mark_g = yta(mark_polys)
+    inne = dekor_g.buffer(KONTUR_MARGINAL)
     gen = borders['features'][0]
 
     def delar(g):
@@ -314,16 +322,21 @@ def dela_konturer(borders, dekor_polys, egenskaper):
             return [l for l in g.geoms if l.length > KONTUR_MINSTA]
         return [l for bit in getattr(g, 'geoms', []) for l in delar(bit)]
 
+    def ensam(bit):
+        """Ritar stumpen bara dekorens kant, utan att nudda landdelen?"""
+        return (bit.distance(mark_g) > KONTUR_MARGINAL
+                and bit.distance(dekor_g) < KONTUR_ENSAM)
+
     kvar, flyttade = [], []
     for line in gen['geometry']['coordinates']:
         ls = LineString([(p[0], p[1]) for p in line])
-        if not ls.intersects(inne):
-            kvar.append(line)
-            continue
-        for bit in delar(ls.difference(inne)):
-            kvar.append([[round(x, 5), round(y, 5)] for x, y in bit.coords])
-        for bit in delar(ls.intersection(inne)):
-            flyttade.append([[round(x, 5), round(y, 5)] for x, y in bit.coords])
+        utanfor = [ls] if not ls.intersects(inne) else delar(ls.difference(inne))
+        for bit in utanfor:
+            (flyttade if ensam(bit) else kvar).append(
+                [[round(x, 5), round(y, 5)] for x, y in bit.coords])
+        if ls.intersects(inne):
+            for bit in delar(ls.intersection(inne)):
+                flyttade.append([[round(x, 5), round(y, 5)] for x, y in bit.coords])
     if not flyttade:
         return 0
     gen['geometry']['coordinates'] = kvar
@@ -503,8 +516,9 @@ def main():
         if res:
             andrad_reg = andrad_bor = True
             egenskaper = {'gid': res['gid'], 'namn': res['namn'], 'flagga': 'dekor'}
-            n = (dela_konturer(borders, res['polys'], egenskaper) if res['mask']
-                 else flytta_konturer(borders, res['polys'], egenskaper))
+            n = (dela_konturer(borders, res['polys'], res['mark'], egenskaper)
+                 if res['mask'] else
+                 flytta_konturer(borders, res['polys'], egenskaper))
             if n:
                 print(f'    art-borders: {n} konturlinjer utbrutna')
 
