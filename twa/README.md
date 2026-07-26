@@ -1,17 +1,28 @@
 # Jonas geografi i Google Play — steg för steg
 
 Appen paketeras som en **Trusted Web Activity (TWA)**: ett tunt Android-skal
-runt jonasgeografi.se. Det betyder att appen ÄR hemsidan — varje uppdatering
+runt www.jonasgeografi.se. Det betyder att appen ÄR hemsidan — varje uppdatering
 av sajten syns direkt i appen utan ny granskning, och alla resultat sparas
 precis som vanligt (samma lagring som webbläsaren).
+
+> **Adressen måste vara `www.jonasgeografi.se` överallt.** Sajten serveras
+> från www-värden; `jonasgeografi.se` utan www svarar med en 301-omdirigering
+> dit. Googles verifiering av Digital Asset Links följer inte omdirigeringar,
+> så pekar appen på adressen utan www misslyckas verifieringen tyst och appen
+> öppnas med en webbläsarrad högst upp i stället för i helskärm.
 
 ## Det Jonas gör (kräver BankID-liknande ID-koll hos Google)
 
 1. **Skapa utvecklarkonto**: https://play.google.com/console → logga in med
    Google-kontot → betala engångsavgiften (25 USD) → verifiera identitet.
-   (Välj "personligt konto" om du inte har ett företag.)
+   (Välj "personligt konto" om du inte har ett företag.) ID-kollen tar några
+   dagar; **"Skapa app" är utgråad tills den är klar**. Räkna också med att
+   nya personliga konton kan behöva köra ett stängt test med ett antal
+   testare under ett par veckor innan produktion öppnas — kontrollera vad
+   konsolen säger när verifieringen gått igenom, kraven ändras då och då.
 2. **Bygg app-paketet med PWABuilder** (gratis, i webbläsaren):
-   - Gå till https://www.pwabuilder.com → klistra in `https://jonasgeografi.se`
+   - Gå till https://www.pwabuilder.com → klistra in
+     `https://www.jonasgeografi.se` (med www — se rutan ovan)
    - Klicka **Package for stores → Android**
    - Package ID: `se.jonasgeografi.app` (samma som i `twa-manifest.json` här)
    - App name: `Jonas geografi`, Launcher name: `Geografi`

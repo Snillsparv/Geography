@@ -1,6 +1,6 @@
 {
   "packageId": "se.jonasgeografi.app",
-  "host": "jonasgeografi.se",
+  "host": "www.jonasgeografi.se",
   "name": "Jonas geografi",
   "launcherName": "Geografi",
   "display": "standalone",
@@ -8,14 +8,14 @@
   "navigationColor": "#02060d",
   "backgroundColor": "#02060d",
   "startUrl": "/glob.html",
-  "iconUrl": "https://jonasgeografi.se/assets/design/ikon-512.png",
-  "maskableIconUrl": "https://jonasgeografi.se/assets/design/ikon-512.png",
+  "iconUrl": "https://www.jonasgeografi.se/assets/design/ikon-512.png",
+  "maskableIconUrl": "https://www.jonasgeografi.se/assets/design/ikon-512.png",
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
   "shortcuts": [],
-  "webManifestUrl": "https://jonasgeografi.se/manifest.webmanifest",
+  "webManifestUrl": "https://www.jonasgeografi.se/manifest.webmanifest",
   "fallbackType": "customtabs",
   "enableNotifications": false,
   "orientation": "default",
-  "fullScopeUrl": "https://jonasgeografi.se/"
+  "fullScopeUrl": "https://www.jonasgeografi.se/"
 }
