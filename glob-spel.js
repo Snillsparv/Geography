@@ -71,7 +71,12 @@ let currentMode = 'explore';
 let isWorldTest = false;
 let aktivUtmaning = null;      // { id, data, namn } — pågående kompisutmaning
 let map = null;
-const revealed = new Set();       // gid
+const revealed = new Set();       // gid — ligger avtäckta just nu
+// utforskade räknar allt man HAR tittat på under passet. Räknaren i
+// utforskarläget svarar på "har jag gått igenom alla?", inte "hur många
+// ligger framme?" — så den får aldrig gå bakåt när man klickar bort ett
+// land igen. Nollas när man går in i utforskarläget, inte när kartan töms.
+const utforskade = new Set();     // gid
 let activeCountry = null;
 let exploreTooltipTimer = null;
 
@@ -121,6 +126,7 @@ function landState(gid) { return tillstand.get(gid) || {}; }
 
 function revealCountry(gid) {
   revealed.add(gid);
+  utforskade.add(gid);
   setLand(gid, { tackt: false, hover: false, fel: false, tips: false });
 }
 function coverCountry(gid) {
@@ -160,7 +166,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '56';
+const V = '57';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1993,7 +1999,7 @@ function exploreClick(c, e) {
     cursorLabel.style.display = 'block';
     exploreTooltipTimer = setTimeout(hideExploreTooltip, c.assoc ? 4000 : 1400);
   }
-  exploredCountEl.textContent = revealed.size;
+  exploredCountEl.textContent = utforskade.size;
 }
 function hideExploreTooltip() {
   clearTimeout(exploreTooltipTimer);
@@ -2546,6 +2552,7 @@ function switchMode(mode, force) {
     seterraTarget = null;
     headerHint.textContent = 'Klicka på ett land';
     resetOverlays();
+    utforskade.clear();   // nytt pass genom världsdelen
     activeCountry = null;
     infoCard.classList.remove('active');
     infoDefault.style.display = '';
@@ -2586,12 +2593,14 @@ document.getElementById('blink-kvar-btn').addEventListener('click', () => {
 
 document.getElementById('show-all-btn').addEventListener('click', () => {
   COUNTRIES.forEach(c => revealCountry(c.gid));
-  exploredCountEl.textContent = revealed.size;
+  exploredCountEl.textContent = utforskade.size;
   if (COUNTRIES.length) showInfoCard(COUNTRIES[0]);
 });
 document.getElementById('hide-all-btn').addEventListener('click', () => {
+  // bara en bulkversion av att klicka bort länderna ett och ett — därför
+  // står räknaren kvar, precis som den gör vid enstaka klick
   resetOverlays();
-  exploredCountEl.textContent = '0';
+  exploredCountEl.textContent = utforskade.size;
   activeCountry = null;
   infoCard.classList.remove('active');
   infoDefault.style.display = '';
@@ -3721,6 +3730,7 @@ if (/^(127\.|localhost)/.test(location.hostname) ||
     get map() { return map; },
     get countries() { return COUNTRIES; },
     get revealed() { return revealed; },
+    get utforskade() { return utforskade; },
     get target() { return seterraTarget; },
     get mode() { return currentMode; },
     get vy() { return aktivVy; },
