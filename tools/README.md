@@ -40,16 +40,56 @@ tiles change:
 
 ```bash
 node make-tiles.mjs --outline 0 --borders assets/art-borders.json \
-                    --regions assets/art-regions.json
+                    --regions assets/art-regions.json \
+                    --markers assets/art-markers.json
 python3 postprocess-art-data.py   # OBS: alltid efteråt!
 ```
+
+⚠️ Alla TRE filerna måste genereras i samma körning. Ländernas `gid` är
+löpnummer över regionerna, så bara att ta bort ett land ur en
+region-config förskjuter numren för alla länder efter det. Regenererar
+man art-regions utan art-markers pekar klickprickarna på fel länder
+(det hände på riktigt när Papua Nya Guinea togs bort ur Asien: 88 länder
+fick fel prick).
+
+`--borders`/`--regions` kör BARA ownership-passet på z6 och skriver inga
+rutor — själva tilebakningen är en separat körning. Rutorna tar ~20–40 min
+och den native-rastraren kan segfaulta när cachen fylls, så bakningen körs
+med `--save DIR` (återupptagbar: redan skrivna rutor hoppas över) och
+upprepas tills den går igenom, innan arkivet packas:
+
+```bash
+until node --max-old-space-size=12288 make-tiles.mjs --maxzoom 7 \
+        --outline 0 --save tiles-build; do echo "kraschade — kör igen"; done
+node make-tiles.mjs --maxzoom 7 --outline 0 --save tiles-build --assemble
+```
+
+Sökvägen till `--save` tolkas från REPOROTEN (inte från tools/).
+Efter en ny bakning måste cachenycklarna bytas, annars serveras de gamla
+rutorna för evigt: `TILE_URL`-versionen i glob-spel.js **och**
+`TILE_CACHE`-namnet i sw.js.
 
 `postprocess-art-data.py` måste köras efter varje omgenerering av
 art-datafilerna: den bryter ut Malaysias havsritade ansikte till
 dekor-features (annars syns ögonen/spröten som pappersformer när landet
 är täckt) och sätter `smal`-egenskapen (tjockleken) i art-markers.json
 som ger avlånga länder som Kuba sin klickprick. Idempotent — säkert att
-köra flera gånger.
+köra flera gånger (en redan gjord dekordelning slås ihop och räknas om).
+
+`dekor-fran-farg.py` gör samma sak för de bilder där geometrin inte
+räcker. Ecuador är en trädgårdsslang som sprutar vatten snett ut i Stilla
+havet: strålen korsar landets egen ritade kust, och den handritade kartan
+ligger ~1° öster om den verkliga geografin, så "utanför kustlinjen"
+träffar helt fel. Skriptet läser i stället FÄRGERNA i de bakade rutorna
+(`tiles-build/`) inuti landets artpolygon — blått och vitt är vatten,
+grönt och rött är slang — och skriver dekorytan till
+`tools/data/dekor-masker.json`, som postprocess-skriptet klipper med.
+Körs bara om när kartan bakats om (masken är i geokoordinater):
+
+```bash
+python3 tools/dekor-fran-farg.py     # kräver tiles-build/ från bakningen
+python3 tools/postprocess-art-data.py
+```
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).

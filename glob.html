@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.webmanifest?v=51">
+  <link rel="manifest" href="manifest.webmanifest?v=54">
 <meta name="theme-color" content="#02060d">
 <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=51">
+  <link rel="stylesheet" href="style.css?v=54">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -161,6 +161,18 @@
       border-radius: 50%; border: 2px solid #2e9eff88; background: #0a1526; color: #7ec8e3;
       font-size: 1.15rem; font-weight: 800; cursor: pointer; z-index: 60; }
     body.startlage #spel-hjalp { display: none; }
+    /* delvalsknappen i headern + knapparna i delvalsrutan */
+    #spel-delar { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #7ec8e3;
+      background: #14243a; font-size: .8rem; cursor: pointer; margin-left: 6px;
+      vertical-align: middle; line-height: 1; }
+    .del-knappar { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+    .del-knappar button { padding: 12px 16px; border-radius: 12px; border: none; cursor: pointer;
+      background: #1d3550; color: #cfe3f4; font-weight: 800; font-size: 1rem;
+      box-shadow: 0 3px 0 #0006; }
+    .del-knappar button:hover { background: #29496e; }
+    .del-knappar button.hel { background: #ffdc32; color: #08131f; }
+    .del-knappar button i { display: block; font-style: normal; font-weight: 600;
+      font-size: .8rem; opacity: .75; margin-top: 2px; }
     /* play-knapp i spelvyns header: världsdelens genomgångsvideo */
     #spel-video { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff;
       background: #e0453a; color: #fff; font-size: .68rem; cursor: pointer;
@@ -420,6 +432,42 @@
       background: #1d3550; color: #cfe3f4; font-size: 1rem; font-weight: 800;
       cursor: pointer; }
     .modal-kryss:hover { background: #29496e; }
+    /* ── Passet: omslag i mörkrött skinn + uppslag med stämplar ── */
+    #pass-oppna { display: none; width: 100%; margin-bottom: 12px; padding: 11px 16px;
+      border-radius: 12px; border: 1px solid rgba(232,200,122,.45);
+      background: linear-gradient(150deg, #6d1f26, #47141a); color: #e8c87a;
+      font-weight: 800; font-size: .95rem; letter-spacing: .05em; cursor: pointer; }
+    @media (max-width: 900px) {
+      #pass-oppna { display: block; }
+      .pass-bok { display: none; }
+      .pass-bok.oppen { display: block; }
+    }
+    .pass-bok { border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+      box-shadow: 0 10px 30px #000a, 0 0 0 1px #0006 inset; }
+    .pass-omslag { background: linear-gradient(150deg, #6d1f26, #47141a 55%, #5c1a21);
+      color: #e8c87a; text-align: center; padding: 14px 12px 12px;
+      border-bottom: 3px solid #2c0c10; }
+    .pass-omslag .pass-emblem { font-size: 1.8rem; line-height: 1;
+      filter: sepia(1) saturate(.5) brightness(1.25); }
+    .pass-titel { font-size: 1.25rem; font-weight: 800; letter-spacing: .38em;
+      margin: 4px 0 1px; text-indent: .38em; }
+    .pass-undertitel { font-size: .62rem; letter-spacing: .22em; opacity: .8;
+      text-indent: .22em; }
+    .pass-agare { font-size: .7rem; letter-spacing: .05em; margin-top: 6px;
+      color: #f0dca8; opacity: .9; }
+    .pass-uppslag { background: repeating-linear-gradient(115deg,
+        #f4ecdc 0 22px, #efe5d0 22px 44px); padding: 10px 12px 14px;
+      position: relative; }
+    .pass-uppslag::after { content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0, #0000 55%, #0000001f);
+      pointer-events: none; }
+    .pass-sidhuvud { font-size: .58rem; letter-spacing: .2em; color: #8a7a5c;
+      text-align: center; margin-bottom: 6px; }
+    .pass-stamplar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+      min-height: 110px; align-items: center; justify-items: center; }
+    .pass-stamplar svg { width: 100%; max-width: 124px; height: auto; }
+    .pass-tom { grid-column: 1 / -1; color: #9c8d70; font-size: .78rem;
+      text-align: center; padding: 22px 8px; font-style: italic; }
     .resa-pass h2 { color: #ffdc32; margin-bottom: 8px; }
     .resa-info { color: #9fc3e0; font-size: .88rem; margin-bottom: 14px; line-height: 1.45; }
     .resa-rad { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
@@ -435,6 +483,9 @@
        aktuella stoppets gula "Res hit!" fortfarande dominerar */
     .resa-res.igen { background: #1d3550; color: #cfe3f4; }
     #resa-klart { color: #ffdc32; margin: 10px 0; }
+    #resa-seger { display: block; width: 100%; margin: 8px 0 2px; padding: 12px 18px;
+      border-radius: 12px; border: none; background: #ffdc32; color: #08131f;
+      font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 #0006; }
     #resa-stang { margin-top: 10px; padding: 9px 18px; border-radius: 10px; border: none;
       background: #e8eef4; color: #56718c; font-weight: 800; cursor: pointer; }
     .resa-stampel { color: #ffdc32; font-weight: 700; }
@@ -479,6 +530,7 @@
   <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
   <h1>Jonas geografi</h1>
   <button id="spel-video" style="display:none" title="Se videon om v&auml;rldsdelens l&auml;nder">&#9654;</button>
+  <button id="spel-delar" style="display:none" title="V&auml;lj del av v&auml;rldsdelen">&#129513;</button>
   <div class="mode-toggle">
     <button class="mode-btn active" data-mode="explore">Utforska</button>
     <button class="mode-btn" data-mode="bildquiz" title="Quiz med bilderna synliga &mdash; tr&auml;na p&aring; att koppla bild till land">Bildquiz</button>
@@ -665,6 +717,23 @@
 <!-- Världsresan: kampanjpasset -->
 <div id="resa-modal" style="display:none">
   <div class="resa-pass">
+    <button class="modal-kryss" id="resa-kryss" title="St&auml;ng">&#10005;</button>
+    <!-- Passet: omslag + uppslag med st&auml;mplar f&ouml;r klarade v&auml;rldsdelar.
+         P&aring; mobilen ligger det hopf&auml;llt bakom passikonen &mdash; annars
+         tar det halva sk&auml;rmen innan man ens ser resan. -->
+    <button id="pass-oppna" type="button">&#128726; Visa passet</button>
+    <div class="pass-bok" id="pass-bok">
+      <div class="pass-omslag">
+        <div class="pass-emblem">&#127757;</div>
+        <div class="pass-titel">PASS</div>
+        <div class="pass-undertitel">JONAS GEOGRAFI</div>
+        <div class="pass-agare" id="pass-agare"></div>
+      </div>
+      <div class="pass-uppslag">
+        <div class="pass-sidhuvud">ST&Auml;MPLAR &middot; VISAS VID GR&Auml;NSEN</div>
+        <div class="pass-stamplar" id="pass-stamplar"></div>
+      </div>
+    </div>
     <h2>&#129523; Jorden runt</h2>
     <p class="resa-info">Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> p&aring; aktuellt stopp
       f&ouml;r att f&aring; st&auml;mpeln och l&aring;sa upp n&auml;sta. Klarade stopp kan du
@@ -673,6 +742,7 @@
     <div id="resa-lista"></div>
     <p id="resa-klart" style="display:none">&#127942; <b>Hela Jorden runt-resan &auml;r klar &mdash; du
       &auml;r en riktig v&auml;rldsm&auml;stare!</b></p>
+    <button id="resa-seger" style="display:none">&#127916; Se segerfilmen!</button>
     <button id="resa-stang">St&auml;ng</button>
   </div>
 </div>
@@ -683,7 +753,7 @@
     <div class="diplom-ram">
       <h1>DIPLOM</h1>
       <p class="diplom-till">tilldelas</p>
-      <p class="diplom-namn" contenteditable="true" spellcheck="false">Skriv ditt namn h&auml;r</p>
+      <p class="diplom-namn" id="diplom-namn" contenteditable="true" spellcheck="false">Skriv ditt namn h&auml;r</p>
       <p class="diplom-text">f&ouml;r att ha klarat <strong id="diplom-region"></strong></p>
       <p class="diplom-detalj" id="diplom-detalj"></p>
       <div class="diplom-fot">
@@ -848,7 +918,20 @@
   </div>
 </div>
 
-<div class="world-setup-overlay" id="world-setup-overlay">
+<!-- V&auml;lj del av v&auml;rldsdelen: de stora g&aring;r att l&auml;ra sig i bitar -->
+<div class="world-setup-overlay" id="del-overlay">
+  <div class="world-setup-modal">
+    <h2 id="del-rubrik"></h2>
+    <div class="world-setup-desc">
+      <p><strong>Ta det i bitar &mdash; eller allt p&aring; en g&aring;ng!</strong></p>
+      <p>M&aring;nga tycker det &auml;r l&auml;ttare att l&auml;ra sig en del i taget
+        f&ouml;rst, och sedan k&ouml;ra hela v&auml;rldsdelen.</p>
+    </div>
+    <div class="del-knappar" id="del-knappar"></div>
+  </div>
+</div>
+
+<div class="world-setup-overlay" id="world-setup-overlay"
   <div class="world-setup-modal">
     <h2>HELA V&Auml;RLDEN</h2>
     <div class="world-setup-desc">
@@ -912,7 +995,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=51"></script>
+<script src="glob-spel.js?v=54"></script>
 
 </body>
 </html>

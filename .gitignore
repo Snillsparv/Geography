@@ -75,3 +75,6 @@ tilecache/
 
 # make-tiles.mjs scratch output (debug windows, resumable tile dirs)
 /tmp-*/
+
+# mellanlager när tiles bakas om (packas till tiles/world.pmtiles)
+tiles-build/

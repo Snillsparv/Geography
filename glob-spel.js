@@ -160,7 +160,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '51';
+const V = '54';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -175,9 +175,10 @@ async function fetchJson(path) {
   if (!r.ok) throw new Error(path + ' → HTTP ' + r.status);
   return r.json();
 }
-// tile-arkivet är oförändrat sedan v2 — behåller sin version så mobiler
-// slipper ladda om 45 MB i onödan
-const TILE_URL = dataUrl('tiles/world.pmtiles?v=2');
+// v3: arkivet bakades om (Kaspiska havets gula flisor bort, Iran fick
+// pupiller). Både URL:en OCH service workerns cachenamn måste bytas —
+// annars serverar den gamla rutor för evigt.
+const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
 let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
@@ -296,6 +297,7 @@ async function loadMarkers() {
       .filter(f => f.geometry.type === 'Point')
       .map(f => ({ gid: f.id, lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1],
                    omfang: f.properties.omfang, smal: f.properties.smal,
+                   badge: f.properties.badge ? 1 : 0, tackradie: f.properties.tackradie,
                    spridd: f.properties.spridd ? 1 : 0, _vis: null }));
   } catch (e) { console.warn('kunde inte läsa art-markers.json', e); }
 }
@@ -315,17 +317,30 @@ const PRICK_SYNS_PX = 18;
 // tjocka och går inte att träffa ändå — smal (tjockleken ur artgeometrin,
 // yta/längsta axel) ger dem prick tills de är tjocka nog att tryckas på,
 // så länge de inte redan dominerar vyn på längden
-const PRICK_SMAL_PX = 8;
+// 5,2 px: precis så tunt att fingret/pekaren inte kan träffa landmassan
+// (Gambia 1, Syrien 2, Kuba 3, Israel 5) — Slovenien, Filippinerna,
+// Malawi och Turkmenistan ligger strax över och klarar sig utan cirkel
+const PRICK_SMAL_PX = 5.2;
 const PRICK_SMAL_MAX = 120;
 // pricken får aldrig krympa till en ohittbar fläck — det var precis så
-// Jamaica "tappade sin pil" på översiktszoomarna
+// Jamaica "tappade sin pil" på översiktszoomarna — och aldrig växa till
+// en jättefläck som slukar kartan när man zoomar in maximalt
 const PRICK_MIN_RADIE = 5;
-function prickRadiePx(zoomPx) {
+const PRICK_MAX_RADIE = 22;
+// Vatikanstaten och San Marino är ritade som stora emblem MITT I Italien:
+// de kan inte döljas med havsfärg, så deras cirkel görs i stället precis
+// så stor att den sväljer hela konstblobben (tackradie, i grader). Då är
+// det en CIRKEL man ser medan landet är dolt — inte konstverkets silhuett.
+function prickRadiePx(zoomPx, m) {
   // zoomPx = kartpixlar per grad vid aktuell zoom/skala
-  return Math.max(PRICK_MIN_RADIE, CIRKEL_GRAD * zoomPx);
+  if (m && m.tackradie) return Math.max(PRICK_MIN_RADIE, m.tackradie * zoomPx);
+  return Math.min(PRICK_MAX_RADIE, Math.max(PRICK_MIN_RADIE, CIRKEL_GRAD * zoomPx));
 }
 function prickSyns(m, zoomPx) {
-  if (m.spridd) return true;
+  // emblemländer (konsten har inte landets form) och utspridda ö-nationer
+  // behåller ALLTID sin cirkel — den är det enda som visar var landet
+  // egentligen ligger, hur långt in man än zoomar
+  if (m.spridd || m.badge) return true;
   if (m.omfang * zoomPx < PRICK_SYNS_PX) return true;
   return (m.smal || m.omfang) * zoomPx < PRICK_SMAL_PX &&
          m.omfang * zoomPx < PRICK_SMAL_MAX;
@@ -338,7 +353,8 @@ function prickStops(vardeFn) {
   for (let z = 0; z <= 10; z++) {
     const pxDeg = 512 * Math.pow(2, z) / 360;
     stops.push(z, ['case', ['boolean', ['feature-state', 'tackt'], false],
-      ['case', ['==', ['get', 'spridd'], 1], vardeFn(true, pxDeg),
+      ['case', ['any', ['==', ['get', 'spridd'], 1], ['==', ['get', 'badge'], 1]],
+        vardeFn(true, pxDeg),
         ['case', ['any',
           ['<', ['get', 'omfang'], PRICK_SYNS_PX / pxDeg],
           ['all',
@@ -633,7 +649,10 @@ function initMap() {
           filter: ['==', ['geometry-type'], 'Point'],
           paint: {
             'circle-radius': ['interpolate', ['exponential', 2], ['zoom'],
-              ...prickStops((spridd, pxDeg) => prickRadiePx(pxDeg))],
+              ...prickStops((spridd, pxDeg) => ['min',
+                ['case', ['has', 'tackradie'], 1e6, PRICK_MAX_RADIE],
+                ['max', PRICK_MIN_RADIE,
+                  ['*', ['coalesce', ['get', 'tackradie'], CIRKEL_GRAD], pxDeg]]])],
             'circle-color': ['case',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['any', ['boolean', ['feature-state', 'tips'], false],
@@ -1143,7 +1162,7 @@ function composeFlat() {
   for (const m of markerPts) {
     const t = landState(m.gid);
     if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
-    const rr = prickRadiePx(pxPerDeg);
+    const rr = prickRadiePx(pxPerDeg, m);
     const [mx, my] = projPt(m.lng, m.lat);
     if (mx < -rr - 20 || mx > flat.W + rr + 20 || my < -rr - 20 || my > flat.H + rr + 20) continue;
     flatCtx.beginPath();
@@ -1173,7 +1192,7 @@ function flatHit(ev) {
     if (!t.tackt || !prickSyns(m, pxPerDeg)) continue;
     const [mx, my] = projPt(m.lng, m.lat);
     const d = Math.hypot(mx - px, my - py);
-    if (d <= prickRadiePx(pxPerDeg) + TRYCKMARGINAL + 4 && d < prickAvst) {
+    if (d <= prickRadiePx(pxPerDeg, m) + TRYCKMARGINAL + 4 && d < prickAvst) {
       prickGid = m.gid; prickAvst = d;
     }
   }
@@ -1767,25 +1786,43 @@ window.addEventListener('resize', () => {
 // ══════════════════════════════════
 // Spelstart för region / världstest
 // ══════════════════════════════════
-async function startRegion(slug, flyg) {
+// De stora världsdelarna går att träna i bitar (config.json: delar).
+// aktivDel är delens id, eller null för hela världsdelen.
+let aktivDel = null;
+function delarFor(raw) { return (raw && raw.delar) || []; }
+function delMed(raw, id) { return delarFor(raw).find(d => d.id === id) || null; }
+
+async function startRegion(slug, flyg, delId) {
   const raw = await loadRegionConfig(slug);
+  const del = delMed(raw, delId);
+  aktivDel = del ? del.id : null;
   COUNTRIES = buildCountries(slug, raw);
+  if (del) {
+    const vill = new Set(del.lander);
+    COUNTRIES = COUNTRIES.filter(c => vill.has(c.name));
+  }
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
-  HS_BAS = 'glob-' + (raw.hsKey || slug + '-highscores');
+  // varje del har EGEN rekordlista — annars tävlar 13 länder mot 49
+  HS_BAS = 'glob-' + (raw.hsKey || slug + '-highscores') + (del ? '-' + del.id : '');
   uppdateraHsKey();
   ASSET_BASE = 'assets/' + slug;
   isWorldTest = false;
   aktivSlug = slug;
-  aktivRegionNamn = raw.name;
+  aktivRegionNamn = del ? del.namn : raw.name;
   origSlug = slug;                 // originalvyn = regionens handritade karta
   origRaw = raw;
   document.getElementById('view-orig').style.display = '';
 
-  document.title = `${raw.name} – Jonas geografi`;
-  document.querySelector('header h1').textContent = raw.name + ' 🌍';
+  document.title = `${aktivRegionNamn} – Jonas geografi`;
+  document.querySelector('header h1').textContent = aktivRegionNamn + ' 🌍';
   visaSpelVideo(slug);   // världsdelens film nås via play-knappen i headern
+  // tränar man en del hoppar filmen till just den delens avsnitt
+  const vk = document.getElementById('spel-video');
+  vk.dataset.videostart = del && del.videoStart ? del.videoStart : '';
+  vk.dataset.videodel = del && del.videoDel != null ? del.videoDel : '';
+  document.getElementById('spel-delar').style.display = delarFor(raw).length ? '' : 'none';
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
   // hann någon välja quiz medan regionen laddade? starta det nu på riktigt
@@ -1798,9 +1835,29 @@ async function startRegion(slug, flyg) {
   }
   spelPadding();
   const kam = KAMERA[slug] || KAMERA.world;
-  if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
+  // en del av världsdelen får en egen kamera: ramen läggs runt just de
+  // länder som ingår, annars hamnar halva delen utanför bilden
+  const ram = del ? delRam() : null;
+  if (ram) map.fitBounds(ram, { padding: 60, duration: flyg ? 2400 : 0, essential: true });
+  else if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
   else map.jumpTo({ center: kam.center, zoom: kam.zoom });
   preloadCountryImages();
+}
+
+// omslutande ram kring den aktiva delens länder (markörpunkterna räcker —
+// de ligger mitt i respektive land)
+function delRam() {
+  let x0 = 180, y0 = 90, x1 = -180, y1 = -90, n = 0;
+  for (const c of COUNTRIES) {
+    const m = markerPts.find(p => p.gid === c.gid);
+    if (!m) continue;
+    n++;
+    x0 = Math.min(x0, m.lng); x1 = Math.max(x1, m.lng);
+    y0 = Math.min(y0, m.lat); y1 = Math.max(y1, m.lat);
+  }
+  if (n < 2) return null;
+  const mx = Math.max((x1 - x0) * 0.12, 1.5), my = Math.max((y1 - y0) * 0.12, 1.5);
+  return [[x0 - mx, y0 - my], [x1 + mx, y1 + my]];
 }
 
 // kartan täcker numera hela fönstret även i spelläge — paddningen ser till
@@ -2126,8 +2183,9 @@ function endSeterra() {
   if (vidareBtn) vidareBtn.style.display = bildlage ? '' : 'none';
   spela('fanfar');
   // personbästa (medalj) och världsresans stämpel — bara riktiga, hela
-  // klassiska omgångar räknas
-  if (!bildlage && !seterraIsRetry && aktivSlug) {
+  // klassiska omgångar räknas (en DEL av en världsdel ger varken medalj
+  // eller passtämpel: de gäller hela världsdelen)
+  if (!bildlage && !seterraIsRetry && aktivSlug && !aktivDel) {
     const gammal = +localStorage.getItem('medalj-' + aktivSlug) || 0;
     if (score > gammal) localStorage.setItem('medalj-' + aktivSlug, score);
     if (score >= 80) {
@@ -2140,6 +2198,8 @@ function endSeterra() {
         document.getElementById('seterra-final-detail').innerHTML +=
           `<br><span class="resa-stampel">🧳 Stämpel i passet!` +
           (nasta ? ` Nästa stopp: <b>${RESA_NAMN[nasta]}</b>` : ' HELA JORDEN RUNT-RESAN ÄR KLAR! 🏆') + '</span>';
+        // hela jorden runt: segerfilmen rullar direkt när den finns
+        if (!nasta && SEGER_VIDEO) setTimeout(() => oppnaVideo(SEGER_VIDEO.split(',')), 1800);
       } else if (resa.klara[aktivSlug] != null && score > resa.klara[aktivSlug]) {
         // återbesök på ett redan klarat stopp: bättre resultat uppdaterar
         // stämpeln (steg härleds ur stämplarna, så resan flyttas inte)
@@ -2353,6 +2413,8 @@ document.getElementById('hs-save').addEventListener('click', async () => {
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
+  localStorage.setItem(UTM_NAMN_KEY, name);
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   knapp.disabled = false;
   document.getElementById('hs-form').style.display = 'none';
@@ -2367,6 +2429,11 @@ document.getElementById('hs-name').addEventListener('keydown', e => {
 // Diplom: 100 % i klassiska quizet → utskrivbart diplom
 // ══════════════════════
 document.getElementById('seterra-diplom')?.addEventListener('click', () => {
+  // namnet man redan skrivit på topplistan fylls i automatiskt (går att
+  // ändra i rutan — den är fortfarande contenteditable)
+  const namnEl = document.getElementById('diplom-namn');
+  const sparat = localStorage.getItem(UTM_NAMN_KEY);
+  if (namnEl && sparat) namnEl.textContent = sparat;
   document.getElementById('diplom-region').textContent = aktivRegionNamn || 'världen';
   document.getElementById('diplom-detalj').textContent =
     `alla ${seterraTotal} länder · 100 % rätt · tid ${seterraTimeEl.textContent}`;
@@ -2391,6 +2458,8 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
+  localStorage.setItem(UTM_NAMN_KEY, name);
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   knapp.disabled = false;
   closeNameModal();
@@ -2855,16 +2924,52 @@ function lamnaStart() {
 }
 
 // startknapparna: ingen sidladdning — kameran flyger till världsdelen
-async function gaTillRegion(slug) {
+async function gaTillRegion(slug, del) {
   startaForladdning();   // nu behövs sömlösa kartrutor på riktigt
-  history.pushState({}, '', '?region=' + slug);
+  history.pushState({}, '', '?region=' + slug + (del ? '&del=' + del : ''));
   lamnaStart();
   if (slug === 'world') worldFlow();
   else {
-    await startRegion(slug, true);
-    spelTourVidBehov();   // första besöket i spelvyn: förklara lägena
+    await startRegion(slug, true, del);
+    const raw = await loadRegionConfig(slug);
+    // stora världsdelar: erbjud uppdelningen direkt vid ankomst
+    if (!del && delarFor(raw).length) visaDelVal(slug, raw);
+    else spelTourVidBehov();   // första besöket i spelvyn: förklara lägena
   }
 }
+
+// ── Delvalsrutan: träna en bit i taget av de stora världsdelarna ──
+const delOverlay = document.getElementById('del-overlay');
+function visaDelVal(slug, raw) {
+  const delar = delarFor(raw);
+  if (!delar.length) return;
+  document.getElementById('del-rubrik').textContent = raw.name.toUpperCase();
+  const lista = document.getElementById('del-knappar');
+  lista.innerHTML = '';
+  const gor = (namn, antal, id, hel) => {
+    const k = document.createElement('button');
+    if (hel) k.className = 'hel';
+    k.innerHTML = `${escHtml(namn)}<i>${antal} länder</i>`;
+    k.addEventListener('click', async () => {
+      delOverlay.classList.remove('active');
+      history.replaceState({}, '', '?region=' + slug + (id ? '&del=' + id : ''));
+      await startRegion(slug, false, id);
+      switchMode(currentMode, true);   // börja om i aktuellt läge med nya länderna
+      spelTourVidBehov();
+    });
+    lista.appendChild(k);
+  };
+  for (const d of delar) gor(d.namn, d.lander.length, d.id, false);
+  gor('Hela ' + raw.name, raw.countries.length, null, true);
+  delOverlay.classList.add('active');
+}
+document.getElementById('spel-delar').addEventListener('click', async () => {
+  if (!aktivSlug || aktivSlug === 'world') return;
+  visaDelVal(aktivSlug, await loadRegionConfig(aktivSlug));
+});
+delOverlay.addEventListener('click', e => {
+  if (e.target === delOverlay) delOverlay.classList.remove('active');
+});
 document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
   a.addEventListener('click', e => {
     if (e.target.closest('.knapp-video')) return;   // ▶ sköter sig själv
@@ -2933,6 +3038,10 @@ function visaMedaljer() {
 // Fritt spel påverkas inte.
 // ══════════════════════
 const RESA_ORDNING = ['sydamerika', 'nordamerika', 'europa', 'afrika', 'asien', 'oceanien', 'vastindien', 'world'];
+// Segerfilmen som spelas när HELA resan är klar. Fyll i YouTube-id:t när
+// filmen är inspelad (flera delar separeras med komma) — tills dess visas
+// bara pokaltexten, ingen knapp.
+const SEGER_VIDEO = '';
 const RESA_NAMN = { europa: 'Europa', sydamerika: 'Sydamerika', nordamerika: 'Nordamerika',
   afrika: 'Afrika', asien: 'Asien', oceanien: 'Oceanien', vastindien: 'Västindien',
   world: 'Hela världen 🌍' };
@@ -2946,8 +3055,69 @@ function resaState() {
   if (resa.steg < 0) resa.steg = RESA_ORDNING.length;
   return resa;
 }
+// ── Passet: en riktig gummistämpel per klarad världsdel ──
+// Varje stopp har egen bläckfärg och eget motiv; stämpeln ritas som SVG
+// (skarp i alla storlekar) med sliten kant via en brusförskjutning.
+const STAMPEL = {
+  sydamerika:  { ink: '#2f7d4f', motiv: '🦙', ort: 'AMAZONAS' },
+  nordamerika: { ink: '#2a5fa8', motiv: '🗽', ort: 'GREAT LAKES' },
+  europa:      { ink: '#7a3f9d', motiv: '🏰', ort: 'ALPERNA' },
+  afrika:      { ink: '#c9701c', motiv: '🦁', ort: 'SAHARA' },
+  asien:       { ink: '#b0343c', motiv: '🐼', ort: 'HIMALAYA' },
+  oceanien:    { ink: '#12796f', motiv: '🦘', ort: 'KORALLHAVET' },
+  vastindien:  { ink: '#b3357f', motiv: '🌴', ort: 'KARIBIEN' },
+  world:       { ink: '#a8811d', motiv: '🌍', ort: 'HELA JORDEN' },
+};
+function passStampelSvg(slug, procent, i) {
+  const s = STAMPEL[slug] || STAMPEL.world;
+  const namn = (RESA_NAMN[slug] || slug).replace(' 🌍', '').toUpperCase();
+  const lut = (i % 5) * 7 - 14;                 // varje stämpel lite på sned
+  const id = 'st-' + slug;
+  return `<svg viewBox="0 0 200 200" role="img" aria-label="Stämpel ${escHtml(namn)}"
+      style="transform:rotate(${lut}deg)">
+    <defs>
+      <path id="${id}-topp" d="M100,100 m-72,0 a72,72 0 1,1 144,0" fill="none"/>
+      <path id="${id}-bott" d="M100,100 m-64,0 a64,64 0 0,0 128,0" fill="none"/>
+      <filter id="${id}-slit" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="3" seed="${7 + i}"/>
+        <feDisplacementMap in="SourceGraphic" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+    <g filter="url(#${id}-slit)" fill="none" stroke="${s.ink}" opacity="0.88">
+      <circle cx="100" cy="100" r="92" stroke-width="5"/>
+      <circle cx="100" cy="100" r="80" stroke-width="2"/>
+      <g fill="${s.ink}" stroke="none" font-family="Verdana,sans-serif" font-weight="700">
+        <text font-size="17" letter-spacing="1.5">
+          <textPath href="#${id}-topp" startOffset="50%" text-anchor="middle">${escHtml(namn)}</textPath>
+        </text>
+        <text font-size="11" letter-spacing="1.2" opacity=".85">
+          <textPath href="#${id}-bott" startOffset="50%" text-anchor="middle">${escHtml(s.ort)}</textPath>
+        </text>
+        <text x="100" y="150" font-size="15" text-anchor="middle">${procent} %</text>
+      </g>
+      <line x1="34" y1="128" x2="166" y2="128" stroke-width="2" opacity=".8"/>
+    </g>
+    <text x="100" y="112" font-size="52" text-anchor="middle">${s.motiv}</text>
+  </svg>`;
+}
+function visaPassStamplar(resa) {
+  const ruta = document.getElementById('pass-stamplar');
+  if (!ruta) return;
+  const klara = RESA_ORDNING.filter(slug => resa.klara[slug] != null);
+  ruta.innerHTML = klara.length
+    ? klara.map((slug, i) => passStampelSvg(slug, resa.klara[slug], i)).join('')
+    : '<div class="pass-tom">Ännu inga stämplar — klara ett stopp så får du din första!</div>';
+  const agare = document.getElementById('pass-agare');
+  if (agare) {
+    const namn = localStorage.getItem(UTM_NAMN_KEY);
+    agare.textContent = (namn ? namn.toUpperCase() + ' · ' : '') +
+      `${klara.length} / ${RESA_ORDNING.length} STÄMPLAR`;
+  }
+}
+
 function visaResa() {
   const resa = resaState();
+  visaPassStamplar(resa);
   const lista = document.getElementById('resa-lista');
   lista.innerHTML = RESA_ORDNING.map((slug, i) => {
     const namn = RESA_NAMN[slug];
@@ -2958,10 +3128,24 @@ function visaResa() {
       return `<div class="resa-rad nu">▶ <b>${namn}</b><button class="resa-res" data-slug="${slug}">Res hit!</button></div>`;
     return `<div class="resa-rad last">🔒 <b>${namn}</b></div>`;
   }).join('');
-  document.getElementById('resa-klart').style.display =
-    resaState().steg >= RESA_ORDNING.length ? '' : 'none';
+  const klar = resaState().steg >= RESA_ORDNING.length;
+  document.getElementById('resa-klart').style.display = klar ? '' : 'none';
+  document.getElementById('resa-seger').style.display = klar && SEGER_VIDEO ? '' : 'none';
   document.getElementById('resa-modal').style.display = 'flex';
 }
+document.getElementById('resa-seger')?.addEventListener('click', () => {
+  if (SEGER_VIDEO) oppnaVideo(SEGER_VIDEO.split(','));
+});
+document.getElementById('resa-kryss')?.addEventListener('click', () => {
+  document.getElementById('resa-modal').style.display = 'none';
+});
+// mobilen: passet fälls ut bakom passikonen (på datorn syns det alltid)
+document.getElementById('pass-oppna')?.addEventListener('click', () => {
+  const bok = document.getElementById('pass-bok');
+  const oppet = bok.classList.toggle('oppen');
+  document.getElementById('pass-oppna').innerHTML =
+    oppet ? '🛂 Dölj passet' : '🛂 Visa passet';
+});
 document.getElementById('resa-knapp')?.addEventListener('click', e => { e.preventDefault(); visaResa(); });
 document.getElementById('resa-stang')?.addEventListener('click', () => {
   document.getElementById('resa-modal').style.display = 'none';
@@ -3282,15 +3466,42 @@ window.addEventListener('resize', () => {
 const videoModal = document.getElementById('video-modal');
 const videoIframe = document.getElementById('video-iframe');
 const videoDelar = document.getElementById('video-delar');
-function stangVideo() { videoModal.style.display = 'none'; videoIframe.src = ''; }
-function spelaVideo(delar, start) {
-  // cc_load_policy=3 stänger av de autogenererade undertexterna som standard
+let undertextTimers = [];
+function stangVideo() {
+  videoModal.style.display = 'none';
+  videoIframe.src = '';
+  undertextTimers.forEach(clearTimeout);
+  undertextTimers = [];
+}
+// Undertexterna tänds ändå när tittaren har "visa alltid" påslaget i sitt
+// YouTube-konto — cc_load_policy räcker inte. Spelar-API:t kan däremot
+// LASTA UR textningsmodulen; kommandot måste komma efter att spelaren
+// blivit klar, så det upprepas några gånger under de första sekunderna.
+function slaAvUndertexter() {
+  undertextTimers.forEach(clearTimeout);
+  undertextTimers = [400, 1200, 2500, 4000].map(t => setTimeout(() => {
+    const w = videoIframe.contentWindow;
+    if (!w) return;
+    for (const modul of ['captions', 'cc']) {
+      try {
+        w.postMessage(JSON.stringify(
+          { event: 'command', func: 'unloadModule', args: [modul] }), '*');
+      } catch (e) { /* spelaren inte redo än — nästa försök tar det */ }
+    }
+  }, t));
+}
+function spelaVideo(delar, start, startSek) {
   videoIframe.src = 'https://www.youtube.com/embed/' + delar[start]
-    + '?autoplay=1&rel=0&cc_load_policy=3';
+    + '?autoplay=1&rel=0&cc_load_policy=0&iv_load_policy=3&enablejsapi=1'
+    + (startSek ? '&start=' + Math.round(startSek) : '');
+  slaAvUndertexter();
   videoDelar.querySelectorAll('button').forEach((k, i) =>
     k.classList.toggle('aktiv', i === start));
 }
-function oppnaVideo(delar) {
+// startSek: tränar man en DEL av världsdelen hoppar filmen till den delens
+// avsnitt i stället för att börja om från början
+function oppnaVideo(delar, start, startSek) {
+  start = Math.min(Math.max(start || 0, 0), delar.length - 1);
   videoDelar.innerHTML = '';
   videoDelar.style.display = delar.length > 1 ? 'flex' : 'none';
   if (delar.length > 1) {
@@ -3301,7 +3512,7 @@ function oppnaVideo(delar) {
       videoDelar.appendChild(k);
     });
   }
-  spelaVideo(delar, 0);
+  spelaVideo(delar, start, startSek);
   videoModal.style.display = 'flex';
 }
 document.querySelectorAll('.knapp-video').forEach(b => b.addEventListener('click', e => {
@@ -3321,7 +3532,9 @@ function visaSpelVideo(slug) {
   spelVideoKnapp.dataset.video = video || '';
 }
 spelVideoKnapp.addEventListener('click', () => {
-  if (spelVideoKnapp.dataset.video) oppnaVideo(spelVideoKnapp.dataset.video.split(','));
+  if (!spelVideoKnapp.dataset.video) return;
+  oppnaVideo(spelVideoKnapp.dataset.video.split(','),
+    +spelVideoKnapp.dataset.videodel || 0, +spelVideoKnapp.dataset.videostart || 0);
 });
 document.getElementById('spel-hjalp').addEventListener('click', () => {
   startaTour(SPEL_TOUR, 'speltur-klar', null);
@@ -3446,9 +3659,12 @@ const utmanaBtn = document.getElementById('utmana-btn');
 const utmSkapaModal = document.getElementById('utmaning-skapa-modal');
 function visaUtmanaKnapp(score) {
   // bara riktiga, hela klassiska omgångar går att utmana på — och inte
-  // inne i någon annans utmaning (då delar man vidare i stället)
+  // inne i någon annans utmaning (då delar man vidare i stället).
+  // Delar av en världsdel går inte att utmana på: utmaningslänken bär
+  // bara regionens slug, så kompisen skulle få hela världsdelen.
   utmanaBtn.style.display =
-    (firebaseDB && !bildlage && !seterraIsRetry && !aktivUtmaning && seterraTotal) ? '' : 'none';
+    (firebaseDB && !bildlage && !seterraIsRetry && !aktivUtmaning && !aktivDel && seterraTotal)
+      ? '' : 'none';
   utmanaBtn.dataset.score = score;
 }
 utmanaBtn.addEventListener('click', () => {
@@ -3709,8 +3925,11 @@ if ('serviceWorker' in navigator) {
   } else if (region === 'world') {
     worldFlow();
   } else if (WORLD_SLUGS.includes(region)) {
-    await startRegion(region);
-    spelTourVidBehov();
+    const del = params.get('del');
+    await startRegion(region, false, del);
+    const raw = await loadRegionConfig(region);
+    if (!del && delarFor(raw).length) visaDelVal(region, raw);
+    else spelTourVidBehov();
   } else {
     startLage();
   }

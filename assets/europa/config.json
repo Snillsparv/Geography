@@ -551,5 +551,70 @@
   "mapOffset": {
     "left": 112,
     "top": 3
-  }
+  },
+  "delar": [
+    {
+      "id": "vast",
+      "namn": "Västra Europa",
+      "videoStart": 0,
+      "lander": [
+        "Malta",
+        "Finland",
+        "Norge",
+        "Irland",
+        "Nordirland",
+        "England",
+        "Skottland",
+        "Wales",
+        "Island",
+        "Tyskland",
+        "Danmark",
+        "Italien",
+        "Vatikanstaten",
+        "Österrike",
+        "San Marino",
+        "Schweiz",
+        "Liechtenstein",
+        "Luxembourg",
+        "Spanien",
+        "Portugal",
+        "Belgien",
+        "Nederländerna",
+        "Frankrike",
+        "Monaco",
+        "Sverige",
+        "Andorra"
+      ]
+    },
+    {
+      "id": "ost",
+      "namn": "Östra Europa",
+      "videoStart": 456,
+      "lander": [
+        "Ukraina",
+        "Moldavien",
+        "Rumänien",
+        "Turkiet",
+        "Belarus",
+        "Litauen",
+        "Lettland",
+        "Estland",
+        "Polen",
+        "Tjeckien",
+        "Slovakien",
+        "Ungern",
+        "Serbien",
+        "Kosovo",
+        "Cypern",
+        "Grekland",
+        "Bulgarien",
+        "Nordmakedonien",
+        "Albanien",
+        "Montenegro",
+        "Bosnien-Hercegovina",
+        "Kroatien",
+        "Slovenien"
+      ]
+    }
+  ]
 }
