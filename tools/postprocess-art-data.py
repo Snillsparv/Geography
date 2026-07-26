@@ -15,6 +15,12 @@ på (idempotent: säkert att köra flera gånger).
    Vilka delar som är dekor avgörs geometriskt: en del vars yta ligger
    utanför landets VERKLIGA gränser (world-borders.json, med lite
    marginal) är ritad i havet.
+   Räcker inte geometrin får landet en FÄRGMASK i stället
+   (tools/data/dekor-masker.json, se dekor-fran-farg.py): Ecuadors
+   vattenstråle sprutar tvärs över den ritade kusten, och eftersom den
+   handritade kartan ligger ~1° öster om den verkliga geografin träffar
+   "utanför kustlinjen" helt fel — men blått och vitt mot grönt och rött
+   är entydigt.
 
 2. EMBLEMLÄNDER. Bahamas är ritat som bananer utspridda över ögruppen —
    som pappersform ser den inte ut som ett land. Landet befordras därför
@@ -52,6 +58,10 @@ SPLITTER_YTA = 0.0004
 # hur långt utanför verklig kustlinje konsten får gå innan den räknas som
 # havsritad dekor (konturerna är handritade och spiller alltid lite)
 HAVS_BUFFERT = 0.08
+# hur långt utanför färgmaskens kant en konturlinje räknas som dekor, och
+# hur korta linjestumpar klippet får kasta (grader)
+KONTUR_MARGINAL = 0.02
+KONTUR_MINSTA = 0.01
 
 
 _land_cache = []
@@ -190,17 +200,51 @@ def _multi(geom):
     return ut
 
 
-def dela_dekor(regions, varlden, key):
-    """Klipp bort den konst som är ritad UTANFÖR landets verkliga yta och
-    lägg den i en dekor-feature. Klippningen är geometrisk (shapely), inte
-    per konstdel: Ecuadors vattenstråle sitter ihop med slangen och kan
-    bara skiljas ut genom att faktiskt skära längs kustlinjen."""
-    from shapely.geometry import shape, MultiPolygon
+def las_fargmasker():
+    """Färgklassade dekorytor från dekor-fran-farg.py (om filen finns)."""
+    from shapely.geometry import shape
     from shapely.ops import unary_union
-    for f in regions['features']:
-        if f['properties'].get('key') == key and f['properties'].get('dekor'):
-            print(f'  {key}: dekor-delningen finns redan')
-            return None
+    p = os.path.join(REPO, 'tools/data/dekor-masker.json')
+    if not os.path.exists(p):
+        return {}
+    return {key: unary_union([shape({'type': 'Polygon', 'coordinates': poly}).buffer(0)
+                              for poly in polys])
+            for key, polys in json.load(open(p)).items()}
+
+
+def slain_dekor(regions, borders, key):
+    """Slå tillbaka en tidigare utbruten dekordel i landet igen.
+
+    Gör skriptet omkörbart: delningen kan räknas om från nya masker utan
+    att art-datafilerna först måste genereras om."""
+    from shapely.geometry import shape
+    from shapely.ops import unary_union
+    dek = [f for f in regions['features']
+           if f['properties'].get('key') == key and f['properties'].get('dekor')]
+    if not dek:
+        return
+    land = hitta(regions['features'], key)
+    hel = unary_union([shape(f['geometry']).buffer(0) for f in dek + [land]])
+    land['geometry'] = {'type': 'MultiPolygon', 'coordinates': _multi(hel)}
+    for f in dek:
+        regions['features'].remove(f)
+    gid = land['properties']['gid']
+    linjer = [f for f in borders['features']
+              if f['properties'].get('gid') == gid and f['properties'].get('dekor')]
+    for f in linjer:
+        borders['features'][0]['geometry']['coordinates'] += f['geometry']['coordinates']
+        borders['features'].remove(f)
+    print(f'  {key}: gammal dekordelning återställd '
+          f'({len(dek)} ytor, {len(linjer)} linjefeatures)')
+
+
+def dela_dekor(regions, varlden, key, mask=None):
+    """Klipp ut den konst som inte hör till landet och lägg den i en
+    dekor-feature. Med en färgmask klipps exakt det som är ritat i en annan
+    färg (Ecuadors vattenstråle); utan mask klipps geometriskt, allt som är
+    ritat utanför världens landyta (Malaysias ögon, Kubas rök)."""
+    from shapely.geometry import shape
+    from shapely.ops import unary_union
     idx = next((i for i, f in enumerate(regions['features'])
                 if f['properties'].get('key') == key), None)
     if idx is None:
@@ -208,26 +252,31 @@ def dela_dekor(regions, varlden, key):
         return None
     land = regions['features'][idx]
     gid = land['properties']['gid']
-    sant = [f for f in varlden['features']
-            if (f['properties'].get('namn') or f['properties'].get('name')) == land['properties']['namn']]
-    if not sant:
-        print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
-        return None
     konst = unary_union([shape(land['geometry']).buffer(0)])
-    # Det som ska döljas är konst ritad ute i HAVET — inte konst som råkar
-    # ligga över grannlandet. Ecuadors vattenstråle sprutar t.ex. tvärs över
-    # landets egen kust och vidare ut i Stilla havet: bara dropparna i havet
-    # ska bort, kustdelen är riktigt Ecuador.
-    verklig = varldens_land(varlden).buffer(HAVS_BUFFERT)
-    mark_g = konst.intersection(verklig)
-    dekor_g = konst.difference(verklig)
+    if mask is not None:
+        mark_g = konst.difference(mask)
+        dekor_g = konst.intersection(mask)
+        varfor = 'färgmask'
+    else:
+        sant = [f for f in varlden['features']
+                if (f['properties'].get('namn') or f['properties'].get('name'))
+                == land['properties']['namn']]
+        if not sant:
+            print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
+            return None
+        # Det som ska döljas är konst ritad ute i HAVET — inte konst som
+        # råkar ligga över grannlandet.
+        verklig = varldens_land(varlden).buffer(HAVS_BUFFERT)
+        mark_g = konst.intersection(verklig)
+        dekor_g = konst.difference(verklig)
+        varfor = 'utanför landytan'
     mark = _multi(mark_g)
     dekor = _multi(dekor_g)
     if not dekor:
-        print(f'  {key}: inget ritat utanför landet')
+        print(f'  {key}: inget att bryta ut ({varfor})')
         return None
     if not mark:
-        print(f'  {key}: HELA konsten ligger utanför landet — hoppar över (kolla datan!)')
+        print(f'  {key}: HELA konsten skulle brytas ut — hoppar över (kolla datan!)')
         return None
     land['geometry'] = {'type': 'MultiPolygon', 'coordinates': mark}
     regions['features'].insert(idx + 1, {
@@ -235,9 +284,55 @@ def dela_dekor(regions, varlden, key):
         'properties': {'gid': gid, 'key': key, 'namn': land['properties']['namn'], 'dekor': 1},
         'geometry': {'type': 'MultiPolygon', 'coordinates': dekor},
     })
-    print(f'  {key}: {dekor_g.area:.2f}° konst utanför landet utbruten '
-          f'({len(dekor)} bitar), {mark_g.area:.2f}° kvar som land')
-    return {'gid': gid, 'namn': land['properties']['namn'], 'polys': dekor}
+    print(f'  {key}: {dekor_g.area:.2f}° dekor utbruten ({varfor}, {len(dekor)} bitar), '
+          f'{mark_g.area:.2f}° kvar som land')
+    return {'gid': gid, 'namn': land['properties']['namn'], 'polys': dekor,
+            'mask': mask is not None}
+
+
+def dela_konturer(borders, dekor_polys, egenskaper):
+    """Klipp konturlinjerna längs dekorytan i stället för att flytta hela
+    linjer. Ecuadors kontur är EN kedja runt både slangen och strålen, så
+    den måste skäras: strålens del ska släckas när landet är täckt, kustens
+    del ska lysa kvar."""
+    from shapely.geometry import shape, LineString, MultiLineString
+    from shapely.ops import unary_union
+    gid = egenskaper['gid']
+    if any(f['properties'].get('gid') == gid and f['properties'].get(egenskaper['flagga'])
+           for f in borders['features']):
+        return 0
+    inne = unary_union([shape({'type': 'Polygon', 'coordinates': p}).buffer(0)
+                        for p in dekor_polys]).buffer(KONTUR_MARGINAL)
+    gen = borders['features'][0]
+
+    def delar(g):
+        if g.is_empty:
+            return []
+        if isinstance(g, LineString):
+            return [g] if g.length > KONTUR_MINSTA else []
+        if isinstance(g, MultiLineString):
+            return [l for l in g.geoms if l.length > KONTUR_MINSTA]
+        return [l for bit in getattr(g, 'geoms', []) for l in delar(bit)]
+
+    kvar, flyttade = [], []
+    for line in gen['geometry']['coordinates']:
+        ls = LineString([(p[0], p[1]) for p in line])
+        if not ls.intersects(inne):
+            kvar.append(line)
+            continue
+        for bit in delar(ls.difference(inne)):
+            kvar.append([[round(x, 5), round(y, 5)] for x, y in bit.coords])
+        for bit in delar(ls.intersection(inne)):
+            flyttade.append([[round(x, 5), round(y, 5)] for x, y in bit.coords])
+    if not flyttade:
+        return 0
+    gen['geometry']['coordinates'] = kvar
+    borders['features'].append({
+        'type': 'Feature', 'id': gid,
+        'properties': {'gid': gid, 'namn': egenskaper['namn'], egenskaper['flagga']: 1},
+        'geometry': {'type': 'MultiLineString', 'coordinates': flyttade},
+    })
+    return len(flyttade)
 
 
 def flytta_konturer(borders, mal, egenskaper):
@@ -401,15 +496,17 @@ def main():
     andrad_reg = andrad_bor = False
 
     print('art-regions: dekordelar')
+    masker = las_fargmasker()
     for key in DEKOR_LANDER:
-        res = dela_dekor(regions, varlden, key)
+        slain_dekor(regions, borders, key)
+        res = dela_dekor(regions, varlden, key, masker.get(key))
         if res:
-            andrad_reg = True
-            n = flytta_konturer(borders, res['polys'],
-                                {'gid': res['gid'], 'namn': res['namn'], 'flagga': 'dekor'})
+            andrad_reg = andrad_bor = True
+            egenskaper = {'gid': res['gid'], 'namn': res['namn'], 'flagga': 'dekor'}
+            n = (dela_konturer(borders, res['polys'], egenskaper) if res['mask']
+                 else flytta_konturer(borders, res['polys'], egenskaper))
             if n:
-                andrad_bor = True
-                print(f'    art-borders: {n} konturlinjer flyttade')
+                print(f'    art-borders: {n} konturlinjer utbrutna')
 
     print('art-regions: emblemländer')
     for key in EMBLEM_LANDER:
@@ -427,10 +524,8 @@ def main():
         andrad_reg = True
 
     satt_smal(markers, regions)
-    if andrad_reg:
-        spara(reg_p, regions)
-    if andrad_bor:
-        spara(bor_p, borders)
+    spara(reg_p, regions)
+    spara(bor_p, borders)
     spara(mar_p, markers)
     print('klart')
 

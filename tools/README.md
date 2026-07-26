@@ -74,7 +74,22 @@ art-datafilerna: den bryter ut Malaysias havsritade ansikte till
 dekor-features (annars syns ögonen/spröten som pappersformer när landet
 är täckt) och sätter `smal`-egenskapen (tjockleken) i art-markers.json
 som ger avlånga länder som Kuba sin klickprick. Idempotent — säkert att
-köra flera gånger.
+köra flera gånger (en redan gjord dekordelning slås ihop och räknas om).
+
+`dekor-fran-farg.py` gör samma sak för de bilder där geometrin inte
+räcker. Ecuador är en trädgårdsslang som sprutar vatten snett ut i Stilla
+havet: strålen korsar landets egen ritade kust, och den handritade kartan
+ligger ~1° öster om den verkliga geografin, så "utanför kustlinjen"
+träffar helt fel. Skriptet läser i stället FÄRGERNA i de bakade rutorna
+(`tiles-build/`) inuti landets artpolygon — blått och vitt är vatten,
+grönt och rött är slang — och skriver dekorytan till
+`tools/data/dekor-masker.json`, som postprocess-skriptet klipper med.
+Körs bara om när kartan bakats om (masken är i geokoordinater):
+
+```bash
+python3 tools/dekor-fran-farg.py     # kräver tiles-build/ från bakningen
+python3 tools/postprocess-art-data.py
+```
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
