@@ -40,9 +40,17 @@ tiles change:
 
 ```bash
 node make-tiles.mjs --outline 0 --borders assets/art-borders.json \
-                    --regions assets/art-regions.json
+                    --regions assets/art-regions.json \
+                    --markers assets/art-markers.json
 python3 postprocess-art-data.py   # OBS: alltid efteråt!
 ```
+
+⚠️ Alla TRE filerna måste genereras i samma körning. Ländernas `gid` är
+löpnummer över regionerna, så bara att ta bort ett land ur en
+region-config förskjuter numren för alla länder efter det. Regenererar
+man art-regions utan art-markers pekar klickprickarna på fel länder
+(det hände på riktigt när Papua Nya Guinea togs bort ur Asien: 88 länder
+fick fel prick).
 
 `--borders`/`--regions` kör BARA ownership-passet på z6 och skriver inga
 rutor — själva tilebakningen är en separat körning. Rutorna tar ~20–40 min
