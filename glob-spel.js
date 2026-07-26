@@ -160,7 +160,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '54';
+const V = '55';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2856,7 +2856,7 @@ function startLage(flyg) {
       gomStartSkal();
       if (document.body.classList.contains('startlage')) startaSnurr();
       if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
-      else setTimeout(startaFeedbackTips, 1500);   // återvändare: kort feedbacknotis
+      else setTimeout(startaStartNotiser, 1500);   // återvändare: korta notiser
     };
     map.once('idle', klar);
     setTimeout(klar, 12000);   // säkerhetsnät om rutorna strular
@@ -3250,11 +3250,49 @@ const FEEDBACK_TIPS = [
     bild: 'assets/jonas/upp.webp', spegel: true, knapp: 'Tack, bra att veta!',
     text: 'Psst — en nyhet! Bakom brevet här uppe kan du numera tycka till om sidan. Jag tar jättegärna emot feedback och förslag på förbättringar!' },
 ];
-function startaFeedbackTips() {
-  if (localStorage.getItem('feedback-tips-klar')) return;
+function startaFeedbackTips(vidSlut) {
+  if (localStorage.getItem('feedback-tips-klar')) return false;
+  if (!document.body.classList.contains('startlage')) return false;
+  if (introOverlay.style.display !== 'none') return false;   // annan tur igång
+  startaTour(FEEDBACK_TIPS, 'feedback-tips-klar', vidSlut);
+  return true;
+}
+
+// samma sorts notis för installationen: många spelar vidare i webbläsaren
+// utan att ha sett att sidan går att lägga som app — och missar därmed att
+// den funkar utan internet
+const INSTALL_TIPS = [
+  { el: () => document.getElementById('installera-knapp'),
+    bild: 'assets/jonas/ner.webp', knapp: 'Tack, bra att veta!',
+    text: 'Psst — en sak till! Spelet går att lägga som en app på hemskärmen. Tryck på knappen här nere, så får du en egen ikon att starta från — och då funkar hela världen även när du är utan internet, till exempel i bilen eller på flyget!' },
+];
+
+// Knappen finns bara på mobilen, bara på startskärmen, och på Android först
+// när webbläsaren sagt ifrån att appen går att installera — och det beskedet
+// (beforeinstallprompt) kan komma både före och efter att vi vill visa
+// notisen. Därför en väntflagga i stället för en engångstimer.
+let installTipsVantar = false;
+function forsokInstallTips() {
+  if (!installTipsVantar) return;
+  if (localStorage.getItem('install-tips-klar')) { installTipsVantar = false; return; }
   if (!document.body.classList.contains('startlage')) return;
   if (introOverlay.style.display !== 'none') return;   // annan tur igång
-  startaTour(FEEDBACK_TIPS, 'feedback-tips-klar', null);
+  // position: fixed ⇒ offsetParent är alltid null; en dold knapp har i
+  // stället nollstor ruta
+  const r = installKnapp.getBoundingClientRect();
+  if (!r.width || !r.height) return;   // dator, installerad app, eller inget att installera
+  installTipsVantar = false;
+  startaTour(INSTALL_TIPS, 'install-tips-klar', null);
+}
+
+// återvändarnas korta engångsnotiser — en i taget, aldrig två på varandra
+function startaStartNotiser() {
+  installTipsVantar = true;
+  const visarFeedback = startaFeedbackTips(() => {
+    introOverlay.style.display = 'none';
+    forsokInstallTips();
+  });
+  if (!visarFeedback) forsokInstallTips();
 }
 
 // spelvyns genomgång: förklarar lägena första gången man är inne.
@@ -3847,7 +3885,10 @@ let installPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();               // vi visar en egen knapp i stället för bannern
   installPrompt = e;
-  if (!korSomApp) installKnapp.style.display = '';
+  if (!korSomApp) {
+    installKnapp.style.display = '';
+    forsokInstallTips();   // beskedet kom efter att notisen ville visas
+  }
 });
 if (arIos && !korSomApp) installKnapp.style.display = '';
 installKnapp.addEventListener('click', () => {
