@@ -160,7 +160,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '52';
+const V = '53';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -317,7 +317,10 @@ const PRICK_SYNS_PX = 18;
 // tjocka och går inte att träffa ändå — smal (tjockleken ur artgeometrin,
 // yta/längsta axel) ger dem prick tills de är tjocka nog att tryckas på,
 // så länge de inte redan dominerar vyn på längden
-const PRICK_SMAL_PX = 8;
+// 5,2 px: precis så tunt att fingret/pekaren inte kan träffa landmassan
+// (Gambia 1, Syrien 2, Kuba 3, Israel 5) — Slovenien, Filippinerna,
+// Malawi och Turkmenistan ligger strax över och klarar sig utan cirkel
+const PRICK_SMAL_PX = 5.2;
 const PRICK_SMAL_MAX = 120;
 // pricken får aldrig krympa till en ohittbar fläck — det var precis så
 // Jamaica "tappade sin pil" på översiktszoomarna — och aldrig växa till
@@ -2410,6 +2413,8 @@ document.getElementById('hs-save').addEventListener('click', async () => {
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
+  localStorage.setItem(UTM_NAMN_KEY, name);
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   knapp.disabled = false;
   document.getElementById('hs-form').style.display = 'none';
@@ -2424,6 +2429,11 @@ document.getElementById('hs-name').addEventListener('keydown', e => {
 // Diplom: 100 % i klassiska quizet → utskrivbart diplom
 // ══════════════════════
 document.getElementById('seterra-diplom')?.addEventListener('click', () => {
+  // namnet man redan skrivit på topplistan fylls i automatiskt (går att
+  // ändra i rutan — den är fortfarande contenteditable)
+  const namnEl = document.getElementById('diplom-namn');
+  const sparat = localStorage.getItem(UTM_NAMN_KEY);
+  if (namnEl && sparat) namnEl.textContent = sparat;
   document.getElementById('diplom-region').textContent = aktivRegionNamn || 'världen';
   document.getElementById('diplom-detalj').textContent =
     `alla ${seterraTotal} länder · 100 % rätt · tid ${seterraTimeEl.textContent}`;
@@ -2448,6 +2458,8 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
+  localStorage.setItem(UTM_NAMN_KEY, name);
   const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
   knapp.disabled = false;
   closeNameModal();
@@ -3126,6 +3138,13 @@ document.getElementById('resa-seger')?.addEventListener('click', () => {
 });
 document.getElementById('resa-kryss')?.addEventListener('click', () => {
   document.getElementById('resa-modal').style.display = 'none';
+});
+// mobilen: passet fälls ut bakom passikonen (på datorn syns det alltid)
+document.getElementById('pass-oppna')?.addEventListener('click', () => {
+  const bok = document.getElementById('pass-bok');
+  const oppet = bok.classList.toggle('oppen');
+  document.getElementById('pass-oppna').innerHTML =
+    oppet ? '🛂 Dölj passet' : '🛂 Visa passet';
 });
 document.getElementById('resa-knapp')?.addEventListener('click', e => { e.preventDefault(); visaResa(); });
 document.getElementById('resa-stang')?.addEventListener('click', () => {

@@ -38,7 +38,8 @@ import os
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # konstdelar i havet bryts ut till dekor-features för de här länderna
-DEKOR_LANDER = ['asien/malaysia', 'nordamerika/kuba']
+# (Malaysias ögon och spröt, Kubas cigarrök, Ecuadors vattenstråle)
+DEKOR_LANDER = ['asien/malaysia', 'nordamerika/kuba', 'sydamerika/eciador']
 # länder som befordras till emblem: konsten döljs, riktiga formen visas
 EMBLEM_LANDER = ['vastindien/bahamas']
 # hur långt utanför den verkliga landytan en del måste ligga för att
@@ -46,6 +47,24 @@ EMBLEM_LANDER = ['vastindien/bahamas']
 # riktig mark
 MARK_BUFFERT = 0.25
 MARK_ANDEL = 50
+# klippsplitter mindre än så här (kvadratgrader) kastas
+SPLITTER_YTA = 0.0004
+# hur långt utanför verklig kustlinje konsten får gå innan den räknas som
+# havsritad dekor (konturerna är handritade och spiller alltid lite)
+HAVS_BUFFERT = 0.08
+
+
+_land_cache = []
+
+
+def varldens_land(varlden):
+    """Hela världens landyta som en shapely-geometri (byggs en gång)."""
+    from shapely.geometry import shape
+    from shapely.ops import unary_union
+    if not _land_cache:
+        _land_cache.append(unary_union([shape(f['geometry']).buffer(0)
+                                        for f in varlden['features']]))
+    return _land_cache[0]
 
 
 # ── geometrihjälpare ──────────────────────────────────────────────────
@@ -156,10 +175,29 @@ def unwrap(geom, ref_lng):
 
 
 # ── 1. dekordelar ─────────────────────────────────────────────────────
+def _multi(geom):
+    """shapely-geometri → MultiPolygon-koordinater, småsplitter bortstädat."""
+    from shapely.geometry import Polygon, MultiPolygon
+    bitar = [geom] if isinstance(geom, Polygon) else list(geom.geoms)
+    ut = []
+    for p in bitar:
+        if not isinstance(p, Polygon) or p.is_empty or p.area < SPLITTER_YTA:
+            continue
+        ringar_ = [[[round(x, 5), round(y, 5)] for x, y in p.exterior.coords]]
+        for inre in p.interiors:
+            ringar_.append([[round(x, 5), round(y, 5)] for x, y in inre.coords])
+        ut.append(ringar_)
+    return ut
+
+
 def dela_dekor(regions, varlden, key):
-    """Bryt ut de konstdelar som är ritade i havet till en dekor-feature."""
-    gid = None
-    for i, f in enumerate(regions['features']):
+    """Klipp bort den konst som är ritad UTANFÖR landets verkliga yta och
+    lägg den i en dekor-feature. Klippningen är geometrisk (shapely), inte
+    per konstdel: Ecuadors vattenstråle sitter ihop med slangen och kan
+    bara skiljas ut genom att faktiskt skära längs kustlinjen."""
+    from shapely.geometry import shape, MultiPolygon
+    from shapely.ops import unary_union
+    for f in regions['features']:
         if f['properties'].get('key') == key and f['properties'].get('dekor'):
             print(f'  {key}: dekor-delningen finns redan')
             return None
@@ -170,27 +208,35 @@ def dela_dekor(regions, varlden, key):
         return None
     land = regions['features'][idx]
     gid = land['properties']['gid']
-    sanna = sanna_ringar_for(varlden, land['properties']['namn'])
-    if not sanna:
+    sant = [f for f in varlden['features']
+            if (f['properties'].get('namn') or f['properties'].get('name')) == land['properties']['namn']]
+    if not sant:
         print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
         return None
-    polys = land['geometry']['coordinates']
-    mark, dekor = [], []
-    for poly in polys:
-        (mark if pa_riktig_mark(poly[0], sanna) >= MARK_ANDEL else dekor).append(poly)
+    konst = unary_union([shape(land['geometry']).buffer(0)])
+    # Det som ska döljas är konst ritad ute i HAVET — inte konst som råkar
+    # ligga över grannlandet. Ecuadors vattenstråle sprutar t.ex. tvärs över
+    # landets egen kust och vidare ut i Stilla havet: bara dropparna i havet
+    # ska bort, kustdelen är riktigt Ecuador.
+    verklig = varldens_land(varlden).buffer(HAVS_BUFFERT)
+    mark_g = konst.intersection(verklig)
+    dekor_g = konst.difference(verklig)
+    mark = _multi(mark_g)
+    dekor = _multi(dekor_g)
     if not dekor:
-        print(f'  {key}: inga havsritade delar')
+        print(f'  {key}: inget ritat utanför landet')
         return None
     if not mark:
-        print(f'  {key}: ALLA delar ligger utanför riktig mark — hoppar över (kolla datan!)')
+        print(f'  {key}: HELA konsten ligger utanför landet — hoppar över (kolla datan!)')
         return None
-    land['geometry']['coordinates'] = mark
+    land['geometry'] = {'type': 'MultiPolygon', 'coordinates': mark}
     regions['features'].insert(idx + 1, {
         'type': 'Feature', 'id': gid,
         'properties': {'gid': gid, 'key': key, 'namn': land['properties']['namn'], 'dekor': 1},
         'geometry': {'type': 'MultiPolygon', 'coordinates': dekor},
     })
-    print(f'  {key}: {len(dekor)} havsritade delar utbrutna ({len(mark)} landdelar kvar)')
+    print(f'  {key}: {dekor_g.area:.2f}° konst utanför landet utbruten '
+          f'({len(dekor)} bitar), {mark_g.area:.2f}° kvar som land')
     return {'gid': gid, 'namn': land['properties']['namn'], 'polys': dekor}
 
 
