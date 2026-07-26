@@ -160,7 +160,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '55';
+const V = '56';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2267,26 +2267,68 @@ function toppNTid(list, minTid) {
   if (ok.length > 30) ok.length = 30;
   return ok;
 }
+// På den DELADE listan räknas den här webbläsaren som en spelare per namn:
+// kör man tio rundor som "Jonas" ska bara det bästa försöket ligga där, inte
+// tio rader. "Mina resultat" (getLocalHighscores) rörs aldrig — där ska alla
+// försök finnas kvar.
+//
+// Identiteten är webbläsaren själv: bara VÅRA egna poster går att känna igen
+// (de ligger under mina-nyckeln, och date binder ihop lokalt med delat), så
+// varje webbläsare städar efter sig i den delade listan. Namnet ensamt duger
+// inte som nyckel — två olika personer som båda heter Anna ska få varsin rad.
+const namnNyckel = e => (e.name || '').trim().toLowerCase();
+function bastaPerNamn(list) {
+  const bast = new Map();
+  for (const e of list) {
+    const n = namnNyckel(e);
+    const f = bast.get(n);
+    if (!f || e.score > f.score || (e.score === f.score && e.time < f.time)) bast.set(n, e);
+  }
+  return [...bast.values()];
+}
+// våra egna poster: allihop, och de som får representera oss utåt
+function egnaPoster(local, minTid) {
+  const alla = new Set(local.map(e => e.date));
+  const basta = new Set(bastaPerNamn(local.filter(e => e.time >= minTid)).map(e => e.date));
+  return {
+    alla, basta,
+    egenSamre: e => alla.has(e.date) && !basta.has(e.date),
+    utanSamre: lista => lista.filter(e => !alla.has(e.date) || basta.has(e.date)),
+  };
+}
 async function getHighscores() {
   const minTid = rimligMinTid();
   const local = getLocalHighscores();
+  const egna = egnaPoster(local, minTid);
   // reservvyn (offline eller trasig läsning): egna resultat + senast
   // nedladdade listan
   const lokalVy = () => {
     const seen = new Set(local.map(e => e.date));
     const merged = [...local];
     for (const e of getCachadeHighscores()) if (!seen.has(e.date)) merged.push(e);
-    return toppNTid(merged, minTid);
+    return toppNTid(egna.utanSamre(merged), minTid);
   };
   if (!firebaseDB) return lokalVy();
   try {
     const snap = await firebaseDB.ref('highscores/' + HS_KEY).once('value');
     const remote = [];
-    snap.forEach(child => { remote.push(child.val()); });
+    const egnaSamre = {};
+    snap.forEach(child => {
+      const v = child.val();
+      remote.push(v);
+      // egna sämre försök som ligger kvar delat: de syns inte hos oss, men
+      // skulle annars stå kvar hos alla andra. Bara vi kan känna igen dem.
+      if (egna.egenSamre(v)) egnaSamre[child.key] = null;
+    });
+    if (Object.keys(egnaSamre).length > 0) {
+      firebaseDB.ref('highscores/' + HS_KEY).update(egnaSamre).catch(() => {});
+    }
     const remoteDates = new Set(remote.map(e => e.date));
     // synka aldrig upp omöjliga lokala poster (t.ex. gamla fuskresultat) —
-    // reglerna avvisar dem och skulle då stoppa hela uppladdningen
-    const localOnly = local.filter(e => !remoteDates.has(e.date) && e.time >= minTid);
+    // reglerna avvisar dem och skulle då stoppa hela uppladdningen. Och
+    // aldrig egna sämre försök: då hade städningen ovan bara ekat tillbaka.
+    const localOnly = local.filter(e =>
+      !remoteDates.has(e.date) && e.time >= minTid && egna.basta.has(e.date));
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -2299,7 +2341,7 @@ async function getHighscores() {
     const seen = new Set(remote.map(e => e.date));
     const merged = [...remote];
     for (const e of local) if (!seen.has(e.date)) merged.push(e);
-    const lista = toppNTid(merged, minTid);
+    const lista = toppNTid(egna.utanSamre(merged), minTid);
     localStorage.setItem('cache-' + HS_KEY, JSON.stringify(lista));
     return lista;
   } catch (e) {
@@ -2328,13 +2370,15 @@ async function saveHighscore(name, score, time, wrong) {
       const all = [];
       snap.forEach(child => { all.push({ key: child.key, ...child.val() }); });
       all.sort((a, b) => b.score - a.score || a.time - b.time);
-      // trimma till topp 30 och rensa samtidigt bort omöjliga tider som
-      // ligger kvar sedan tidigare versioner
+      // trimma till topp 30, rensa bort omöjliga tider som ligger kvar sedan
+      // tidigare versioner, och lämna bara vårt bästa försök per namn kvar —
+      // annars växer listan med samma spelare om och om igen
       const minTid = rimligMinTid();
+      const egna = egnaPoster(local, minTid);
       const removes = {};
       let kvar = 0;
       for (const e of all) {
-        if (e.time < minTid || kvar >= 30) removes[e.key] = null;
+        if (e.time < minTid || kvar >= 30 || egna.egenSamre(e)) removes[e.key] = null;
         else kvar++;
       }
       if (Object.keys(removes).length > 0) {
@@ -2358,9 +2402,17 @@ async function renderHighscores(highlightEntry) {
   const container = document.getElementById('highscore-list');
   container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
   const list = await getHighscores();
+  // gick rundan sämre än ens eget rekord står den inte på delade listan —
+  // markera raden som ÄR en själv i stället för ingen alls
+  let markera = highlightEntry;
+  if (highlightEntry && !list.some(e => e.date === highlightEntry.date)) {
+    const mina = new Set(getLocalHighscores().map(e => e.date));
+    markera = list.find(e => mina.has(e.date)
+      && namnNyckel(e) === namnNyckel(highlightEntry)) || null;
+  }
   container.innerHTML = list.length === 0
     ? '<div class="hs-empty">Inga sparade resultat ännu.</div>'
-    : hsTabellHtml(list, highlightEntry);
+    : hsTabellHtml(list, markera);
 }
 
 // ── Topplistemodalen: global och personlig lista, nåbar när som helst ──
