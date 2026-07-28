@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.webmanifest?v=57">
+  <link rel="manifest" href="manifest.webmanifest?v=58">
 <meta name="theme-color" content="#02060d">
 <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=57">
+  <link rel="stylesheet" href="style.css?v=58">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -421,6 +421,19 @@
       border-radius: 10px; border: 1px solid rgba(255,220,50,.35); background: #14243a;
       color: #ffdc32; font-weight: 800; font-size: .85rem; cursor: pointer; }
     .topplista-knapp:hover { background: #1b2f4c; }
+    /* flyttkoden: liten ruta under egna resultaten */
+    .flytt-ruta { margin-top: 14px; padding: 10px 12px; border-radius: 12px;
+      background: #0a1526; border: 1px dashed #2e9eff55; font-size: .82rem; }
+    .flytt-rubrik { color: #7ea6c4; margin-bottom: 8px; }
+    .flytt-knappar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .flytt-knappar button, #flytt-las-in { padding: 7px 12px; border-radius: 10px;
+      border: 1px solid #2e9eff88; background: #12213a; color: #7ec8e3;
+      font-weight: 700; font-size: .82rem; cursor: pointer; }
+    #flytt-form { margin-top: 8px; }
+    #flytt-kod { width: 100%; box-sizing: border-box; border-radius: 10px;
+      border: 1px solid #2e9eff55; background: #060d1a; color: #9fc3e0;
+      padding: 8px; font-size: .72rem; margin-bottom: 6px; }
+    #flytt-status { margin-top: 8px; color: #8ce99a; min-height: 1em; }
     .hs-flikar { display: flex; gap: 8px; margin-bottom: 12px; }
     .hs-flikar button { flex: 1; padding: 8px 10px; border-radius: 10px; border: none;
       background: #0b1a2c; color: #9fc3e0; font-weight: 800; cursor: pointer; }
@@ -962,6 +975,7 @@
         </div>
       </div>
       <button class="restart-btn" id="world-start-btn">Starta!</button>
+      <button class="topplista-knapp" id="world-mina-btn">&#127942; Topplista &amp; mina resultat</button>
     </div>
   </div>
 </div>
@@ -1000,7 +1014,7 @@
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script src="glob-spel.js?v=57"></script>
+<script src="glob-spel.js?v=58"></script>
 
 </body>
 </html>

@@ -166,7 +166,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '57';
+const V = '58';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2046,6 +2046,7 @@ function startSeterra() {
   seterraIsRetry = false;
   seterraMissedCountries.clear();
   seterraStartTime = Date.now();
+  autoSparadLofte = null;   // förra rundans autosparning ska inte spöka här
   seterraGame.classList.add('active');
   seterraDone.classList.remove('active');
   cursorLabel.style.display = 'block';
@@ -2231,8 +2232,10 @@ function endSeterra() {
   } else if (aktivUtmaning) {
     visaDuellLista(null);            // övnings-/bildrunda i utmaningen: bara duellen visas
   } else if (!seterraIsRetry && score === 100 && seterraWrong === 0) {
+    autoSparaRundan(score);
     showCelebration(m, s);
   } else if (!seterraIsRetry) {
+    autoSparaRundan(score);
     showNameModal(score, m, s);
   } else {
     renderHighscores();
@@ -2255,8 +2258,36 @@ function rimligMinTid() {
 // (går inte att skilja eget från nedladdat i efterhand) — mina-listan
 // byggs upp på nytt av kommande rundor.
 function getLocalHighscores() {
+  migreraGamlaKorningar();
   try { return JSON.parse(localStorage.getItem('mina-' + HS_KEY)) || []; }
   catch { return []; }
+}
+// v51 bytte lagringsnyckel för egna resultat och lämnade de gamla kvar i den
+// blandade listan (egna + nedladdade topp 30) — "mina gamla körningar syns
+// inte" i användarnas ögon. Det gick inte att skilja eget från nedladdat
+// maskinellt då, men spelarens sparade namn pekar ut vilka som rimligen är
+// ens egna: de flyttas in i mina-listan. En främmande topp 30-post med samma
+// namn kan följa med — hellre det än att åratal av egna rundor ser raderade
+// ut. Körs en gång per lista och session; datumet stoppar dubbletter.
+const migreradeListor = new Set();
+function migreraGamlaKorningar() {
+  if (!HS_KEY || migreradeListor.has(HS_KEY)) return;
+  const namn = localStorage.getItem(UTM_NAMN_KEY);
+  if (!namn) return;   // inget namn än — försök igen när det finns ett
+  migreradeListor.add(HS_KEY);
+  let gamla = [];
+  try { gamla = JSON.parse(localStorage.getItem(HS_KEY)) || []; } catch { return; }
+  const egna = gamla.filter(e => e && namnNyckel(e) === namnNyckel({ name: namn }));
+  if (!egna.length) return;
+  let mina = [];
+  try { mina = JSON.parse(localStorage.getItem('mina-' + HS_KEY)) || []; } catch { }
+  const finns = new Set(mina.map(e => e.date));
+  let nya = 0;
+  for (const e of egna) if (!finns.has(e.date)) { mina.push(e); nya++; }
+  if (!nya) return;
+  mina.sort((a, b) => b.score - a.score || a.time - b.time);
+  if (mina.length > 30) mina.length = 30;
+  localStorage.setItem('mina-' + HS_KEY, JSON.stringify(mina));
 }
 // den sammanslagna världslistan cachas också under egen nyckel — när den
 // låg i HS_KEY laddade synken upp ANDRAS (rensade) poster igen från
@@ -2310,7 +2341,10 @@ async function getHighscores() {
   // nedladdade listan
   const lokalVy = () => {
     const seen = new Set(local.map(e => e.date));
-    const merged = [...local];
+    // odelade rundor hör hemma i "Mina", inte i ens egen bild av den
+    // delade listan — ingen annan ser dem där, och listan ska se likadan
+    // ut för alla
+    const merged = local.filter(e => !e.odelad);
     for (const e of getCachadeHighscores()) if (!seen.has(e.date)) merged.push(e);
     return toppNTid(egna.utanSamre(merged), minTid);
   };
@@ -2331,10 +2365,12 @@ async function getHighscores() {
     }
     const remoteDates = new Set(remote.map(e => e.date));
     // synka aldrig upp omöjliga lokala poster (t.ex. gamla fuskresultat) —
-    // reglerna avvisar dem och skulle då stoppa hela uppladdningen. Och
-    // aldrig egna sämre försök: då hade städningen ovan bara ekat tillbaka.
+    // reglerna avvisar dem och skulle då stoppa hela uppladdningen. Aldrig
+    // egna sämre försök (städningen ovan hade bara ekat tillbaka), och
+    // aldrig odelade rundor — spelaren har inte tryckt Spara på dem.
     const localOnly = local.filter(e =>
-      !remoteDates.has(e.date) && e.time >= minTid && egna.basta.has(e.date));
+      !remoteDates.has(e.date) && e.time >= minTid && egna.basta.has(e.date)
+      && !e.odelad);
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -2346,7 +2382,7 @@ async function getHighscores() {
     }
     const seen = new Set(remote.map(e => e.date));
     const merged = [...remote];
-    for (const e of local) if (!seen.has(e.date)) merged.push(e);
+    for (const e of local) if (!seen.has(e.date) && !e.odelad) merged.push(e);
     const lista = toppNTid(egna.utanSamre(merged), minTid);
     localStorage.setItem('cache-' + HS_KEY, JSON.stringify(lista));
     return lista;
@@ -2355,11 +2391,16 @@ async function getHighscores() {
     return lokalVy();
   }
 }
-async function saveHighscore(name, score, time, wrong) {
+async function saveHighscore(name, score, time, wrong, odelad) {
   // omöjliga resultat sparas aldrig: quiz utan länder eller orimligt snabbt
   // (databasreglerna avvisar dem också på serversidan)
   if (!seterraTotal || time < rimligMinTid()) return null;
   const entry = { name, score, time, wrong, date: Date.now() };
+  // odelade rundor (målgångens autosparning) finns BARA i den egna
+  // listan: flaggan håller dem borta från delade listan och synken, och
+  // den får aldrig följa med i en uppladdning — reglernas $other-spärr
+  // skulle avvisa hela skrivningen
+  if (odelad) entry.odelad = true;
   // felsökningsläget (window.spel aktivt) sparar INGENTING — inte ens
   // lokalt, för allt i HS_KEY synkas förr eller senare upp till den
   // delade listan. Skriptade rundor via ?debug ska aldrig kunna smyga in.
@@ -2369,6 +2410,7 @@ async function saveHighscore(name, score, time, wrong) {
   local.sort((a, b) => b.score - a.score || a.time - b.time);
   if (local.length > 30) local.length = 30;
   localStorage.setItem('mina-' + HS_KEY, JSON.stringify(local));
+  if (odelad) return entry;
   if (firebaseDB) {
     try {
       await firebaseDB.ref('highscores/' + HS_KEY).push(entry);
@@ -2432,11 +2474,112 @@ async function visaTopplista(flik) {
   topplistaModal.style.display = 'flex';
   inneh.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
   const list = flik === 'alla' ? await getHighscores() : getLocalHighscores();
-  inneh.innerHTML = list.length === 0
+  let html = list.length === 0
     ? `<div class="hs-empty">${flik === 'alla' ? 'Inga sparade resultat ännu.'
         : 'Inga resultat på den här enheten ännu — kör ett quiz!'}</div>`
     : hsTabellHtml(list, null, flik === 'alla' ? 'Topp 30 — alla spelare' : 'Dina resultat på den här enheten');
+  // flyttkoden bor under egna resultaten — det är därifrån man vill ta med
+  // sig dem, och dit man vill läsa in dem på nya stället
+  if (flik === 'mina') html += `
+    <div class="flytt-ruta">
+      <div class="flytt-rubrik">Byter du enhet — eller har gamla resultat i Safari
+        som inte syns i appen? Flyttkoden tar med dem hit.</div>
+      <div class="flytt-knappar">
+        <button id="flytt-export" type="button">&#128228; Kopiera flyttkod</button>
+        <button id="flytt-import" type="button">&#128229; Klistra in flyttkod</button>
+      </div>
+      <div id="flytt-form" style="display:none">
+        <textarea id="flytt-kod" rows="3" placeholder="Klistra in flyttkoden här"></textarea>
+        <button id="flytt-las-in" type="button">L&auml;s in</button>
+      </div>
+      <div id="flytt-status"></div>
+    </div>`;
+  inneh.innerHTML = html;
 }
+
+// ── Flyttkod: resultaten som text, mellan webbläsare och enheter ──
+// iPhone ger hemskärmsappen och Safari HELT SKILDA lagringar, så resultat
+// gjorda i den ena syns aldrig i den andra — och det finns ingen bro vi kan
+// bygga i det tysta. Men spelaren kan bära dem själv: koden är alla egna
+// listor som en textsträng. Kopiera i gamla stället, klistra in i nya.
+// Base64 runt UTF-8 så åäö och emoji i namn överlever resan.
+function skapaFlyttkod() {
+  const listor = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('mina-')) continue;
+    try {
+      const v = JSON.parse(localStorage.getItem(k));
+      if (Array.isArray(v) && v.length) listor[k] = v;
+    } catch { }
+  }
+  const paket = { v: 1, namn: localStorage.getItem(UTM_NAMN_KEY) || null, listor };
+  return 'JG1.' + btoa(unescape(encodeURIComponent(JSON.stringify(paket))));
+}
+function lasInFlyttkod(kod) {
+  kod = (kod || '').trim();
+  if (!kod.startsWith('JG1.')) return { fel: 'Det där ser inte ut som en flyttkod.' };
+  let paket;
+  try { paket = JSON.parse(decodeURIComponent(escape(atob(kod.slice(4))))); }
+  catch { return { fel: 'Koden gick inte att läsa — kom hela med?' }; }
+  if (!paket || typeof paket.listor !== 'object' || !paket.listor) {
+    return { fel: 'Koden gick inte att läsa — kom hela med?' };
+  }
+  let nya = 0;
+  for (const [k, lista] of Object.entries(paket.listor)) {
+    // bara egna listor får skrivas — koden ska inte kunna peta i något annat
+    if (!k.startsWith('mina-') || !Array.isArray(lista)) continue;
+    let mina = [];
+    try { mina = JSON.parse(localStorage.getItem(k)) || []; } catch { }
+    const finns = new Set(mina.map(e => e.date));
+    for (const e of lista) {
+      if (!e || typeof e.date !== 'number' || finns.has(e.date)) continue;
+      if (typeof e.name !== 'string' || typeof e.score !== 'number'
+          || typeof e.time !== 'number' || typeof e.wrong !== 'number') continue;
+      mina.push({ name: e.name.slice(0, 30), score: e.score, time: e.time,
+                  wrong: e.wrong, date: e.date, ...(e.odelad ? { odelad: true } : {}) });
+      finns.add(e.date); nya++;
+    }
+    mina.sort((a, b) => b.score - a.score || a.time - b.time);
+    if (mina.length > 30) mina.length = 30;
+    localStorage.setItem(k, JSON.stringify(mina));
+  }
+  if (paket.namn && typeof paket.namn === 'string' && !localStorage.getItem(UTM_NAMN_KEY)) {
+    localStorage.setItem(UTM_NAMN_KEY, paket.namn.slice(0, 30));
+  }
+  return { nya };
+}
+// knapparna byggs om med innehållet vid varje visning — därför delegering
+document.getElementById('topplista-innehall').addEventListener('click', async e => {
+  const id = e.target.id;
+  if (id === 'flytt-export') {
+    const kod = skapaFlyttkod();
+    const status = document.getElementById('flytt-status');
+    try {
+      await navigator.clipboard.writeText(kod);
+      status.textContent = 'Kopierad! Klistra in den under Mina resultat på nya stället.';
+    } catch {
+      // utan klippbordsrättighet (t.ex. äldre webbläsare): visa koden så
+      // att den går att markera och kopiera för hand
+      const form = document.getElementById('flytt-form');
+      form.style.display = '';
+      const ruta = document.getElementById('flytt-kod');
+      ruta.value = kod; ruta.select();
+      status.textContent = 'Markera och kopiera koden ovan.';
+    }
+  } else if (id === 'flytt-import') {
+    const form = document.getElementById('flytt-form');
+    form.style.display = form.style.display === 'none' ? '' : 'none';
+    if (form.style.display === '') document.getElementById('flytt-kod').focus();
+  } else if (id === 'flytt-las-in') {
+    const svar = lasInFlyttkod(document.getElementById('flytt-kod').value);
+    if (svar.fel) { document.getElementById('flytt-status').textContent = svar.fel; return; }
+    migreradeListor.clear();   // inflyttat namn kan låsa upp gamla listor
+    await visaTopplista('mina');
+    document.getElementById('flytt-status').textContent =
+      svar.nya ? `${svar.nya} resultat inlästa! 🎉` : 'Inget nytt att läsa in — allt fanns redan här.';
+  }
+});
 document.getElementById('topplista-knapp').addEventListener('click', () => visaTopplista('alla'));
 document.getElementById('topplista-knapp-klar').addEventListener('click', () => visaTopplista('mina'));
 document.getElementById('hs-flik-alla').addEventListener('click', () => visaTopplista('alla'));
@@ -2458,9 +2601,57 @@ function showNameModal(score, m, s) {
   document.getElementById('modal-score').textContent = score + '%';
   document.getElementById('modal-detail').innerHTML =
     `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
-  modalNameInput.value = '';
+  // namnet man sparat med förut fylls i — att trycka Spara ska räcka
+  modalNameInput.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   nameModalOverlay.classList.add('active');
   setTimeout(() => modalNameInput.focus(), 100);
+}
+
+// ── Målgången sparar rundan DIREKT, innan någon hunnit röra namnrutan ──
+// En runda utan namn+Spara försvann förut spårlöst: modalen var villkoret
+// för att resultatet skulle finnas. Nu skrivs rundan till den egna listan i
+// samma stund som den går i mål — med sparade namnet om det finns, annars
+// som Anonym. Flaggan odelad betyder "har aldrig godkänts för delning":
+// rundan stannar på enheten (syns i Mina, aldrig i den delade listan eller
+// synken) tills spelaren trycker Spara — då döps den om och delas.
+let autoSparadLofte = null;
+function autoSparaRundan(score) {
+  const namn = localStorage.getItem(UTM_NAMN_KEY);
+  autoSparadLofte = saveHighscore(namn || 'Anonym', score,
+                                  seterraElapsed, seterraWrong, true);
+}
+async function sparaMedNamn(name) {
+  localStorage.setItem(UTM_NAMN_KEY, name);
+  // rundan ligger redan i egna listan sedan målgången — döp om i stället
+  // för att spara en gång till (dubblett med ny tidsstämpel annars)
+  const auto = autoSparadLofte ? await autoSparadLofte : null;
+  if (auto && !window.spel) {
+    if (namnNyckel(auto) !== namnNyckel({ name })) {
+      const local = getLocalHighscores();
+      const e = local.find(x => x.date === auto.date);
+      if (e) { e.name = name; localStorage.setItem('mina-' + HS_KEY, JSON.stringify(local)); }
+      auto.name = name;
+    }
+    if (auto.odelad) {
+      // godkänd för delning: flaggan bort ur egna listan FÖRE uppladdningen
+      // — misslyckas nätet tar synken den nästa gång listan öppnas
+      const local = getLocalHighscores();
+      const e = local.find(x => x.date === auto.date);
+      if (e) { delete e.odelad; localStorage.setItem('mina-' + HS_KEY, JSON.stringify(local)); }
+      delete auto.odelad;
+      if (firebaseDB) {
+        try {
+          const { odelad, ...ren } = auto;
+          await firebaseDB.ref('highscores/' + HS_KEY).push(ren);
+        } catch (e) { console.warn('Firebase write failed:', e); }
+      }
+    }
+    return auto;
+  }
+  // ingen autosparad runda (felsökningsläge) — spara som förut
+  const totalClicks = seterraCorrect + seterraWrong;
+  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
+  return saveHighscore(name, score, seterraElapsed, seterraWrong);
 }
 function closeNameModal() { nameModalOverlay.classList.remove('active'); }
 
@@ -2469,11 +2660,7 @@ document.getElementById('hs-save').addEventListener('click', async () => {
   const name = document.getElementById('hs-name').value.trim();
   if (!name || knapp.disabled) return;
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
-  localStorage.setItem(UTM_NAMN_KEY, name);
-  const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
+  const entry = await sparaMedNamn(name);
   knapp.disabled = false;
   document.getElementById('hs-form').style.display = 'none';
   document.getElementById('hs-saved-msg').style.display = '';
@@ -2514,11 +2701,7 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   if (!name) { modalNameInput.focus(); return; }
   if (knapp.disabled) return;
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
-  const totalClicks = seterraCorrect + seterraWrong;
-  const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  // namnet minns till nästa gång: diplomet och utmaningarna fyller i det
-  localStorage.setItem(UTM_NAMN_KEY, name);
-  const entry = await saveHighscore(name, score, seterraElapsed, seterraWrong);
+  const entry = await sparaMedNamn(name);
   knapp.disabled = false;
   closeNameModal();
   await renderHighscores(entry);
@@ -3229,6 +3412,17 @@ document.querySelectorAll('#world-count-buttons button').forEach(b => {
 document.getElementById('world-start-btn').addEventListener('click', async () => {
   document.getElementById('world-setup-overlay').classList.remove('active');
   await startWorld(worldCount);
+});
+// önskemål från en spelare: topplistan ska gå att nå redan HÄR, utan att
+// behöva spela en runda först. Rekordlistorna finns per antal, så knappen
+// visar listan för det antal som är valt i knappraden ovanför.
+document.getElementById('world-mina-btn').addEventListener('click', () => {
+  bildlage = false;   // världstestets listor är klassiska quizets
+  HS_BAS = 'glob-world-highscores-' + (worldCount === 999 ? 'alla' : worldCount);
+  uppdateraHsKey();
+  aktivRegionNamn = worldCount === 999
+    ? 'hela världen (alla länder)' : `hela världen (${worldCount} länder)`;
+  visaTopplista('mina');
 });
 function worldFlow() {
   spelPadding();
