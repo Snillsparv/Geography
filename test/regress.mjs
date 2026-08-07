@@ -168,6 +168,66 @@ const dom = await page.evaluate(`(() => {
            order: !!order, shownWith, hiddenWithout: assoc.style.display === 'none' };
 })()`);
 ok('infokortet rätt', dom.inSide && dom.order && dom.shownWith && dom.hiddenWithout && dom.counterInCard);
+// ── råkade svar vid rotation ──
+// ett tryck som roterar globen (eller fångar in en som glider) får aldrig
+// räknas som ett landklick; ett vanligt klick måste räknas precis som förr
+await page.evaluate(`(() => { switchMode('seterra', true); startSeterra(); })()`);
+await page.waitForTimeout(700);
+// landmarkörerna ligger mitt i länderna → skärmpunkten fås direkt ur
+// projektionen, snabbt nog att användas mitt under en pågående rörelse
+const landPunkt = () => page.evaluate(`(() => {
+  const cv = map.getCanvas(), r = cv.getBoundingClientRect();
+  for (const m of markerPts) {
+    if (revealed.has(m.gid)) continue;
+    const p = map.project([m.lng, m.lat]);
+    if (p.x < 60 || p.x > 640 || p.y < 60 || p.y > cv.clientHeight - 60) continue;
+    const h = map.queryRenderedFeatures([p.x, p.y], { layers: ['prickar', 'former', 'cover'] });
+    if (h.length && h[0].id === m.gid) return { x: r.left + p.x, y: r.top + p.y };
+  }
+  return null;
+})()`);
+const svarAntal = () => page.evaluate('seterraCorrect + seterraWrong');
+const stilla = async () => {
+  await page.waitForFunction('!map.isMoving() && !seterraLocked', null, { timeout: 10000 });
+  await page.waitForTimeout(200);
+};
+await stilla();
+const glidFore = await svarAntal();
+// OBS: får inte returnera map-objektet — serialiseringen tar sekunder
+await page.evaluate(`(() => { map.easeTo({ center: [map.getCenter().lng + 2, map.getCenter().lat],
+                                            duration: 4000, essential: true }); })()`);
+await page.waitForTimeout(150);
+const glidP = await landPunkt();                       // punkten hämtas i rörelsen
+const gledVidKlick = await page.evaluate('map.isMoving()');
+await page.mouse.click(glidP.x, glidP.y);
+await page.waitForTimeout(500);
+ok('klick på glidande glob ger inget svar',
+  gledVidKlick && (await svarAntal()) === glidFore, gledVidKlick ? '' : 'globen stod still');
+await stilla();
+const klickP = await landPunkt();
+const klickFore = await svarAntal();
+await page.mouse.click(klickP.x, klickP.y);
+await page.waitForTimeout(500);
+ok('vanligt klick registreras ändå', (await svarAntal()) === klickFore + 1);
+try {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await stilla();
+  const gP = await landPunkt();
+  const gFore = await svarAntal();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: gP.x, y: gP.y }] });
+  for (let i = 1; i <= 4; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: gP.x + i * 3, y: gP.y }] });
+    await page.waitForTimeout(25);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(500);
+  ok('12 px fingerglid ger inget svar', (await svarAntal()) === gFore);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+} catch (e) {
+  ok('12 px fingerglid ger inget svar', false, String(e).slice(0, 140));
+}
+
 const fails = results.filter(r => !r.pass);
 console.log(`\n${results.length - fails.length}/${results.length} godkända`);
 await browser.close();

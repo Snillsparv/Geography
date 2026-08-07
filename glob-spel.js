@@ -130,6 +130,15 @@ function flashWrong(gid) {
 }
 // pekskärmar får en förlåtande tryckyta runt de små prickarna
 const TRYCKMARGINAL = matchMedia('(pointer: coarse)').matches ? 10 : 0;
+// Ett tryck som försökte rotera globen är aldrig ett svar. Två fall slank
+// förbi förut och gav råkade fel: att nudda en glob som fortfarande glider
+// (då stannar den bara — men klicket räknades), och små glid på pekskärm
+// som är för korta för att bli en dragning men för långa för att vara ett
+// tryck. Väggkartan och originalkartan låser redan likadant (oDrag.moved).
+// Tröskeln är densamma som maplibres KLICKTOL: har fingret vandrat så långt
+// att globen kan ha börjat snurra, så var avsikten att snurra.
+const KLICKTOL = 10;
+let globTryck = null;   // { x, y, drog } för pågående tryck på globen
 
 function blinkHint(gid) {
   if (revealed.has(gid)) return;
@@ -152,7 +161,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '50';
+const V = '51';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -416,7 +425,7 @@ function initMap() {
     center: KAMERA.world.center,
     zoom: KAMERA.world.zoom,
     maxZoom: 9.5,
-    clickTolerance: 10,
+    clickTolerance: KLICKTOL,
     doubleClickZoom: false,
     attributionControl: { compact: true },
     style: {
@@ -567,7 +576,22 @@ function initMap() {
     }
     map.getCanvas().style.cursor = gid !== null ? 'pointer' : '';
   });
+  // trycket följs från början till slut: så fort globen snurrat under fingret
+  // (eller trycket satts ner på en glob som fortfarande gled) är det ingen
+  // fråga om ett svar — låset sitter kvar även om fingret återvänder
+  map.getCanvas().addEventListener('pointerdown', e => {
+    // glider globen redan? då fångar trycket in den i stället för att svara.
+    // startsidans egen snurr räknas inte — den stannar direkt vid beröring
+    const glider = snurrId === null && map.isMoving();
+    globTryck = { x: e.clientX, y: e.clientY, drog: glider };
+  }, { passive: true });
+  map.getCanvas().addEventListener('pointermove', e => {
+    if (!globTryck || globTryck.drog) return;
+    if (Math.hypot(e.clientX - globTryck.x, e.clientY - globTryck.y) > KLICKTOL)
+      globTryck.drog = true;
+  }, { passive: true });
   map.on('click', e => {
+    if (globTryck && globTryck.drog) return;   // rotation eller fångst, inget svar
     let hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
     if (!hits.length && TRYCKMARGINAL) {
       // pekskärm: fingret missar lätt de små prickarna (Västindien!) —
@@ -598,6 +622,9 @@ function initMap() {
   }
   let senasteLng = null;
   map.on('move', e => {
+    // globen svarade på användarens eget drag: låsningen ovan behöver ingen
+    // pixeltröskel att gissa på — rörde den sig alls var det en rotation
+    if (e.originalEvent && globTryck) globTryck.drog = true;
     // bara användarens egna drag räknas (programstyrda flygningar saknar
     // originalEvent) — riktningen avgör åt vilket håll snurren återupptas
     if (!e.originalEvent || !document.body.classList.contains('startlage')) {
