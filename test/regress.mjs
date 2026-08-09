@@ -22,7 +22,7 @@ const relevantErrors = pageErrors.filter(e => !/firebase/i.test(e));
 ok('inga JS-fel vid laddning', relevantErrors.length === 0, relevantErrors.join(' | ').slice(0, 200));
 const has = (frag) => reqUrls.some(u => u.includes(frag));
 ok(`datafiler v=${V}`, has(`art-regions.json?v=${V}`) && has(`art-markers.json?v=${V}`) && has(`art-borders.json?v=${V}`));
-ok('tiles kvar på v=2', has('world.pmtiles?v=2') && !has(`world.pmtiles?v=${V}`));
+ok('tiles kvar på v=3', has('world.pmtiles?v=3') && !has(`world.pmtiles?v=${V}`));
 ok('tileSize 256', (await page.evaluate("map.getSource('art').tileSize")) === 256);
 await page.click('#world-start-btn');
 await page.waitForTimeout(1500);
@@ -86,7 +86,9 @@ async function prickHit(gid, lng, lat, zoom) {
   return n;
 }
 ok('Ukraina aldrig prick', (await prickHit(1, 31.32, 49.20, 1.4)) === 0 && (await prickHit(1, 31.32, 49.20, 5)) === 0);
-ok('Malta prick z5, borta z7', (await prickHit(2, 14.211, 34.342, 5)) > 0 && (await prickHit(2, 14.211, 34.342, 7)) === 0);
+// Malta blev emblem i v3-arkivet (konsten har inte öns form) — emblemens
+// prick ska tvärtom ALDRIG försvinna, hur långt in man än zoomar
+ok('Malta prick z5 och kvar z7 (emblem)', (await prickHit(2, 14.211, 34.342, 5)) > 0 && (await prickHit(2, 14.211, 34.342, 7)) > 0);
 ok('Vatikanen prick kvar z7', (await prickHit(36, 12.43, 41.90, 7)) > 0);
 async function darkPix(gid, lng, lat, tackt) {
   await page.evaluate(`setLand(${gid}, { tackt: ${tackt}, gron: false, fel: false, tips: false })`);
