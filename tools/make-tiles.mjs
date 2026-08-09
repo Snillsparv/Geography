@@ -1314,7 +1314,13 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // The sheet layer renders into a buffer with a small GUTTER around the tile:
 // the uniform outline (and the border export) needs to see ownership just
 // across the tile seam, or borders would break exactly along the tile grid.
-const G = OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
+// usa-datasetet behöver bred gutter: snäpp-passet hämtar fyllfärg upp till
+// ~0,50° bort, och källan kan ligga i grannrutan — guttern måste rymma hela
+// räckvidden VID DJUPASTE ZOOMEN, annars fylls samma världspixel i en ruta
+// men inte i grannen (skarvband + trasig kantexport)
+const G = DATASET === 'usa'
+  ? Math.max(48, Math.ceil(TILE * (1 << MAXZOOM) * 0.50 / 360) + 4)
+  : OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
 const TG = TILE + 2 * G;
 const sheetBuf = new Uint8ClampedArray(TG * TG * 4);   // tile's sheet layer
 const scratch = new Uint8ClampedArray(TG * TG * 4);    // one country's art
@@ -1442,6 +1448,145 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
     if (d[i * 4 + 3] > 127) { m[i] = 1; cnt++; }
   }
   return cnt ? m : null;
+}
+
+// ── USA-snäppet (--dataset usa) ──
+// Delstatsarken är varpade teckningar: deras målade ytterkant vinglar någon
+// tiondels grad runt USA:s riktiga kontur, medan världsarkivets USA är låst
+// exakt till Natural Earth-polygonen. I spelet syns skillnaden som gröna
+// strimmor och dubbla konturer (Mexikogränsen, Alaskas kust). Passet snäpper
+// delstatsrendreringen till SAMMA polygon: målat utanför landet klipps bort,
+// omålat innanför fylls med närmsta delstats kantfärg (samma färgförläng-
+// ningsestetik som världens låsta underlägg). Hawaii och småöar (Aleuterna)
+// undantas — deras konst är medvetet större än öarna och ska inte klippas.
+let usaSnap = null;   // { fyll: [pieces], skydd: [pieces] } — fylls i main()
+// Hawaii undantas helt: delstatskonsten är medvetet mycket större än öarna
+// och får varken klippas eller "fyllas" mot de små målade öblobbarna
+const HAWAII = ([lng, lat]) => lng > -162 && lng < -152 && lat > 17 && lat < 24;
+function snapPieces(geometry, cLng, filt) {
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  const ut = [];
+  for (const poly of polys) {
+    if (filt && !filt(poly)) continue;
+    const rings = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const ring of poly) {
+      const pts = new Float64Array(ring.length * 2);
+      for (let i = 0; i < ring.length; i++) {
+        let lng = ring[i][0];
+        while (lng - cLng > 180) lng -= 360;
+        while (lng - cLng < -180) lng += 360;
+        const x = mercX(lng), y = mercY(ring[i][1]);
+        pts[i * 2] = x; pts[i * 2 + 1] = y;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+      rings.push(pts);
+    }
+    ut.push({ rings, minX, minY, maxX, maxY });
+  }
+  return ut;
+}
+function byggUsaSnap() {
+  // FYLLMÅLET är världsarkivets MÅLADE USA-yta (art-regions.json), inte
+  // NE-polygonen: världens sömlöshet bygger på att den låsta USA:ns färg-
+  // förlängda underlägg löper ända fram till grannens teckningskant (t.ex.
+  // in i Mexiko där grannens konst inte når gränsen). Delstaterna ska sluta
+  // på EXAKT samma linje — då finns varken gröna strimmor eller dubbla
+  // konturer. Kustöar (Kodiak, Long Island …) är egna målade polygoner och
+  // fylls också.
+  const varld = JSON.parse(readFileSync(path.join(repo, 'assets/art-regions.json'), 'utf8'));
+  const f = varld.features.find(x => x.properties && x.properties.key === 'nordamerika/usa');
+  if (!f) throw new Error('hittar inte nordamerika/usa i assets/art-regions.json');
+  // OBS: INTE geoCentroid — exportringarnas vindning får d3 att läsa
+  // komplementet av sfären (centroiden hamnade i Asien) och upplindningen
+  // klöv då fastlandsringen mitt itu. −100° håller hela USA i ett stycke
+  // och lindar bara västra Aleuterna (+172…+179 → −188…−181), som ska.
+  const cLng = -100;
+  const ejHawaii = poly => !HAWAII(poly[0][0]);
+  // vindningssäker area: exportringarna är vridna så att d3 läser sfärens
+  // komplement (samma fälla som cLng ovan) — ta min(a, 4π−a)
+  const ytan = poly => {
+    const a = geoArea({ type: 'Polygon', coordinates: poly });
+    return Math.min(a, 4 * Math.PI - a);
+  };
+  const fyll = snapPieces(f.geometry, cLng, poly => ejHawaii(poly) && ytan(poly) > 1e-6);
+  // klippvakten skyddar all legitim konst: målat i världens USA-yta ELLER
+  // innanför NE-landets polygoner (Aleuterna, Hawaii — konst större än ön)
+  const skydd = snapPieces(f.geometry, cLng, null);
+  const ne = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
+  const nef = ne.features.find(x => x.properties.ADM0_A3 === 'USA' || x.properties.GU_A3 === 'USA');
+  if (nef) skydd.push(...snapPieces(nef.geometry, cLng, null));
+  usaSnap = { fyll, skydd };
+  console.log(`USA-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner.`);
+}
+const snapMask = (pieces, world, tx, ty) => {
+  const grupper = [];
+  for (const off of [0, -world, world]) {
+    for (const p of pieces) grupper.push({ ...p, off });
+  }
+  return buildMask(grupper, world, tx, ty, 'fill');
+};
+// chamfer 3-4: heltalsavstånd + närmsta-källa-index, två svep över rutan
+function usaSnapPass(world, tx, ty) {
+  const mFyll = snapMask(usaSnap.fyll, world, tx, ty);
+  if (!mFyll) return;                       // rutan rör inte målad USA-yta
+  const mSkydd = snapMask(usaSnap.skydd, world, tx, ty) || mFyll;
+  const N = TG * TG;
+  const INF = 0x3fffffff;
+  const KLIPP_PX = Math.max(3, Math.round(world * 0.12 / 360));   // ~0,12°
+  const FYLL_PX = Math.max(4, Math.round(world * 0.50 / 360));    // ~0,50°
+  // avstånd till närmsta fyllmålspixel (för klippvakten)
+  const dStor = new Int32Array(N);
+  for (let i = 0; i < N; i++) dStor[i] = mFyll[i] ? 0 : INF;
+  const svep = (d, src) => {
+    for (let y = 0; y < TG; y++) for (let x = 0; x < TG; x++) {
+      const i = y * TG + x;
+      const prova = (j, w) => {
+        if (j < 0 || d[j] + w >= d[i]) return;
+        d[i] = d[j] + w;
+        if (src) src[i] = src[j];
+      };
+      if (x > 0) prova(i - 1, 3);
+      if (y > 0) { prova(i - TG, 3); if (x > 0) prova(i - TG - 1, 4); if (x < TG - 1) prova(i - TG + 1, 4); }
+    }
+    for (let y = TG - 1; y >= 0; y--) for (let x = TG - 1; x >= 0; x--) {
+      const i = y * TG + x;
+      const prova = (j, w) => {
+        if (j >= N || d[j] + w >= d[i]) return;
+        d[i] = d[j] + w;
+        if (src) src[i] = src[j];
+      };
+      if (x < TG - 1) prova(i + 1, 3);
+      if (y < TG - 1) { prova(i + TG, 3); if (x < TG - 1) prova(i + TG + 1, 4); if (x > 0) prova(i + TG - 1, 4); }
+    }
+  };
+  svep(dStor, null);
+  // 1) klipp: målat utanför både målad USA-yta och NE-landet, nära
+  //    fyllmålet (Hawaii ligger utanför räckhåll och lämnas i fred)
+  for (let i = 0; i < N; i++) {
+    if (!sheetBuf[i * 4 + 3] || mSkydd[i]) continue;
+    if (dStor[i] <= KLIPP_PX * 3) {
+      sheetBuf[i * 4] = 0; sheetBuf[i * 4 + 1] = 0; sheetBuf[i * 4 + 2] = 0; sheetBuf[i * 4 + 3] = 0;
+      ownerBuf[i] = 0;
+    }
+  }
+  // 2) fyll: omålat innanför fastlandet får närmsta målade pixels färg+ägare
+  const dKalla = new Int32Array(N);
+  const kalla = new Int32Array(N);
+  for (let i = 0; i < N; i++) {
+    if (sheetBuf[i * 4 + 3] === 255) { dKalla[i] = 0; kalla[i] = i; }
+    else { dKalla[i] = INF; kalla[i] = -1; }
+  }
+  svep(dKalla, kalla);
+  for (let i = 0; i < N; i++) {
+    if (!mFyll[i] || sheetBuf[i * 4 + 3]) continue;
+    if (dKalla[i] > FYLL_PX * 3 || kalla[i] < 0) continue;
+    const s = kalla[i] * 4;
+    sheetBuf[i * 4] = sheetBuf[s]; sheetBuf[i * 4 + 1] = sheetBuf[s + 1];
+    sheetBuf[i * 4 + 2] = sheetBuf[s + 2]; sheetBuf[i * 4 + 3] = 255;
+    ownerBuf[i] = ownerBuf[kalla[i]];
+  }
 }
 
 // The uniform outline: after all countries are composited, find every pixel
@@ -2162,6 +2307,7 @@ async function main() {
   const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
   console.log(`Matched ${nMatched} countries in ${regions.length} regions.`);
   await buildWarps(regions);
+  if (DATASET === 'usa') byggUsaSnap();
   const fills = buildFills(loadFeatures().byA3);
   console.log(`Flat fills: ${fills.map(f => f.a3).join(', ')}`);
 
@@ -2236,6 +2382,10 @@ async function main() {
         // pads), or the collar repaint gets tile-boundary seams and the
         // exported region rings break there.
         let pad = 0;
+        // usa-snäppet fyller upp till ~0,3° utanför arkens målade kant —
+        // registrera rutraden intill också, annars tappas fyllband som
+        // hamnar strax utanför delstatens egen bbox
+        if (DATASET === 'usa') pad = Math.max(1, Math.ceil(world * 0.3 / 360 / TILE));
         if (c.gapAdj) {
           if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
           if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
@@ -2430,6 +2580,7 @@ async function main() {
             }
           }
         }
+        if (usaSnap) usaSnapPass(world, tx, ty);
         outlineSheet();
           // premultiplied → straight, composited over the locked layer
           const id = ctx.createImageData(TG, TG);

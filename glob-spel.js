@@ -178,7 +178,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '60';
+const V = '61';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -199,7 +199,7 @@ async function fetchJson(path) {
 const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
-const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=1');
+const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=2');
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
 let usaLaddad = null;   // promise: klickytor/markörer/gränser + kartlager
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
@@ -332,7 +332,9 @@ async function loadMarkers() {
 // världsarkivets USA-bild när lagren är tända.
 function laddaUsa() {
   if (usaLaddad) return usaLaddad;
-  usaLaddad = (async () => {
+  // cachas BARA vid framgång (som loadRegionConfig) — en nätblipp får inte
+  // göra delstatsregionen obrukbar för resten av sessionen
+  const forsok = (async () => {
     const [reg, mark, grans] = await Promise.all([
       fetchJson('assets/usa-regions.json?v=' + V),
       fetchJson('assets/usa-markers.json?v=' + V),
@@ -370,7 +372,9 @@ function laddaUsa() {
       } catch (e) {}
     }
   })();
-  return usaLaddad;
+  usaLaddad = forsok;
+  forsok.catch(() => { usaLaddad = null; });
+  return forsok;
 }
 function visaUsaLager(pa) {
   for (const id of ['usa-art', 'usa-cover', 'usa-granser', 'usa-prickar']) {
@@ -384,6 +388,13 @@ function spelLager() {
   return aktivSlug === 'usa'
     ? ['usa-prickar', 'usa-cover', 'prickar', 'former', 'cover']
     : ['prickar', 'former', 'cover'];
+}
+// i delstatsregionen är världens USA-yta bara kuliss (konst under delstats-
+// lagren) — träffar på den räknas som hav, aldrig som svar eller hover
+function spelTraffar(hits) {
+  if (aktivSlug !== 'usa') return hits;
+  const uv = featureByFilename.get('usa');
+  return uv ? hits.filter(h => h.id !== uv.id) : hits;
 }
 
 // Cirkeln har FAST storlek på kartan (geografiskt förankrad — den zoomar
@@ -762,7 +773,7 @@ function initMap() {
       cursorLabel.style.left = e.originalEvent.clientX + 'px';
       cursorLabel.style.top = e.originalEvent.clientY + 'px';
     }
-    const hits = map.queryRenderedFeatures(e.point, { layers: spelLager() });
+    const hits = spelTraffar(map.queryRenderedFeatures(e.point, { layers: spelLager() }));
     const gid = hits.length ? hits[0].id : null;
     if (document.body.classList.contains('startlage')) {
       // startsidan: hela världsdelen skimrar när man pekar på den
@@ -800,14 +811,14 @@ function initMap() {
   }, { passive: true });
   map.on('click', e => {
     if (globTryck && globTryck.drog) return;   // rotation eller fångst, inget svar
-    let hits = map.queryRenderedFeatures(e.point, { layers: spelLager() });
+    let hits = spelTraffar(map.queryRenderedFeatures(e.point, { layers: spelLager() }));
     if (!hits.length && TRYCKMARGINAL) {
       // pekskärm: fingret missar lätt de små prickarna (Västindien!) —
       // fånga träffar strax intill, men bara när exakta träffen är tom
-      hits = map.queryRenderedFeatures(
+      hits = spelTraffar(map.queryRenderedFeatures(
         [[e.point.x - TRYCKMARGINAL, e.point.y - TRYCKMARGINAL],
          [e.point.x + TRYCKMARGINAL, e.point.y + TRYCKMARGINAL]],
-        { layers: spelLager() });
+        { layers: spelLager() }));
       if (hits.length > 1) {
         // närmsta pricken vinner — i prickgyttret (Västindien utzoomat)
         // fick annars den överst ritade alla närliggande tryck. Gäller BARA
@@ -815,8 +826,11 @@ function initMap() {
         // (sorteringen är stabil), annars vinner grannen vars mittpunkt
         // råkar ligga närmast i stället för landet man faktiskt nuddade
         const avst = f => {
-          if (!f.layer || f.layer.id !== 'prickar') return Infinity;
-          const m = markerPts.find(m2 => m2.gid === f.id);
+          if (!f.layer || (f.layer.id !== 'prickar' && f.layer.id !== 'usa-prickar')) return Infinity;
+          // punktens läge tas ur featurens egen geometri — funkar för både
+          // världens och delstaternas prickar (markerPts har bara världens)
+          const g = f.geometry && f.geometry.type === 'Point' ? f.geometry.coordinates : null;
+          const m = g ? { lng: g[0], lat: g[1] } : markerPts.find(m2 => m2.gid === f.id);
           if (!m) return Infinity;
           const p = map.project([m.lng, m.lat]);
           return Math.hypot(p.x - e.point.x, p.y - e.point.y);
@@ -1929,6 +1943,7 @@ async function startRegion(slug, flyg, delId) {
   document.getElementById('spel-delar').style.display = delarFor(raw).length ? '' : 'none';
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
+  uppdateraOrdval();   // delstat/land i alla spelartexter
   // hann någon välja quiz medan regionen laddade? starta det nu på riktigt
   if (seterraVantarPaData && currentMode !== 'explore') startSeterra();
 
@@ -1941,6 +1956,11 @@ async function startRegion(slug, flyg, delId) {
   }
   if (slug === 'usa') {
     for (const gid of aktivByGid.keys()) setLand(gid, { gron: false, tackt: true });
+    // världens USA-yta visar sin KONST (varken grön eller täckt) — där
+    // delstatslagren inte når (avlägsna öar som Kodiak) syns då samma
+    // teckning som i världsvyn i stället för gröna fläckar
+    const usaVarld = featureByFilename.get('usa');
+    if (usaVarld) setLand(usaVarld.id, { gron: false, tackt: false });
   }
   // väggkartan bakas ur världsarkivet och känner inte delstaterna — göm
   // det vyvalet i delstatsregionen (globen + originalkartan räcker gott)
@@ -2021,6 +2041,7 @@ async function startWorld(count, fastaGids) {
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
   IMAGE_ASSOCIATIONS = Object.fromEntries(COUNTRIES.filter(c => c.assoc).map(c => [c.filename, c.assoc]));
   aktivSlug = 'world';
+  uppdateraOrdval();   // tillbaka till 'länder' om man kommer från delstaterna
   aktivRegionNamn = helaPotten
     ? `hela världen (alla ${count} länder)` : `hela världen (${count} länder)`;
   // egen rekordlista per antal — 10/20/30/50/100 länder tävlar var för sig,
@@ -2069,10 +2090,26 @@ function preloadCountryImages() {
 const infoToggle = document.getElementById('info-toggle');
 const infoExtra = document.getElementById('info-extra');
 let infoUtfalld = false;
+// delstatsregionen pratar om delstater, inte länder — samma texter, rätt ord
+const ordLandet = () => aktivSlug === 'usa' ? 'delstaten' : 'landet';
+const ordLander = () => aktivSlug === 'usa' ? 'delstater' : 'länder';
+const ordEttLand = () => aktivSlug === 'usa' ? 'en delstat' : 'ett land';
+function uppdateraOrdval() {
+  visaInfoUtfalld();
+  const p = document.querySelector('#info-default p');
+  if (p) p.innerHTML = `Klicka på ${ordEttLand()} på globen<br>för att se dess form och<br>läsa om det!`;
+  const uo = document.getElementById('utforsk-ord');
+  if (uo) uo.textContent = ordLander();
+  const so = document.getElementById('stang-ord');
+  if (so) so.textContent = ordLandet();
+  const ho = document.getElementById('hitta-ord');
+  if (ho) ho.textContent = aktivSlug === 'usa' ? 'Hitta denna delstat:' : 'Hitta detta land:';
+  if (currentMode === 'explore') headerHint.textContent = 'Klicka på ' + ordEttLand();
+}
 function visaInfoUtfalld() {
   infoExtra.style.display = infoUtfalld ? '' : 'none';
   infoToggle.classList.toggle('open', infoUtfalld);
-  infoToggle.textContent = infoUtfalld ? 'Dölj info om landet' : 'Visa info om landet';
+  infoToggle.textContent = (infoUtfalld ? 'Dölj' : 'Visa') + ' info om ' + ordLandet();
 }
 infoToggle.addEventListener('click', () => {
   infoUtfalld = infoExtra.style.display === 'none';
@@ -2285,7 +2322,7 @@ function endSeterra() {
   seterraDone.classList.add('active');
   document.getElementById('seterra-final-score').textContent = score + '%';
   document.getElementById('seterra-final-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} ${ordLander()}<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
   const retryBtn = document.getElementById('seterra-retry');
   if (seterraMissedCountries.size > 0) {
     retryBtn.style.display = '';
@@ -2708,7 +2745,7 @@ const modalNameInput = document.getElementById('modal-name');
 function showNameModal(score, m, s) {
   document.getElementById('modal-score').textContent = score + '%';
   document.getElementById('modal-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} ${ordLander()} &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
   // namnet man sparat med förut fylls i — att trycka Spara ska räcka
   modalNameInput.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   nameModalOverlay.classList.add('active');
@@ -2841,7 +2878,7 @@ function switchMode(mode, force) {
     hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
-    headerHint.textContent = 'Klicka på ett land';
+    headerHint.textContent = 'Klicka på ' + ordEttLand();
     resetOverlays();
     utforskade.clear();   // nytt pass genom världsdelen
     activeCountry = null;
@@ -2855,8 +2892,9 @@ function switchMode(mode, force) {
     // en kvardröjande utforska-tooltip (timern löper i upp till 4 s) skulle
     // annars gömma quizets markörtext mitt i rundan när timern slår till
     hideExploreTooltip();
-    headerHint.textContent = bildlage ? 'Bilderna hjälper dig — klicka på rätt land!'
-                                      : 'Klicka där du tror landet är!';
+    headerHint.textContent = bildlage
+      ? `Bilderna hjälper dig — klicka på rätt ${aktivSlug === 'usa' ? 'delstat' : 'land'}!`
+      : `Klicka där du tror ${ordLandet()} är!`;
     startSeterra();
   }
 }
@@ -3030,7 +3068,7 @@ function burstConfetti() {
 function showCelebration(m, s) {
   const overlay = document.getElementById('celebration-overlay');
   document.getElementById('celebration-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} ${ordLander()} &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
   overlay.classList.add('active');
   const stopConfetti = startConfetti(document.getElementById('confetti-canvas'));
   const celebMusic = new Audio('CELEBRATION.mp3');
@@ -3231,6 +3269,8 @@ function startLage(flyg) {
 // till världsvyn och tona fram startöverlägget — samma glob hela tiden.
 function tillbakaTillStart() {
   aktivUtmaning = null;          // utmaningen gäller bara tills man lämnar den
+  aktivSlug = null;              // ordvalen (land/delstat) ska inte hänga kvar
+  uppdateraOrdval();
   visaUsaLager(false);           // delstatslagren hör bara hemma i sin region
   const plattKnappStart = document.getElementById('view-platt');
   if (plattKnappStart) plattKnappStart.style.display = '';
