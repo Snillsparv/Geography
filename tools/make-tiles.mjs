@@ -105,7 +105,17 @@ const RASTER_CAP = 8192;            // max raster width per country (memory —
 const CACHE_BUDGET = 1.5e9;         // LRU raster cache, bytes
 const GRID_STEP = 80;               // region-canvas px between shared warp-grid nodes
 
-const REGIONS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
+// --dataset usa: bygg USA:s delstater i stället för världen — samma
+// maskineri, men regionslistan är bara 'usa', geometrierna kommer från
+// data/us_states.geojson (Natural Earth admin-1, samma linjeverk som
+// ländernas 50m-data så delstaterna passar exakt i USA:s kontur) och
+// exporterade feature-id:n får GID_BASE så de aldrig krockar med ländernas.
+const DATASET = arg('dataset', 'world');
+const GID_BASE = DATASET === 'usa' ? 1000 : 0;
+
+const REGIONS = DATASET === 'usa'
+  ? ['usa']
+  : ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 // filename → Natural Earth A3 for spellings the name match can't bridge
 const ALIAS = {
   indoneien: 'IDN', demokratiska_republiken_kongo: 'COD', eciador: 'ECU',
@@ -174,6 +184,17 @@ function mercY(lat) {
 
 // ── Load Natural Earth; map_units first (England/Skottland/FXX/GUF …) ──
 function loadFeatures() {
+  if (DATASET === 'usa') {
+    // delstaterna: NAME_SV är satt till configens filnamn, så namnmatchningen
+    // träffar rakt av; inga map_units, ingen Krim-flytt
+    const states = JSON.parse(readFileSync(path.join(here, 'data/us_states.geojson'), 'utf8'));
+    const bySv = {}, byA3 = {};
+    for (const f of states.features) {
+      bySv[norm(f.properties.NAME_SV)] = f;
+      if (f.properties.GU_A3) byA3[f.properties.GU_A3] = f;
+    }
+    return { bySv, byA3 };
+  }
   const units = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_map_units.geojson'), 'utf8'));
   const countries = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
   const bySv = {}, byA3 = {};
@@ -298,8 +319,9 @@ function matchRegions() {
   const regions = [];
   // stable global id per country (1, 2, 3 … in region/config order): the
   // per-pixel OWNER value in every tile, and the feature id in the exported
-  // border/region GeoJSON — the click layer keys on it.
-  let gid = 0;
+  // border/region GeoJSON — the click layer keys on it. usa-datasetet
+  // startar på GID_BASE så delstaterna aldrig krockar med ländernas id:n.
+  let gid = GID_BASE;
   for (const slug of REGIONS) {
     const cfg = JSON.parse(readFileSync(path.join(repo, 'assets', slug, 'config.json'), 'utf8'));
     const countries = [];
@@ -323,7 +345,21 @@ function matchRegions() {
         anchor, fullGeom: f.geometry,
       });
     }
-    if (countries.length) regions.push({ slug, countries });
+    if (!countries.length) continue;
+    if (DATASET === 'usa') {
+      // Alaska och Hawaii ligger i infällda rutor i kompositionen, långt
+      // från sina riktiga lägen — på fastlandets gemensamma varpduk skulle
+      // deras pinnar slita sönder gallret. Var och en får en egen duk;
+      // de rör inte varandra geografiskt så det finns inga fogar att tappa.
+      const egna = new Set(['alaska', 'hawaii']);
+      const fastland = countries.filter(c => !egna.has(c.base));
+      if (fastland.length) regions.push({ slug, countries: fastland });
+      for (const c of countries.filter(c => egna.has(c.base))) {
+        regions.push({ slug, countries: [c] });
+      }
+      continue;
+    }
+    regions.push({ slug, countries });
   }
   return regions;
 }
@@ -793,7 +829,9 @@ async function buildWarps(regions) {
       // them — keep them at the hand-drawn composition instead.
       const bodyArea = am.n / mask.total * c.width * c.height;
       const ratio = pm ? Math.sqrt(bodyArea * detA / Math.max(pm.area, 1e-12)) : 1;
-      c.badge = !c.hasLandBorder && ratio > 3;
+      // delstaterna: Hawaii är överritat men SKA till sin riktiga plats —
+      // inga kompositionsplacerade badges i usa-datasetet
+      c.badge = DATASET !== 'usa' && !c.hasLandBorder && ratio > 3;
       if (c.badge) console.log(`  badge: ${r.slug}/${c.base} (${ratio.toFixed(1)}× överritad)`);
       const eg = eigen2(Cm[0], Cm[1], Cm[2]);
       const K = 1.6;
@@ -807,6 +845,10 @@ async function buildWarps(regions) {
       ];
       if (c.badge) toTrue = null;
       for (const p of pins) {
+        // enlandsdukar (Alaska/Hawaii i usa-datasetet): affinen A är
+        // degenererad (ett enda centrum) och ger NaN — vid geo 1 behövs
+        // den inte alls, måltransporten pekar redan rätt
+        if (toTrue && GEO === 1) { controls.push({ p, q: toTrue(p) }); continue; }
         const qa = A(p);
         if (!toTrue) { controls.push({ p, q: qa }); continue; }
         const qm = toTrue(p);
