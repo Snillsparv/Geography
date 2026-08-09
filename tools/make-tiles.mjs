@@ -1528,7 +1528,7 @@ const snapMask = (pieces, world, tx, ty) => {
   return buildMask(grupper, world, tx, ty, 'fill');
 };
 // chamfer 3-4: heltalsavstånd + närmsta-källa-index, två svep över rutan
-function usaSnapPass(world, tx, ty) {
+async function usaSnapPass(world, tx, ty, sheetDraws) {
   const mFyll = snapMask(usaSnap.fyll, world, tx, ty);
   if (!mFyll) return;                       // rutan rör inte målad USA-yta
   const mSkydd = snapMask(usaSnap.skydd, world, tx, ty) || mFyll;
@@ -1571,95 +1571,108 @@ function usaSnapPass(world, tx, ty) {
       ownerBuf[i] = 0;
     }
   }
-  // 2) fyll: omålat innanför fastlandet får närmsta målade pixels färg —
-  //    men ALDRIG konturbläckets svärta: källorna är närmsta ljusa pixel
-  //    (flaggrött, hattrosa …), annars blir utfyllnaden en mörk ram.
-  //    Kantlinjen ritas ändå av vektorgränserna i spelet (--outline 0).
-  const arInk = i => {
-    const j = i * 4;
-    return sheetBuf[j + 3] === 255 &&
-      Math.max(sheetBuf[j], sheetBuf[j + 1], sheetBuf[j + 2]) < 165;
-  };
+  // ÄGARE via chamfer (närmsta täckande pixel), FÄRG via delstatens eget
+  // UNDERLÄGG — konstens färger med konturbläcket bortrensat, samplade i
+  // konstupplösning på pixelns faktiska position. Rätt färg på varje
+  // zoomnivå per konstruktion: Montanas grå förblir grå, natthimlen
+  // natthimmelsblå, flaggröd flaggröd — aldrig utsmetat kontursvart.
   const dKalla = new Int32Array(N);
   const kalla = new Int32Array(N);
   for (let i = 0; i < N; i++) {
-    if (sheetBuf[i * 4 + 3] === 255 && !arInk(i)) { dKalla[i] = 0; kalla[i] = i; }
+    if (sheetBuf[i * 4 + 3] >= 200 && ownerBuf[i]) { dKalla[i] = 0; kalla[i] = i; }
     else { dKalla[i] = INF; kalla[i] = -1; }
   }
   svep(dKalla, kalla);
-  // färgen tas som MEDEL av en 9×9-ruta runt källan (samma ägare, ej bläck):
-  // en ensam närmsta-pixel ger ränder och drar med sig flodblått som råkar
-  // ligga precis vid kanten — medlet blir delstatens lokala grundton
-  const kallFarg = k => {
-    const ox = k % TG, oy = (k / TG) | 0, agare = ownerBuf[k];
-    let r = 0, g = 0, bl = 0, n = 0;
-    for (let dy = -4; dy <= 4; dy++) {
-      const y = oy + dy; if (y < 0 || y >= TG) continue;
-      for (let dx = -4; dx <= 4; dx++) {
-        const x = ox + dx; if (x < 0 || x >= TG) continue;
-        const j = y * TG + x;
-        if (ownerBuf[j] !== agare || arInk(j) || sheetBuf[j * 4 + 3] !== 255) continue;
-        r += sheetBuf[j * 4]; g += sheetBuf[j * 4 + 1]; bl += sheetBuf[j * 4 + 2]; n++;
-      }
+  const understod = new Map();   // gid → { un, x0, y0, x1, y1 } (warpad bbox)
+  for (const d of sheetDraws || []) {
+    if (understod.has(d.gid)) continue;
+    const g = d.grid;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let gy = d.gy0; gy <= d.gy1; gy++) for (let gx = d.gx0; gx <= d.gx1; gx++) {
+      const i2 = (gy * (g.nx + 1) + gx) * 2;
+      const x = g.u[i2] * world + d.off, y = g.u[i2 + 1] * world;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
-    if (!n) { const s = k * 4; return [sheetBuf[s], sheetBuf[s + 1], sheetBuf[s + 2]]; }
-    return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
+    if (!(maxX > minX)) continue;
+    const un = await getUnderlayFullData(d.key, d.svgPath, 1024);
+    understod.set(d.gid, { un, x0: minX, y0: minY, x1: maxX, y1: maxY });
+  }
+  const fargFor = (gid, px, py) => {
+    const u = understod.get(gid);
+    if (!u) return null;
+    const wx = tx * TILE + px - G + 0.5, wy = ty * TILE + py - G + 0.5;
+    const fu = Math.min(1, Math.max(0, (wx - u.x0) / (u.x1 - u.x0)));
+    const fv = Math.min(1, Math.max(0, (wy - u.y0) / (u.y1 - u.y0)));
+    const kx = Math.min(u.un.w - 1, Math.max(0, Math.round(fu * u.un.w - 0.5)));
+    const ky = Math.min(u.un.h - 1, Math.max(0, Math.round(fv * u.un.h - 0.5)));
+    const si = (ky * u.un.w + kx) * 4;
+    if (!u.un.data[si + 3]) return null;
+    return [u.un.data[si], u.un.data[si + 1], u.un.data[si + 2]];
   };
+  // 2) fyll omålat innanför fyllmålet
   const fylld = new Uint8Array(N);
-  const senare = [];
   for (let i = 0; i < N; i++) {
     if (!mFyll[i] || sheetBuf[i * 4 + 3]) continue;
-    if (dKalla[i] > FYLL_PX * 3 || kalla[i] < 0) { senare.push(i); continue; }
-    const [fr, fg, fb] = kallFarg(kalla[i]);
-    sheetBuf[i * 4] = fr; sheetBuf[i * 4 + 1] = fg;
-    sheetBuf[i * 4 + 2] = fb; sheetBuf[i * 4 + 3] = 255;
-    ownerBuf[i] = ownerBuf[kalla[i]];
+    if (dKalla[i] > FYLL_PX * 3 || kalla[i] < 0) continue;
+    const o = ownerBuf[kalla[i]];
+    const f = fargFor(o, i % TG, (i / TG) | 0);
+    if (!f) continue;
+    sheetBuf[i * 4] = f[0]; sheetBuf[i * 4 + 1] = f[1];
+    sheetBuf[i * 4 + 2] = f[2]; sheetBuf[i * 4 + 3] = 255;
+    ownerBuf[i] = o;
     fylld[i] = 1;
   }
-  // steg 2: stora MÖRKA ytor är riktiga färger (Montanas natthimmel), inte
-  // konturbläck — det som ljuskällorna inte nådde fylls från närmsta målade
-  // pixel oavsett mörker, med medel över samma ägares närområde
-  if (senare.length) {
-    const dAlla = new Int32Array(N);
-    const kAlla = new Int32Array(N);
+  // 3) halvgenomskinlig frans innanför fyllmålet görs opak (komponerad över
+  //    ägarens underlägg) och får ägare — annars blir varje kantfrans en
+  //    ägarlös springa som exporten hackar till hundratals strecksegment
+  for (let i = 0; i < N; i++) {
+    const a = sheetBuf[i * 4 + 3];
+    if (!mFyll[i] || !a || a === 255) continue;
+    const o = ownerBuf[i] || (kalla[i] >= 0 ? ownerBuf[kalla[i]] : 0);
+    if (!o) continue;
+    const f = fargFor(o, i % TG, (i / TG) | 0);
+    if (!f) continue;
+    const inv = (255 - a) / 255;
+    sheetBuf[i * 4] = Math.min(255, sheetBuf[i * 4] + f[0] * inv);
+    sheetBuf[i * 4 + 1] = Math.min(255, sheetBuf[i * 4 + 1] + f[1] * inv);
+    sheetBuf[i * 4 + 2] = Math.min(255, sheetBuf[i * 4 + 2] + f[2] * inv);
+    sheetBuf[i * 4 + 3] = 255;
+    ownerBuf[i] = o;
+    fylld[i] = 1;
+  }
+  // 4) teckningens gamla kantlinje intill utfyllnaden äts våg för våg och
+  //    ersätts med underläggets färg på samma plats — i mörka partier
+  //    (natthimlen) blir bytet osynligt, vid konturband försvinner den
+  //    streckade dubbellinjen och bilden löper obruten fram till gränsen
+  const RIBBON = Math.max(4, Math.round(world * 0.05 / 360));
+  for (let steg = 0; steg < RIBBON; steg++) {
+    const nasta = [];
     for (let i = 0; i < N; i++) {
-      if (sheetBuf[i * 4 + 3] === 255 && !fylld[i]) { dAlla[i] = 0; kAlla[i] = i; }
-      else { dAlla[i] = INF; kAlla[i] = -1; }
-    }
-    svep(dAlla, kAlla);
-    const morkFarg = k => {
-      const ox = k % TG, oy = (k / TG) | 0, agare = ownerBuf[k];
-      let r = 0, g = 0, bl = 0, n = 0;
-      for (let dy = -4; dy <= 4; dy++) {
-        const y = oy + dy; if (y < 0 || y >= TG) continue;
-        for (let dx = -4; dx <= 4; dx++) {
-          const x = ox + dx; if (x < 0 || x >= TG) continue;
-          const j = y * TG + x;
-          if (ownerBuf[j] !== agare || sheetBuf[j * 4 + 3] !== 255) continue;
-          r += sheetBuf[j * 4]; g += sheetBuf[j * 4 + 1]; bl += sheetBuf[j * 4 + 2]; n++;
-        }
+      if (!fylld[i]) continue;
+      for (const d of [-1, 1, -TG, TG]) {
+        const j = i + d;
+        if (j < 0 || j >= N || fylld[j]) continue;
+        const b = j * 4;
+        if (!(sheetBuf[b + 3] === 255 &&
+              Math.max(sheetBuf[b], sheetBuf[b + 1], sheetBuf[b + 2]) < 165)) continue;
+        nasta.push(j);
       }
-      if (!n) { const t = k * 4; return [sheetBuf[t], sheetBuf[t + 1], sheetBuf[t + 2]]; }
-      return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
-    };
-    for (const i of senare) {
-      if (dAlla[i] > FYLL_PX * 3 || kAlla[i] < 0) continue;
-      const [fr, fg, fb] = morkFarg(kAlla[i]);
-      sheetBuf[i * 4] = fr; sheetBuf[i * 4 + 1] = fg;
-      sheetBuf[i * 4 + 2] = fb; sheetBuf[i * 4 + 3] = 255;
-      ownerBuf[i] = ownerBuf[kAlla[i]];
-      fylld[i] = 1;
+    }
+    if (!nasta.length) break;
+    for (const j of nasta) {
+      const o = ownerBuf[j] || (kalla[j] >= 0 ? ownerBuf[kalla[j]] : 0);
+      const f = o && fargFor(o, j % TG, (j / TG) | 0);
+      if (!f) continue;
+      sheetBuf[j * 4] = f[0]; sheetBuf[j * 4 + 1] = f[1];
+      sheetBuf[j * 4 + 2] = f[2]; sheetBuf[j * 4 + 3] = 255;
+      if (!ownerBuf[j]) ownerBuf[j] = o;
+      fylld[j] = 1;
     }
   }
-  // 3) teckningens EGEN kantlinje intill utfyllnaden äts upp, våg för våg
-  //    (även halvgenomskinlig antialias-frans): bilden löper då obruten
-  //    ända fram till den snäppta gränsen i stället för att lämna en
-  //    streckad dubbelkontur en bit in. Begränsat till RIBBON pixlar så
-  //    stora mörka partier i konsten bara naggas marginellt.
-  // ägarskapet i fyllda band majoritetsutjämnas (3×3, två pass): chamfer-
-  // kapplöpningen mellan två delstaters källor ger annars pixeltaggiga
-  // sprickor som exporten hackar till hundratals strecksegment
-  const jamnaAgare = () => {
+  // 5) ägarskapet i behandlade band majoritetsutjämnas (3×3, två pass) så
+  //    klickytor och gränsexport följer lugna linjer
+  const jamna = () => {
     const kopia = ownerBuf.slice();
     for (let y = 1; y < TG - 1; y++) {
       for (let x = 1; x < TG - 1; x++) {
@@ -1676,33 +1689,8 @@ function usaSnapPass(world, tx, ty) {
       }
     }
   };
-  const RIBBON = Math.max(4, Math.round(world * 0.05 / 360));
-  for (let steg = 0; steg < RIBBON; steg++) {
-    const nasta = [];
-    for (let i = 0; i < N; i++) {
-      if (!fylld[i]) continue;
-      for (const d of [-1, 1, -TG, TG]) {
-        const j = i + d;
-        if (j < 0 || j >= N || fylld[j] || kalla[j] < 0) continue;
-        // bara tunna konturlinjer äts (ljus färg finns strax intill) —
-        // mörka YTOR som Montanas natthimmel är innehåll och lämnas
-        if (dKalla[j] > 8 * 3 + 4) continue;
-        const aj = sheetBuf[j * 4 + 3];
-        if (!(arInk(j) || (aj > 0 && aj < 255))) continue;
-        nasta.push(j);
-      }
-    }
-    if (!nasta.length) break;
-    for (const j of nasta) {
-      const [fr, fg, fb] = kallFarg(kalla[j]);
-      sheetBuf[j * 4] = fr; sheetBuf[j * 4 + 1] = fg;
-      sheetBuf[j * 4 + 2] = fb; sheetBuf[j * 4 + 3] = 255;
-      if (!ownerBuf[j]) ownerBuf[j] = ownerBuf[kalla[j]];
-      fylld[j] = 1;
-    }
-  }
-  jamnaAgare();
-  jamnaAgare();
+  jamna();
+  jamna();
 }
 
 // The uniform outline: after all countries are composited, find every pixel
@@ -2696,7 +2684,7 @@ async function main() {
             }
           }
         }
-        if (usaSnap) usaSnapPass(world, tx, ty);
+        if (usaSnap) await usaSnapPass(world, tx, ty, sheetDraws);
         outlineSheet();
           // premultiplied → straight, composited over the locked layer
           const id = ctx.createImageData(TG, TG);
