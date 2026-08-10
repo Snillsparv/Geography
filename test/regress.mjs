@@ -251,6 +251,22 @@ try {
   ok('kakrutan visas utan val', false, String(e).slice(0, 140));
 }
 
+// ── turordningen: rundturen går före kakfrågan för nya besökare ──
+try {
+  const tp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await tp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });   // INGEN rundtur-klar
+  await tp.waitForFunction("document.getElementById('intro-overlay').style.display !== 'none'",
+    null, { timeout: 40000 });
+  await tp.waitForTimeout(1800);   // kakrutans egen fördröjning har passerat
+  ok('kakrutan väntar medan rundturen pågår', await tp.evaluate("!document.getElementById('kakruta')"));
+  await tp.click('#intro-hoppa');
+  await tp.waitForSelector('#kakruta.inne', { timeout: 8000 });
+  ok('kakrutan kommer när rundturen hoppats över', true);
+  await tp.close();
+} catch (e) {
+  ok('kakrutan väntar medan rundturen pågår', false, String(e).slice(0, 140));
+}
+
 const fails = results.filter(r => !r.pass);
 console.log(`\n${results.length - fails.length}/${results.length} godkända`);
 await browser.close();

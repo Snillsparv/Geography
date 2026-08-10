@@ -72,7 +72,7 @@
   display: flex; align-items: flex-end; max-width: min(480px, calc(100vw - 16px));
   opacity: 0; transform: translateY(28px); transition: opacity .5s, transform .5s cubic-bezier(.2,.9,.3,1.15); }
 #kakruta.inne { opacity: 1; transform: none; }
-#kakruta.ut { opacity: 0; transform: translateY(34px); pointer-events: none; }
+#kakruta.ut, #kakruta.undan { opacity: 0; transform: translateY(34px); pointer-events: none; }
 .kak-jonas { width: 200px; aspect-ratio: 896 / 1200; position: relative; flex: none;
   margin-right: -30px; margin-bottom: -8px; z-index: 2; pointer-events: none;
   filter: drop-shadow(0 10px 22px #000a); }
@@ -217,7 +217,7 @@
     };
 
     const taEttBett = () => {
-      if (stangd || document.hidden) { planera(); return; }
+      if (stangd || document.hidden || ruta.classList.contains('undan')) { planera(); return; }
       ruta.classList.remove('vaken');          // svajet pausar under resan
       arm.classList.add('bett');
       setTimeout(() => {                       // framme vid munnen
@@ -254,10 +254,42 @@
     };
     ruta.querySelector('#kak-ja').addEventListener('click', () => { sagJa(); stang(); });
     ruta.querySelector('#kak-nej').addEventListener('click', () => { sagNej(); stang(); });
+
+    // drar en tur eller notis igång medan rutan syns (hjälpknappen, install-
+    // notisen …) kliver den undan och kommer tillbaka när Jonas pratat klart
+    const intro = document.getElementById('intro-overlay');
+    if (intro) {
+      const synka = () => {
+        if (stangd) return;
+        if (intro.style.display !== 'none') ruta.classList.add('undan');
+        else setTimeout(() => {
+          if (!stangd && intro.style.display === 'none') ruta.classList.remove('undan');
+        }, 1200);
+      };
+      new MutationObserver(synka).observe(intro, { attributes: true, attributeFilter: ['style'] });
+    }
   };
 
-  // låt spelet landa först — rutan glider in efter ett litet andrum
+  // ── turordning: Jonas kan bara prata på ett ställe i taget ──
+  // Rundturen (startsidan) och spelgenomgången (regionsidorna) går före —
+  // kakfrågan väntar tills de körts klart eller hoppats över, och visas
+  // aldrig medan intro-overlayen (turer och notiser) är uppe.
+  const introDold = () => {
+    const el = document.getElementById('intro-overlay');
+    return !el || el.style.display === 'none';
+  };
+  const params = new URLSearchParams(location.search);
+  const vantarPa = params.get('region') ? 'speltur-klar'
+    : params.get('utmaning') ? null : 'rundtur-klar';
+  const turKlar = () => {
+    if (!vantarPa) return true;
+    try { return !!localStorage.getItem(vantarPa); } catch (e) { return true; }
+  };
+  const prova = () => {
+    if (!turKlar() || !introDold()) { setTimeout(prova, 700); return; }
+    meny();
+  };
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(meny, 1400));
-  } else setTimeout(meny, 1400);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(prova, 1400));
+  } else setTimeout(prova, 1400);
 })();
