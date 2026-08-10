@@ -1315,11 +1315,12 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // the uniform outline (and the border export) needs to see ownership just
 // across the tile seam, or borders would break exactly along the tile grid.
 // usa-datasetet behöver bred gutter: snäpp-passet hämtar fyllfärg upp till
-// ~0,50° bort, och källan kan ligga i grannrutan — guttern måste rymma hela
-// räckvidden VID DJUPASTE ZOOMEN, annars fylls samma världspixel i en ruta
-// men inte i grannen (skarvband + trasig kantexport)
+// ~1,25° bort (Alaskas östkant ligger 0,9° från arkens målade kant), och
+// källan kan ligga i grannrutan — guttern måste rymma hela räckvidden VID
+// DJUPASTE ZOOMEN, annars fylls samma världspixel i en ruta men inte i
+// grannen (skarvband + trasig kantexport)
 const G = DATASET === 'usa'
-  ? Math.max(48, Math.ceil(TILE * (1 << MAXZOOM) * 0.50 / 360) + 4)
+  ? Math.max(48, Math.ceil(TILE * (1 << MAXZOOM) * 1.25 / 360) + 4)
   : OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
 const TG = TILE + 2 * G;
 const sheetBuf = new Uint8ClampedArray(TG * TG * 4);   // tile's sheet layer
@@ -1512,13 +1513,19 @@ function byggUsaSnap() {
   };
   const fyll = snapPieces(f.geometry, cLng, poly => ejHawaii(poly) && ytan(poly) > 1e-6);
   // klippvakten skyddar all legitim konst: målat i världens USA-yta ELLER
-  // innanför NE-landets polygoner (Aleuterna, Hawaii — konst större än ön)
+  // innanför NE-landets Ö-polygoner (Aleuterna, Hawaii, Long Island — konst
+  // medvetet större än ön). FASTLANDET skyddas INTE av NE-polygonen: vid Rio
+  // Grande sträcker sig NE-USA förbi världens synliga gränsband (Mexikos
+  // teckningskant), och NE-skyddat fastlandsmåleri blev en vit dubbelrand
+  // utanför världens gräns — det ska klippas till fotavtrycket som allt annat.
   const skydd = snapPieces(f.geometry, cLng, null);
   const ne = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
   const nef = ne.features.find(x => x.properties.ADM0_A3 === 'USA' || x.properties.GU_A3 === 'USA');
-  if (nef) skydd.push(...snapPieces(nef.geometry, cLng, null));
-  usaSnap = { fyll, skydd };
-  console.log(`USA-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner.`);
+  // öarnas konst (Aleuterna, Kodiak, Long Island …) är medvetet större än
+  // öarna själva och fredas i en dilaterad zon runt varje liten NE-polygon
+  const oar = nef ? snapPieces(nef.geometry, cLng, poly => ytan(poly) < 1e-3) : [];
+  usaSnap = { fyll, skydd, oar };
+  console.log(`USA-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner, ${oar.length} öar.`);
 }
 const snapMask = (pieces, world, tx, ty) => {
   const grupper = [];
@@ -1533,9 +1540,15 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
   if (!mFyll) return;                       // rutan rör inte målad USA-yta
   const mSkydd = snapMask(usaSnap.skydd, world, tx, ty) || mFyll;
   const N = TG * TG;
+  const DBG = process.env.DBG_SNAP ? new Uint8Array(N) : null;   // alfa vid start
+  if (DBG) for (let i = 0; i < N; i++) DBG[i] = sheetBuf[i * 4 + 3];
   const INF = 0x3fffffff;
-  const KLIPP_PX = Math.max(3, Math.round(world * 0.12 / 360));   // ~0,12°
-  const FYLL_PX = Math.max(4, Math.round(world * 0.50 / 360));    // ~0,50°
+  // klippet måste nå hela fastlandsöverhänget (Rio Grande-spillet över
+  // Mexikos gröna: upp till ~0,7°) och fyllet hela vägen till fotavtryckets
+  // kant (Alaskas östgräns: 0,88° från arkens målade kant) — men INTE de
+  // djupa underläggsläckorna in i Mexiko (2,7–4,4° bort), som förblir värld
+  const KLIPP_PX = Math.max(3, Math.round(world * 1.00 / 360));   // ~1,0°
+  const FYLL_PX = Math.max(4, Math.round(world * 1.25 / 360));    // ~1,25°
   // avstånd till närmsta fyllmålspixel (för klippvakten)
   const dStor = new Int32Array(N);
   for (let i = 0; i < N; i++) dStor[i] = mFyll[i] ? 0 : INF;
@@ -1562,10 +1575,20 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
     }
   };
   svep(dStor, null);
-  // 1) klipp: målat utanför både målad USA-yta och NE-landet, nära
-  //    fyllmålet (Hawaii ligger utanför räckhåll och lämnas i fred)
+  // ö-konsten fredas i en dilaterad zon (Aleuterna: bilden är större än ön)
+  const mOar = usaSnap.oar.length ? snapMask(usaSnap.oar, world, tx, ty) : null;
+  const OSKYDD_PX = Math.max(4, Math.round(world * 1.2 / 360));   // ~1,2°
+  let dOar = null;
+  if (mOar) {
+    dOar = new Int32Array(N);
+    for (let i = 0; i < N; i++) dOar[i] = mOar[i] ? 0 : INF;
+    svep(dOar, null);
+  }
+  // 1) klipp: målat utanför världens synliga USA-yta, nära fyllmålet
+  //    (Hawaii ligger utanför räckhåll, öarnas zoner hoppas över)
   for (let i = 0; i < N; i++) {
     if (!sheetBuf[i * 4 + 3] || mSkydd[i]) continue;
+    if (dOar && dOar[i] <= OSKYDD_PX * 3) continue;
     if (dStor[i] <= KLIPP_PX * 3) {
       sheetBuf[i * 4] = 0; sheetBuf[i * 4 + 1] = 0; sheetBuf[i * 4 + 2] = 0; sheetBuf[i * 4 + 3] = 0;
       ownerBuf[i] = 0;
@@ -1645,7 +1668,9 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
   //    ersätts med underläggets färg på samma plats — i mörka partier
   //    (natthimlen) blir bytet osynligt, vid konturband försvinner den
   //    streckade dubbellinjen och bilden löper obruten fram till gränsen
-  const RIBBON = Math.max(4, Math.round(world * 0.05 / 360));
+  // våglängden måste svälja HELA den ritade konturens tjocklek (~0,1° i
+  // Texas), annars överlever linjens inre hälft som en streckad dubbelkontur
+  const RIBBON = Math.max(4, Math.round(world * 0.16 / 360));
   for (let steg = 0; steg < RIBBON; steg++) {
     const nasta = [];
     for (let i = 0; i < N; i++) {
@@ -1691,6 +1716,34 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
   };
   jamna();
   jamna();
+  if (DBG) {
+    let miss = 0, mFyllN = 0, maladInne = 0, fylldN = 0,
+        skalFarg = 0, skalAvst = 0, skalKalla = 0, skalKlippt = 0, maxD = 0;
+    const c = createCanvas(TG, TG);
+    const cx2 = c.getContext('2d');
+    const id2 = cx2.createImageData(TG, TG);
+    for (let i = 0; i < N; i++) {
+      const j = i * 4, a = sheetBuf[j + 3];
+      let r = 0, g = 0, b = 0, al = 0;
+      if (mFyll[i]) {
+        mFyllN++;
+        if (!a) {                        // läcka: fotavtryck utan färg
+          miss++; r = 255; al = 255;
+          if (DBG[i]) skalKlippt++;
+          else if (kalla[i] < 0) skalKalla++;
+          else if (dKalla[i] > FYLL_PX * 3) { skalAvst++; if (dKalla[i] < INF && dKalla[i] > maxD) maxD = dKalla[i]; }
+          else skalFarg++;
+        } else if (fylld[i]) { b = 255; al = 255; fylldN++; }
+        else { g = 160; al = 255; maladInne++; }
+      } else if (a) { r = g = b = 90; al = 255; }
+      id2.data[j] = r; id2.data[j + 1] = g; id2.data[j + 2] = b; id2.data[j + 3] = al;
+    }
+    cx2.putImageData(id2, 0, 0);
+    writeFileSync(`${process.env.DBG_SNAP}/snapdbg-${tx}-${ty}.png`, await c.encode('png'));
+    console.log(`DBG snap ${tx},${ty}: mFyll=${mFyllN} målatInne=${maladInne} fyllda=${fylldN} ` +
+      `LÄCKA=${miss} (klippt=${skalKlippt} utomRäckhåll=${skalAvst} ingenKälla=${skalKalla} färgNull=${skalFarg})` +
+      (miss ? ` maxGap=${(maxD / 3 / world * 360).toFixed(3)}°` : ''));
+  }
 }
 
 // The uniform outline: after all countries are composited, find every pixel
@@ -1846,6 +1899,11 @@ function writeBorders(regions, fills) {
   const nAll = borderSegs.length / 4;
   for (let sI = 0; sI < nAll; sI++) {
     const a = borderOwn[sI * 2], b = borderOwn[sI * 2 + 1];
+    // usa-datasetet ritar INGA yttre kanter (delstat↔ingen): världens egen
+    // kust- och landsgränslinje ÄR ytterlinjen (fyllnaden slutar på exakt
+    // samma spricka), och där fyllnadsbandet tar slut mitt i världens vita
+    // underlägg ska ingen svävande gränslinje synas alls
+    if (DATASET === 'usa' && (!a || !b)) continue;
     const g = havBadge.has(a) ? a : havBadge.has(b) ? b : 0;
     let arr = groups.get(g);
     if (!arr) { arr = []; groups.set(g, arr); }
@@ -2486,10 +2544,10 @@ async function main() {
         // pads), or the collar repaint gets tile-boundary seams and the
         // exported region rings break there.
         let pad = 0;
-        // usa-snäppet fyller upp till ~0,3° utanför arkens målade kant —
-        // registrera rutraden intill också, annars tappas fyllband som
-        // hamnar strax utanför delstatens egen bbox
-        if (DATASET === 'usa') pad = Math.max(1, Math.ceil(world * 0.3 / 360 / TILE));
+        // usa-snäppet fyller upp till ~1,25° utanför arkens målade kant —
+        // registrera rutraderna intill också, annars tappas fyllband som
+        // hamnar utanför delstatens egen bbox
+        if (DATASET === 'usa') pad = Math.max(1, Math.ceil(world * 1.4 / 360 / TILE));
         if (c.gapAdj) {
           if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
           if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
