@@ -11,7 +11,7 @@ const ok = (name, cond, detail = '') => {
 };
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
 const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
-await page.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('feedback-tips-klar','1')");
+await page.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
 const pageErrors = [];
 const reqUrls = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
@@ -228,6 +228,27 @@ try {
   await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
 } catch (e) {
   ok('12 px fingerglid ger inget svar', false, String(e).slice(0, 140));
+}
+
+// ── kakrutan: visas utan val, "ja" sparas och rutan kommer inte igen ──
+// (PostHog laddas aldrig lokalt — rutan och valet är rena spelet)
+try {
+  const kp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await kp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('feedback-tips-klar','1')");
+  await kp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await kp.waitForSelector('#kakruta.inne', { timeout: 20000 });
+  ok('kakrutan visas utan val', true);
+  ok('kakan ligger i handen', await kp.evaluate(
+    "document.querySelector('.kak-kaka svg') !== null"));
+  await kp.click('#kak-ja');
+  await kp.waitForTimeout(700);
+  ok('ja-valet sparas', await kp.evaluate("localStorage.getItem('kakval')") === 'ja');
+  await kp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await kp.waitForTimeout(2200);
+  ok('rutan kommer inte tillbaka efter val', await kp.evaluate("!document.getElementById('kakruta')"));
+  await kp.close();
+} catch (e) {
+  ok('kakrutan visas utan val', false, String(e).slice(0, 140));
 }
 
 const fails = results.filter(r => !r.pass);
