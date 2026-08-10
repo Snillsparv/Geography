@@ -84,11 +84,15 @@
 .kak-arm > img { inset: 0; width: 100%; }
 #kakruta.vaken .kak-arm { animation: kak-svaj 3.8s ease-in-out infinite alternate; }
 #kakruta .kak-arm.bett { animation: none;
-  transform: translate(14.4%, -19.9%) rotate(48deg); }
+  transform: translate(8.8%, -29.5%) rotate(44deg); }
 @keyframes kak-svaj { from { transform: rotate(-1.7deg); } to { transform: rotate(1.5deg); } }
-.kak-kaka { position: absolute; left: 25.4%; top: 15.5%; width: 46.1%;
+/* kakan kläms i tumgreppet: halva utanför handflatans kant, BAKOM tummen
+   (tumkopian ritas ovanpå) men framför handflatan */
+.kak-kaka { position: absolute; left: 50.8%; top: 20.9%; width: 46.1%;
   transform: rotate(-9deg); }
 .kak-kaka svg { display: block; width: 100%; }
+.kak-arm > img.kak-tumme { inset: auto; left: 73.8%; top: 27.8%; width: 26.2%;
+  filter: drop-shadow(-3px 3px 3px rgba(20, 8, 0, .38)); }
 .kak-kaka[data-bett="0"] .b1, .kak-kaka[data-bett="0"] .b2, .kak-kaka[data-bett="0"] .b3,
 .kak-kaka[data-bett="1"] .b2, .kak-kaka[data-bett="1"] .b3,
 .kak-kaka[data-bett="2"] .b3 { display: none; }
@@ -169,6 +173,7 @@
           </g>
         </g>
       </svg></div>
+      <img class="kak-tumme" src="assets/jonas/kak-tumme.webp${q}" alt="">
     </div>
     <div class="kak-smulor" aria-hidden="true"></div>
   </div>
