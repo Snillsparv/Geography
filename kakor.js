@@ -81,7 +81,7 @@
 .kak-arm { position: absolute; left: 2.79%; top: 29.67%; width: 42.63%; height: 62.33%;
   transform-origin: 32.7% 88.8%;
   transition: transform .9s cubic-bezier(.55,-.12,.32,1.12); }
-.kak-arm > img { inset: 0; width: 100%; }
+.kak-arm > img { inset: 0; width: 100%; z-index: 1; }
 #kakruta.vaken .kak-arm { animation: kak-svaj 3.8s ease-in-out infinite alternate; }
 #kakruta .kak-arm.bett { animation: none;
   transform: translate(8.8%, -29.5%) rotate(44deg); }
@@ -89,10 +89,14 @@
 /* kakan kläms i tumgreppet: halva utanför handflatans kant, BAKOM tummen
    (tumkopian ritas ovanpå) men framför handflatan */
 .kak-kaka { position: absolute; left: 50.8%; top: 20.9%; width: 46.1%;
-  transform: rotate(-9deg); }
+  transform: rotate(-9deg); z-index: 2; }
 .kak-kaka svg { display: block; width: 100%; }
 .kak-arm > img.kak-tumme { inset: auto; left: 73.8%; top: 27.8%; width: 26.2%;
-  filter: drop-shadow(-3px 3px 3px rgba(20, 8, 0, .38)); }
+  z-index: 3; filter: drop-shadow(-3px 3px 3px rgba(20, 8, 0, .38)); }
+/* framme vid munnen byter kakan och handen z-plats: handen stoppar in kakan
+   (kakan bakom handflatan) medan tummen hamnar bakom kakan */
+.kak-arm.framme > img:not(.kak-tumme) { z-index: 3; }
+.kak-arm.framme > img.kak-tumme { z-index: 1; }
 .kak-kaka[data-bett="0"] .b1, .kak-kaka[data-bett="0"] .b2, .kak-kaka[data-bett="0"] .b3,
 .kak-kaka[data-bett="1"] .b2, .kak-kaka[data-bett="1"] .b3,
 .kak-kaka[data-bett="2"] .b3 { display: none; }
@@ -218,12 +222,13 @@
       arm.classList.add('bett');
       setTimeout(() => {                       // framme vid munnen
         if (stangd) return;
+        arm.classList.add('framme');           // handen stoppar in kakan
         bett++;
         kaka.dataset.bett = bett;
         smula();
         setTimeout(() => {                     // en liten tugg-paus
           if (stangd) return;
-          arm.classList.remove('bett');
+          arm.classList.remove('bett', 'framme');
           if (bett >= 4) {                     // kakan är slut
             brod.textContent = 'Mm … nu åt Jonas tyvärr upp hela kakan. Men frågan kvarstår!';
             jaKnapp.textContent = 'Ja — och bjud på en ny kaka 🍪';
