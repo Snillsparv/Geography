@@ -11,7 +11,7 @@ const ok = (name, cond, detail = '') => {
 };
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
 const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
-await page.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('feedback-tips-klar','1')");
+await page.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
 const pageErrors = [];
 const reqUrls = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
@@ -22,7 +22,7 @@ const relevantErrors = pageErrors.filter(e => !/firebase/i.test(e));
 ok('inga JS-fel vid laddning', relevantErrors.length === 0, relevantErrors.join(' | ').slice(0, 200));
 const has = (frag) => reqUrls.some(u => u.includes(frag));
 ok(`datafiler v=${V}`, has(`art-regions.json?v=${V}`) && has(`art-markers.json?v=${V}`) && has(`art-borders.json?v=${V}`));
-ok('tiles kvar på v=2', has('world.pmtiles?v=2') && !has(`world.pmtiles?v=${V}`));
+ok('tiles kvar på v=3', has('world.pmtiles?v=3') && !has(`world.pmtiles?v=${V}`));
 ok('tileSize 256', (await page.evaluate("map.getSource('art').tileSize")) === 256);
 await page.click('#world-start-btn');
 await page.waitForTimeout(1500);
@@ -86,7 +86,9 @@ async function prickHit(gid, lng, lat, zoom) {
   return n;
 }
 ok('Ukraina aldrig prick', (await prickHit(1, 31.32, 49.20, 1.4)) === 0 && (await prickHit(1, 31.32, 49.20, 5)) === 0);
-ok('Malta prick z5, borta z7', (await prickHit(2, 14.211, 34.342, 5)) > 0 && (await prickHit(2, 14.211, 34.342, 7)) === 0);
+// Malta blev emblem i v3-arkivet (konsten har inte öns form) — emblemens
+// prick ska tvärtom ALDRIG försvinna, hur långt in man än zoomar
+ok('Malta prick z5 och kvar z7 (emblem)', (await prickHit(2, 14.211, 34.342, 5)) > 0 && (await prickHit(2, 14.211, 34.342, 7)) > 0);
 ok('Vatikanen prick kvar z7', (await prickHit(36, 12.43, 41.90, 7)) > 0);
 async function darkPix(gid, lng, lat, tackt) {
   await page.evaluate(`setLand(${gid}, { tackt: ${tackt}, gron: false, fel: false, tips: false })`);
@@ -168,6 +170,103 @@ const dom = await page.evaluate(`(() => {
            order: !!order, shownWith, hiddenWithout: assoc.style.display === 'none' };
 })()`);
 ok('infokortet rätt', dom.inSide && dom.order && dom.shownWith && dom.hiddenWithout && dom.counterInCard);
+// ── råkade svar vid rotation ──
+// ett tryck som roterar globen (eller fångar in en som glider) får aldrig
+// räknas som ett landklick; ett vanligt klick måste räknas precis som förr
+await page.evaluate(`(() => { switchMode('seterra', true); startSeterra(); })()`);
+await page.waitForTimeout(700);
+// landmarkörerna ligger mitt i länderna → skärmpunkten fås direkt ur
+// projektionen, snabbt nog att användas mitt under en pågående rörelse
+const landPunkt = () => page.evaluate(`(() => {
+  const cv = map.getCanvas(), r = cv.getBoundingClientRect();
+  for (const m of markerPts) {
+    if (revealed.has(m.gid)) continue;
+    const p = map.project([m.lng, m.lat]);
+    if (p.x < 60 || p.x > 640 || p.y < 60 || p.y > cv.clientHeight - 60) continue;
+    const h = map.queryRenderedFeatures([p.x, p.y], { layers: ['prickar', 'former', 'cover'] });
+    if (h.length && h[0].id === m.gid) return { x: r.left + p.x, y: r.top + p.y };
+  }
+  return null;
+})()`);
+const svarAntal = () => page.evaluate('seterraCorrect + seterraWrong');
+const stilla = async () => {
+  await page.waitForFunction('!map.isMoving() && !seterraLocked', null, { timeout: 10000 });
+  await page.waitForTimeout(200);
+};
+await stilla();
+const glidFore = await svarAntal();
+// OBS: får inte returnera map-objektet — serialiseringen tar sekunder
+await page.evaluate(`(() => { map.easeTo({ center: [map.getCenter().lng + 2, map.getCenter().lat],
+                                            duration: 4000, essential: true }); })()`);
+await page.waitForTimeout(150);
+const glidP = await landPunkt();                       // punkten hämtas i rörelsen
+const gledVidKlick = await page.evaluate('map.isMoving()');
+await page.mouse.click(glidP.x, glidP.y);
+await page.waitForTimeout(500);
+ok('klick på glidande glob ger inget svar',
+  gledVidKlick && (await svarAntal()) === glidFore, gledVidKlick ? '' : 'globen stod still');
+await stilla();
+const klickP = await landPunkt();
+const klickFore = await svarAntal();
+await page.mouse.click(klickP.x, klickP.y);
+await page.waitForTimeout(500);
+ok('vanligt klick registreras ändå', (await svarAntal()) === klickFore + 1);
+try {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await stilla();
+  const gP = await landPunkt();
+  const gFore = await svarAntal();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: gP.x, y: gP.y }] });
+  for (let i = 1; i <= 4; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: gP.x + i * 3, y: gP.y }] });
+    await page.waitForTimeout(25);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(500);
+  ok('12 px fingerglid ger inget svar', (await svarAntal()) === gFore);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+} catch (e) {
+  ok('12 px fingerglid ger inget svar', false, String(e).slice(0, 140));
+}
+
+// ── kakrutan: visas utan val, "ja" sparas och rutan kommer inte igen ──
+// (PostHog laddas aldrig lokalt — rutan och valet är rena spelet)
+try {
+  const kp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await kp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('feedback-tips-klar','1')");
+  await kp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await kp.waitForSelector('#kakruta.inne', { timeout: 20000 });
+  ok('kakrutan visas utan val', true);
+  ok('kakan ligger i handen', await kp.evaluate(
+    "document.querySelector('.kak-kaka svg') !== null"));
+  await kp.click('#kak-ja');
+  await kp.waitForTimeout(700);
+  ok('ja-valet sparas', await kp.evaluate("localStorage.getItem('kakval')") === 'ja');
+  await kp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await kp.waitForTimeout(2200);
+  ok('rutan kommer inte tillbaka efter val', await kp.evaluate("!document.getElementById('kakruta')"));
+  await kp.close();
+} catch (e) {
+  ok('kakrutan visas utan val', false, String(e).slice(0, 140));
+}
+
+// ── turordningen: rundturen går före kakfrågan för nya besökare ──
+try {
+  const tp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await tp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });   // INGEN rundtur-klar
+  await tp.waitForFunction("document.getElementById('intro-overlay').style.display !== 'none'",
+    null, { timeout: 40000 });
+  await tp.waitForTimeout(1800);   // kakrutans egen fördröjning har passerat
+  ok('kakrutan väntar medan rundturen pågår', await tp.evaluate("!document.getElementById('kakruta')"));
+  await tp.click('#intro-hoppa');
+  await tp.waitForSelector('#kakruta.inne', { timeout: 8000 });
+  ok('kakrutan kommer när rundturen hoppats över', true);
+  await tp.close();
+} catch (e) {
+  ok('kakrutan väntar medan rundturen pågår', false, String(e).slice(0, 140));
+}
+
 const fails = results.filter(r => !r.pass);
 console.log(`\n${results.length - fails.length}/${results.length} godkända`);
 await browser.close();

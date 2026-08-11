@@ -144,6 +144,15 @@ function flashWrong(gid) {
 // pekskärmar får en förlåtande tryckyta runt de små prickarna — musen en
 // mindre (tunna öar som Kuba är svåra att pricka exakt även med pekare)
 const TRYCKMARGINAL = matchMedia('(pointer: coarse)').matches ? 10 : 4;
+// Ett tryck som försökte rotera globen är aldrig ett svar. Två fall slank
+// förbi förut och gav råkade fel: att nudda en glob som fortfarande glider
+// (då stannar den bara — men klicket räknades), och små glid på pekskärm
+// som är för korta för att bli en dragning men för långa för att vara ett
+// tryck. Väggkartan och originalkartan låser redan likadant (oDrag.moved).
+// Tröskeln är densamma som maplibres KLICKTOL: har fingret vandrat så långt
+// att globen kan ha börjat snurra, så var avsikten att snurra.
+const KLICKTOL = 10;
+let globTryck = null;   // { x, y, drog } för pågående tryck på globen
 
 function blinkHint(gid) {
   if (revealed.has(gid)) return;
@@ -166,7 +175,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '58';
+const V = '68';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -514,7 +523,7 @@ function initMap() {
     center: KAMERA.world.center,
     zoom: KAMERA.world.zoom,
     maxZoom: 9.5,
-    clickTolerance: 10,
+    clickTolerance: KLICKTOL,
     doubleClickZoom: false,
     attributionControl: { compact: true },
     style: {
@@ -706,7 +715,22 @@ function initMap() {
     }
     map.getCanvas().style.cursor = gid !== null ? 'pointer' : '';
   });
+  // trycket följs från början till slut: så fort globen snurrat under fingret
+  // (eller trycket satts ner på en glob som fortfarande gled) är det ingen
+  // fråga om ett svar — låset sitter kvar även om fingret återvänder
+  map.getCanvas().addEventListener('pointerdown', e => {
+    // glider globen redan? då fångar trycket in den i stället för att svara.
+    // startsidans egen snurr räknas inte — den stannar direkt vid beröring
+    const glider = snurrId === null && map.isMoving();
+    globTryck = { x: e.clientX, y: e.clientY, drog: glider };
+  }, { passive: true });
+  map.getCanvas().addEventListener('pointermove', e => {
+    if (!globTryck || globTryck.drog) return;
+    if (Math.hypot(e.clientX - globTryck.x, e.clientY - globTryck.y) > KLICKTOL)
+      globTryck.drog = true;
+  }, { passive: true });
   map.on('click', e => {
+    if (globTryck && globTryck.drog) return;   // rotation eller fångst, inget svar
     let hits = map.queryRenderedFeatures(e.point, { layers: ['prickar', 'former', 'cover'] });
     if (!hits.length && TRYCKMARGINAL) {
       // pekskärm: fingret missar lätt de små prickarna (Västindien!) —
@@ -758,6 +782,9 @@ function initMap() {
   }
   let senasteLng = null;
   map.on('move', e => {
+    // globen svarade på användarens eget drag: låsningen ovan behöver ingen
+    // pixeltröskel att gissa på — rörde den sig alls var det en rotation
+    if (e.originalEvent && globTryck) globTryck.drog = true;
     // bara användarens egna drag räknas (programstyrda flygningar saknar
     // originalEvent) — riktningen avgör åt vilket håll snurren återupptas
     if (!e.originalEvent || !document.body.classList.contains('startlage')) {
@@ -1799,6 +1826,7 @@ function delarFor(raw) { return (raw && raw.delar) || []; }
 function delMed(raw, id) { return delarFor(raw).find(d => d.id === id) || null; }
 
 async function startRegion(slug, flyg, delId) {
+  window.kakSpara?.('spel_start', { region: slug, del: delId || null });
   const raw = await loadRegionConfig(slug);
   const del = delMed(raw, delId);
   aktivDel = del ? del.id : null;
@@ -1875,6 +1903,7 @@ function spelPadding() {
 }
 
 async function startWorld(count, fastaGids) {
+  window.kakSpara?.('spel_start', { region: 'varlden', antal: count });
   // proportionellt urval över regionerna (största rest-metoden).
   // Länder som ligger i flera regioner (Turkiet i Europa+Asien, Papua Nya
   // Guinea i Asien+Oceanien) räknas bara EN gång — annars kan samma land
@@ -2173,6 +2202,8 @@ function endSeterra() {
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
   seterraElapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
   const m = Math.floor(seterraElapsed / 60), s = seterraElapsed % 60;
+  window.kakSpara?.('quiz_klar', { region: aktivSlug || 'varlden', antal: seterraTotal,
+    poang: score, tid: seterraElapsed, fel: seterraWrong, utmaning: !!aktivUtmaning });
   seterraGame.classList.remove('active');
   seterraDone.classList.add('active');
   document.getElementById('seterra-final-score').textContent = score + '%';
@@ -2407,6 +2438,7 @@ async function saveHighscore(name, score, time, wrong, odelad) {
   if (window.spel) return entry;
   const local = getLocalHighscores();
   local.push(entry);
+  window.kakSpara?.('resultat_sparat', { lista: HS_KEY, poang: entry.score, tid: entry.time });
   local.sort((a, b) => b.score - a.score || a.time - b.time);
   if (local.length > 30) local.length = 30;
   localStorage.setItem('mina-' + HS_KEY, JSON.stringify(local));
@@ -2829,6 +2861,7 @@ function geHighfive(img) {
   setTimeout(() => { img.src = 'Jonas_1.webp'; }, 1000);
   if (hifiRaknade >= 10) return;   // festen fortsätter, men räknaren står still
   hifiRaknade++;
+  window.kakSpara?.('high_five');
   if (highfiveRef) highfiveRef.transaction(cur => (cur || 0) + 1);
   else {
     const count = parseInt(localStorage.getItem('highfive-count') || '0', 10) + 1;
@@ -3097,6 +3130,8 @@ function startLage(flyg) {
     const klar = () => {
       if (startAvslojad) return;
       startAvslojad = true;
+      // hur länge fick besökaren vänta innan globen var på plats?
+      window.kakSpara?.('karta_laddad', { ms: Math.round(performance.now()) });
       gomStartSkal();
       if (document.body.classList.contains('startlage')) startaSnurr();
       if (!localStorage.getItem('rundtur-klar')) setTimeout(startaIntro, 800);
@@ -3996,6 +4031,7 @@ document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
   status.textContent = 'Skapar länken …';
   try {
     const ref = await firebaseDB.ref('utmaningar').push(post);
+    window.kakSpara?.('utmaning_skapad', { region: post.slug, antal: post.antal });
     status.textContent = '';
     document.getElementById('utm-skapa-form').style.display = 'none';
     document.getElementById('utm-skapa-klar').style.display = '';
@@ -4023,6 +4059,7 @@ document.getElementById('utm-kopiera').addEventListener('click', kopieraUtmLank)
 // mottagarsidan: ?utmaning=<id> — spelplanen görs i ordning bakom
 // anta-rutan, själva quizet startar först när man antagit utmaningen
 async function forberedUtmaning(id) {
+  window.kakSpara?.('utmaning_oppnad');
   let data = null;
   if (firebaseDB) {
     try { data = (await firebaseDB.ref('utmaningar/' + id).once('value')).val(); }
@@ -4089,6 +4126,7 @@ async function sparaUtmaningsResultat(score) {
   if (firebaseDB && seterraTotal && entry.time >= 5) {
     try { await firebaseDB.ref('utmaningar/' + u.id + '/resultat').push(entry); }
     catch (e) { /* duellen visas ändå, med det som gick att läsa */ }
+    window.kakSpara?.('utmaning_resultat', { poang: score, tid: entry.time });
   }
   visaDuellLista(entry);
 }
@@ -4148,6 +4186,7 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 if (arIos && !korSomApp) installKnapp.style.display = '';
 installKnapp.addEventListener('click', () => {
+  window.kakSpara?.('installera_klick');
   if (installPrompt) {
     // dialogen får bara visas en gång per händelse — avböjer man får
     // man instruktionerna nästa gång i stället
@@ -4160,7 +4199,10 @@ installKnapp.addEventListener('click', () => {
   document.getElementById('installera-android').style.display = arIos ? 'none' : '';
   installModal.style.display = 'flex';
 });
-window.addEventListener('appinstalled', () => { installKnapp.style.display = 'none'; });
+window.addEventListener('appinstalled', () => {
+  window.kakSpara?.('app_installerad');
+  installKnapp.style.display = 'none';
+});
 document.getElementById('installera-stang').addEventListener('click', () => {
   installModal.style.display = 'none';
 });
