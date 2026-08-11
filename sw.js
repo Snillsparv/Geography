@@ -19,11 +19,15 @@ self.addEventListener('activate', e => {
   })());
 });
 
-let arkivBlob = null;   // hela pmtiles-arkivet i minnet för snabb skivning
+// hela pmtiles-arkiven i minnet för snabb skivning, ETT blob per arkivfil —
+// world- och usa-arkivet får ALDRIG dela blob (skivor ur fel arkiv = trasiga
+// kartrutor som ser ut som cacheblandning)
+const arkivBlobar = new Map();   // pathname → blob
 
 async function hanteraTiles(req) {
   const cache = await caches.open(TILE_CACHE);
   const nyckel = new URL(req.url); nyckel.search = '';   // en kopia oavsett ?v
+  const bk = nyckel.pathname;
   const range = req.headers.get('range');
   if (!range) {
     // hela arkivet (förladdningen): hämta, cacha, returnera
@@ -31,7 +35,7 @@ async function hanteraTiles(req) {
       const svar = await fetch(req);
       if (svar.ok) {
         cache.put(nyckel, svar.clone());
-        arkivBlob = null;   // ny version → glöm gamla blobben
+        arkivBlobar.delete(bk);   // ny version → glöm gamla blobben
       }
       return svar;
     } catch (e) {
@@ -43,16 +47,17 @@ async function hanteraTiles(req) {
   // range-förfrågan: skiva ur cachen om vi har hela arkivet
   const cachad = await cache.match(nyckel);
   if (cachad) {
-    if (!arkivBlob) arkivBlob = await cachad.blob();
+    let blob = arkivBlobar.get(bk);
+    if (!blob) { blob = await cachad.blob(); arkivBlobar.set(bk, blob); }
     const m = /bytes=(\d+)-(\d*)/.exec(range);
     if (m) {
       const start = +m[1];
-      const slut = m[2] ? Math.min(+m[2], arkivBlob.size - 1) : arkivBlob.size - 1;
-      return new Response(arkivBlob.slice(start, slut + 1), {
+      const slut = m[2] ? Math.min(+m[2], blob.size - 1) : blob.size - 1;
+      return new Response(blob.slice(start, slut + 1), {
         status: 206,
         headers: {
           'Content-Type': 'application/octet-stream',
-          'Content-Range': `bytes ${start}-${slut}/${arkivBlob.size}`,
+          'Content-Range': `bytes ${start}-${slut}/${blob.size}`,
           'Content-Length': String(slut - start + 1),
           'Accept-Ranges': 'bytes',
         },
@@ -65,9 +70,10 @@ async function hanteraTiles(req) {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
-  // kartarkivet kan ligga på raw.githubusercontent (förhandslänkar) eller
-  // samma host (Firebase/produktion)
-  if (url.pathname.endsWith('world.pmtiles')) {
+  // kartarkiven (world + usa) kan ligga på raw.githubusercontent (förhands-
+  // länkar) eller samma host (Firebase/produktion). BÅDA måste gå via
+  // range-hanteringen — den generiska cachegrenen förstår inte ranges
+  if (url.pathname.endsWith('.pmtiles')) {
     e.respondWith(hanteraTiles(e.request));
     return;
   }
