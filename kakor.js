@@ -182,10 +182,9 @@
     <div class="kak-smulor" aria-hidden="true"></div>
   </div>
   <div class="kak-kort">
-    <h3 id="kak-rubrik">Får vi bjuda på en kaka? 🍪</h3>
-    <p id="kak-brod">Kakor hjälper oss se hur spelet används — vad som är kul
-      och vad som strular — så att vi kan göra det bättre. Säger du nej tack
-      spelar du helt anonymt.</p>
+    <h3 id="kak-rubrik">Får jag bjuda på en kaka? 🍪</h3>
+    <p id="kak-brod">Kakor hjälper mig se hur spelet används så att jag kan
+      göra det ännu bättre. Säger du nej tack spelar du helt anonymt!</p>
     <div class="kak-knappar">
       <button id="kak-ja">Ja, det är lugnt!</button>
       <button id="kak-nej">Nej tack</button>
@@ -230,7 +229,7 @@
           if (stangd) return;
           arm.classList.remove('bett', 'framme');
           if (bett >= 4) {                     // kakan är slut
-            brod.textContent = 'Mm … nu åt Jonas tyvärr upp hela kakan. Men frågan kvarstår!';
+            brod.textContent = 'Mm … nu åt jag tyvärr upp hela kakan. Men frågan kvarstår!';
             jaKnapp.textContent = 'Ja — och bjud på en ny kaka 🍪';
           } else {
             ruta.classList.add('vaken');
