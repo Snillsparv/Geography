@@ -272,8 +272,12 @@ try {
   const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
   await sp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
   await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
-  await sp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded()", null, { timeout: 30000 });
-  await sp.waitForFunction("typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')", null, { timeout: 10000 });
+  // vänta på SPELET, inte kartans idle: på en blixtsnabb lokal server kan
+  // förladdningens arkivbyte hålla kartan i evig omritning (når aldrig
+  // loaded()) — kontrollerna här behöver bara regiondatan, inte rutorna
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof rimligMinTid === 'function' && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')",
+    null, { timeout: 30000 });
   // klienten får aldrig vara strängare än database.rules.json — riktiga
   // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
   ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
