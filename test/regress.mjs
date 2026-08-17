@@ -267,6 +267,97 @@ try {
   ok('kakrutan väntar medan rundturen pågår', false, String(e).slice(0, 140));
 }
 
+// ── v72: topplistegolv från serverreglerna, tiondelar och placeringsbesked ──
+try {
+  const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await sp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
+  await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await sp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded()", null, { timeout: 30000 });
+  await sp.waitForFunction("typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')", null, { timeout: 10000 });
+  // klienten får aldrig vara strängare än database.rules.json — riktiga
+  // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
+  ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
+  ok('fmtTid: tiondelar med komma', await sp.evaluate(
+    "fmtTid(13.7) === '0:13,7' && fmtTid(13) === '0:13' && fmtTid(83.4) === '1:23,4' && fmtTid(5.96) === '0:06'"));
+  // utmaningsknappen ska ligga FÖRE topp 30-listan (ingen hittade den längst ner)
+  ok('utmana-knappen ovanför topplistan', await sp.evaluate(`(() => {
+    const b = document.getElementById('utmana-btn'), l = document.getElementById('highscore-list');
+    return !!b && !!l && !!(b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && b.classList.contains('utmana-lyft');
+  })()`));
+  // simulerad runda: 15,4 s och 9 fel i en region med (injicerade) delar
+  await sp.evaluate(`(() => {
+    switchMode('seterra', true); startSeterra();
+    configCache[aktivSlug] = Object.assign({}, configCache[aktivSlug],
+      { delar: [{ id: 'test', namn: 'Testdel', lander: ['Brasilien'] }] });
+    seterraStartTime = Date.now() - 15400;
+    seterraCorrect = seterraTotal; seterraWrong = 9;
+    endSeterra();
+  })()`);
+  await sp.waitForTimeout(400);
+  ok('tiondelar i resultatet', /Tid: 0:15,[34]/.test(
+    await sp.evaluate("document.getElementById('seterra-final-detail').textContent")));
+  ok('öva-del-tips vid många fel', await sp.evaluate(
+    "document.getElementById('ova-del-btn').style.display !== 'none'"));
+  await sp.evaluate("document.getElementById('ova-del-btn').click()");
+  await sp.waitForTimeout(400);
+  ok('öva-del-tips öppnar delväljaren', await sp.evaluate(
+    "delOverlay.classList.contains('active')"));
+  await sp.evaluate("delOverlay.classList.remove('active')");
+  // rundan hamnar under 31 fejkade hundringar → plats-beskedet.
+  // (sparaflödet går inte att köra på 127.0.0.1 — debugspärren window.spel
+  // stoppar all sparning där — så listorna byggs direkt i lagringen)
+  const notis = await sp.evaluate(`(async () => {
+    const fejk = [];
+    for (let i = 0; i < 31; i++) fejk.push({ name: 'Fejk' + i, score: 100, time: 13, wrong: 0, date: 1700000000000 + i });
+    localStorage.setItem('cache-' + HS_KEY, JSON.stringify(fejk));
+    const entry = { name: 'Testbarn', score: 59, time: 15.4, wrong: 9, date: Date.now() };
+    localStorage.setItem('mina-' + HS_KEY, JSON.stringify([entry]));
+    await renderHighscores(entry);
+    const el = document.querySelector('#highscore-list .hs-plats');
+    return el ? el.textContent : '(ingen notis)';
+  })()`);
+  ok('placeringsbesked utanför topp 30', /plats 32 av 32/.test(notis), notis.slice(0, 90));
+  // under golvet: rundan avvisas men spelaren får veta VARFÖR
+  const blixt = await sp.evaluate(`(async () => {
+    startSeterra();
+    seterraStartTime = Date.now() - 8200;   // 8,2 s < golvet 10 s
+    seterraCorrect = seterraTotal; seterraWrong = 3;
+    endSeterra();
+    const entry = await sparaMedNamn('Testbarn');
+    await renderHighscores(entry);
+    const el = document.querySelector('#highscore-list .hs-plats');
+    return { entry: entry === null, text: el ? el.textContent : '(ingen notis)' };
+  })()`);
+  ok('blixtrunda under golvet avvisas med besked',
+    blixt.entry && /Blixtsnabbt/.test(blixt.text), blixt.text.slice(0, 90));
+  await sp.close();
+} catch (e) {
+  ok('golvet speglar servern (Sydamerika 10 s)', false, String(e).slice(0, 140));
+}
+
+// ── v72: lärarsidan + lärarlänken på startsidan ──
+try {
+  const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const lFel = [];
+  lp.on('pageerror', e => lFel.push(String(e)));
+  await lp.goto(BASE + '/larare.html', { waitUntil: 'domcontentloaded' });
+  await lp.waitForSelector('#kakruta.inne', { timeout: 15000 });
+  ok('lärarsidan visar kakfrågan direkt (ingen rundtur)', true);
+  ok('lärarsidan utan JS-fel', lFel.filter(e => !/firebase/i.test(e)).length === 0,
+    lFel.join(' | ').slice(0, 120));
+  await lp.close();
+  const st = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await st.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
+  await st.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await st.waitForFunction("document.body.classList.contains('startlage')", null, { timeout: 20000 });
+  ok('lärarlänken syns i startläget', await st.evaluate(
+    "getComputedStyle(document.querySelector('.larare-lank')).display === 'block'"));
+  await st.close();
+} catch (e) {
+  ok('lärarsidan visar kakfrågan direkt (ingen rundtur)', false, String(e).slice(0, 140));
+}
+
 const fails = results.filter(r => !r.pass);
 console.log(`\n${results.length - fails.length}/${results.length} godkända`);
 await browser.close();

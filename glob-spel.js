@@ -86,6 +86,7 @@ let seterraCorrect = 0, seterraWrong = 0, seterraTotal = 0;
 let seterraSvit = 0;   // rätta svar i rad — konfetti vid var femte
 let seterraStartTime = 0, seterraTimerInterval = null;
 let seterraLocked = false, seterraTargetMisses = 0, seterraElapsed = 0;
+let seterraTidExakt = 0;       // rundans tid med tiondels sekund — topplistorna
 let seterraMissedCountries = new Set();
 let seterraIsRetry = false;
 let currentHintText = '';
@@ -175,7 +176,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '70';
+const V = '72';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1897,6 +1898,7 @@ function delRam() {
 // kartan täcker numera hela fönstret även i spelläge — paddningen ser till
 // att regionen centreras i den fria ytan vänster om den svävande panelen
 function spelPadding() {
+  if (!map) return;   // resize kan hinna före kartan (eller efter att den kraschat)
   map.setPadding(window.innerWidth > 900
     ? { top: 60, right: 400, bottom: 10, left: 10 }
     : { top: 56, right: 0, bottom: 0, left: 0 });
@@ -2200,15 +2202,20 @@ function endSeterra() {
   cursorLabel.style.display = 'none';
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  seterraElapsed = Math.floor((Date.now() - seterraStartTime) / 1000);
+  const msTotalt = Date.now() - seterraStartTime;
+  seterraElapsed = Math.floor(msTotalt / 1000);
+  // tiondelar till topplistorna: de snabbaste låg 19 man tätt på exakt 0:13
+  // i Sydamerika — hela sekunder kan inte skilja blixtarna åt
+  seterraTidExakt = Math.floor(msTotalt / 100) / 10;
   const m = Math.floor(seterraElapsed / 60), s = seterraElapsed % 60;
-  window.kakSpara?.('quiz_klar', { region: aktivSlug || 'varlden', antal: seterraTotal,
-    poang: score, tid: seterraElapsed, fel: seterraWrong, utmaning: !!aktivUtmaning });
+  // spel_start säger 'varlden' — quiz_klar ska inte säga 'world' om samma runda
+  window.kakSpara?.('quiz_klar', { region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden',
+    antal: seterraTotal, poang: score, tid: seterraElapsed, fel: seterraWrong, utmaning: !!aktivUtmaning });
   seterraGame.classList.remove('active');
   seterraDone.classList.add('active');
   document.getElementById('seterra-final-score').textContent = score + '%';
   document.getElementById('seterra-final-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder<br>${seterraWrong} felklick<br>Tid: ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} länder<br>${seterraWrong} felklick<br>Tid: ${fmtTid(seterraTidExakt)}`;
   const retryBtn = document.getElementById('seterra-retry');
   if (seterraMissedCountries.size > 0) {
     retryBtn.style.display = '';
@@ -2219,6 +2226,13 @@ function endSeterra() {
   // bildquizet klarat → putta vidare mot klassiska quizet utan stöd
   const vidareBtn = document.getElementById('seterra-vidare');
   if (vidareBtn) vidareBtn.style.display = bildlage ? '' : 'none';
+  // många fel i en stor världsdel → tipsa om delquizen (Afrika snittar
+  // 7 felklick per runda; delarna hittas sällan spontant)
+  const ovaDelBtn = document.getElementById('ova-del-btn');
+  if (ovaDelBtn) ovaDelBtn.style.display =
+    (!bildlage && !seterraIsRetry && !aktivUtmaning && !aktivDel
+     && seterraWrong >= 8 && aktivSlug && aktivSlug !== 'world'
+     && delarFor(configCache[aktivSlug]).length) ? '' : 'none';
   spela('fanfar');
   // personbästa (medalj) och världsresans stämpel — bara riktiga, hela
   // klassiska omgångar räknas (en DEL av en världsdel ger varken medalj
@@ -2276,12 +2290,27 @@ function endSeterra() {
 // ══════════════════════
 // Topplistor (Firebase + lokalt) — samma som originalsidan
 // ══════════════════════
-// Ingen människa klarar ett land på under en sekund (läsa namnet, hitta
-// landet, klicka) — allt under så många sekunder som listan har länder är
-// bluff. Golvet gäller sparande, uppladdning OCH visning, så gamla
-// fuskposter i databasen försvinner ur listorna direkt.
+// Fuskgolv: allt under listans minimitid är bluff. Tabellen SPEGLAR
+// database.rules.json — servern är facit och avvisar allt under golvet.
+// Klienten får aldrig vara mildare (då fastnar synken på poster servern
+// avvisar) och inte heller strängare: golvet låg länge på en sekund per
+// land, och då försvann äkta blixtrundor spårlöst — Sydamerika på 13 s
+// sparades men 12,9 s kastades, fast servern godkänner ner till 10 s.
+// Golvet gäller sparande, uppladdning OCH visning.
 function rimligMinTid() {
-  return Math.max(5, COUNTRIES.length || seterraTotal || 0);
+  const k = HS_KEY || '';
+  if (/glob-(afrika|asien|europa|usa)-highscores$/.test(k)) return 40;
+  if (/glob-sverige-highscores$/.test(k)) return 22;
+  if (/glob-(nordamerika|oceanien)-highscores$/.test(k)) return 11;
+  if (/glob-sydamerika-highscores$/.test(k)) return 10;
+  if (/glob-vastindien-highscores$/.test(k)) return 7;
+  if (/glob-world-highscores-alla$/.test(k)) return 170;
+  if (/glob-world-highscores-100$/.test(k)) return 85;
+  if (/glob-world-highscores-50$/.test(k)) return 40;
+  if (/glob-world-highscores-30$/.test(k)) return 25;
+  if (/glob-world-highscores-20$/.test(k)) return 16;
+  if (/glob-world-highscores-10$/.test(k)) return 8;
+  return 5;
 }
 // egna resultat under EGEN nyckel: gamla HS_KEY blandade ihop egna
 // resultat med hela den nedladdade världslistan, så "Mina resultat"
@@ -2328,12 +2357,14 @@ function getCachadeHighscores() {
   catch { return []; }
 }
 // golvet läggs FÖRE topp 30-kapningen — annars upptar dolda fuskposter
-// platserna och äkta resultat trillar ur listan
+// platserna och äkta resultat trillar ur listan. Hela den sorterade listan
+// sparas undan så "din placering" går att räkna ut även utanför topp 30.
+let senasteHelaListan = [];
 function toppNTid(list, minTid) {
   const ok = list.filter(e => e.time >= minTid);
   ok.sort((a, b) => b.score - a.score || a.time - b.time);
-  if (ok.length > 30) ok.length = 30;
-  return ok;
+  senasteHelaListan = ok;
+  return ok.length > 30 ? ok.slice(0, 30) : ok;
 }
 // På den DELADE listan räknas den här webbläsaren som en spelare per namn:
 // kör man tio rundor som "Jonas" ska bara det bästa försöket ligga där, inte
@@ -2468,12 +2499,20 @@ async function saveHighscore(name, score, time, wrong, odelad) {
   }
   return entry;
 }
+// tider lagras med tiondels sekund sedan v72 — äldre poster är hela
+// sekunder och visas då utan decimal
+function fmtTid(t) {
+  const tt = Math.round(t * 10);
+  const m = Math.floor(tt / 600), s = Math.floor((tt % 600) / 10), d = tt % 10;
+  return `${m}:${s.toString().padStart(2, '0')}` + (d ? `,${d}` : '');
+}
 function hsTabellHtml(list, highlightEntry, rubrik) {
-  let html = `<h3>${rubrik || 'Topp 30'}</h3><table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>`;
+  let html = `<h3>${rubrik || 'Topp 30'}</h3>` +
+    '<div class="hs-sortinfo">Bäst poäng vinner — vid lika poäng snabbast tid</div>' +
+    '<table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
   list.forEach((e, i) => {
-    const m = Math.floor(e.time / 60), s = e.time % 60;
     const isCurrent = highlightEntry && e.date === highlightEntry.date && e.name === highlightEntry.name;
-    html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(e.name)}</td><td>${e.score}%</td><td>${m}:${s.toString().padStart(2, '0')}</td></tr>`;
+    html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(e.name)}</td><td>${e.score}%</td><td>${fmtTid(e.time)}</td></tr>`;
   });
   return html + '</tbody></table>';
 }
@@ -2485,14 +2524,30 @@ async function renderHighscores(highlightEntry) {
   // gick rundan sämre än ens eget rekord står den inte på delade listan —
   // markera raden som ÄR en själv i stället för ingen alls
   let markera = highlightEntry;
+  let notis = '';
   if (highlightEntry && !list.some(e => e.date === highlightEntry.date)) {
     const mina = new Set(getLocalHighscores().map(e => e.date));
     markera = list.find(e => mina.has(e.date)
       && namnNyckel(e) === namnNyckel(highlightEntry)) || null;
+    // rundan sparades men ryms inte bland topp 30 — säg VAR den hamnade i
+    // stället för att låta den försvinna spårlöst (vanlig fråga från
+    // rekordjagande spelare: "min tid kommer inte upp på leaderboarden")
+    const plats = senasteHelaListan.findIndex(e => e.date === highlightEntry.date);
+    if (plats >= 30) {
+      notis = `<div class="hs-plats">Din runda: ${highlightEntry.score} % på ` +
+        `${fmtTid(highlightEntry.time)} — plats ${plats + 1} av ${senasteHelaListan.length}. ` +
+        'Här visas topp 30.</div>';
+    }
+  } else if (highlightEntry === null && seterraTotal && seterraTidExakt
+             && seterraTidExakt < rimligMinTid()) {
+    // saveHighscore avvisade rundan (under fuskgolvet) — förklara hellre
+    // än att svälja den tyst
+    notis = `<div class="hs-plats">⚡ Blixtsnabbt! Tider under ${fmtTid(rimligMinTid())} ` +
+      'kan topplistan tyvärr inte skilja från fusk, så rundan räknas inte här.</div>';
   }
-  container.innerHTML = list.length === 0
+  container.innerHTML = (list.length === 0
     ? '<div class="hs-empty">Inga sparade resultat ännu.</div>'
-    : hsTabellHtml(list, markera);
+    : hsTabellHtml(list, markera)) + notis;
 }
 
 // ── Topplistemodalen: global och personlig lista, nåbar när som helst ──
@@ -2632,7 +2687,7 @@ const modalNameInput = document.getElementById('modal-name');
 function showNameModal(score, m, s) {
   document.getElementById('modal-score').textContent = score + '%';
   document.getElementById('modal-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} länder &bull; ${seterraWrong} fel &bull; ${fmtTid(seterraTidExakt)}`;
   // namnet man sparat med förut fylls i — att trycka Spara ska räcka
   modalNameInput.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   nameModalOverlay.classList.add('active');
@@ -2650,7 +2705,7 @@ let autoSparadLofte = null;
 function autoSparaRundan(score) {
   const namn = localStorage.getItem(UTM_NAMN_KEY);
   autoSparadLofte = saveHighscore(namn || 'Anonym', score,
-                                  seterraElapsed, seterraWrong, true);
+                                  seterraTidExakt, seterraWrong, true);
 }
 async function sparaMedNamn(name) {
   localStorage.setItem(UTM_NAMN_KEY, name);
@@ -2683,7 +2738,7 @@ async function sparaMedNamn(name) {
   // ingen autosparad runda (felsökningsläge) — spara som förut
   const totalClicks = seterraCorrect + seterraWrong;
   const score = totalClicks > 0 ? Math.round((seterraCorrect / totalClicks) * 100) : 100;
-  return saveHighscore(name, score, seterraElapsed, seterraWrong);
+  return saveHighscore(name, score, seterraTidExakt, seterraWrong);
 }
 function closeNameModal() { nameModalOverlay.classList.remove('active'); }
 
@@ -2855,7 +2910,9 @@ let hifiRaknade = 0;   // stoppar autoklickare: max 10 räknas per besök
 function geHighfive(img) {
   if (!ljudAv) {
     highfiveAudio.currentTime = 0;
-    highfiveAudio.play();
+    // utan catch blev blockerad uppspelning (autoplay-regler, iOS i
+    // tyst läge) ett ohanterat fel — 23 träffar i felspårningen
+    highfiveAudio.play().catch(() => {});
   }
   img.src = 'Jonas_2.webp';
   setTimeout(() => { img.src = 'Jonas_1.webp'; }, 1000);
@@ -2955,7 +3012,7 @@ function burstConfetti() {
 function showCelebration(m, s) {
   const overlay = document.getElementById('celebration-overlay');
   document.getElementById('celebration-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} länder &bull; 0 fel &bull; ${m}:${s.toString().padStart(2, '0')}`;
+    `${seterraCorrect} av ${seterraTotal} länder &bull; 0 fel &bull; ${fmtTid(seterraTidExakt)}`;
   overlay.classList.add('active');
   const stopConfetti = startConfetti(document.getElementById('confetti-canvas'));
   const celebMusic = new Audio('CELEBRATION.mp3');
@@ -3094,6 +3151,7 @@ function planeraSnurrAter() {
 // kamerapaddning så att globen ligger mitt i den FRIA ytan mellan
 // titeltexten och knappraden — inte mitt i hela fönstret
 function startPadding() {
+  if (!map) return;   // före init/efter kartkrasch
   const hintEl = document.querySelector('.start-hint');
   const knapparEl = document.getElementById('start-knappar');
   let top = 0, bottom = 0;
@@ -3244,6 +3302,11 @@ function visaDelVal(slug, raw) {
 }
 document.getElementById('spel-delar').addEventListener('click', async () => {
   if (!aktivSlug || aktivSlug === 'world') return;
+  visaDelVal(aktivSlug, await loadRegionConfig(aktivSlug));
+});
+document.getElementById('ova-del-btn')?.addEventListener('click', async () => {
+  if (!aktivSlug || aktivSlug === 'world') return;
+  window.kakSpara?.('ova_del_klick', { region: aktivSlug, fel: seterraWrong });
   visaDelVal(aktivSlug, await loadRegionConfig(aktivSlug));
 });
 delOverlay.addEventListener('click', e => {
@@ -3496,6 +3559,7 @@ const tourHal = document.getElementById('tour-hal');
 // jordglobens ruta på skärmen: centrum via kartprojektionen, radien ur
 // zoomnivån (globens omkrets = kartvärldens bredd i pixlar)
 function globRect() {
+  if (!map) return null;   // före init/efter kartkrasch — anroparen hoppar över
   const c = map.project(map.getCenter());
   let r = 512 * Math.pow(2, map.getZoom()) / (2 * Math.PI);
   r = Math.min(r, window.innerHeight * 0.42, window.innerWidth * 0.42);
@@ -3997,6 +4061,7 @@ function visaUtmanaKnapp(score) {
   utmanaBtn.dataset.score = score;
 }
 utmanaBtn.addEventListener('click', () => {
+  window.kakSpara?.('utmana_klick', { region: aktivSlug });
   document.getElementById('utm-skapa-form').style.display = '';
   document.getElementById('utm-skapa-klar').style.display = 'none';
   document.getElementById('utm-skapa-status').textContent = '';
@@ -4233,6 +4298,25 @@ if ('serviceWorker' in navigator) {
   // på begäran (regionens rutor är en handfull). Hela arkivet förladdas
   // först vid engagemang (startaForladdning): direktlänk in i spelet,
   // beröring av globen, regionsval eller en stunds kvarstannande.
+  // Gamla enheter utan WebGL kraschade i kartmotorn och fastnade på en död
+  // laddskärm (riktiga barn i felspårningen) — säg hellre VAD som är fel.
+  // Samma kontext-ordning som MapLibre själv provar: webgl2, sedan webgl.
+  const webglStods = (() => {
+    try {
+      const c = document.createElement('canvas');
+      return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    } catch { return false; }
+  })();
+  const visaWebglBesked = () => {
+    const txt = 'Din webbläsare klarar tyvärr inte 3D-globen 😢 Prova att ' +
+      'uppdatera webbläsaren, stänga av batterisparläge eller byta enhet.';
+    clearInterval(laddTipsTimer);
+    const info = document.getElementById('ladd-info');
+    if (info) info.textContent = txt;
+    document.getElementById('spel-load').style.display = '';
+    loadTxt.textContent = txt;
+  };
+  if (!webglStods) { visaWebglBesked(); return; }
   try {
     await Promise.all([loadRegions(), loadMarkers()]);
     if (region || utmaningId) {
@@ -4253,6 +4337,7 @@ if ('serviceWorker' in navigator) {
     await new Promise(res => { map.once('load', res); setTimeout(res, 8000); });
   } catch (e) {
     // fastna ALDRIG tyst på "Startar …" — visa vad som gick fel
+    if (/webgl/i.test(String(e && e.message))) { visaWebglBesked(); return; }
     loadTxt.textContent = 'Kunde inte ladda kartdata — prova att ladda om sidan. [' + ((e && e.message) || e) + ']';
     throw e;
   }
