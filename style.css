@@ -750,6 +750,37 @@
       font-style: italic;
     }
 
+    /* öva-tipset efter rundor med många fel — lugn blå, ingen skämsknapp */
+    .restart-btn.ova-del {
+      background: linear-gradient(135deg, #2980b9, #5bbfff);
+      font-size: 0.9rem;
+      padding: 10px 20px;
+    }
+
+    /* utmaningsknappen ska synas utan att scrolla — guld i stället för
+       ännu en grön knapp längst ner i raden */
+    .restart-btn.utmana-lyft {
+      background: linear-gradient(135deg, #f2b705, #ffdc32);
+      color: #14243a;
+      font-weight: 700;
+      box-shadow: 0 3px 14px rgba(255, 220, 50, 0.35);
+    }
+
+    .hs-sortinfo {
+      color: #4a6a82;
+      font-size: 0.72rem;
+      margin: -4px 0 8px;
+    }
+
+    .hs-plats {
+      color: #5bbfff;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: rgba(91,191,255,0.08);
+      border-radius: 8px;
+    }
+
     .restart-btn {
       padding: 12px 36px;
       background: linear-gradient(135deg, #27ae60, #2ecc71);
