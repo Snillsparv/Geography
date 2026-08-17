@@ -278,7 +278,10 @@
     return !el || el.style.display === 'none';
   };
   const params = new URLSearchParams(location.search);
-  const vantarPa = params.get('region') ? 'speltur-klar'
+  // undersidor (lärarsidan m.fl.) har ingen rundtur att vänta på
+  const spelsida = location.pathname === '/' || /glob\.html$/.test(location.pathname);
+  const vantarPa = !spelsida ? null
+    : params.get('region') ? 'speltur-klar'
     : params.get('utmaning') ? null : 'rundtur-klar';
   const turKlar = () => {
     if (!vantarPa) return true;

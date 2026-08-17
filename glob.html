@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=58">
+  <link rel="stylesheet" href="style.css?v=73">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -129,6 +129,11 @@
       text-align: center; pointer-events: none; color: #7ea6c4; font-size: .92rem; }
     .start-version { position: fixed; left: 12px; bottom: 8px; color: #46627e;
       font-size: .72rem; pointer-events: none; }
+    /* lärarlänken syns bara i startläget, diskret ovanför versionsraden */
+    .larare-lank { position: fixed; left: 12px; bottom: 26px; color: #7ea6c4;
+      font-size: .78rem; text-decoration: none; z-index: 55; display: none; }
+    .larare-lank:hover { color: #ffdc32; }
+    body.startlage .larare-lank { display: block; }
     .start-knappar { position: absolute; bottom: 6vh; left: 50%; transform: translateX(-50%);
       width: min(900px, 96vw); display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
     .start-knappar .knapp { position: relative; padding: 14px 22px; border-radius: 16px;
@@ -573,6 +578,7 @@
     <div id="ladd-info"></div>
   </div>
   <span class="start-version" id="start-version"></span>
+  <a class="larare-lank" href="larare.html">&#127822; F&ouml;r l&auml;rare</a>
   <div class="start-knappar" id="start-knappar">
     <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; Jorden runt</a>
     <a class="knapp k5" href="?region=sydamerika">Sydamerika
@@ -912,11 +918,18 @@
         <div class="big-score" id="seterra-final-score"></div>
         <div class="done-detail" id="seterra-final-detail"></div>
 
+        <!-- många fel i en stor världsdel → puffa för delquizen -->
+        <button class="restart-btn ova-del" id="ova-del-btn" style="display:none">&#129513; Många fel? Öva på en mindre del i taget!</button>
+
         <div class="hs-form" id="hs-form">
           <input type="text" id="hs-name" placeholder="Ditt namn" maxlength="20">
           <button id="hs-save">Spara</button>
         </div>
         <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
+
+        <!-- utmaningsknappen låg längst ner UNDER topp 30-listan — ingen
+             hittade den (0 skapade utmaningar på fem dygns mätning) -->
+        <button class="restart-btn utmana-lyft" id="utmana-btn" style="display:none">&#9876;&#65039; Utmana en kompis!</button>
 
         <div class="highscore-list" id="highscore-list"></div>
         <button class="topplista-knapp" id="topplista-knapp-klar">&#127968; Se mina resultat</button>
@@ -924,7 +937,6 @@
         <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
         <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
         <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
-        <button class="restart-btn" id="utmana-btn" style="display:none">&#9876;&#65039; Utmana en kompis!</button>
         <button class="restart-btn" id="utm-vidare-btn" style="display:none">Skicka utmaningen vidare &#128232;</button>
         <button class="restart-btn" id="seterra-restart">Spela igen</button>
       </div>
@@ -1017,8 +1029,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=71"></script>
-<script src="glob-spel.js?v=71"></script>
+<script src="kakor.js?v=73"></script>
+<script src="glob-spel.js?v=73"></script>
 
 </body>
 </html>
