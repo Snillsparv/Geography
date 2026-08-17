@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=72">
+  <link rel="stylesheet" href="style.css?v=73">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -143,6 +143,7 @@
     .k1 { background: #ffd166; } .k2 { background: #06d6a0; } .k3 { background: #ef7674; }
     .k4 { background: #74b9ff; } .k5 { background: #f4a261; } .k6 { background: #b39ddb; }
     .k7 { background: #8ce99a; } .k8 { background: #ffdc32; }
+    .k10 { background: #a5c8ff; }
     .knapp-video { position: absolute; top: -10px; right: -10px; width: 30px; height: 30px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: .72rem; cursor: pointer; padding-left: 3px; box-shadow: 0 2px 6px #000a; }
@@ -601,6 +602,7 @@
     <a class="knapp k7" href="?region=vastindien">V&auml;stindien
       <button class="knapp-video" data-video="TEkeVdwJPk8"
               title="Se videon om V&auml;stindiens l&auml;nder">&#9654;</button></a>
+    <a class="knapp k10" href="?region=usa">&#127482;&#127480; USA:s delstater</a>
     <a class="knapp k8" href="?region=world">&#127757; Hela v&auml;rlden</a>
   </div>
   <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
@@ -858,10 +860,10 @@
             <div class="description" id="info-desc"></div>
           </div>
           <div class="counter">
-            Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> l&auml;nder
+            Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> <span id="utforsk-ord">l&auml;nder</span>
           </div>
         </div>
-        <div class="close-hint">Klicka p&aring; landet igen f&ouml;r att d&ouml;lja</div>
+        <div class="close-hint">Klicka p&aring; <span id="stang-ord">landet</span> igen f&ouml;r att d&ouml;lja</div>
       </div>
     </div>
 
@@ -872,7 +874,7 @@
       <div class="seterra-panel active" id="seterra-game">
         <button class="topplista-knapp" id="topplista-knapp">&#127942; Topplista</button>
         <div class="seterra-target">
-          <div class="label">Hitta detta land:</div>
+          <div class="label" id="hitta-ord">Hitta detta land:</div>
           <div class="target-name" id="seterra-target-name">---</div>
         </div>
 
@@ -1027,8 +1029,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=72"></script>
-<script src="glob-spel.js?v=72"></script>
+<script src="kakor.js?v=73"></script>
+<script src="glob-spel.js?v=73"></script>
 
 </body>
 </html>

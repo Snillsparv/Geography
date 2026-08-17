@@ -85,6 +85,12 @@ const REGIONS_OUT = arg('regions', null);
 // --markers FILE (med --borders): ländernas RIKTIGA former (badge-länder)
 // och mittpunkter — prick/ring-markörerna för småländer i spelet.
 const MARKERS_OUT = arg('markers', null);
+// --guides DIR (kräver --dataset usa): ritar Photoshop-mallar — en PNG per
+// kantstat i USA.psd:s pixelrymd med statens RIKTIGA målform (världens
+// målade USA-yta delad per delstat) inversvarpad från kartan tillbaka till
+// duken. Magenta = yttre kant (dit ska konsten ritas), cyan = delstat-mot-
+// delstat (redan bra). Inga tiles byggs.
+const GUIDES = arg('guides', null);
 // Debug: --window z:x0:y0[:x1:y1] renders ONLY that tile range at that zoom
 // (combine with --save DIR to inspect the webp files without a full build).
 const WINDOW = (() => {
@@ -105,7 +111,17 @@ const RASTER_CAP = 8192;            // max raster width per country (memory —
 const CACHE_BUDGET = 1.5e9;         // LRU raster cache, bytes
 const GRID_STEP = 80;               // region-canvas px between shared warp-grid nodes
 
-const REGIONS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
+// --dataset usa: bygg USA:s delstater i stället för världen — samma
+// maskineri, men regionslistan är bara 'usa', geometrierna kommer från
+// data/us_states.geojson (Natural Earth admin-1, samma linjeverk som
+// ländernas 50m-data så delstaterna passar exakt i USA:s kontur) och
+// exporterade feature-id:n får GID_BASE så de aldrig krockar med ländernas.
+const DATASET = arg('dataset', 'world');
+const GID_BASE = DATASET === 'usa' ? 1000 : 0;
+
+const REGIONS = DATASET === 'usa'
+  ? ['usa']
+  : ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 // filename → Natural Earth A3 for spellings the name match can't bridge
 const ALIAS = {
   indoneien: 'IDN', demokratiska_republiken_kongo: 'COD', eciador: 'ECU',
@@ -174,6 +190,17 @@ function mercY(lat) {
 
 // ── Load Natural Earth; map_units first (England/Skottland/FXX/GUF …) ──
 function loadFeatures() {
+  if (DATASET === 'usa') {
+    // delstaterna: NAME_SV är satt till configens filnamn, så namnmatchningen
+    // träffar rakt av; inga map_units, ingen Krim-flytt
+    const states = JSON.parse(readFileSync(path.join(here, 'data/us_states.geojson'), 'utf8'));
+    const bySv = {}, byA3 = {};
+    for (const f of states.features) {
+      bySv[norm(f.properties.NAME_SV)] = f;
+      if (f.properties.GU_A3) byA3[f.properties.GU_A3] = f;
+    }
+    return { bySv, byA3 };
+  }
   const units = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_map_units.geojson'), 'utf8'));
   const countries = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
   const bySv = {}, byA3 = {};
@@ -298,8 +325,9 @@ function matchRegions() {
   const regions = [];
   // stable global id per country (1, 2, 3 … in region/config order): the
   // per-pixel OWNER value in every tile, and the feature id in the exported
-  // border/region GeoJSON — the click layer keys on it.
-  let gid = 0;
+  // border/region GeoJSON — the click layer keys on it. usa-datasetet
+  // startar på GID_BASE så delstaterna aldrig krockar med ländernas id:n.
+  let gid = GID_BASE;
   for (const slug of REGIONS) {
     const cfg = JSON.parse(readFileSync(path.join(repo, 'assets', slug, 'config.json'), 'utf8'));
     const countries = [];
@@ -323,7 +351,21 @@ function matchRegions() {
         anchor, fullGeom: f.geometry,
       });
     }
-    if (countries.length) regions.push({ slug, countries });
+    if (!countries.length) continue;
+    if (DATASET === 'usa') {
+      // Alaska och Hawaii ligger i infällda rutor i kompositionen, långt
+      // från sina riktiga lägen — på fastlandets gemensamma varpduk skulle
+      // deras pinnar slita sönder gallret. Var och en får en egen duk;
+      // de rör inte varandra geografiskt så det finns inga fogar att tappa.
+      const egna = new Set(['alaska', 'hawaii']);
+      const fastland = countries.filter(c => !egna.has(c.base));
+      if (fastland.length) regions.push({ slug, countries: fastland });
+      for (const c of countries.filter(c => egna.has(c.base))) {
+        regions.push({ slug, countries: [c] });
+      }
+      continue;
+    }
+    regions.push({ slug, countries });
   }
   return regions;
 }
@@ -793,7 +835,9 @@ async function buildWarps(regions) {
       // them — keep them at the hand-drawn composition instead.
       const bodyArea = am.n / mask.total * c.width * c.height;
       const ratio = pm ? Math.sqrt(bodyArea * detA / Math.max(pm.area, 1e-12)) : 1;
-      c.badge = !c.hasLandBorder && ratio > 3;
+      // delstaterna: Hawaii är överritat men SKA till sin riktiga plats —
+      // inga kompositionsplacerade badges i usa-datasetet
+      c.badge = DATASET !== 'usa' && !c.hasLandBorder && ratio > 3;
       if (c.badge) console.log(`  badge: ${r.slug}/${c.base} (${ratio.toFixed(1)}× överritad)`);
       const eg = eigen2(Cm[0], Cm[1], Cm[2]);
       const K = 1.6;
@@ -807,6 +851,10 @@ async function buildWarps(regions) {
       ];
       if (c.badge) toTrue = null;
       for (const p of pins) {
+        // enlandsdukar (Alaska/Hawaii i usa-datasetet): affinen A är
+        // degenererad (ett enda centrum) och ger NaN — vid geo 1 behövs
+        // den inte alls, måltransporten pekar redan rätt
+        if (toTrue && GEO === 1) { controls.push({ p, q: toTrue(p) }); continue; }
         const qa = A(p);
         if (!toTrue) { controls.push({ p, q: qa }); continue; }
         const qm = toTrue(p);
@@ -1272,7 +1320,14 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // The sheet layer renders into a buffer with a small GUTTER around the tile:
 // the uniform outline (and the border export) needs to see ownership just
 // across the tile seam, or borders would break exactly along the tile grid.
-const G = OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
+// usa-datasetet behöver bred gutter: snäpp-passet hämtar fyllfärg upp till
+// ~1,25° bort (Alaskas östkant ligger 0,9° från arkens målade kant), och
+// källan kan ligga i grannrutan — guttern måste rymma hela räckvidden VID
+// DJUPASTE ZOOMEN, annars fylls samma världspixel i en ruta men inte i
+// grannen (skarvband + trasig kantexport)
+const G = DATASET === 'usa'
+  ? Math.max(48, Math.ceil(TILE * (1 << MAXZOOM) * 1.25 / 360) + 4)
+  : OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
 const TG = TILE + 2 * G;
 const sheetBuf = new Uint8ClampedArray(TG * TG * 4);   // tile's sheet layer
 const scratch = new Uint8ClampedArray(TG * TG * 4);    // one country's art
@@ -1400,6 +1455,743 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
     if (d[i * 4 + 3] > 127) { m[i] = 1; cnt++; }
   }
   return cnt ? m : null;
+}
+
+// ── USA-snäppet (--dataset usa) ──
+// Delstatsarken är varpade teckningar: deras målade ytterkant vinglar någon
+// tiondels grad runt USA:s riktiga kontur, medan världsarkivets USA är låst
+// exakt till Natural Earth-polygonen. I spelet syns skillnaden som gröna
+// strimmor och dubbla konturer (Mexikogränsen, Alaskas kust). Passet snäpper
+// delstatsrendreringen till SAMMA polygon: målat utanför landet klipps bort,
+// omålat innanför fylls med närmsta delstats kantfärg (samma färgförläng-
+// ningsestetik som världens låsta underlägg). Hawaii och småöar (Aleuterna)
+// undantas — deras konst är medvetet större än öarna och ska inte klippas.
+let usaSnap = null;   // { fyll: [pieces], skydd: [pieces] } — fylls i main()
+// Hawaii undantas helt: delstatskonsten är medvetet mycket större än öarna
+// och får varken klippas eller "fyllas" mot de små målade öblobbarna
+const HAWAII = ([lng, lat]) => lng > -162 && lng < -152 && lat > 17 && lat < 24;
+function snapPieces(geometry, cLng, filt) {
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  const ut = [];
+  for (const poly of polys) {
+    if (filt && !filt(poly)) continue;
+    const rings = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const ring of poly) {
+      const pts = new Float64Array(ring.length * 2);
+      for (let i = 0; i < ring.length; i++) {
+        let lng = ring[i][0];
+        while (lng - cLng > 180) lng -= 360;
+        while (lng - cLng < -180) lng += 360;
+        const x = mercX(lng), y = mercY(ring[i][1]);
+        pts[i * 2] = x; pts[i * 2 + 1] = y;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+      rings.push(pts);
+    }
+    ut.push({ rings, minX, minY, maxX, maxY });
+  }
+  return ut;
+}
+function byggUsaSnap() {
+  // FYLLMÅLET är världsarkivets MÅLADE USA-yta (art-regions.json), inte
+  // NE-polygonen: världens sömlöshet bygger på att den låsta USA:ns färg-
+  // förlängda underlägg löper ända fram till grannens teckningskant (t.ex.
+  // in i Mexiko där grannens konst inte når gränsen). Delstaterna ska sluta
+  // på EXAKT samma linje — då finns varken gröna strimmor eller dubbla
+  // konturer. Kustöar (Kodiak, Long Island …) är egna målade polygoner och
+  // fylls också.
+  const varld = JSON.parse(readFileSync(path.join(repo, 'assets/art-regions.json'), 'utf8'));
+  const f = varld.features.find(x => x.properties && x.properties.key === 'nordamerika/usa');
+  if (!f) throw new Error('hittar inte nordamerika/usa i assets/art-regions.json');
+  // OBS: INTE geoCentroid — exportringarnas vindning får d3 att läsa
+  // komplementet av sfären (centroiden hamnade i Asien) och upplindningen
+  // klöv då fastlandsringen mitt itu. −100° håller hela USA i ett stycke
+  // och lindar bara västra Aleuterna (+172…+179 → −188…−181), som ska.
+  const cLng = -100;
+  const ejHawaii = poly => !HAWAII(poly[0][0]);
+  // vindningssäker area: exportringarna är vridna så att d3 läser sfärens
+  // komplement (samma fälla som cLng ovan) — ta min(a, 4π−a)
+  const ytan = poly => {
+    const a = geoArea({ type: 'Polygon', coordinates: poly });
+    return Math.min(a, 4 * Math.PI - a);
+  };
+  const fyll = snapPieces(f.geometry, cLng, poly => ejHawaii(poly) && ytan(poly) > 1e-6);
+  // klippvakten skyddar all legitim konst: målat i världens USA-yta ELLER
+  // innanför NE-landets Ö-polygoner (Aleuterna, Hawaii, Long Island — konst
+  // medvetet större än ön). FASTLANDET skyddas INTE av NE-polygonen: vid Rio
+  // Grande sträcker sig NE-USA förbi världens synliga gränsband (Mexikos
+  // teckningskant), och NE-skyddat fastlandsmåleri blev en vit dubbelrand
+  // utanför världens gräns — det ska klippas till fotavtrycket som allt annat.
+  const skydd = snapPieces(f.geometry, cLng, null);
+  const ne = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
+  const nef = ne.features.find(x => x.properties.ADM0_A3 === 'USA' || x.properties.GU_A3 === 'USA');
+  // öarnas konst (Aleuterna, Kodiak, Long Island …) är medvetet större än
+  // öarna själva och fredas i en dilaterad zon runt varje liten NE-polygon
+  const oar = nef ? snapPieces(nef.geometry, cLng, poly => ytan(poly) < 1e-3) : [];
+  usaSnap = { fyll, skydd, oar };
+  console.log(`USA-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner, ${oar.length} öar.`);
+}
+const snapMask = (pieces, world, tx, ty) => {
+  const grupper = [];
+  for (const off of [0, -world, world]) {
+    for (const p of pieces) grupper.push({ ...p, off });
+  }
+  return buildMask(grupper, world, tx, ty, 'fill');
+};
+// ── --guides: Photoshop-mallar för delstaternas riktiga former ──
+// Målformen per stat är världens målade USA-yta (fotavtrycket) delad per
+// delstat: NE-polygonen där den täcker, närmsta stat i sömzonerna (samma
+// partition som spelets fyllnad, men UTAN räckviddstak annat än 1,3°-
+// spärren mot underläggets djupläckor in i Mexiko). Formen inversvarpas
+// genom varpduken tillbaka till kompositionens pixlar och skalas till
+// USA.psd:s upplösning — mallarna läggs rakt in i PSD:n på (0,0).
+async function byggMallar(regions) {
+  const UT = path.resolve(repo, GUIDES);
+  mkdirSync(UT, { recursive: true });
+  const cfg = JSON.parse(readFileSync(path.join(repo, 'assets/usa/config.json'), 'utf8'));
+  const SKALA = 1.5;                               // konfigduk 4000×2571 → PSD 6000×3857
+  const PW = Math.round(cfg.canvasWidth * SKALA);
+  const PH = Math.round(cfg.canvasHeight * SKALA + 0.5);
+  const TAK = 1.3;                                 // grader: djupläckor bortom taket ritas ej
+
+  // per stat: regionens grid + konfigplacering
+  const perGid = new Map();
+  for (const r of regions) for (const c of r.countries) perGid.set(c.gid, { r, c });
+
+  // bilinjär inversvarp för en grid: mercator → dukkoordinater
+  const gorInverterare = g => {
+    const rad = g.nx + 1;
+    const celler = [];
+    let uxSum = 0, uxN = 0;
+    for (let gy = 0; gy < g.ny; gy++) for (let gx = 0; gx < g.nx; gx++) {
+      const i00 = (gy * rad + gx) * 2;
+      const xs = [g.u[i00], g.u[i00 + 2], g.u[i00 + rad * 2], g.u[i00 + rad * 2 + 2]];
+      const ys = [g.u[i00 + 1], g.u[i00 + 3], g.u[i00 + rad * 2 + 1], g.u[i00 + rad * 2 + 3]];
+      celler.push({ gx, gy, x0: Math.min(...xs), x1: Math.max(...xs),
+                    y0: Math.min(...ys), y1: Math.max(...ys) });
+      uxSum += xs[0]; uxN++;
+    }
+    const uxMitt = uxSum / uxN;
+    const invCell = (cell, mx, my) => {
+      const i00 = (cell.gy * rad + cell.gx) * 2;
+      const A = [g.u[i00], g.u[i00 + 1]], B = [g.u[i00 + 2], g.u[i00 + 3]];
+      const D = [g.u[i00 + rad * 2], g.u[i00 + rad * 2 + 1]];
+      const C = [g.u[i00 + rad * 2 + 2], g.u[i00 + rad * 2 + 3]];
+      const Ex = B[0] - A[0], Ey = B[1] - A[1];
+      const Fx = D[0] - A[0], Fy = D[1] - A[1];
+      const Gx = A[0] - B[0] + C[0] - D[0], Gy = A[1] - B[1] + C[1] - D[1];
+      let s = 0.5, t = 0.5;
+      for (let i = 0; i < 9; i++) {
+        const px = A[0] + s * Ex + t * Fx + s * t * Gx - mx;
+        const py = A[1] + s * Ey + t * Fy + s * t * Gy - my;
+        const j11 = Ex + t * Gx, j12 = Fx + s * Gx;
+        const j21 = Ey + t * Gy, j22 = Fy + s * Gy;
+        const det = j11 * j22 - j12 * j21;
+        if (!det) break;
+        s -= (px * j22 - py * j12) / det;
+        t -= (py * j11 - px * j21) / det;
+      }
+      return [s, t];
+    };
+    return (mx0, my) => {
+      const mx = mx0 - Math.round(mx0 - uxMitt);        // antimeridian-upplindning
+      const kand = celler.map(c => {
+        const dx = mx < c.x0 ? c.x0 - mx : mx > c.x1 ? mx - c.x1 : 0;
+        const dy = my < c.y0 ? c.y0 - my : my > c.y1 ? my - c.y1 : 0;
+        return { c, d: dx * dx + dy * dy };
+      }).sort((a, b) => a.d - b.d).slice(0, 4);
+      let bast = null;
+      for (const k of kand) {
+        const [s, t] = invCell(k.c, mx, my);
+        const inne = s > -0.15 && s < 1.15 && t > -0.15 && t < 1.15;
+        if (!bast || (inne && !bast.inne)) bast = { s, t, cell: k.c, inne };
+        if (inne) break;
+      }
+      return [g.x0 + (bast.cell.gx + bast.s) * g.step,
+              g.y0 + (bast.cell.gy + bast.t) * g.step];
+    };
+  };
+
+  // jämn skanlinjefyllning (even-odd) av polygonringar i rasterkoordinater
+  const fyllPoly = (mal, W, H, ringar, varde) => {
+    let y0 = Infinity, y1 = -Infinity;
+    for (const rg of ringar) for (let i = 0; i < rg.length; i += 2) {
+      if (rg[i + 1] < y0) y0 = rg[i + 1];
+      if (rg[i + 1] > y1) y1 = rg[i + 1];
+    }
+    for (let y = Math.max(0, Math.ceil(y0)); y <= Math.min(H - 1, Math.floor(y1)); y++) {
+      const kors = [];
+      const my = y + 0.5;
+      for (const rg of ringar) {
+        const n = rg.length / 2;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const ax = rg[i * 2], ay = rg[i * 2 + 1], bx = rg[j * 2], by = rg[j * 2 + 1];
+          if ((ay > my) !== (by > my)) kors.push(ax + (my - ay) / (by - ay) * (bx - ax));
+        }
+      }
+      kors.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < kors.length; k += 2) {
+        const xa = Math.max(0, Math.ceil(kors[k] - 0.5)), xb = Math.min(W - 1, Math.floor(kors[k + 1] - 0.5));
+        for (let x = xa; x <= xb; x++) mal[y * W + x] = varde;
+      }
+    }
+  };
+
+  const chaikin = pts => {
+    const ut = [];
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1];
+      ut.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+      ut.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    if (pts.length) { ut.unshift(pts[0]); ut.push(pts[pts.length - 1]); }
+    return ut;
+  };
+
+  // ── per region (fastland / alaska): rasterpartition + kantspårning ──
+  const resultat = new Map();     // gid → { ut: [polylines], grans: [polylines] } i PSD-px
+  const HAWAII_BAS = new Set(['hawaii']);
+  for (const r of regions) {
+    if (r.countries.every(c => HAWAII_BAS.has(c.base))) continue;   // konsten avsiktligt större
+    const stater = r.countries.filter(c => !HAWAII_BAS.has(c.base));
+    // bbox i mercator: staternas NE-geometri + fotavtrycksbitar i närheten
+    const norm = lng => { let v = lng; while (v + 100 > 180) v -= 360; while (v + 100 < -180) v += 360; return v; };
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const nePolys = [];             // { gid, ringar: [Float64Array mercator] }
+    for (const c of stater) {
+      const polys = c.fullGeom.type === 'Polygon' ? [c.fullGeom.coordinates] : c.fullGeom.coordinates;
+      for (const poly of polys) {
+        const ringar = poly.map(ring => {
+          const a = new Float64Array(ring.length * 2);
+          for (let i = 0; i < ring.length; i++) {
+            const x = mercX(norm(ring[i][0])), y = mercY(ring[i][1]);
+            a[i * 2] = x; a[i * 2 + 1] = y;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+          return a;
+        });
+        nePolys.push({ gid: c.gid, ringar });
+      }
+    }
+    const PAD = TAK / 360 + 0.004;
+    minX -= PAD; maxX += PAD; minY -= PAD; maxY += PAD;
+    const fot = usaSnap.fyll.filter(p =>
+      p.minX < maxX && p.maxX > minX && p.minY < maxY && p.maxY > minY);
+    for (const p of fot) {          // fotavtrycket kan sticka utanför NE-lådan
+      if (p.minX < minX) minX = Math.max(p.minX - 0.002, minX - 0.06);
+      if (p.maxX > maxX) maxX = Math.min(p.maxX + 0.002, maxX + 0.06);
+      if (p.minY < minY) minY = Math.max(p.minY - 0.002, minY - 0.06);
+      if (p.maxY > maxY) maxY = Math.min(p.maxY + 0.002, maxY + 0.06);
+    }
+    const PXM = 0.009 / 360;                        // ~0,009° per rasterpixel
+    const W = Math.min(16000, Math.ceil((maxX - minX) / PXM));
+    const H = Math.min(16000, Math.ceil((maxY - minY) / PXM));
+    const tillPx = a => {
+      const ut = new Float64Array(a.length);
+      for (let i = 0; i < a.length; i += 2) {
+        ut[i] = (a[i] - minX) / PXM; ut[i + 1] = (a[i + 1] - minY) / PXM;
+      }
+      return ut;
+    };
+    // 1) NE-ägare + fotavtrycksmask
+    const agare = new Uint16Array(W * H);
+    for (const np of nePolys) fyllPoly(agare, W, H, np.ringar.map(tillPx), np.gid - GID_BASE);
+    const iFot = new Uint8Array(W * H);
+    for (const p of fot) fyllPoly(iFot, W, H, p.rings.map(tillPx), 1);
+    // Stora sjöarna är målat VATTEN i världskartan — de hör inte till någon
+    // delstats målform. Dras bort så mallarnas ytterkant blir strandlinjen.
+    const sjoFil = path.join(here, 'data/stora_sjoarna.geojson');
+    if (existsSync(sjoFil)) {
+      const sjoar = JSON.parse(readFileSync(sjoFil, 'utf8'));
+      const iSjo = new Uint8Array(W * H);
+      for (const f of sjoar.features) {
+        const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        for (const poly of polys) {
+          const ringar = poly.map(ring => {
+            const a = new Float64Array(ring.length * 2);
+            for (let i = 0; i < ring.length; i++) {
+              a[i * 2] = mercX(norm(ring[i][0])); a[i * 2 + 1] = mercY(ring[i][1]);
+            }
+            return a;
+          });
+          fyllPoly(iSjo, W, H, ringar.map(tillPx), 1);
+        }
+      }
+      for (let i = 0; i < W * H; i++) if (iSjo[i]) iFot[i] = 0;
+    }
+    // 2) närmsta stat i sömzonerna (chamfer 3-4 med källa), tak mot djupläckor
+    const INF = 0x3fffffff;
+    const dist = new Int32Array(W * H);
+    const kalla = new Uint16Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      if (agare[i]) { dist[i] = 0; kalla[i] = agare[i]; } else dist[i] = INF;
+    }
+    const svep2 = () => {
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const prova = (j, w) => { if (j >= 0 && dist[j] + w < dist[i]) { dist[i] = dist[j] + w; kalla[i] = kalla[j]; } };
+        if (x > 0) prova(i - 1, 3);
+        if (y > 0) { prova(i - W, 3); if (x > 0) prova(i - W - 1, 4); if (x < W - 1) prova(i - W + 1, 4); }
+      }
+      for (let y = H - 1; y >= 0; y--) for (let x = W - 1; x >= 0; x--) {
+        const i = y * W + x;
+        const prova = (j, w) => { if (j < W * H && dist[j] + w < dist[i]) { dist[i] = dist[j] + w; kalla[i] = kalla[j]; } };
+        if (x < W - 1) prova(i + 1, 3);
+        if (y < H - 1) { prova(i + W, 3); if (x < W - 1) prova(i + W + 1, 4); if (x > 0) prova(i + W - 1, 4); }
+      }
+    };
+    svep2();
+    const TAKC = Math.round(TAK / 360 / PXM) * 3;
+    for (let i = 0; i < W * H; i++) {
+      agare[i] = iFot[i] && dist[i] <= TAKC ? kalla[i] : 0;
+    }
+    // 3) spricksegment per stat och klass ('ut' mot ingen, 'grans' mot annan)
+    const segment = new Map();      // 'gidRel/klass' → [ [x1,y1,x2,y2] … ]
+    const lagg = (rel, klass, x1, y1, x2, y2) => {
+      const nyckel = rel + '/' + klass;
+      let a = segment.get(nyckel);
+      if (!a) { a = []; segment.set(nyckel, a); }
+      a.push([x1, y1, x2, y2]);
+    };
+    for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) {
+      const i = y * W + x;
+      const o = agare[i], oh = agare[i + 1], ov = agare[i + W];
+      if (oh !== o) {
+        if (o) lagg(o, oh ? 'grans' : 'ut', x + 1, y, x + 1, y + 1);
+        if (oh) lagg(oh, o ? 'grans' : 'ut', x + 1, y, x + 1, y + 1);
+      }
+      if (ov !== o) {
+        if (o) lagg(o, ov ? 'grans' : 'ut', x, y + 1, x + 1, y + 1);
+        if (ov) lagg(ov, o ? 'grans' : 'ut', x, y + 1, x + 1, y + 1);
+      }
+    }
+    // 4) kedja → förenkla → mjuka → inversvarpa → PSD-pixlar
+    const invertera = gorInverterare(r.grid);
+    if (process.env.DBG_MALL) {
+      // rundtur: dukpunkt → framåtvarp (bilinjärt på gridet) → invers → dukpunkt
+      const g = r.grid, rad2 = g.nx + 1;
+      const framat = (cx, cy) => {
+        const fx = (cx - g.x0) / g.step, fy = (cy - g.y0) / g.step;
+        const gx = Math.max(0, Math.min(g.nx - 1, Math.floor(fx)));
+        const gy = Math.max(0, Math.min(g.ny - 1, Math.floor(fy)));
+        const s = fx - gx, t = fy - gy;
+        const i00 = (gy * rad2 + gx) * 2;
+        const A = [g.u[i00], g.u[i00 + 1]], B = [g.u[i00 + 2], g.u[i00 + 3]];
+        const D = [g.u[i00 + rad2 * 2], g.u[i00 + rad2 * 2 + 1]];
+        const C = [g.u[i00 + rad2 * 2 + 2], g.u[i00 + rad2 * 2 + 3]];
+        return [A[0] * (1 - s) * (1 - t) + B[0] * s * (1 - t) + D[0] * (1 - s) * t + C[0] * s * t,
+                A[1] * (1 - s) * (1 - t) + B[1] * s * (1 - t) + D[1] * (1 - s) * t + C[1] * s * t];
+      };
+      let vmax = 0, vsum = 0, n = 0;
+      let uxMin = Infinity, uxMax = -Infinity;
+      for (let i = 0; i < g.u.length; i += 2) { if (g.u[i] < uxMin) uxMin = g.u[i]; if (g.u[i] > uxMax) uxMax = g.u[i]; }
+      for (const c of stater) {
+        for (let k = 0; k < 9; k++) {
+          const cx = c.left + (k % 3) * c.width / 2, cy = c.top + ((k / 3) | 0) * c.height / 2;
+          const [mx, my] = framat(cx, cy);
+          const [ix, iy] = invertera(mx, my);
+          const fel = Math.hypot(ix - cx, iy - cy);
+          if (fel > vmax) vmax = fel;
+          vsum += fel; n++;
+        }
+      }
+      console.log(`  DBG ${r.countries[0].base}-duken: rundtursfel max ${vmax.toFixed(2)} px, ` +
+        `medel ${(vsum / n).toFixed(2)} px; grid-ux ${uxMin.toFixed(3)}..${uxMax.toFixed(3)}`);
+    }
+    const W1 = W + 1;
+    for (const [nyckel, segs] of segment) {
+      const [rel, klass] = nyckel.split('/');
+      const gid = +rel + GID_BASE;
+      const adj = new Map();
+      const nk = (x, y) => y * W1 + x;
+      segs.forEach((s, i) => {
+        for (const k of [nk(s[0], s[1]), nk(s[2], s[3])]) {
+          let a = adj.get(k); if (!a) { a = []; adj.set(k, a); } a.push(i);
+        }
+      });
+      const anvand = new Set();
+      const andra = (i, node) => {
+        const s = segs[i];
+        return node === nk(s[0], s[1]) ? nk(s[2], s[3]) : nk(s[0], s[1]);
+      };
+      const linjer = [];
+      const vandra = (start, s0) => {
+        const p = [start];
+        let i = s0, node = start;
+        for (;;) {
+          anvand.add(i);
+          node = andra(i, node);
+          p.push(node);
+          const lista = adj.get(node);
+          if (lista.length !== 2) break;
+          const nasta = lista[0] === i ? lista[1] : lista[0];
+          if (anvand.has(nasta)) break;
+          i = nasta;
+        }
+        return p;
+      };
+      for (const [node, lista] of adj) {
+        if (lista.length === 2) continue;
+        for (const i of lista) if (!anvand.has(i)) linjer.push(vandra(node, i));
+      }
+      segs.forEach((s, i) => { if (!anvand.has(i)) linjer.push(vandra(nk(s[0], s[1]), i)); });
+      const info = perGid.get(gid);
+      if (!info) continue;
+      let mal = resultat.get(gid);
+      if (!mal) { mal = { ut: [], grans: [], namn: info.c.name, base: info.c.base }; resultat.set(gid, mal); }
+      for (const rå of linjer) {
+        let pts = rå.map(k => [k % W1, (k / W1) | 0]);
+        // småöar och fragment (Aleuterna, skärgårdar) gör mallen plottrig —
+        // världskartans låsta lager ritar ändå öarna, så de behövs inte här
+        if (klass === 'ut') {
+          let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+          for (const [x, y] of pts) {
+            if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+            if (y < by0) by0 = y; if (y > by1) by1 = y;
+          }
+          const sluten = rå[0] === rå[rå.length - 1];
+          const vidd = Math.max(bx1 - bx0, by1 - by0);
+          if ((sluten && vidd < 14) || vidd < 5) continue;
+        }
+        pts = douglasPeucker(pts, 2.4);
+        pts = chaikin(chaikin(pts));
+        const psd = pts.map(([px, py]) => {
+          const [cx, cy] = invertera(minX + px * PXM, minY + py * PXM);
+          return [cx * SKALA, cy * SKALA];
+        });
+        mal[klass === 'ut' ? 'ut' : 'grans'].push(psd);
+      }
+    }
+    console.log(`Mallraster ${stater.length} stater: ${W}x${H} px.`);
+  }
+
+  // ── avvikelsemått: hur långt utanför konsten ligger målets ytterkant? ──
+  const matning = [];
+  for (const [gid, mal] of resultat) {
+    const { c } = perGid.get(gid);
+    if (!mal.ut.length) { matning.push({ gid, namn: mal.namn, base: mal.base, max: 0, andel: 0 }); continue; }
+    const img = await loadImage(path.join(repo, 'assets/usa/countries', mal.base + '.webp'));
+    const ic = createCanvas(img.width, img.height);
+    const ix = ic.getContext('2d');
+    ix.drawImage(img, 0, 0);
+    const id = ix.getImageData(0, 0, img.width, img.height).data;
+    const iw = img.width, ih = img.height;
+    const INF = 0x3fffffff;
+    const d2 = new Int32Array(iw * ih);
+    for (let i = 0; i < iw * ih; i++) d2[i] = id[i * 4 + 3] > 40 ? 0 : INF;
+    for (let y = 0; y < ih; y++) for (let x = 0; x < iw; x++) {
+      const i = y * iw + x;
+      const prova = j => { if (j >= 0 && d2[j] + 3 < d2[i]) d2[i] = d2[j] + 3; };
+      if (x > 0) prova(i - 1); if (y > 0) prova(i - iw);
+    }
+    for (let y = ih - 1; y >= 0; y--) for (let x = iw - 1; x >= 0; x--) {
+      const i = y * iw + x;
+      const prova = j => { if (j < iw * ih && d2[j] + 3 < d2[i]) d2[i] = d2[j] + 3; };
+      if (x < iw - 1) prova(i + 1); if (y < ih - 1) prova(i + iw);
+    }
+    const iSkala = iw / (c.width * SKALA);      // PSD-px → konstbildens px
+    let max = 0, over = 0, tot = 0;
+    for (const linje of mal.ut) for (const [px, py] of linje) {
+      const ax = Math.round((px - c.left * SKALA) * iSkala);
+      const ay = Math.round((py - c.top * SKALA) * iSkala);
+      tot++;
+      if (ax < 0 || ay < 0 || ax >= iw || ay >= ih) { over++; max = Math.max(max, 24); continue; }
+      const dPx = (d2[ay * iw + ax] / 3) / iSkala;   // tillbaka till PSD-px
+      if (dPx > max) max = dPx;
+      if (dPx > 9) over++;
+    }
+    matning.push({ gid, namn: mal.namn, base: mal.base, max: Math.round(max), andel: tot ? over / tot : 0 });
+  }
+  matning.sort((a, b) => b.max - a.max);
+
+  // ── rita mallarna (bara linjer — läggs ovanpå PSD:n med konsten synlig under) ──
+  const rita = (cx2, mal, tunn) => {
+    const dra = linjer => {
+      for (const l of linjer) {
+        cx2.beginPath();
+        cx2.moveTo(l[0][0], l[0][1]);
+        for (const [x, y] of l.slice(1)) cx2.lineTo(x, y);
+        cx2.stroke();
+      }
+    };
+    cx2.lineJoin = 'round'; cx2.lineCap = 'round';
+    cx2.setLineDash([]);
+    cx2.strokeStyle = 'rgba(255,0,208,0.28)'; cx2.lineWidth = tunn ? 7 : 15; dra(mal.ut);
+    cx2.strokeStyle = '#ff00d0'; cx2.lineWidth = tunn ? 2.5 : 5; dra(mal.ut);
+    cx2.strokeStyle = '#19d2ff'; cx2.lineWidth = tunn ? 1.5 : 3;
+    cx2.setLineDash(tunn ? [7, 5] : [14, 10]); dra(mal.grans);
+    cx2.setLineDash([]);
+  };
+  const kantstater = matning.filter(m => resultat.get(m.gid).ut.length);
+  let antal = 0;
+  for (let i = 0; i < kantstater.length; i++) {
+    const m = kantstater[i];
+    const c = createCanvas(PW, PH);
+    rita(c.getContext('2d'), resultat.get(m.gid), false);
+    const rang = String(i + 1).padStart(2, '0');
+    writeFileSync(path.join(UT, `${rang}-${m.base}-avvikelse-${m.max}px.png`), await c.encode('png'));
+    antal++;
+  }
+  // översikt: hela kompositionen med alla mållinjer över kartbilden
+  const ov = createCanvas(Math.round(PW * 0.35), Math.round(PH * 0.35));
+  const ox = ov.getContext('2d');
+  ox.fillStyle = '#182432'; ox.fillRect(0, 0, ov.width, ov.height);
+  try {
+    const karta = await loadImage(path.join(repo, 'assets/usa/map.webp'));
+    ox.globalAlpha = 0.5;
+    ox.drawImage(karta, 0, 0, ov.width, ov.height);
+    ox.globalAlpha = 1;
+  } catch (e) {}
+  ox.scale(0.35, 0.35);
+  for (const [, mal] of resultat) rita(ox, mal, true);
+  writeFileSync(path.join(UT, 'OVERSIKT.png'), await ov.encode('png'));
+
+  // läs-mig med rangordning
+  const rader = kantstater
+    .map((m, i) => `| ${i + 1} | ${m.namn} | ${m.max} px | ${(m.andel * 100).toFixed(0)} % |`);
+  writeFileSync(path.join(UT, 'LAS-MIG.md'), `# Delstatsmallar för USA.psd
+
+Varje PNG är exakt ${PW}×${PH} px — **samma storlek som USA.psd**. Öppna
+USA.psd, dra in mallen (Arkiv → Montera/Place) och se till att den ligger
+på (0,0) i full storlek (den snäpper dit själv med Place). Lägg mallagret
+överst och lås det.
+
+- **Magenta (heldragen)** = statens RIKTIGA ytterkant, exakt där världs-
+  kartans USA slutar (mot hav, Kanada och Mexiko). **Rita konsten ända ut
+  till den här linjen** — och sudda det som sticker utanför.
+- **Cyan (streckad)** = gränsen mot grannstaterna. Den stämmer redan —
+  låt konsten ligga kvar som den är där.
+
+Bara kantstater har mallar (${antal} st). Inlandsstaterna ser redan bra ut.
+Hawaii har ingen mall — dess bilder är med flit större än öarna och ska
+inte ändras. Filnamnen är sorterade efter hur stor avvikelsen är i dag,
+värst först — siffran är största avståndet från mållinjen till närmaste
+målade pixel.
+
+| # | Stat | Största avvikelse | Andel av kanten utanför konsten |
+|---|------|-------------------|--------------------------------|
+${rader.join('\n')}
+
+När du är klar: spara och skicka USA.psd som vanligt, så bygger vi om
+kartrutorna — då följer delstaterna kanterna exakt, utan maskinlagningar.
+`);
+  console.log(`\nSkrev ${antal} mallar + OVERSIKT + LAS-MIG till ${UT}`);
+  for (const m of matning.slice(0, 12)) console.log(`  ${m.namn}: max ${m.max}px, ${(m.andel * 100).toFixed(0)}% utanför`);
+}
+
+// chamfer 3-4: heltalsavstånd + närmsta-källa-index, två svep över rutan
+async function usaSnapPass(world, tx, ty, sheetDraws) {
+  const mFyll = snapMask(usaSnap.fyll, world, tx, ty);
+  if (!mFyll) return;                       // rutan rör inte målad USA-yta
+  const mSkydd = snapMask(usaSnap.skydd, world, tx, ty) || mFyll;
+  const N = TG * TG;
+  const DBG = process.env.DBG_SNAP ? new Uint8Array(N) : null;   // alfa vid start
+  if (DBG) for (let i = 0; i < N; i++) DBG[i] = sheetBuf[i * 4 + 3];
+  const INF = 0x3fffffff;
+  // klippet måste nå hela fastlandsöverhänget (Rio Grande-spillet över
+  // Mexikos gröna: upp till ~0,7°) och fyllet hela vägen till fotavtryckets
+  // kant (Alaskas östgräns: 0,88° från arkens målade kant) — men INTE de
+  // djupa underläggsläckorna in i Mexiko (2,7–4,4° bort), som förblir värld
+  const KLIPP_PX = Math.max(3, Math.round(world * 1.00 / 360));   // ~1,0°
+  const FYLL_PX = Math.max(4, Math.round(world * 1.25 / 360));    // ~1,25°
+  // avstånd till närmsta fyllmålspixel (för klippvakten)
+  const dStor = new Int32Array(N);
+  for (let i = 0; i < N; i++) dStor[i] = mFyll[i] ? 0 : INF;
+  const svep = (d, src) => {
+    for (let y = 0; y < TG; y++) for (let x = 0; x < TG; x++) {
+      const i = y * TG + x;
+      const prova = (j, w) => {
+        if (j < 0 || d[j] + w >= d[i]) return;
+        d[i] = d[j] + w;
+        if (src) src[i] = src[j];
+      };
+      if (x > 0) prova(i - 1, 3);
+      if (y > 0) { prova(i - TG, 3); if (x > 0) prova(i - TG - 1, 4); if (x < TG - 1) prova(i - TG + 1, 4); }
+    }
+    for (let y = TG - 1; y >= 0; y--) for (let x = TG - 1; x >= 0; x--) {
+      const i = y * TG + x;
+      const prova = (j, w) => {
+        if (j >= N || d[j] + w >= d[i]) return;
+        d[i] = d[j] + w;
+        if (src) src[i] = src[j];
+      };
+      if (x < TG - 1) prova(i + 1, 3);
+      if (y < TG - 1) { prova(i + TG, 3); if (x < TG - 1) prova(i + TG + 1, 4); if (x > 0) prova(i + TG - 1, 4); }
+    }
+  };
+  svep(dStor, null);
+  // ö-konsten fredas i en dilaterad zon (Aleuterna: bilden är större än ön)
+  const mOar = usaSnap.oar.length ? snapMask(usaSnap.oar, world, tx, ty) : null;
+  const OSKYDD_PX = Math.max(4, Math.round(world * 1.2 / 360));   // ~1,2°
+  let dOar = null;
+  if (mOar) {
+    dOar = new Int32Array(N);
+    for (let i = 0; i < N; i++) dOar[i] = mOar[i] ? 0 : INF;
+    svep(dOar, null);
+  }
+  // 1) klipp: målat utanför världens synliga USA-yta, nära fyllmålet
+  //    (Hawaii ligger utanför räckhåll, öarnas zoner hoppas över)
+  for (let i = 0; i < N; i++) {
+    if (!sheetBuf[i * 4 + 3] || mSkydd[i]) continue;
+    if (dOar && dOar[i] <= OSKYDD_PX * 3) continue;
+    if (dStor[i] <= KLIPP_PX * 3) {
+      sheetBuf[i * 4] = 0; sheetBuf[i * 4 + 1] = 0; sheetBuf[i * 4 + 2] = 0; sheetBuf[i * 4 + 3] = 0;
+      ownerBuf[i] = 0;
+    }
+  }
+  // ÄGARE via chamfer (närmsta täckande pixel), FÄRG via delstatens eget
+  // UNDERLÄGG — konstens färger med konturbläcket bortrensat, samplade i
+  // konstupplösning på pixelns faktiska position. Rätt färg på varje
+  // zoomnivå per konstruktion: Montanas grå förblir grå, natthimlen
+  // natthimmelsblå, flaggröd flaggröd — aldrig utsmetat kontursvart.
+  const dKalla = new Int32Array(N);
+  const kalla = new Int32Array(N);
+  for (let i = 0; i < N; i++) {
+    if (sheetBuf[i * 4 + 3] >= 200 && ownerBuf[i]) { dKalla[i] = 0; kalla[i] = i; }
+    else { dKalla[i] = INF; kalla[i] = -1; }
+  }
+  svep(dKalla, kalla);
+  const understod = new Map();   // gid → { un, x0, y0, x1, y1 } (warpad bbox)
+  for (const d of sheetDraws || []) {
+    if (understod.has(d.gid)) continue;
+    const g = d.grid;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let gy = d.gy0; gy <= d.gy1; gy++) for (let gx = d.gx0; gx <= d.gx1; gx++) {
+      const i2 = (gy * (g.nx + 1) + gx) * 2;
+      const x = g.u[i2] * world + d.off, y = g.u[i2 + 1] * world;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    if (!(maxX > minX)) continue;
+    const un = await getUnderlayFullData(d.key, d.svgPath, 1024);
+    understod.set(d.gid, { un, x0: minX, y0: minY, x1: maxX, y1: maxY });
+  }
+  const fargFor = (gid, px, py) => {
+    const u = understod.get(gid);
+    if (!u) return null;
+    const wx = tx * TILE + px - G + 0.5, wy = ty * TILE + py - G + 0.5;
+    const fu = Math.min(1, Math.max(0, (wx - u.x0) / (u.x1 - u.x0)));
+    const fv = Math.min(1, Math.max(0, (wy - u.y0) / (u.y1 - u.y0)));
+    const kx = Math.min(u.un.w - 1, Math.max(0, Math.round(fu * u.un.w - 0.5)));
+    const ky = Math.min(u.un.h - 1, Math.max(0, Math.round(fv * u.un.h - 0.5)));
+    const si = (ky * u.un.w + kx) * 4;
+    if (!u.un.data[si + 3]) return null;
+    return [u.un.data[si], u.un.data[si + 1], u.un.data[si + 2]];
+  };
+  // 2) fyll omålat innanför fyllmålet
+  const fylld = new Uint8Array(N);
+  for (let i = 0; i < N; i++) {
+    if (!mFyll[i] || sheetBuf[i * 4 + 3]) continue;
+    if (dKalla[i] > FYLL_PX * 3 || kalla[i] < 0) continue;
+    const o = ownerBuf[kalla[i]];
+    const f = fargFor(o, i % TG, (i / TG) | 0);
+    if (!f) continue;
+    sheetBuf[i * 4] = f[0]; sheetBuf[i * 4 + 1] = f[1];
+    sheetBuf[i * 4 + 2] = f[2]; sheetBuf[i * 4 + 3] = 255;
+    ownerBuf[i] = o;
+    fylld[i] = 1;
+  }
+  // 3) halvgenomskinlig frans innanför fyllmålet görs opak (komponerad över
+  //    ägarens underlägg) och får ägare — annars blir varje kantfrans en
+  //    ägarlös springa som exporten hackar till hundratals strecksegment
+  for (let i = 0; i < N; i++) {
+    const a = sheetBuf[i * 4 + 3];
+    if (!mFyll[i] || !a || a === 255) continue;
+    const o = ownerBuf[i] || (kalla[i] >= 0 ? ownerBuf[kalla[i]] : 0);
+    if (!o) continue;
+    const f = fargFor(o, i % TG, (i / TG) | 0);
+    if (!f) continue;
+    const inv = (255 - a) / 255;
+    sheetBuf[i * 4] = Math.min(255, sheetBuf[i * 4] + f[0] * inv);
+    sheetBuf[i * 4 + 1] = Math.min(255, sheetBuf[i * 4 + 1] + f[1] * inv);
+    sheetBuf[i * 4 + 2] = Math.min(255, sheetBuf[i * 4 + 2] + f[2] * inv);
+    sheetBuf[i * 4 + 3] = 255;
+    ownerBuf[i] = o;
+    fylld[i] = 1;
+  }
+  // 4) teckningens gamla kantlinje intill utfyllnaden äts våg för våg och
+  //    ersätts med underläggets färg på samma plats — i mörka partier
+  //    (natthimlen) blir bytet osynligt, vid konturband försvinner den
+  //    streckade dubbellinjen och bilden löper obruten fram till gränsen
+  // våglängden måste svälja HELA den ritade konturens tjocklek (~0,1° i
+  // Texas), annars överlever linjens inre hälft som en streckad dubbelkontur
+  const RIBBON = Math.max(4, Math.round(world * 0.16 / 360));
+  for (let steg = 0; steg < RIBBON; steg++) {
+    const nasta = [];
+    for (let i = 0; i < N; i++) {
+      if (!fylld[i]) continue;
+      for (const d of [-1, 1, -TG, TG]) {
+        const j = i + d;
+        if (j < 0 || j >= N || fylld[j]) continue;
+        const b = j * 4;
+        if (!(sheetBuf[b + 3] === 255 &&
+              Math.max(sheetBuf[b], sheetBuf[b + 1], sheetBuf[b + 2]) < 165)) continue;
+        nasta.push(j);
+      }
+    }
+    if (!nasta.length) break;
+    for (const j of nasta) {
+      const o = ownerBuf[j] || (kalla[j] >= 0 ? ownerBuf[kalla[j]] : 0);
+      const f = o && fargFor(o, j % TG, (j / TG) | 0);
+      if (!f) continue;
+      sheetBuf[j * 4] = f[0]; sheetBuf[j * 4 + 1] = f[1];
+      sheetBuf[j * 4 + 2] = f[2]; sheetBuf[j * 4 + 3] = 255;
+      if (!ownerBuf[j]) ownerBuf[j] = o;
+      fylld[j] = 1;
+    }
+  }
+  // 5) ägarskapet i behandlade band majoritetsutjämnas (3×3, två pass) så
+  //    klickytor och gränsexport följer lugna linjer
+  const jamna = () => {
+    const kopia = ownerBuf.slice();
+    for (let y = 1; y < TG - 1; y++) {
+      for (let x = 1; x < TG - 1; x++) {
+        const i = y * TG + x;
+        if (!fylld[i]) continue;
+        const rost = new Map();
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const o = kopia[i + dy * TG + dx];
+          if (o) rost.set(o, (rost.get(o) || 0) + 1);
+        }
+        let basta = 0, bastN = 0;
+        for (const [o, n] of rost) if (n > bastN) { basta = o; bastN = n; }
+        if (basta) ownerBuf[i] = basta;
+      }
+    }
+  };
+  jamna();
+  jamna();
+  if (DBG) {
+    let miss = 0, mFyllN = 0, maladInne = 0, fylldN = 0,
+        skalFarg = 0, skalAvst = 0, skalKalla = 0, skalKlippt = 0, maxD = 0;
+    const c = createCanvas(TG, TG);
+    const cx2 = c.getContext('2d');
+    const id2 = cx2.createImageData(TG, TG);
+    for (let i = 0; i < N; i++) {
+      const j = i * 4, a = sheetBuf[j + 3];
+      let r = 0, g = 0, b = 0, al = 0;
+      if (mFyll[i]) {
+        mFyllN++;
+        if (!a) {                        // läcka: fotavtryck utan färg
+          miss++; r = 255; al = 255;
+          if (DBG[i]) skalKlippt++;
+          else if (kalla[i] < 0) skalKalla++;
+          else if (dKalla[i] > FYLL_PX * 3) { skalAvst++; if (dKalla[i] < INF && dKalla[i] > maxD) maxD = dKalla[i]; }
+          else skalFarg++;
+        } else if (fylld[i]) { b = 255; al = 255; fylldN++; }
+        else { g = 160; al = 255; maladInne++; }
+      } else if (a) { r = g = b = 90; al = 255; }
+      id2.data[j] = r; id2.data[j + 1] = g; id2.data[j + 2] = b; id2.data[j + 3] = al;
+    }
+    cx2.putImageData(id2, 0, 0);
+    writeFileSync(`${process.env.DBG_SNAP}/snapdbg-${tx}-${ty}.png`, await c.encode('png'));
+    console.log(`DBG snap ${tx},${ty}: mFyll=${mFyllN} målatInne=${maladInne} fyllda=${fylldN} ` +
+      `LÄCKA=${miss} (klippt=${skalKlippt} utomRäckhåll=${skalAvst} ingenKälla=${skalKalla} färgNull=${skalFarg})` +
+      (miss ? ` maxGap=${(maxD / 3 / world * 360).toFixed(3)}°` : ''));
+  }
 }
 
 // The uniform outline: after all countries are composited, find every pixel
@@ -1555,6 +2347,11 @@ function writeBorders(regions, fills) {
   const nAll = borderSegs.length / 4;
   for (let sI = 0; sI < nAll; sI++) {
     const a = borderOwn[sI * 2], b = borderOwn[sI * 2 + 1];
+    // usa-datasetet ritar INGA yttre kanter (delstat↔ingen): världens egen
+    // kust- och landsgränslinje ÄR ytterlinjen (fyllnaden slutar på exakt
+    // samma spricka), och där fyllnadsbandet tar slut mitt i världens vita
+    // underlägg ska ingen svävande gränslinje synas alls
+    if (DATASET === 'usa' && (!a || !b)) continue;
     const g = havBadge.has(a) ? a : havBadge.has(b) ? b : 0;
     let arr = groups.get(g);
     if (!arr) { arr = []; groups.set(g, arr); }
@@ -2120,6 +2917,12 @@ async function main() {
   const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
   console.log(`Matched ${nMatched} countries in ${regions.length} regions.`);
   await buildWarps(regions);
+  if (DATASET === 'usa') byggUsaSnap();
+  if (GUIDES) {
+    if (DATASET !== 'usa') throw new Error('--guides kräver --dataset usa');
+    await byggMallar(regions);
+    return;
+  }
   const fills = buildFills(loadFeatures().byA3);
   console.log(`Flat fills: ${fills.map(f => f.a3).join(', ')}`);
 
@@ -2194,6 +2997,10 @@ async function main() {
         // pads), or the collar repaint gets tile-boundary seams and the
         // exported region rings break there.
         let pad = 0;
+        // usa-snäppet fyller upp till ~1,25° utanför arkens målade kant —
+        // registrera rutraderna intill också, annars tappas fyllband som
+        // hamnar utanför delstatens egen bbox
+        if (DATASET === 'usa') pad = Math.max(1, Math.ceil(world * 1.4 / 360 / TILE));
         if (c.gapAdj) {
           if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
           if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
@@ -2388,6 +3195,7 @@ async function main() {
             }
           }
         }
+        if (usaSnap) await usaSnapPass(world, tx, ty, sheetDraws);
         outlineSheet();
           // premultiplied → straight, composited over the locked layer
           const id = ctx.createImageData(TG, TG);

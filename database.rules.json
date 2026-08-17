@@ -41,7 +41,7 @@
         ".read": true,
         ".write": "!data.exists() && newData.hasChildren(['namn', 'slug', 'antal', 'score', 'time', 'wrong', 'date'])",
         "namn":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
-        "slug":  { ".validate": "newData.isString() && newData.val().matches(/^(europa|afrika|asien|nordamerika|sydamerika|oceanien|vastindien|world)$/)" },
+        "slug":  { ".validate": "newData.isString() && newData.val().matches(/^(europa|afrika|asien|nordamerika|sydamerika|oceanien|vastindien|world|usa)$/)" },
         "antal": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 300" },
         "lander": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
