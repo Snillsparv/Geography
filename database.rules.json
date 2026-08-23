@@ -19,6 +19,17 @@
       }
     },
 
+    "nyhetsbrev": {
+      ".read": false,
+      "$post": {
+        ".write": "!data.exists() && newData.hasChildren(['epost', 'datum'])",
+        "epost": { ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 120 && newData.val().matches(/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/)" },
+        "datum": { ".validate": "newData.isNumber() && newData.val() > 1500000000000 && newData.val() < now + 86400000" },
+        "kalla": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "highfives": {
       ".read": true,
       ".write": false

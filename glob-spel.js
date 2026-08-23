@@ -176,7 +176,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '72';
+const V = '74';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -3308,6 +3308,53 @@ document.getElementById('ova-del-btn')?.addEventListener('click', async () => {
   if (!aktivSlug || aktivSlug === 'world') return;
   window.kakSpara?.('ova_del_klick', { region: aktivSlug, fel: seterraWrong });
   visaDelVal(aktivSlug, await loadRegionConfig(aktivSlug));
+});
+
+// ── Nyhetsbrev: enkel anmälan direkt till databasen (REST, ingen SDK) ──
+// Noden är skrivskyddad åt andra hållet: reglerna släpper bara in nya
+// poster med giltig e-post och ingen kan läsa listan utifrån. Flaggan i
+// localStorage stoppar dubbletter från samma enhet.
+const NB_URL = 'https://geography-fa6a4-default-rtdb.europe-west1.firebasedatabase.app/nyhetsbrev.json';
+const NB_EPOST_RX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;   // speglar databasregeln
+const nbModal = document.getElementById('nyhetsbrev-modal');
+function nbStatus(text, gron) {
+  const el = document.getElementById('nb-status');
+  el.textContent = text;
+  el.classList.toggle('gron', !!gron);
+}
+document.getElementById('nyhetsbrev-lank')?.addEventListener('click', e => {
+  e.preventDefault();
+  const anmald = localStorage.getItem('nyhetsbrev-anmald');
+  document.getElementById('nb-rad').style.display = anmald ? 'none' : '';
+  nbStatus(anmald ? 'Du står redan på listan 🎉' : '', true);
+  nbModal.style.display = 'flex';
+  if (!anmald) setTimeout(() => document.getElementById('nb-epost').focus(), 100);
+});
+document.getElementById('nb-kryss').addEventListener('click', () => nbModal.style.display = 'none');
+nbModal.addEventListener('click', e => { if (e.target === nbModal) nbModal.style.display = 'none'; });
+document.getElementById('nb-skicka').addEventListener('click', async () => {
+  const knapp = document.getElementById('nb-skicka');
+  const epost = document.getElementById('nb-epost').value.trim();
+  if (!NB_EPOST_RX.test(epost)) { nbStatus('Hmm, det där ser inte ut som en mejladress 🤔'); return; }
+  if (knapp.disabled) return;
+  knapp.disabled = true;
+  nbStatus('Skriver upp dig …', true);
+  try {
+    const svar = await fetch(NB_URL, {
+      method: 'POST',
+      body: JSON.stringify({ epost, datum: Date.now(), kalla: 'spelet' }),
+    });
+    if (!svar.ok) throw new Error('HTTP ' + svar.status);
+    localStorage.setItem('nyhetsbrev-anmald', epost);
+    document.getElementById('nb-rad').style.display = 'none';
+    nbStatus('Tack! Du står på listan 🎉', true);
+    window.kakSpara?.('nyhetsbrev_anmald', { kalla: 'spelet' });
+  } catch (e) {
+    nbStatus('Det gick inte just nu — prova igen om en stund!');
+  } finally { knapp.disabled = false; }
+});
+document.getElementById('nb-epost').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('nb-skicka').click();
 });
 delOverlay.addEventListener('click', e => {
   if (e.target === delOverlay) delOverlay.classList.remove('active');

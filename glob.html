@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=72">
+  <link rel="stylesheet" href="style.css?v=74">
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -134,6 +134,37 @@
       font-size: .78rem; text-decoration: none; z-index: 55; display: none; }
     .larare-lank:hover { color: #ffdc32; }
     body.startlage .larare-lank { display: block; }
+    .nyhetsbrev-lank { position: fixed; left: 12px; bottom: 44px; color: #7ea6c4;
+      font-size: .78rem; text-decoration: none; z-index: 55; display: none; }
+    .nyhetsbrev-lank:hover { color: #ffdc32; }
+    body.startlage .nyhetsbrev-lank { display: block; }
+    /* ── Nyhetsbrevsrutan: vit talbubbla i sajtens stil ── */
+    #nyhetsbrev-modal { position: fixed; inset: 0; z-index: 320; display: none;
+      align-items: center; justify-content: center; background: rgba(3, 7, 17, .72);
+      padding: 16px; }
+    .nb-kort { position: relative; background: #fff; color: #14243a;
+      border-radius: 18px; max-width: 360px; width: 100%; padding: 22px 22px 16px;
+      text-align: center; box-shadow: 0 14px 44px rgba(0,0,0,.5); }
+    .nb-kort img { width: 92px; margin: -60px auto 4px; display: block;
+      filter: drop-shadow(0 5px 12px #0008); }
+    .nb-kort h3 { font-size: 1.12rem; margin: 4px 0 6px; }
+    .nb-kort p { font-size: .92rem; color: #33475c; margin: 0 0 12px; }
+    .nb-rad { display: flex; gap: 8px; }
+    .nb-rad input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px;
+      border: 2px solid #c9d8e6; font-size: .95rem; color: #14243a; }
+    .nb-rad input:focus { outline: none; border-color: #f2b705; }
+    .nb-rad button { padding: 11px 16px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #f2b705, #ffdc32); color: #14243a;
+      font-weight: 800; font-size: .92rem; cursor: pointer; white-space: nowrap; }
+    .nb-rad button:disabled { opacity: .55; cursor: default; }
+    .nb-status { min-height: 1.3em; font-size: .88rem; font-weight: 700;
+      margin-top: 8px; color: #c0392b; }
+    .nb-status.gron { color: #1e8e4e; }
+    .nb-fin { font-size: .74rem !important; color: #7a90a5 !important;
+      margin: 10px 0 0 !important; }
+    .nb-kryss { position: absolute; top: 8px; right: 10px; border: none;
+      background: none; font-size: 1.5rem; color: #7a90a5; cursor: pointer;
+      line-height: 1; }
     .start-knappar { position: absolute; bottom: 6vh; left: 50%; transform: translateX(-50%);
       width: min(900px, 96vw); display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
     .start-knappar .knapp { position: relative; padding: 14px 22px; border-radius: 16px;
@@ -578,6 +609,7 @@
   </div>
   <span class="start-version" id="start-version"></span>
   <a class="larare-lank" href="larare.html">&#127822; F&ouml;r l&auml;rare</a>
+  <a class="nyhetsbrev-lank" href="#" id="nyhetsbrev-lank">&#128140; Nyhetsbrev</a>
   <div class="start-knappar" id="start-knappar">
     <a class="knapp k9" id="resa-knapp" href="#" title="Kampanjl&auml;get: res v&auml;rldsdel f&ouml;r v&auml;rldsdel">&#129523; Jorden runt</a>
     <a class="knapp k5" href="?region=sydamerika">Sydamerika
@@ -1027,8 +1059,27 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=72"></script>
-<script src="glob-spel.js?v=72"></script>
+<!-- Nyhetsbrev: mejl när spelet får nytt (huvudstäder, flaggor …) -->
+<div id="nyhetsbrev-modal">
+  <div class="nb-kort">
+    <button class="nb-kryss" id="nb-kryss" title="St&auml;ng">&times;</button>
+    <img src="assets/jonas/hej.webp" alt="Jonas">
+    <h3>Vill du veta n&auml;r det kommer nytt? &#128140;</h3>
+    <p>Skriv upp dig s&aring; mejlar jag n&auml;r spelet f&aring;r nya saker &mdash;
+       som huvudst&auml;der eller flaggor!</p>
+    <div class="nb-rad" id="nb-rad">
+      <input type="email" id="nb-epost" placeholder="din@epost.se" maxlength="120"
+             autocomplete="email" inputmode="email">
+      <button id="nb-skicka">Skriv upp mig!</button>
+    </div>
+    <div class="nb-status" id="nb-status"></div>
+    <p class="nb-fin">Bara nyheter om spelet &mdash; aldrig spam. Du kan avsluta
+       n&auml;r du vill via l&auml;nken i mejlen.</p>
+  </div>
+</div>
+
+<script src="kakor.js?v=74"></script>
+<script src="glob-spel.js?v=74"></script>
 
 </body>
 </html>

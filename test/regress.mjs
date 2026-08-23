@@ -272,8 +272,12 @@ try {
   const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
   await sp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
   await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
-  await sp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded()", null, { timeout: 30000 });
-  await sp.waitForFunction("typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')", null, { timeout: 10000 });
+  // vänta på SPELET, inte kartans idle: på en blixtsnabb lokal server kan
+  // förladdningens arkivbyte hålla kartan i evig omritning (når aldrig
+  // loaded()) — kontrollerna här behöver bara regiondatan, inte rutorna
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof rimligMinTid === 'function' && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')",
+    null, { timeout: 30000 });
   // klienten får aldrig vara strängare än database.rules.json — riktiga
   // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
   ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
@@ -356,6 +360,56 @@ try {
   await st.close();
 } catch (e) {
   ok('lärarsidan visar kakfrågan direkt (ingen rundtur)', false, String(e).slice(0, 140));
+}
+
+// ── v74: nyhetsbrevet — anmälan från startsidan och lärarsidan ──
+// nätverket fejkas (route-intercept): inga riktiga poster skrivs
+try {
+  const np = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await np.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
+  let postad = null;
+  await np.route('**/nyhetsbrev.json', async route => {
+    postad = JSON.parse(route.request().postData() || '{}');
+    await route.fulfill({ status: 200, contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"name":"test"}' });
+  });
+  await np.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await np.waitForFunction("document.body.classList.contains('startlage')", null, { timeout: 20000 });
+  await np.click('#nyhetsbrev-lank');
+  ok('nyhetsbrevsrutan öppnas', await np.evaluate(
+    "document.getElementById('nyhetsbrev-modal').style.display === 'flex'"));
+  await np.fill('#nb-epost', 'inte-en-adress');
+  await np.click('#nb-skicka');
+  await np.waitForTimeout(300);
+  ok('ogiltig e-post stoppas', postad === null
+    && /mejladress/.test(await np.evaluate("document.getElementById('nb-status').textContent")));
+  await np.fill('#nb-epost', 'test@exempel.se');
+  await np.click('#nb-skicka');
+  await np.waitForFunction("localStorage.getItem('nyhetsbrev-anmald')", null, { timeout: 5000 });
+  ok('anmälan skickas och sparas', postad && postad.epost === 'test@exempel.se'
+    && postad.kalla === 'spelet' && typeof postad.datum === 'number'
+    && /listan/.test(await np.evaluate("document.getElementById('nb-status').textContent")));
+  await np.click('#nb-kryss');
+  await np.click('#nyhetsbrev-lank');
+  ok('dubblettskydd per enhet', await np.evaluate(
+    "document.getElementById('nb-rad').style.display === 'none' && /redan/.test(document.getElementById('nb-status').textContent)"));
+  await np.close();
+  const np2 = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await np2.addInitScript("localStorage.setItem('kakval','nej')");
+  let postad2 = null;
+  await np2.route('**/nyhetsbrev.json', async route => {
+    postad2 = JSON.parse(route.request().postData() || '{}');
+    await route.fulfill({ status: 200, contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"name":"test"}' });
+  });
+  await np2.goto(BASE + '/larare.html', { waitUntil: 'domcontentloaded' });
+  await np2.fill('#nb-epost', 'larare@skola.se');
+  await np2.click('#nb-skicka');
+  await np2.waitForFunction("localStorage.getItem('nyhetsbrev-anmald')", null, { timeout: 5000 });
+  ok('lärarsidans anmälan funkar', postad2 && postad2.kalla === 'larare');
+  await np2.close();
+} catch (e) {
+  ok('nyhetsbrevsrutan öppnas', false, String(e).slice(0, 140));
 }
 
 const fails = results.filter(r => !r.pass);
