@@ -50,6 +50,18 @@
     .steg { display: inline-block; background: #ffdc32; color: #14243a; font-weight: 800;
       border-radius: 50%; width: 26px; height: 26px; text-align: center; line-height: 26px;
       margin-right: 8px; }
+    .nb-rad { display: flex; gap: 8px; margin-top: 10px; }
+    .nb-rad input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px;
+      border: 2px solid #c9d8e6; font-size: .95rem; color: #14243a; }
+    .nb-rad input:focus { outline: none; border-color: #f2b705; }
+    .nb-rad button { padding: 11px 16px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #f2b705, #ffdc32); color: #14243a;
+      font-weight: 800; font-size: .92rem; cursor: pointer; white-space: nowrap; }
+    .nb-rad button:disabled { opacity: .55; cursor: default; }
+    .nb-status { min-height: 1.3em; font-size: .88rem; font-weight: 700;
+      margin-top: 8px; color: #c0392b; }
+    .nb-status.gron { color: #1e8e4e; }
+    .nb-fin { font-size: .78rem !important; color: #7a90a5 !important; margin-top: 8px; }
     .fot { text-align: center; margin-top: 34px; color: #46627e; font-size: .85rem; }
     .fot a { color: #7ea6c4; }
     @media print { body { background: #fff; } }
@@ -107,6 +119,20 @@
     </ul>
   </div>
 
+  <div class="kort">
+    <h2>💌 Få mejl när det kommer nytt</h2>
+    <p>Spelet växer hela tiden — härnäst är sådant som huvudstäder och flaggor
+       på gång. Skriv upp dig så berättar jag när nya saker släpps!</p>
+    <div class="nb-rad">
+      <input type="email" id="nb-epost" placeholder="din@epost.se" maxlength="120"
+             autocomplete="email" inputmode="email">
+      <button id="nb-skicka">Skriv upp mig!</button>
+    </div>
+    <div class="nb-status" id="nb-status"></div>
+    <p class="nb-fin">Bara nyheter om spelet — aldrig spam. Du kan avsluta när
+       du vill via länken i mejlen.</p>
+  </div>
+
   <div class="fot">
     <p>Frågor eller idéer? Sidan byggs och ritas för hand av
        <a href="https://www.jonasvonessen.se">Jonas von Essen</a> —
@@ -114,6 +140,46 @@
     <p style="margin-top:6px"><a href="/">← Till spelet</a></p>
   </div>
 </div>
-<script src="kakor.js?v=72"></script>
+<script src="kakor.js?v=74"></script>
+<script>
+// Nyhetsbrevsanmälan: skrivs direkt till databasens nyhetsbrev-nod (REST).
+// Reglerna släpper bara in nya poster med giltig e-post; listan kan inte
+// läsas utifrån. Samma formulär finns inne i spelet.
+(function () {
+  var NB_URL = 'https://geography-fa6a4-default-rtdb.europe-west1.firebasedatabase.app/nyhetsbrev.json';
+  var RX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  var status = document.getElementById('nb-status');
+  var knapp = document.getElementById('nb-skicka');
+  var falt = document.getElementById('nb-epost');
+  function sag(text, gron) {
+    status.textContent = text;
+    status.className = 'nb-status' + (gron ? ' gron' : '');
+  }
+  if (localStorage.getItem('nyhetsbrev-anmald')) {
+    document.querySelector('.nb-rad').style.display = 'none';
+    sag('Du står redan på listan 🎉', true);
+  }
+  knapp.addEventListener('click', function () {
+    var epost = falt.value.trim();
+    if (!RX.test(epost)) { sag('Hmm, det där ser inte ut som en mejladress 🤔'); return; }
+    if (knapp.disabled) return;
+    knapp.disabled = true;
+    sag('Skriver upp dig …', true);
+    fetch(NB_URL, { method: 'POST', body: JSON.stringify({ epost: epost, datum: Date.now(), kalla: 'larare' }) })
+      .then(function (svar) {
+        if (!svar.ok) throw new Error('HTTP ' + svar.status);
+        localStorage.setItem('nyhetsbrev-anmald', epost);
+        document.querySelector('.nb-rad').style.display = 'none';
+        sag('Tack! Du står på listan 🎉', true);
+        if (window.kakSpara) window.kakSpara('nyhetsbrev_anmald', { kalla: 'larare' });
+      })
+      .catch(function () { sag('Det gick inte just nu — prova igen om en stund!'); })
+      .then(function () { knapp.disabled = false; });
+  });
+  falt.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') knapp.click();
+  });
+})();
+</script>
 </body>
 </html>
