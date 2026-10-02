@@ -176,7 +176,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '72';
+const V = '75';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -756,7 +756,12 @@ function initMap() {
         hits.sort((a, b) => avst(a) - avst(b));
       }
     }
-    if (!hits.length) return;
+    if (!hits.length) {
+      // rent havsklick: prova den förlåtande snappen mot kvarvarande mål
+      const mal = snappMal(e.point);
+      if (mal !== null) handleMapClick(mal, e.originalEvent);
+      return;
+    }
     // startsidan: klick på en världsdel flyger dit och öppnar träningsläget
     if (document.body.classList.contains('startlage')) {
       const slug = startRegionSlug(hits[0].id);
@@ -815,6 +820,39 @@ function initMap() {
       } catch (e) { /* källa saknas ännu — hämtas när den laddat */ }
     }
   });
+}
+
+// ── Förlåtande havsklick: snappa till närmaste kvarvarande mål ──
+// Med alla 202 länder måste träffytorna vara små (Västindien!), men i ett
+// glest urval finns ingen anledning att kräva pixelprecision (spelarens
+// förslag: "en zon runt landet när man kör med färre länder"). Ett klick i
+// HAVET räknas som klick på närmaste otagna land om det är entydigt: högst
+// 500 km från landets mittpunkt OCH minst dubbelt så nära som näst närmaste
+// mål. Radien anpassar sig alltså själv — tätt urval förblir krävande,
+// glest urval blir generöst. Mittpunktsavståndet gör dessutom att zonen i
+// praktiken bara hjälper småländer: stora länder har kusten långt från sin
+// mittpunkt och behöver den inte. Exakta träffar går alltid före, även på
+// främmande länder (de ska fortsatt ge sitt "det där var X"-svar).
+const SNAPP_KM = 500;
+function kmAvstand(a, b) {
+  const dLat = (b.lat - a.lat) * D2R, dLng = (b.lng - a.lng) * D2R;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * D2R) * Math.cos(b.lat * D2R) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(s));
+}
+function snappMal(punkt) {
+  if (document.body.classList.contains('startlage')) return null;
+  if (currentMode === 'explore' || !seterraTarget || seterraLocked) return null;
+  const klick = map.unproject(punkt);
+  if (!klick || !isFinite(klick.lat) || !isFinite(klick.lng)) return null;
+  let d1 = Infinity, d2 = Infinity, mal = null;
+  for (const m of markerPts) {
+    if (!aktivByGid.has(m.gid) || revealed.has(m.gid)) continue;
+    const d = kmAvstand(klick, m);
+    if (d < d1) { d2 = d1; d1 = d; mal = m.gid; }
+    else if (d < d2) d2 = d;
+  }
+  return mal !== null && d1 <= Math.min(SNAPP_KM, d2 / 2) ? mal : null;
 }
 
 function handleMapClick(gid, ev) {

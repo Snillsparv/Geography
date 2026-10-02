@@ -272,8 +272,12 @@ try {
   const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
   await sp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
   await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
-  await sp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded()", null, { timeout: 30000 });
-  await sp.waitForFunction("typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')", null, { timeout: 10000 });
+  // vänta på SPELET, inte kartans idle: på en blixtsnabb lokal server kan
+  // förladdningens arkivbyte hålla kartan i evig omritning (når aldrig
+  // loaded()) — kontrollerna här behöver bara regiondatan, inte rutorna
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof rimligMinTid === 'function' && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')",
+    null, { timeout: 30000 });
   // klienten får aldrig vara strängare än database.rules.json — riktiga
   // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
   ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
@@ -356,6 +360,75 @@ try {
   await st.close();
 } catch (e) {
   ok('lärarsidan visar kakfrågan direkt (ingen rundtur)', false, String(e).slice(0, 140));
+}
+
+// ── v75: förlåtande havsklick (snapp) i glesa quiz ──
+try {
+  const fp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await fp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
+  // in via riktiga världstestflödet — startsidans startlage blockerar
+  // (med flit) snappen, så testet får inte börja där
+  await fp.goto(BASE + '/glob.html?region=world', { waitUntil: 'domcontentloaded' });
+  await fp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof markerPts !== 'undefined' && markerPts.length > 0" +
+    " && typeof regionsGj !== 'undefined' && !!regionsGj", null, { timeout: 30000 });
+  const gids = await fp.evaluate(`(() => {
+    const gid = namn => regionsGj.features.find(f => f.properties.namn === namn && !f.properties.dekor).id;
+    return { island: gid('Island'), madagaskar: gid('Madagaskar'), jamaica: gid('Jamaica'), kuba: gid('Kuba') };
+  })()`);
+  const svar = () => fp.evaluate('seterraCorrect + seterraWrong');
+  const klickaVid = async (lng, lat) => {
+    await fp.evaluate(`(() => { map.jumpTo({ center: [${lng}, ${lat}], zoom: 4 });
+      map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 }); })()`);
+    await fp.waitForFunction('!map.isMoving()', null, { timeout: 5000 });
+    await fp.waitForTimeout(250);
+    const p = await fp.evaluate(`(() => { const r = map.getCanvas().getBoundingClientRect();
+      const q = map.project([${lng}, ${lat}]); return { x: r.left + q.x, y: r.top + q.y }; })()`);
+    await fp.mouse.click(p.x, p.y);
+    await fp.waitForTimeout(450);
+  };
+  // glest världstest: bara Island och Madagaskar spelas. Antal-väljarens
+  // overlay ligger kvar ovanpå kartan när startWorld anropas direkt — bort
+  // med den, annars äter den musklicken
+  await fp.evaluate(`(async () => {
+    await startWorld(2, [${gids.island}, ${gids.madagaskar}]);
+    document.getElementById('world-setup-overlay').style.display = 'none';
+  })()`);
+  await fp.waitForFunction('seterraTotal === 2 && seterraTarget', null, { timeout: 15000 });
+  const im = await fp.evaluate(`markerPts.find(m => m.gid === ${gids.island})`);
+  const fore1 = await svar();
+  await klickaVid(im.lng, im.lat - 2.3);   // havet ~250 km söder om Island
+  ok('havsklick nära glest mål snappar', (await svar()) === fore1 + 1);
+  const fore2 = await svar();
+  await klickaVid(im.lng - 16, im.lat - 7);   // mitt i Atlanten, >500 km från allt
+  ok('havsklick långt från allt ignoreras', (await svar()) === fore2);
+  // tätt läge: Jamaica och Kuba — mittemellan är tvetydigt och ska ignoreras,
+  // strax söder om Jamaica är entydigt och ska snappa
+  await fp.evaluate(`(async () => {
+    await startWorld(2, [${gids.jamaica}, ${gids.kuba}]);
+    document.getElementById('world-setup-overlay').style.display = 'none';
+  })()`);
+  await fp.waitForFunction('seterraTotal === 2 && seterraTarget', null, { timeout: 15000 });
+  const jm = await fp.evaluate(`markerPts.find(m => m.gid === ${gids.jamaica})`);
+  // tvetydighetsregeln testas direkt mot snappMal med en punkt 40 % in på
+  // linjen Jamaica→Kuba: d1 = 0,4·D > gränsen d2/2 = 0,3·D, oavsett exakta
+  // markörlägen. (Musklick duger inte här — en punkt mittemellan kan råka
+  // träffa Kubas kustpolygon och bli en exakt träff i stället för en snapp.)
+  const tve = await fp.evaluate(`(() => {
+    const j = markerPts.find(m => m.gid === ${gids.jamaica});
+    const k = markerPts.find(m => m.gid === ${gids.kuba});
+    const P = [j.lng + (k.lng - j.lng) * 0.4, j.lat + (k.lat - j.lat) * 0.4];
+    map.jumpTo({ center: P, zoom: 4 });
+    map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    return snappMal(map.project(P));
+  })()`);
+  ok('tvetydigt havsklick mellan två mål ignoreras', tve === null);
+  const fore4 = await svar();
+  await klickaVid(jm.lng, jm.lat - 1.2);   // öppet hav söder om Jamaica
+  ok('entydigt havsklick snappar även i tätt urval', (await svar()) === fore4 + 1);
+  await fp.close();
+} catch (e) {
+  ok('havsklick nära glest mål snappar', false, String(e).slice(0, 140));
 }
 
 const fails = results.filter(r => !r.pass);
