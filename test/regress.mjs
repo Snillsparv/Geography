@@ -281,6 +281,11 @@ try {
   // klienten får aldrig vara strängare än database.rules.json — riktiga
   // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
   ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
+  // Västindien sänktes till 5 s (äkta 6,0-rundor fanns i statistiken)
+  ok('golvet speglar servern (Västindien 5 s)', await sp.evaluate(`(() => {
+    const g = HS_KEY; HS_KEY = 'glob-vastindien-highscores';
+    const v = rimligMinTid(); HS_KEY = g; return v;
+  })()`) === 5);
   ok('fmtTid: tiondelar med komma', await sp.evaluate(
     "fmtTid(13.7) === '0:13,7' && fmtTid(13) === '0:13' && fmtTid(83.4) === '1:23,4' && fmtTid(5.96) === '0:06'"));
   // utmaningsknappen ska ligga FÖRE topp 30-listan (ingen hittade den längst ner)
