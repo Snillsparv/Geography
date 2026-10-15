@@ -179,7 +179,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '73';
+const V = '77';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2483,7 +2483,7 @@ function getCachadeHighscores() {
 // sparas undan så "din placering" går att räkna ut även utanför topp 30.
 let senasteHelaListan = [];
 function toppNTid(list, minTid) {
-  const ok = list.filter(e => e.time >= minTid);
+  const ok = list.filter(e => e.time >= minTid && !olampligtNamn(e.name));
   ok.sort((a, b) => b.score - a.score || a.time - b.time);
   senasteHelaListan = ok;
   return ok.length > 30 ? ok.slice(0, 30) : ok;
@@ -2554,7 +2554,7 @@ async function getHighscores() {
     // aldrig odelade rundor — spelaren har inte tryckt Spara på dem.
     const localOnly = local.filter(e =>
       !remoteDates.has(e.date) && e.time >= minTid && egna.basta.has(e.date)
-      && !e.odelad);
+      && !e.odelad && !olampligtNamn(e.name));
     if (localOnly.length > 0) {
       const updates = {};
       for (const e of localOnly) {
@@ -2611,7 +2611,8 @@ async function saveHighscore(name, score, time, wrong, odelad) {
       const removes = {};
       let kvar = 0;
       for (const e of all) {
-        if (e.time < minTid || kvar >= 30 || egna.egenSamre(e)) removes[e.key] = null;
+        if (e.time < minTid || kvar >= 30 || egna.egenSamre(e)
+            || olampligtNamn(e.name)) removes[e.key] = null;
         else kvar++;
       }
       if (Object.keys(removes).length > 0) {
@@ -2628,13 +2629,37 @@ function fmtTid(t) {
   const m = Math.floor(tt / 600), s = Math.floor((tt % 600) / 10), d = tt % 10;
   return `${m}:${s.toString().padStart(2, '0')}` + (d ? `,${d}` : '');
 }
+// ── Namnvakt: topplistorna är en publik yta i ett barnspel ──
+// En besökare la in en slaktfilmssajts adress som "namn" på 13 listor
+// (föräldrarapport). Vakten jobbar i flera lager: visningen tvättar allt
+// som renderas, topp 30 släpper inte in olämpliga poster, sparandet vägrar
+// med vänligt besked, synken laddar aldrig upp olämpliga lokala poster
+// (annars återuppstår raderade poster från spammarens egen enhet), och
+// delnings-städningen plockar bort skräp som ändå smugit sig in i molnet.
+// Databasreglerna har samma URL-spärr serverside (database.rules.json).
+const NAMN_URL_RX = new RegExp(
+  'https?:|www\\.|@|\\.(se|com|nu|net|org|io|xyz|info|online|site|top|fun|live|' +
+  'club|store|space|website|me|tv|cc|biz|eu|dk|no|fi|de|uk|us|co|gg|app|dev|' +
+  'blog|news|wiki|life|world|watch|stream|video|link|page|zone|lol|wtf|sex|' +
+  'xxx|porn)\\b', 'i');   // @ fångar e-post och sociala handles (personuppgifter)
+// kort och träffsäker ordlista — URL-mönstret och visningstvätten tar resten
+const NAMN_STOPP = ['watchdominion', 'knull', 'fitta', 'hora', 'porr', 'porn',
+  'nazi', 'hitler', 'neger', 'nigga', 'n1gga', 'nigger', 'knark'];
+function olampligtNamn(n) {
+  const norm = String(n || '').toLowerCase()
+    .replace(/\s*[([]?\s*(punkt|dot)\s*[)\]]?\s*/g, '.')   // "punkt com"-tricket
+    .replace(/\s+/g, '');
+  return NAMN_URL_RX.test(norm) || NAMN_STOPP.some(o => norm.includes(o));
+}
+const visningsNamn = n => olampligtNamn(n) ? '•••' : n;
+
 function hsTabellHtml(list, highlightEntry, rubrik) {
   let html = `<h3>${rubrik || 'Topp 30'}</h3>` +
     '<div class="hs-sortinfo">Bäst poäng vinner — vid lika poäng snabbast tid</div>' +
     '<table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
   list.forEach((e, i) => {
     const isCurrent = highlightEntry && e.date === highlightEntry.date && e.name === highlightEntry.name;
-    html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(e.name)}</td><td>${e.score}%</td><td>${fmtTid(e.time)}</td></tr>`;
+    html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(visningsNamn(e.name))}</td><td>${e.score}%</td><td>${fmtTid(e.time)}</td></tr>`;
   });
   return html + '</tbody></table>';
 }
@@ -2864,10 +2889,19 @@ async function sparaMedNamn(name) {
 }
 function closeNameModal() { nameModalOverlay.classList.remove('active'); }
 
+// vänligt nej: webbadresser och fula ord blir inga topplistenamn
+function namnNekad(falt) {
+  falt.value = '';
+  falt.placeholder = 'Välj ett annat namn 🙂';
+  falt.classList.add('namn-nej');
+  setTimeout(() => falt.classList.remove('namn-nej'), 1200);
+  falt.focus();
+}
 document.getElementById('hs-save').addEventListener('click', async () => {
   const knapp = document.getElementById('hs-save');
   const name = document.getElementById('hs-name').value.trim();
   if (!name || knapp.disabled) return;
+  if (olampligtNamn(name)) { namnNekad(document.getElementById('hs-name')); return; }
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const entry = await sparaMedNamn(name);
   knapp.disabled = false;
@@ -2908,6 +2942,7 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   const knapp = document.getElementById('modal-save');
   const name = modalNameInput.value.trim();
   if (!name) { modalNameInput.focus(); return; }
+  if (olampligtNamn(name)) { namnNekad(modalNameInput); return; }
   if (knapp.disabled) return;
   knapp.disabled = true;   // dubbelklick under sparandet gav dubbletter i listan
   const entry = await sparaMedNamn(name);
@@ -4174,7 +4209,7 @@ const utmUrl = id => location.origin + location.pathname + '?utmaning=' + id;
 const utmTid = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 const utmRegionNamn = slug => RESA_NAMN[slug] || slug;
 const utmDelText = (namn, d, id) =>
-  `${namn} utmanar dig i Jonas geografi! ${utmRegionNamn(d.slug)}: ` +
+  `${visningsNamn(namn)} utmanar dig i Jonas geografi! ${utmRegionNamn(d.slug)}: ` +
   `${d.score} % på ${utmTid(d.time)} — kan du slå det? ${utmUrl(id)}`;
 
 const utmanaBtn = document.getElementById('utmana-btn');
@@ -4214,6 +4249,11 @@ document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
   const namnEl = document.getElementById('utm-skapa-namn');
   const namn = namnEl.value.trim();
   if (!namn) { namnEl.focus(); return; }
+  if (olampligtNamn(namn)) {
+    document.getElementById('utm-skapa-status').textContent = 'Välj ett annat namn 🙂';
+    namnNekad(namnEl);
+    return;
+  }
   localStorage.setItem(UTM_NAMN_KEY, namn);
   const post = {
     namn, slug: aktivSlug, antal: seterraTotal,
@@ -4284,7 +4324,7 @@ async function forberedUtmaning(id) {
   }
   document.getElementById('utm-anta-rubrik').textContent = '⚔️ Utmaning!';
   document.getElementById('utm-anta-text').innerHTML =
-    `<b>${escHtml(data.namn)}</b> utmanar dig på <b>${escHtml(utmRegionNamn(data.slug))}</b>` +
+    `<b>${escHtml(visningsNamn(data.namn))}</b> utmanar dig på <b>${escHtml(utmRegionNamn(data.slug))}</b>` +
     (data.slug === 'world' ? ` med <b>${data.antal} länder</b>` : '') +
     `!<br>Resultatet att slå: <b>${data.score} %</b> på <b>${utmTid(data.time)}</b>.`;
   const namn = document.getElementById('utm-anta-namn');

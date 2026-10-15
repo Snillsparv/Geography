@@ -701,6 +701,17 @@
       display: none;
     }
 
+    /* namnvakten: vänligt men tydligt nej till webbadresser som namn */
+    input.namn-nej {
+      border-color: #e74c3c !important;
+      animation: namnskak 0.3s;
+    }
+
+    @keyframes namnskak {
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+
     .highscore-list {
       width: 100%;
       max-width: 320px;
