@@ -371,7 +371,8 @@ try {
     " && typeof olampligtNamn === 'function'", null, { timeout: 30000 });
   ok('namnvakten känner igen adresser och trick', await vp.evaluate(`
     olampligtNamn('watchdominion.org') && olampligtNamn('www punkt com')
-    && olampligtNamn('WWW.KOLLA') && olampligtNamn('kolla.se') && olampligtNamn('http://x')`));
+    && olampligtNamn('WWW.KOLLA') && olampligtNamn('kolla.se') && olampligtNamn('http://x')
+    && olampligtNamn('namn@skola.se') && olampligtNamn('n1ggaslicker') && olampligtNamn('Knarktiggarn')`));
   ok('namnvakten friar riktiga namn', await vp.evaluate(`
     !olampligtNamn('Kalle') && !olampligtNamn('J.R') && !olampligtNamn('bajs')
     && !olampligtNamn('Nico') && !olampligtNamn('Gustav Stegeby')`));

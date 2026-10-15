@@ -2516,13 +2516,13 @@ function fmtTid(t) {
 // delnings-städningen plockar bort skräp som ändå smugit sig in i molnet.
 // Databasreglerna har samma URL-spärr serverside (database.rules.json).
 const NAMN_URL_RX = new RegExp(
-  'https?:|www\\.|\\.(se|com|nu|net|org|io|xyz|info|online|site|top|fun|live|' +
+  'https?:|www\\.|@|\\.(se|com|nu|net|org|io|xyz|info|online|site|top|fun|live|' +
   'club|store|space|website|me|tv|cc|biz|eu|dk|no|fi|de|uk|us|co|gg|app|dev|' +
   'blog|news|wiki|life|world|watch|stream|video|link|page|zone|lol|wtf|sex|' +
-  'xxx|porn)\\b', 'i');
+  'xxx|porn)\\b', 'i');   // @ fångar e-post och sociala handles (personuppgifter)
 // kort och träffsäker ordlista — URL-mönstret och visningstvätten tar resten
 const NAMN_STOPP = ['watchdominion', 'knull', 'fitta', 'hora', 'porr', 'porn',
-  'nazi', 'hitler', 'neger'];
+  'nazi', 'hitler', 'neger', 'nigga', 'n1gga', 'nigger', 'knark'];
 function olampligtNamn(n) {
   const norm = String(n || '').toLowerCase()
     .replace(/\s*[([]?\s*(punkt|dot)\s*[)\]]?\s*/g, '.')   // "punkt com"-tricket
