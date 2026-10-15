@@ -176,7 +176,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '76';
+const V = '78';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2296,6 +2296,8 @@ function endSeterra() {
 // avvisar) och inte heller strängare: golvet låg länge på en sekund per
 // land, och då försvann äkta blixtrundor spårlöst — Sydamerika på 13 s
 // sparades men 12,9 s kastades, fast servern godkänner ner till 10 s.
+// Västindien sänktes 7 → 5 i okt -26: statistiken visade repeterbara äkta
+// 6,0 s-rundor (nio öar i samma vy — ingen kamerarörelse behövs).
 // Golvet gäller sparande, uppladdning OCH visning.
 function rimligMinTid() {
   const k = HS_KEY || '';
@@ -2303,7 +2305,7 @@ function rimligMinTid() {
   if (/glob-sverige-highscores$/.test(k)) return 22;
   if (/glob-(nordamerika|oceanien)-highscores$/.test(k)) return 11;
   if (/glob-sydamerika-highscores$/.test(k)) return 10;
-  if (/glob-vastindien-highscores$/.test(k)) return 7;
+  if (/glob-vastindien-highscores$/.test(k)) return 5;
   if (/glob-world-highscores-alla$/.test(k)) return 170;
   if (/glob-world-highscores-100$/.test(k)) return 85;
   if (/glob-world-highscores-50$/.test(k)) return 40;
