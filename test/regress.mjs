@@ -272,8 +272,12 @@ try {
   const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
   await sp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
   await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
-  await sp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded()", null, { timeout: 30000 });
-  await sp.waitForFunction("typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')", null, { timeout: 10000 });
+  // vänta på SPELET, inte kartans idle: på en blixtsnabb lokal server kan
+  // förladdningens arkivbyte hålla kartan i evig omritning (når aldrig
+  // loaded()) — kontrollerna här behöver bara regiondatan, inte rutorna
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof rimligMinTid === 'function' && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika')",
+    null, { timeout: 30000 });
   // klienten får aldrig vara strängare än database.rules.json — riktiga
   // blixtrundor (Sydamerika 13 s) försvann när golvet låg på 1 s/land
   ok('golvet speglar servern (Sydamerika 10 s)', await sp.evaluate('rimligMinTid()') === 10);
@@ -356,6 +360,50 @@ try {
   await st.close();
 } catch (e) {
   ok('lärarsidan visar kakfrågan direkt (ingen rundtur)', false, String(e).slice(0, 140));
+}
+
+// ── v76: namnvakten — webbadresser och fula ord på topplistorna ──
+try {
+  const vp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await vp.addInitScript("localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')");
+  await vp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await vp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof olampligtNamn === 'function'", null, { timeout: 30000 });
+  ok('namnvakten känner igen adresser och trick', await vp.evaluate(`
+    olampligtNamn('watchdominion.org') && olampligtNamn('www punkt com')
+    && olampligtNamn('WWW.KOLLA') && olampligtNamn('kolla.se') && olampligtNamn('http://x')
+    && olampligtNamn('namn@skola.se') && olampligtNamn('n1ggaslicker') && olampligtNamn('Knarktiggarn')`));
+  ok('namnvakten friar riktiga namn', await vp.evaluate(`
+    !olampligtNamn('Kalle') && !olampligtNamn('J.R') && !olampligtNamn('bajs')
+    && !olampligtNamn('Nico') && !olampligtNamn('Gustav Stegeby')`));
+  // olämpliga poster i molnlistan varken visas eller tar topp 30-platser
+  const html = await vp.evaluate(`(async () => {
+    localStorage.setItem('cache-' + HS_KEY, JSON.stringify([
+      { name: 'watchdominion.org', score: 100, time: 13, wrong: 0, date: 1700000000001 },
+      { name: 'Ella', score: 100, time: 14, wrong: 0, date: 1700000000002 },
+    ]));
+    await renderHighscores();
+    return document.getElementById('highscore-list').innerHTML;
+  })()`);
+  ok('olämplig post släpps inte in i listan', !html.includes('watchdominion') && html.includes('Ella'));
+  // sparandet vägrar vänligt: namnmodalen efter en runda
+  await vp.evaluate(`(() => {
+    switchMode('seterra', true); startSeterra();
+    seterraStartTime = Date.now() - 15400;
+    seterraCorrect = seterraTotal; seterraWrong = 9;
+    endSeterra();
+  })()`);
+  await vp.waitForTimeout(400);
+  await vp.fill('#modal-name', 'www.exempel.se');
+  await vp.click('#modal-save');
+  await vp.waitForTimeout(400);
+  ok('sparandet vägrar webbadress som namn', await vp.evaluate(`
+    nameModalOverlay.classList.contains('active')
+    && document.getElementById('modal-name').placeholder.includes('annat namn')
+    && document.getElementById('modal-name').value === ''`));
+  await vp.close();
+} catch (e) {
+  ok('namnvakten känner igen adresser och trick', false, String(e).slice(0, 140));
 }
 
 const fails = results.filter(r => !r.pass);
