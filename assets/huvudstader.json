@@ -1,0 +1,1638 @@
+{
+ "kalla": "Koordinater: Natural Earth 10m populated places (public domain). Associationer fylls i från kurs.jonasvonessen.se.",
+ "huvudstader": [
+  {
+   "land": "Ukraina",
+   "region": "europa",
+   "huvudstad": "Kiev",
+   "lat": 50.4353,
+   "lon": 30.5147,
+   "association": ""
+  },
+  {
+   "land": "Malta",
+   "region": "europa",
+   "huvudstad": "Valletta",
+   "lat": 35.8997,
+   "lon": 14.5147,
+   "association": ""
+  },
+  {
+   "land": "Moldavien",
+   "region": "europa",
+   "huvudstad": "Chișinău",
+   "lat": 47.005,
+   "lon": 28.8577,
+   "association": ""
+  },
+  {
+   "land": "Rumänien",
+   "region": "europa",
+   "huvudstad": "Bukarest",
+   "lat": 44.4353,
+   "lon": 26.098,
+   "association": ""
+  },
+  {
+   "land": "Turkiet",
+   "region": "europa",
+   "huvudstad": "Ankara",
+   "lat": 39.9292,
+   "lon": 32.8624,
+   "association": ""
+  },
+  {
+   "land": "Belarus",
+   "region": "europa",
+   "huvudstad": "Minsk",
+   "lat": 53.9019,
+   "lon": 27.5647,
+   "association": ""
+  },
+  {
+   "land": "Litauen",
+   "region": "europa",
+   "huvudstad": "Vilnius",
+   "lat": 54.6834,
+   "lon": 25.3166,
+   "association": ""
+  },
+  {
+   "land": "Lettland",
+   "region": "europa",
+   "huvudstad": "Riga",
+   "lat": 56.95,
+   "lon": 24.1,
+   "association": ""
+  },
+  {
+   "land": "Estland",
+   "region": "europa",
+   "huvudstad": "Tallinn",
+   "lat": 59.4339,
+   "lon": 24.728,
+   "association": ""
+  },
+  {
+   "land": "Finland",
+   "region": "europa",
+   "huvudstad": "Helsingfors",
+   "lat": 60.1638,
+   "lon": 24.9325,
+   "association": ""
+  },
+  {
+   "land": "Norge",
+   "region": "europa",
+   "huvudstad": "Oslo",
+   "lat": 59.9186,
+   "lon": 10.748,
+   "association": ""
+  },
+  {
+   "land": "Irland",
+   "region": "europa",
+   "huvudstad": "Dublin",
+   "lat": 53.3467,
+   "lon": -6.257,
+   "association": ""
+  },
+  {
+   "land": "Nordirland",
+   "region": "europa",
+   "huvudstad": "Belfast",
+   "lat": 54.5942,
+   "lon": -5.9282,
+   "association": ""
+  },
+  {
+   "land": "England",
+   "region": "europa",
+   "huvudstad": "London",
+   "lat": 51.5019,
+   "lon": -0.1187,
+   "association": ""
+  },
+  {
+   "land": "Skottland",
+   "region": "europa",
+   "huvudstad": "Edinburgh",
+   "lat": 55.9483,
+   "lon": -3.2191,
+   "association": ""
+  },
+  {
+   "land": "Wales",
+   "region": "europa",
+   "huvudstad": "Cardiff",
+   "lat": 51.4826,
+   "lon": -3.1676,
+   "association": ""
+  },
+  {
+   "land": "Island",
+   "region": "europa",
+   "huvudstad": "Reykjavik",
+   "lat": 64.1435,
+   "lon": -21.9365,
+   "association": ""
+  },
+  {
+   "land": "Polen",
+   "region": "europa",
+   "huvudstad": "Warszawa",
+   "lat": 52.2309,
+   "lon": 21.0053,
+   "association": ""
+  },
+  {
+   "land": "Tyskland",
+   "region": "europa",
+   "huvudstad": "Berlin",
+   "lat": 52.5238,
+   "lon": 13.3996,
+   "association": ""
+  },
+  {
+   "land": "Danmark",
+   "region": "europa",
+   "huvudstad": "Köpenhamn",
+   "lat": 55.6805,
+   "lon": 12.5615,
+   "association": ""
+  },
+  {
+   "land": "Tjeckien",
+   "region": "europa",
+   "huvudstad": "Prag",
+   "lat": 50.087,
+   "lon": 14.4229,
+   "association": ""
+  },
+  {
+   "land": "Slovakien",
+   "region": "europa",
+   "huvudstad": "Bratislava",
+   "lat": 48.15,
+   "lon": 17.117,
+   "association": ""
+  },
+  {
+   "land": "Ungern",
+   "region": "europa",
+   "huvudstad": "Budapest",
+   "lat": 47.502,
+   "lon": 19.0814,
+   "association": ""
+  },
+  {
+   "land": "Serbien",
+   "region": "europa",
+   "huvudstad": "Belgrad",
+   "lat": 44.8206,
+   "lon": 20.466,
+   "association": ""
+  },
+  {
+   "land": "Kosovo",
+   "region": "europa",
+   "huvudstad": "Pristina",
+   "lat": 42.6667,
+   "lon": 21.166,
+   "association": ""
+  },
+  {
+   "land": "Cypern",
+   "region": "europa",
+   "huvudstad": "Nicosia",
+   "lat": 35.1667,
+   "lon": 33.3666,
+   "association": ""
+  },
+  {
+   "land": "Grekland",
+   "region": "europa",
+   "huvudstad": "Aten",
+   "lat": 37.9853,
+   "lon": 23.7314,
+   "association": ""
+  },
+  {
+   "land": "Bulgarien",
+   "region": "europa",
+   "huvudstad": "Sofia",
+   "lat": 42.6853,
+   "lon": 23.3147,
+   "association": ""
+  },
+  {
+   "land": "Nordmakedonien",
+   "region": "europa",
+   "huvudstad": "Skopje",
+   "lat": 42.0,
+   "lon": 21.4335,
+   "association": ""
+  },
+  {
+   "land": "Albanien",
+   "region": "europa",
+   "huvudstad": "Tirana",
+   "lat": 41.3275,
+   "lon": 19.8189,
+   "association": ""
+  },
+  {
+   "land": "Montenegro",
+   "region": "europa",
+   "huvudstad": "Podgorica",
+   "lat": 42.466,
+   "lon": 19.2663,
+   "association": ""
+  },
+  {
+   "land": "Bosnien-Hercegovina",
+   "region": "europa",
+   "huvudstad": "Sarajevo",
+   "lat": 43.85,
+   "lon": 18.383,
+   "association": ""
+  },
+  {
+   "land": "Kroatien",
+   "region": "europa",
+   "huvudstad": "Zagreb",
+   "lat": 45.8,
+   "lon": 16.0,
+   "association": ""
+  },
+  {
+   "land": "Slovenien",
+   "region": "europa",
+   "huvudstad": "Ljubljana",
+   "lat": 46.0553,
+   "lon": 14.515,
+   "association": ""
+  },
+  {
+   "land": "Italien",
+   "region": "europa",
+   "huvudstad": "Rom",
+   "lat": 41.8979,
+   "lon": 12.4813,
+   "association": ""
+  },
+  {
+   "land": "Vatikanstaten",
+   "region": "europa",
+   "huvudstad": "Vatikanstaten",
+   "lat": 41.9033,
+   "lon": 12.4534,
+   "association": ""
+  },
+  {
+   "land": "Österrike",
+   "region": "europa",
+   "huvudstad": "Wien",
+   "lat": 48.202,
+   "lon": 16.3647,
+   "association": ""
+  },
+  {
+   "land": "San Marino",
+   "region": "europa",
+   "huvudstad": "San Marino",
+   "lat": 43.9361,
+   "lon": 12.4418,
+   "association": ""
+  },
+  {
+   "land": "Schweiz",
+   "region": "europa",
+   "huvudstad": "Bern",
+   "lat": 46.9167,
+   "lon": 7.467,
+   "association": ""
+  },
+  {
+   "land": "Liechtenstein",
+   "region": "europa",
+   "huvudstad": "Vaduz",
+   "lat": 47.1337,
+   "lon": 9.5167,
+   "association": ""
+  },
+  {
+   "land": "Luxembourg",
+   "region": "europa",
+   "huvudstad": "Luxemburg",
+   "lat": 49.6117,
+   "lon": 6.13,
+   "association": ""
+  },
+  {
+   "land": "Spanien",
+   "region": "europa",
+   "huvudstad": "Madrid",
+   "lat": 40.402,
+   "lon": -3.6853,
+   "association": ""
+  },
+  {
+   "land": "Portugal",
+   "region": "europa",
+   "huvudstad": "Lissabon",
+   "lat": 38.7247,
+   "lon": -9.1468,
+   "association": ""
+  },
+  {
+   "land": "Belgien",
+   "region": "europa",
+   "huvudstad": "Bryssel",
+   "lat": 50.8353,
+   "lon": 4.3314,
+   "association": ""
+  },
+  {
+   "land": "Nederländerna",
+   "region": "europa",
+   "huvudstad": "Amsterdam",
+   "lat": 52.3519,
+   "lon": 4.9147,
+   "association": "",
+   "not": "Regeringen sitter i Haag"
+  },
+  {
+   "land": "Frankrike",
+   "region": "europa",
+   "huvudstad": "Paris",
+   "lat": 48.8581,
+   "lon": 2.353,
+   "association": ""
+  },
+  {
+   "land": "Monaco",
+   "region": "europa",
+   "huvudstad": "Monaco",
+   "lat": 43.7396,
+   "lon": 7.4069,
+   "association": ""
+  },
+  {
+   "land": "Sverige",
+   "region": "europa",
+   "huvudstad": "Stockholm",
+   "lat": 59.3241,
+   "lon": 18.0663,
+   "association": ""
+  },
+  {
+   "land": "Andorra",
+   "region": "europa",
+   "huvudstad": "Andorra la Vella",
+   "lat": 42.5108,
+   "lon": 1.5266,
+   "association": ""
+  },
+  {
+   "land": "Algeriet",
+   "region": "afrika",
+   "huvudstad": "Alger",
+   "lat": 36.765,
+   "lon": 3.0486,
+   "association": ""
+  },
+  {
+   "land": "Sao Tome & Principe",
+   "region": "afrika",
+   "huvudstad": "São Tomé",
+   "lat": 0.3375,
+   "lon": 6.7297,
+   "association": ""
+  },
+  {
+   "land": "Marocko",
+   "region": "afrika",
+   "huvudstad": "Rabat",
+   "lat": 34.0253,
+   "lon": -6.8364,
+   "association": ""
+  },
+  {
+   "land": "Västsahara",
+   "region": "afrika",
+   "huvudstad": "El Aaiún",
+   "lat": 27.15,
+   "lon": -13.2,
+   "association": "",
+   "not": "Omstritt område; Marocko kontrollerar större delen"
+  },
+  {
+   "land": "Mauretanien",
+   "region": "afrika",
+   "huvudstad": "Nouakchott",
+   "lat": 18.0864,
+   "lon": -15.9753,
+   "association": ""
+  },
+  {
+   "land": "Mali",
+   "region": "afrika",
+   "huvudstad": "Bamako",
+   "lat": 12.652,
+   "lon": -8.002,
+   "association": ""
+  },
+  {
+   "land": "Gambia",
+   "region": "afrika",
+   "huvudstad": "Banjul",
+   "lat": 13.4539,
+   "lon": -16.5917,
+   "association": ""
+  },
+  {
+   "land": "Senegal",
+   "region": "afrika",
+   "huvudstad": "Dakar",
+   "lat": 14.7178,
+   "lon": -17.4751,
+   "association": ""
+  },
+  {
+   "land": "Guinea",
+   "region": "afrika",
+   "huvudstad": "Conakry",
+   "lat": 9.5335,
+   "lon": -13.6822,
+   "association": ""
+  },
+  {
+   "land": "Guinea-Bissau",
+   "region": "afrika",
+   "huvudstad": "Bissau",
+   "lat": 11.865,
+   "lon": -15.5984,
+   "association": ""
+  },
+  {
+   "land": "Sierra Leone",
+   "region": "afrika",
+   "huvudstad": "Freetown",
+   "lat": 8.472,
+   "lon": -13.2362,
+   "association": ""
+  },
+  {
+   "land": "Burkina Faso",
+   "region": "afrika",
+   "huvudstad": "Ouagadougou",
+   "lat": 12.3723,
+   "lon": -1.5267,
+   "association": ""
+  },
+  {
+   "land": "Elfenbenskusten",
+   "region": "afrika",
+   "huvudstad": "Yamoussoukro",
+   "lat": 6.8184,
+   "lon": -5.2755,
+   "association": "",
+   "not": "Största staden och regeringssäte i praktiken: Abidjan"
+  },
+  {
+   "land": "Liberia",
+   "region": "afrika",
+   "huvudstad": "Monrovia",
+   "lat": 6.3146,
+   "lon": -10.7997,
+   "association": ""
+  },
+  {
+   "land": "Benin",
+   "region": "afrika",
+   "huvudstad": "Porto-Novo",
+   "lat": 6.4833,
+   "lon": 2.6166,
+   "association": "",
+   "not": "Regeringen sitter i Cotonou"
+  },
+  {
+   "land": "Togo",
+   "region": "afrika",
+   "huvudstad": "Lomé",
+   "lat": 6.1339,
+   "lon": 1.2208,
+   "association": ""
+  },
+  {
+   "land": "Ghana",
+   "region": "afrika",
+   "huvudstad": "Accra",
+   "lat": 5.552,
+   "lon": -0.2187,
+   "association": ""
+  },
+  {
+   "land": "Tchad",
+   "region": "afrika",
+   "huvudstad": "N'Djamena",
+   "lat": 12.115,
+   "lon": 15.0472,
+   "association": ""
+  },
+  {
+   "land": "Kamerun",
+   "region": "afrika",
+   "huvudstad": "Yaoundé",
+   "lat": 3.8686,
+   "lon": 11.5147,
+   "association": ""
+  },
+  {
+   "land": "Nigeria",
+   "region": "afrika",
+   "huvudstad": "Abuja",
+   "lat": 9.0546,
+   "lon": 7.4895,
+   "association": ""
+  },
+  {
+   "land": "Niger",
+   "region": "afrika",
+   "huvudstad": "Niamey",
+   "lat": 13.5187,
+   "lon": 2.1147,
+   "association": ""
+  },
+  {
+   "land": "Libyen",
+   "region": "afrika",
+   "huvudstad": "Tripoli",
+   "lat": 32.8925,
+   "lon": 13.18,
+   "association": ""
+  },
+  {
+   "land": "Tunisien",
+   "region": "afrika",
+   "huvudstad": "Tunis",
+   "lat": 36.8028,
+   "lon": 10.1797,
+   "association": ""
+  },
+  {
+   "land": "Egypten",
+   "region": "afrika",
+   "huvudstad": "Kairo",
+   "lat": 30.0519,
+   "lon": 31.248,
+   "association": ""
+  },
+  {
+   "land": "Sudan",
+   "region": "afrika",
+   "huvudstad": "Khartoum",
+   "lat": 15.59,
+   "lon": 32.5322,
+   "association": ""
+  },
+  {
+   "land": "Demokratiska Republiken Kongo",
+   "region": "afrika",
+   "huvudstad": "Kinshasa",
+   "lat": -4.3278,
+   "lon": 15.313,
+   "association": ""
+  },
+  {
+   "land": "Sydsudan",
+   "region": "afrika",
+   "huvudstad": "Juba",
+   "lat": 4.83,
+   "lon": 31.58,
+   "association": ""
+  },
+  {
+   "land": "Centralafrikanska Republiken",
+   "region": "afrika",
+   "huvudstad": "Bangui",
+   "lat": 4.3666,
+   "lon": 18.5583,
+   "association": ""
+  },
+  {
+   "land": "Kenya",
+   "region": "afrika",
+   "huvudstad": "Nairobi",
+   "lat": -1.2814,
+   "lon": 36.8147,
+   "association": ""
+  },
+  {
+   "land": "Uganda",
+   "region": "afrika",
+   "huvudstad": "Kampala",
+   "lat": 0.3186,
+   "lon": 32.5814,
+   "association": ""
+  },
+  {
+   "land": "Eritrea",
+   "region": "afrika",
+   "huvudstad": "Asmara",
+   "lat": 15.3333,
+   "lon": 38.9333,
+   "association": ""
+  },
+  {
+   "land": "Somalia",
+   "region": "afrika",
+   "huvudstad": "Mogadishu",
+   "lat": 2.0686,
+   "lon": 45.3647,
+   "association": ""
+  },
+  {
+   "land": "Etiopien",
+   "region": "afrika",
+   "huvudstad": "Addis Abeba",
+   "lat": 9.0353,
+   "lon": 38.6981,
+   "association": ""
+  },
+  {
+   "land": "Djibouti",
+   "region": "afrika",
+   "huvudstad": "Djibouti",
+   "lat": 11.595,
+   "lon": 43.148,
+   "association": ""
+  },
+  {
+   "land": "Tanzania",
+   "region": "afrika",
+   "huvudstad": "Dodoma",
+   "lat": -6.1833,
+   "lon": 35.75,
+   "association": "",
+   "not": "Största staden: Dar es-Salaam"
+  },
+  {
+   "land": "Rwanda",
+   "region": "afrika",
+   "huvudstad": "Kigali",
+   "lat": -1.9516,
+   "lon": 30.0586,
+   "association": ""
+  },
+  {
+   "land": "Burundi",
+   "region": "afrika",
+   "huvudstad": "Gitega",
+   "lat": -3.4271,
+   "lon": 29.9246,
+   "association": "",
+   "not": "Huvudstad sedan 2019 (tidigare Bujumbura)"
+  },
+  {
+   "land": "Zambia",
+   "region": "afrika",
+   "huvudstad": "Lusaka",
+   "lat": -15.4147,
+   "lon": 28.2814,
+   "association": ""
+  },
+  {
+   "land": "Malawi",
+   "region": "afrika",
+   "huvudstad": "Lilongwe",
+   "lat": -13.9833,
+   "lon": 33.7833,
+   "association": ""
+  },
+  {
+   "land": "Mocambique",
+   "region": "afrika",
+   "huvudstad": "Maputo",
+   "lat": -25.9533,
+   "lon": 32.5872,
+   "association": ""
+  },
+  {
+   "land": "Madagaskar",
+   "region": "afrika",
+   "huvudstad": "Antananarivo",
+   "lat": -18.9147,
+   "lon": 47.5147,
+   "association": ""
+  },
+  {
+   "land": "Angola",
+   "region": "afrika",
+   "huvudstad": "Luanda",
+   "lat": -8.8363,
+   "lon": 13.2325,
+   "association": ""
+  },
+  {
+   "land": "Kongo-Brazzaville",
+   "region": "afrika",
+   "huvudstad": "Brazzaville",
+   "lat": -4.2572,
+   "lon": 15.2827,
+   "association": ""
+  },
+  {
+   "land": "Gabon",
+   "region": "afrika",
+   "huvudstad": "Libreville",
+   "lat": 0.3854,
+   "lon": 9.458,
+   "association": ""
+  },
+  {
+   "land": "Ekvatorialguinea",
+   "region": "afrika",
+   "huvudstad": "Malabo",
+   "lat": 3.75,
+   "lon": 8.7833,
+   "association": "",
+   "not": "Ny huvudstad Ciudad de la Paz byggs"
+  },
+  {
+   "land": "Namibia",
+   "region": "afrika",
+   "huvudstad": "Windhoek",
+   "lat": -22.57,
+   "lon": 17.0835,
+   "association": ""
+  },
+  {
+   "land": "Zimbabwe",
+   "region": "afrika",
+   "huvudstad": "Harare",
+   "lat": -17.8158,
+   "lon": 31.0428,
+   "association": ""
+  },
+  {
+   "land": "Botswana",
+   "region": "afrika",
+   "huvudstad": "Gaborone",
+   "lat": -24.6463,
+   "lon": 25.9119,
+   "association": ""
+  },
+  {
+   "land": "Sydafrika",
+   "region": "afrika",
+   "huvudstad": "Pretoria",
+   "lat": -25.705,
+   "lon": 28.2275,
+   "association": "",
+   "not": "Tre huvudstäder: Pretoria (regering), Kapstaden (parlament), Bloemfontein (domstolar)"
+  },
+  {
+   "land": "Eswatini",
+   "region": "afrika",
+   "huvudstad": "Mbabane",
+   "lat": -26.3167,
+   "lon": 31.1333,
+   "association": "",
+   "not": "Kunglig och lagstiftande huvudstad: Lobamba"
+  },
+  {
+   "land": "Seychellerna",
+   "region": "afrika",
+   "huvudstad": "Victoria",
+   "lat": -4.6166,
+   "lon": 55.45,
+   "association": ""
+  },
+  {
+   "land": "Komorerna",
+   "region": "afrika",
+   "huvudstad": "Moroni",
+   "lat": -11.7042,
+   "lon": 43.2402,
+   "association": ""
+  },
+  {
+   "land": "Mauritius",
+   "region": "afrika",
+   "huvudstad": "Port Louis",
+   "lat": -20.1666,
+   "lon": 57.5,
+   "association": ""
+  },
+  {
+   "land": "Kap Verde",
+   "region": "afrika",
+   "huvudstad": "Praia",
+   "lat": 14.9167,
+   "lon": -23.5167,
+   "association": ""
+  },
+  {
+   "land": "Lesotho",
+   "region": "afrika",
+   "huvudstad": "Maseru",
+   "lat": -29.3167,
+   "lon": 27.4833,
+   "association": ""
+  },
+  {
+   "land": "Indonesien",
+   "region": "asien",
+   "huvudstad": "Jakarta",
+   "lat": -6.1725,
+   "lon": 106.8275,
+   "association": "",
+   "not": "Ny huvudstad Nusantara byggs"
+  },
+  {
+   "land": "Bahrain",
+   "region": "asien",
+   "huvudstad": "Manama",
+   "lat": 26.2361,
+   "lon": 50.5831,
+   "association": ""
+  },
+  {
+   "land": "Singapore",
+   "region": "asien",
+   "huvudstad": "Singapore",
+   "lat": 1.295,
+   "lon": 103.8539,
+   "association": ""
+  },
+  {
+   "land": "Malaysia",
+   "region": "asien",
+   "huvudstad": "Kuala Lumpur",
+   "lat": 3.1398,
+   "lon": 101.6887,
+   "association": "",
+   "not": "Regeringen sitter i Putrajaya"
+  },
+  {
+   "land": "Filippinerna",
+   "region": "asien",
+   "huvudstad": "Manila",
+   "lat": 14.6061,
+   "lon": 120.9803,
+   "association": ""
+  },
+  {
+   "land": "Taiwan",
+   "region": "asien",
+   "huvudstad": "Taipei",
+   "lat": 25.0358,
+   "lon": 121.5683,
+   "association": ""
+  },
+  {
+   "land": "Kina",
+   "region": "asien",
+   "huvudstad": "Peking",
+   "lat": 39.9017,
+   "lon": 116.3942,
+   "association": ""
+  },
+  {
+   "land": "Östtimor",
+   "region": "asien",
+   "huvudstad": "Dili",
+   "lat": -8.5594,
+   "lon": 125.5795,
+   "association": ""
+  },
+  {
+   "land": "Burma",
+   "region": "asien",
+   "huvudstad": "Naypyidaw",
+   "lat": 19.7685,
+   "lon": 96.1167,
+   "association": ""
+  },
+  {
+   "land": "Thailand",
+   "region": "asien",
+   "huvudstad": "Bangkok",
+   "lat": 13.7519,
+   "lon": 100.5147,
+   "association": ""
+  },
+  {
+   "land": "Kambodja",
+   "region": "asien",
+   "huvudstad": "Phnom Penh",
+   "lat": 11.552,
+   "lon": 104.9147,
+   "association": ""
+  },
+  {
+   "land": "Vietnam",
+   "region": "asien",
+   "huvudstad": "Hanoi",
+   "lat": 21.0353,
+   "lon": 105.8481,
+   "association": ""
+  },
+  {
+   "land": "Laos",
+   "region": "asien",
+   "huvudstad": "Vientiane",
+   "lat": 17.9667,
+   "lon": 102.6,
+   "association": ""
+  },
+  {
+   "land": "Sri Lanka",
+   "region": "asien",
+   "huvudstad": "Colombo",
+   "lat": 6.932,
+   "lon": 79.8578,
+   "association": "",
+   "not": "Officiell huvudstad: Sri Jayawardenepura Kotte"
+  },
+  {
+   "land": "Indien",
+   "region": "asien",
+   "huvudstad": "New Delhi",
+   "lat": 28.6,
+   "lon": 77.2,
+   "association": ""
+  },
+  {
+   "land": "Bangladesh",
+   "region": "asien",
+   "huvudstad": "Dhaka",
+   "lat": 23.725,
+   "lon": 90.4066,
+   "association": ""
+  },
+  {
+   "land": "Bhutan",
+   "region": "asien",
+   "huvudstad": "Thimphu",
+   "lat": 27.473,
+   "lon": 89.639,
+   "association": ""
+  },
+  {
+   "land": "Nepal",
+   "region": "asien",
+   "huvudstad": "Katmandu",
+   "lat": 27.7186,
+   "lon": 85.3147,
+   "association": ""
+  },
+  {
+   "land": "Afghanistan",
+   "region": "asien",
+   "huvudstad": "Kabul",
+   "lat": 34.5186,
+   "lon": 69.1813,
+   "association": ""
+  },
+  {
+   "land": "Pakistan",
+   "region": "asien",
+   "huvudstad": "Islamabad",
+   "lat": 33.6894,
+   "lon": 73.0806,
+   "association": ""
+  },
+  {
+   "land": "Tadzjikistan",
+   "region": "asien",
+   "huvudstad": "Dusjanbe",
+   "lat": 38.56,
+   "lon": 68.7739,
+   "association": ""
+  },
+  {
+   "land": "Kirgizistan",
+   "region": "asien",
+   "huvudstad": "Bisjkek",
+   "lat": 42.875,
+   "lon": 74.5833,
+   "association": ""
+  },
+  {
+   "land": "Iran",
+   "region": "asien",
+   "huvudstad": "Teheran",
+   "lat": 35.6739,
+   "lon": 51.4224,
+   "association": ""
+  },
+  {
+   "land": "Japan",
+   "region": "asien",
+   "huvudstad": "Tokyo",
+   "lat": 35.687,
+   "lon": 139.7495,
+   "association": ""
+  },
+  {
+   "land": "Ryssland",
+   "region": "asien",
+   "huvudstad": "Moskva",
+   "lat": 55.7541,
+   "lon": 37.6136,
+   "association": ""
+  },
+  {
+   "land": "Nordkorea",
+   "region": "asien",
+   "huvudstad": "Pyongyang",
+   "lat": 39.0214,
+   "lon": 125.7527,
+   "association": ""
+  },
+  {
+   "land": "Sydkorea",
+   "region": "asien",
+   "huvudstad": "Seoul",
+   "lat": 37.5683,
+   "lon": 126.9978,
+   "association": ""
+  },
+  {
+   "land": "Mongoliet",
+   "region": "asien",
+   "huvudstad": "Ulaanbaatar",
+   "lat": 47.9186,
+   "lon": 106.9147,
+   "association": ""
+  },
+  {
+   "land": "Maldiverna",
+   "region": "asien",
+   "huvudstad": "Malé",
+   "lat": 4.172,
+   "lon": 73.5089,
+   "association": ""
+  },
+  {
+   "land": "Brunei",
+   "region": "asien",
+   "huvudstad": "Bandar Seri Begawan",
+   "lat": 4.8833,
+   "lon": 114.9333,
+   "association": ""
+  },
+  {
+   "land": "Kazakstan",
+   "region": "asien",
+   "huvudstad": "Astana",
+   "lat": 51.1811,
+   "lon": 71.4278,
+   "association": ""
+  },
+  {
+   "land": "Uzbekistan",
+   "region": "asien",
+   "huvudstad": "Tasjkent",
+   "lat": 41.3038,
+   "lon": 69.2688,
+   "association": ""
+  },
+  {
+   "land": "Turkmenistan",
+   "region": "asien",
+   "huvudstad": "Asjchabad",
+   "lat": 37.95,
+   "lon": 58.3833,
+   "association": ""
+  },
+  {
+   "land": "Georgien",
+   "region": "asien",
+   "huvudstad": "Tbilisi",
+   "lat": 41.727,
+   "lon": 44.7888,
+   "association": ""
+  },
+  {
+   "land": "Azerbajdzjan",
+   "region": "asien",
+   "huvudstad": "Baku",
+   "lat": 40.3972,
+   "lon": 49.8603,
+   "association": ""
+  },
+  {
+   "land": "Armenien",
+   "region": "asien",
+   "huvudstad": "Jerevan",
+   "lat": 40.1831,
+   "lon": 44.5116,
+   "association": ""
+  },
+  {
+   "land": "Irak",
+   "region": "asien",
+   "huvudstad": "Bagdad",
+   "lat": 33.3406,
+   "lon": 44.3919,
+   "association": ""
+  },
+  {
+   "land": "Saudiarabien",
+   "region": "asien",
+   "huvudstad": "Riyadh",
+   "lat": 24.6345,
+   "lon": 46.7205,
+   "association": ""
+  },
+  {
+   "land": "Jordanien",
+   "region": "asien",
+   "huvudstad": "Amman",
+   "lat": 31.952,
+   "lon": 35.9314,
+   "association": ""
+  },
+  {
+   "land": "Libanon",
+   "region": "asien",
+   "huvudstad": "Beirut",
+   "lat": 33.8739,
+   "lon": 35.5078,
+   "association": ""
+  },
+  {
+   "land": "Syrien",
+   "region": "asien",
+   "huvudstad": "Damaskus",
+   "lat": 33.502,
+   "lon": 36.2981,
+   "association": ""
+  },
+  {
+   "land": "Palestina",
+   "region": "asien",
+   "huvudstad": "Ramallah",
+   "lat": 31.9038,
+   "lon": 35.2034,
+   "association": "",
+   "not": "Administrativt centrum; Palestina gör anspråk på Östra Jerusalem"
+  },
+  {
+   "land": "Israel",
+   "region": "asien",
+   "huvudstad": "Jerusalem",
+   "lat": 31.7784,
+   "lon": 35.2066,
+   "association": "",
+   "not": "Omstritt; de flesta ambassader ligger i Tel Aviv"
+  },
+  {
+   "land": "Kuwait",
+   "region": "asien",
+   "huvudstad": "Kuwait City",
+   "lat": 29.3717,
+   "lon": 47.9764,
+   "association": ""
+  },
+  {
+   "land": "Qatar",
+   "region": "asien",
+   "huvudstad": "Doha",
+   "lat": 25.2866,
+   "lon": 51.533,
+   "association": ""
+  },
+  {
+   "land": "Förenade Arabemiraten",
+   "region": "asien",
+   "huvudstad": "Abu Dhabi",
+   "lat": 24.4667,
+   "lon": 54.3666,
+   "association": ""
+  },
+  {
+   "land": "Oman",
+   "region": "asien",
+   "huvudstad": "Muskat",
+   "lat": 23.5852,
+   "lon": 58.3783,
+   "association": ""
+  },
+  {
+   "land": "Jemen",
+   "region": "asien",
+   "huvudstad": "Sanaa",
+   "lat": 15.3567,
+   "lon": 44.2046,
+   "association": ""
+  },
+  {
+   "land": "Kanada",
+   "region": "nordamerika",
+   "huvudstad": "Ottawa",
+   "lat": 45.4186,
+   "lon": -75.702,
+   "association": ""
+  },
+  {
+   "land": "USA",
+   "region": "nordamerika",
+   "huvudstad": "Washington D.C.",
+   "lat": 38.9015,
+   "lon": -77.0114,
+   "association": ""
+  },
+  {
+   "land": "Haiti",
+   "region": "nordamerika",
+   "huvudstad": "Port-au-Prince",
+   "lat": 18.543,
+   "lon": -72.338,
+   "association": ""
+  },
+  {
+   "land": "Dominikanska Republiken",
+   "region": "nordamerika",
+   "huvudstad": "Santo Domingo",
+   "lat": 18.4707,
+   "lon": -69.9297,
+   "association": ""
+  },
+  {
+   "land": "Jamaica",
+   "region": "nordamerika",
+   "huvudstad": "Kingston",
+   "lat": 17.9771,
+   "lon": -76.7674,
+   "association": ""
+  },
+  {
+   "land": "Kuba",
+   "region": "nordamerika",
+   "huvudstad": "Havanna",
+   "lat": 23.1339,
+   "lon": -82.3661,
+   "association": ""
+  },
+  {
+   "land": "Mexiko",
+   "region": "nordamerika",
+   "huvudstad": "Mexico City",
+   "lat": 19.4444,
+   "lon": -99.1329,
+   "association": ""
+  },
+  {
+   "land": "Belize",
+   "region": "nordamerika",
+   "huvudstad": "Belmopan",
+   "lat": 17.252,
+   "lon": -88.7671,
+   "association": ""
+  },
+  {
+   "land": "Guatemala",
+   "region": "nordamerika",
+   "huvudstad": "Guatemala City",
+   "lat": 14.6231,
+   "lon": -90.5289,
+   "association": ""
+  },
+  {
+   "land": "El Salvador",
+   "region": "nordamerika",
+   "huvudstad": "San Salvador",
+   "lat": 13.7033,
+   "lon": -89.2156,
+   "association": ""
+  },
+  {
+   "land": "Honduras",
+   "region": "nordamerika",
+   "huvudstad": "Tegucigalpa",
+   "lat": 14.104,
+   "lon": -87.2195,
+   "association": ""
+  },
+  {
+   "land": "Nicaragua",
+   "region": "nordamerika",
+   "huvudstad": "Managua",
+   "lat": 12.155,
+   "lon": -86.2704,
+   "association": ""
+  },
+  {
+   "land": "Costa Rica",
+   "region": "nordamerika",
+   "huvudstad": "San José",
+   "lat": 9.9304,
+   "lon": -84.0788,
+   "association": ""
+  },
+  {
+   "land": "Panama",
+   "region": "nordamerika",
+   "huvudstad": "Panama City",
+   "lat": 8.97,
+   "lon": -79.535,
+   "association": ""
+  },
+  {
+   "land": "Argentina",
+   "region": "sydamerika",
+   "huvudstad": "Buenos Aires",
+   "lat": -34.6107,
+   "lon": -58.4325,
+   "association": ""
+  },
+  {
+   "land": "Chile",
+   "region": "sydamerika",
+   "huvudstad": "Santiago",
+   "lat": -33.4402,
+   "lon": -70.6505,
+   "association": ""
+  },
+  {
+   "land": "Uruguay",
+   "region": "sydamerika",
+   "huvudstad": "Montevideo",
+   "lat": -34.9054,
+   "lon": -56.1868,
+   "association": ""
+  },
+  {
+   "land": "Paraguay",
+   "region": "sydamerika",
+   "huvudstad": "Asunción",
+   "lat": -25.2907,
+   "lon": -57.6258,
+   "association": ""
+  },
+  {
+   "land": "Brasilien",
+   "region": "sydamerika",
+   "huvudstad": "Brasília",
+   "lat": -15.7814,
+   "lon": -47.918,
+   "association": ""
+  },
+  {
+   "land": "Bolivia",
+   "region": "sydamerika",
+   "huvudstad": "Sucre",
+   "lat": -19.041,
+   "lon": -65.2595,
+   "association": "",
+   "not": "Regeringen sitter i La Paz"
+  },
+  {
+   "land": "Peru",
+   "region": "sydamerika",
+   "huvudstad": "Lima",
+   "lat": -12.0461,
+   "lon": -77.052,
+   "association": ""
+  },
+  {
+   "land": "Ecuador",
+   "region": "sydamerika",
+   "huvudstad": "Quito",
+   "lat": -0.213,
+   "lon": -78.502,
+   "association": ""
+  },
+  {
+   "land": "Colombia",
+   "region": "sydamerika",
+   "huvudstad": "Bogotá",
+   "lat": 4.5984,
+   "lon": -74.0853,
+   "association": ""
+  },
+  {
+   "land": "Venezuela",
+   "region": "sydamerika",
+   "huvudstad": "Caracas",
+   "lat": 10.5029,
+   "lon": -66.919,
+   "association": ""
+  },
+  {
+   "land": "Guyana",
+   "region": "sydamerika",
+   "huvudstad": "Georgetown",
+   "lat": 6.802,
+   "lon": -58.167,
+   "association": ""
+  },
+  {
+   "land": "Surinam",
+   "region": "sydamerika",
+   "huvudstad": "Paramaribo",
+   "lat": 5.835,
+   "lon": -55.167,
+   "association": ""
+  },
+  {
+   "land": "Franska Guyana",
+   "region": "sydamerika",
+   "huvudstad": "Cayenne",
+   "lat": 4.9224,
+   "lon": -52.3135,
+   "association": "",
+   "not": "Franskt departement, inte självständigt land"
+  },
+  {
+   "land": "Australien",
+   "region": "oceanien",
+   "huvudstad": "Canberra",
+   "lat": -35.283,
+   "lon": 149.129,
+   "association": ""
+  },
+  {
+   "land": "Nya Zeeland",
+   "region": "oceanien",
+   "huvudstad": "Wellington",
+   "lat": -41.2921,
+   "lon": 174.7772,
+   "association": ""
+  },
+  {
+   "land": "Samoa",
+   "region": "oceanien",
+   "huvudstad": "Apia",
+   "lat": -13.8357,
+   "lon": -171.7686,
+   "association": ""
+  },
+  {
+   "land": "Fiji",
+   "region": "oceanien",
+   "huvudstad": "Suva",
+   "lat": -18.133,
+   "lon": 178.4417,
+   "association": ""
+  },
+  {
+   "land": "Tonga",
+   "region": "oceanien",
+   "huvudstad": "Nuku'alofa",
+   "lat": -21.1385,
+   "lon": -175.2206,
+   "association": ""
+  },
+  {
+   "land": "Tuvalu",
+   "region": "oceanien",
+   "huvudstad": "Funafuti",
+   "lat": -8.5167,
+   "lon": 179.2166,
+   "association": ""
+  },
+  {
+   "land": "Nauru",
+   "region": "oceanien",
+   "huvudstad": "Yaren",
+   "lat": -0.5467,
+   "lon": 166.9209,
+   "association": "",
+   "not": "Ingen officiell huvudstad; regeringen sitter i Yaren"
+  },
+  {
+   "land": "Solomonöarna",
+   "region": "oceanien",
+   "huvudstad": "Honiara",
+   "lat": -9.438,
+   "lon": 159.9498,
+   "association": ""
+  },
+  {
+   "land": "Marshallöarna",
+   "region": "oceanien",
+   "huvudstad": "Majuro",
+   "lat": 7.103,
+   "lon": 171.38,
+   "association": ""
+  },
+  {
+   "land": "Mikronesien",
+   "region": "oceanien",
+   "huvudstad": "Palikir",
+   "lat": 6.9166,
+   "lon": 158.15,
+   "association": ""
+  },
+  {
+   "land": "Palau",
+   "region": "oceanien",
+   "huvudstad": "Ngerulmud",
+   "lat": 7.4874,
+   "lon": 134.6265,
+   "association": ""
+  },
+  {
+   "land": "Kiribati",
+   "region": "oceanien",
+   "huvudstad": "Sydtarawa",
+   "lat": 1.3382,
+   "lon": 173.0176,
+   "association": ""
+  },
+  {
+   "land": "Vanuatu",
+   "region": "oceanien",
+   "huvudstad": "Port Vila",
+   "lat": -17.7334,
+   "lon": 168.3166,
+   "association": ""
+  },
+  {
+   "land": "Papua Nya Guinea",
+   "region": "oceanien",
+   "huvudstad": "Port Moresby",
+   "lat": -9.4647,
+   "lon": 147.1925,
+   "association": ""
+  },
+  {
+   "land": "Antigua & Barbuda",
+   "region": "vastindien",
+   "huvudstad": "Saint John's",
+   "lat": 17.118,
+   "lon": -61.85,
+   "association": ""
+  },
+  {
+   "land": "Saint Kitts & Nevis",
+   "region": "vastindien",
+   "huvudstad": "Basseterre",
+   "lat": 17.302,
+   "lon": -62.717,
+   "association": ""
+  },
+  {
+   "land": "Dominica",
+   "region": "vastindien",
+   "huvudstad": "Roseau",
+   "lat": 15.301,
+   "lon": -61.387,
+   "association": ""
+  },
+  {
+   "land": "Saint Lucia",
+   "region": "vastindien",
+   "huvudstad": "Castries",
+   "lat": 14.0079,
+   "lon": -60.9929,
+   "association": ""
+  },
+  {
+   "land": "Trinidad & Tobago",
+   "region": "vastindien",
+   "huvudstad": "Port of Spain",
+   "lat": 10.652,
+   "lon": -61.517,
+   "association": ""
+  },
+  {
+   "land": "Saint Vincent & Grenadinerna",
+   "region": "vastindien",
+   "huvudstad": "Kingstown",
+   "lat": 13.1558,
+   "lon": -61.2202,
+   "association": ""
+  },
+  {
+   "land": "Barbados",
+   "region": "vastindien",
+   "huvudstad": "Bridgetown",
+   "lat": 13.102,
+   "lon": -59.6165,
+   "association": ""
+  },
+  {
+   "land": "Grenada",
+   "region": "vastindien",
+   "huvudstad": "St. George's",
+   "lat": 12.0526,
+   "lon": -61.7416,
+   "association": ""
+  },
+  {
+   "land": "Bahamas",
+   "region": "vastindien",
+   "huvudstad": "Nassau",
+   "lat": 25.0834,
+   "lon": -77.35,
+   "association": ""
+  }
+ ]
+}

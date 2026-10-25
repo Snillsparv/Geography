@@ -169,3 +169,16 @@ node tools/vectorize.mjs assets --force     # rebuild everything
 > **Tip:** for maximum fidelity, run the pipeline on your original
 > high-resolution scans rather than the downscaled webp in the repo, then
 > drop the resulting SVGs in place.
+
+## Förberedd data: Sveriges landskap och huvudstäder
+
+- `data/svenska_landskap.geojson` — alla 25 landskap (CC0, från
+  [perliedman/svenska-landskap](https://github.com/perliedman/svenska-landskap))
+  plus Vänern och Vättern (Natural Earth 10m lakes, public domain).
+  `name`/`filename` matchar `assets/sverige/config.json`, `typ` är
+  `landskap` eller `sjo`. Tänkt som geometrikälla för en kommande
+  `--dataset sverige`, på samma sätt som `us_states.geojson` för USA.
+- `../assets/huvudstader.json` — huvudstaden för vart och ett av spelets 202
+  länder (svenska namn, koordinater ur Natural Earth populated places).
+  `association` är tom och fylls i med Jonas minnesregler; `not` förklarar
+  länder med flera eller omstridda huvudstäder.
