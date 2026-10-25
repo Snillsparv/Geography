@@ -1,5 +1,5 @@
 {
- "kalla": "Koordinater: Natural Earth 10m populated places (public domain). Associationer fylls i från kurs.jonasvonessen.se.",
+ "kalla": "Koordinater: Natural Earth 10m populated places (public domain). Associationer: Jonas kurs \"Skaffa ett superminne!\" på kurs.jonasvonessen.se (kursiv markeras *så här*). kursnamn = stavningen i kursen där den skiljer sig.",
  "huvudstader": [
   {
    "land": "Ukraina",
@@ -7,7 +7,7 @@
    "huvudstad": "Kiev",
    "lat": 50.4353,
    "lon": 30.5147,
-   "association": ""
+   "association": "Någonstans bland tårarna finns kanske en nyckel, det finns ev. en KEY där: KEY + EV"
   },
   {
    "land": "Malta",
@@ -15,7 +15,7 @@
    "huvudstad": "Valletta",
    "lat": 35.8997,
    "lon": 14.5147,
-   "association": ""
+   "association": "Årorna är gjorda av papp, och roddaren säger förvånat: VAD LÄTTA de är!"
   },
   {
    "land": "Moldavien",
@@ -23,7 +23,8 @@
    "huvudstad": "Chișinău",
    "lat": 47.005,
    "lon": 28.8577,
-   "association": ""
+   "association": "När du sakta häller i kemikalierna i provröret säger du till dig själv på engelska: SHH! EASY NOW…",
+   "kursnamn": "Chisinau"
   },
   {
    "land": "Rumänien",
@@ -31,7 +32,7 @@
    "huvudstad": "Bukarest",
    "lat": 44.4353,
    "lon": 26.098,
-   "association": ""
+   "association": "Du äter mer än man får på hotellet (fyller din BUK) och hamnar därför i hotellets ARREST"
   },
   {
    "land": "Turkiet",
@@ -39,7 +40,7 @@
    "huvudstad": "Ankara",
    "lat": 39.9292,
    "lon": 32.8624,
-   "association": ""
+   "association": "Kalkonen är gammal sjökalkon och har ett ANKARE runt halsen"
   },
   {
    "land": "Belarus",
@@ -47,7 +48,7 @@
    "huvudstad": "Minsk",
    "lat": 53.9019,
    "lon": 27.5647,
-   "association": ""
+   "association": "Sjöjungfrun bantar och försöker MINSKa på kalorierna"
   },
   {
    "land": "Litauen",
@@ -55,7 +56,7 @@
    "huvudstad": "Vilnius",
    "lat": 54.6834,
    "lon": 25.3166,
-   "association": ""
+   "association": "Jätten försöker ge stenen till några fiender för att de ska gå därifrån, samtidigt som han frågar: Vad VILL NI OSS?"
   },
   {
    "land": "Lettland",
@@ -63,7 +64,7 @@
    "huvudstad": "Riga",
    "lat": 56.95,
    "lon": 24.1,
-   "association": ""
+   "association": "Gymmaskinen som personen trampar i används för att producera el åt de RIKA"
   },
   {
    "land": "Estland",
@@ -71,7 +72,7 @@
    "huvudstad": "Tallinn",
    "lat": 59.4339,
    "lon": 24.728,
-   "association": ""
+   "association": "När hästen mumsar i sig höet råkar den få med en hel TALL IN i munnen"
   },
   {
    "land": "Finland",
@@ -79,7 +80,7 @@
    "huvudstad": "Helsingfors",
    "lat": 60.1638,
    "lon": 24.9325,
-   "association": ""
+   "association": "Tänk dig att Håkan HELLström dyker upp ur paketet och sjunger (SING) om en FORS"
   },
   {
    "land": "Norge",
@@ -87,7 +88,7 @@
    "huvudstad": "Oslo",
    "lat": 59.9186,
    "lon": 10.748,
-   "association": ""
+   "association": "Valen lever ensam, den kör SOLO"
   },
   {
    "land": "Irland",
@@ -95,7 +96,7 @@
    "huvudstad": "Dublin",
    "lat": 53.3467,
    "lon": -6.257,
-   "association": ""
+   "association": "Papegojan är med i en tecknad film och DUBbas av någon som heter LINN"
   },
   {
    "land": "Nordirland",
@@ -103,7 +104,7 @@
    "huvudstad": "Belfast",
    "lat": 54.5942,
    "lon": -5.9282,
-   "association": ""
+   "association": "Musen ringer i en klocka (BELL på engelska) väldigt snabbt (FAST)"
   },
   {
    "land": "England",
@@ -111,7 +112,7 @@
    "huvudstad": "London",
    "lat": 51.5019,
    "lon": -0.1187,
-   "association": ""
+   "association": "Kaninen gömmer sig bland träden i LUNDEN"
   },
   {
    "land": "Skottland",
@@ -119,7 +120,7 @@
    "huvudstad": "Edinburgh",
    "lat": 55.9483,
    "lon": -3.2191,
-   "association": ""
+   "association": "Killen har råkat ta din hamburgare, och när du påpekar det säger han: “Ja, de E DIN BURGare!”"
   },
   {
    "land": "Wales",
@@ -127,7 +128,7 @@
    "huvudstad": "Cardiff",
    "lat": 51.4826,
    "lon": -3.1676,
-   "association": ""
+   "association": "En bil (CAR) med en Djurgårdens IF-logga (DIF) råkar köra ner i brunnen"
   },
   {
    "land": "Island",
@@ -135,7 +136,7 @@
    "huvudstad": "Reykjavik",
    "lat": 64.1435,
    "lon": -21.9365,
-   "association": ""
+   "association": "Draken håller i ett brinnande papper som RYKER och som den försöker VIKA ihop"
   },
   {
    "land": "Polen",
@@ -143,7 +144,7 @@
    "huvudstad": "Warszawa",
    "lat": 52.2309,
    "lon": 21.0053,
-   "association": ""
+   "association": "Isbjörnen är mycket ordningssam och lägger alltid “VAR SAk på VAr plats”"
   },
   {
    "land": "Tyskland",
@@ -151,7 +152,7 @@
    "huvudstad": "Berlin",
    "lat": 52.5238,
    "lon": 13.3996,
-   "association": ""
+   "association": "Häxan BÄR en bukett med LINblommor under sin hatt"
   },
   {
    "land": "Danmark",
@@ -159,7 +160,7 @@
    "huvudstad": "Köpenhamn",
    "lat": 55.6805,
    "lon": 12.5615,
-   "association": ""
+   "association": "För att släcka elden behöver du så mycket vatten att du måste KÖPA EN HAMN"
   },
   {
    "land": "Tjeckien",
@@ -167,7 +168,7 @@
    "huvudstad": "Prag",
    "lat": 50.087,
    "lon": 14.4229,
-   "association": ""
+   "association": "Geten har hörlurar på sig och lyssnar enbart på PROGG-musik"
   },
   {
    "land": "Slovakien",
@@ -175,7 +176,7 @@
    "huvudstad": "Bratislava",
    "lat": 48.15,
    "lon": 17.117,
-   "association": ""
+   "association": "Sjöodjuret tvingar några BRATS att SLAVA med att hugga ut nya vakar ur isen"
   },
   {
    "land": "Ungern",
@@ -183,7 +184,7 @@
    "huvudstad": "Budapest",
    "lat": 47.502,
    "lon": 19.0814,
-   "association": ""
+   "association": "Fågeln är på insektsauktion där man kan BUDA på olika sorters PEST"
   },
   {
    "land": "Serbien",
@@ -191,7 +192,7 @@
    "huvudstad": "Belgrad",
    "lat": 44.8206,
    "lon": 20.466,
-   "association": ""
+   "association": "Gubben undersöker Belgiens fotbollslandslag som har ställt sig på rad och utgör en BELG-RAD"
   },
   {
    "land": "Kosovo",
@@ -199,7 +200,7 @@
    "huvudstad": "Pristina",
    "lat": 42.6667,
    "lon": 21.166,
-   "association": ""
+   "association": "Kon säljs för ett billigt PRIS eftersom den har blivit nedfryst och håller på att TINA"
   },
   {
    "land": "Cypern",
@@ -207,7 +208,7 @@
    "huvudstad": "Nicosia",
    "lat": 35.1667,
    "lon": 33.3666,
-   "association": ""
+   "association": "Narvalen NICkar med sitt tandhorn som artisten SIA står längst ut på"
   },
   {
    "land": "Grekland",
@@ -215,7 +216,7 @@
    "huvudstad": "Aten",
    "lat": 37.9853,
    "lon": 23.7314,
-   "association": ""
+   "association": "Högst upp på pelaren sätter du en ANTENN för att få så bra täckning som möjligt"
   },
   {
    "land": "Bulgarien",
@@ -223,7 +224,7 @@
    "huvudstad": "Sofia",
    "lat": 42.6853,
    "lon": 23.3147,
-   "association": ""
+   "association": "Den som äter bullen heter SOFIA"
   },
   {
    "land": "Nordmakedonien",
@@ -231,7 +232,7 @@
    "huvudstad": "Skopje",
    "lat": 42.0,
    "lon": 21.4335,
-   "association": ""
+   "association": "Du hittar mackan i ett SKÅP i köket, vilket får dig att ropa: YEAH!"
   },
   {
    "land": "Albanien",
@@ -239,7 +240,7 @@
    "huvudstad": "Tirana",
    "lat": 41.3275,
    "lon": 19.8189,
-   "association": ""
+   "association": "På toppen av högen med barn står en TRANA som lyfter hela barnvagnen upp i luften"
   },
   {
    "land": "Montenegro",
@@ -247,7 +248,7 @@
    "huvudstad": "Podgorica",
    "lat": 42.466,
    "lon": 19.2663,
-   "association": ""
+   "association": "Någon går förbi montern med sin iPOD och GÅR för nära och råkar RITSA en repa i glaset"
   },
   {
    "land": "Bosnien-Hercegovina",
@@ -255,7 +256,7 @@
    "huvudstad": "Sarajevo",
    "lat": 43.85,
    "lon": 18.383,
-   "association": ""
+   "association": "ZARA Larsson JÄVLAS med Link och pikar honom för att han inte kan besegra bossen"
   },
   {
    "land": "Kroatien",
@@ -263,7 +264,7 @@
    "huvudstad": "Zagreb",
    "lat": 45.8,
    "lon": 16.0,
-   "association": ""
+   "association": "Saxen är klibbig så att den SKA få GREPP om det den klipper"
   },
   {
    "land": "Slovenien",
@@ -271,7 +272,7 @@
    "huvudstad": "Ljubljana",
    "lat": 46.0553,
    "lon": 14.515,
-   "association": ""
+   "association": "Tomten ser bekymrad ut men på insidan tänker han bara jublande tankar, i sin JUBEL-HJÄRNA"
   },
   {
    "land": "Italien",
@@ -279,7 +280,7 @@
    "huvudstad": "Rom",
    "lat": 41.8979,
    "lon": 12.4813,
-   "association": ""
+   "association": "En pirat har gömt en flaska med ROM i stöveln"
   },
   {
    "land": "Vatikanstaten",
@@ -287,7 +288,7 @@
    "huvudstad": "Vatikanstaten",
    "lat": 41.9033,
    "lon": 12.4534,
-   "association": ""
+   "association": "Vatikanstaten är världens minsta självständiga stat, så man förstår att det inte får plats någon annan huvudstad här!"
   },
   {
    "land": "Österrike",
@@ -295,7 +296,7 @@
    "huvudstad": "Wien",
    "lat": 48.202,
    "lon": 16.3647,
-   "association": ""
+   "association": "Snigeln har fyllt skalet med VIN"
   },
   {
    "land": "San Marino",
@@ -303,7 +304,7 @@
    "huvudstad": "San Marino",
    "lat": 43.9361,
    "lon": 12.4418,
-   "association": ""
+   "association": "Bläckfisken upprepar att den i SANning är ett MARINT djur"
   },
   {
    "land": "Schweiz",
@@ -311,7 +312,7 @@
    "huvudstad": "Bern",
    "lat": 46.9167,
    "lon": 7.467,
-   "association": ""
+   "association": "Grisen har hittat en BÄRNsten som den försöker gömma bakom ryggen"
   },
   {
    "land": "Liechtenstein",
@@ -319,7 +320,7 @@
    "huvudstad": "Vaduz",
    "lat": 47.1337,
    "lon": 9.5167,
-   "association": ""
+   "association": "Stenen ligger på golvet i ett badhus där man bara får visa vaderna, ett VAD-HUS"
   },
   {
    "land": "Luxembourg",
@@ -327,7 +328,7 @@
    "huvudstad": "Luxemburg",
    "lat": 49.6117,
    "lon": 6.13,
-   "association": ""
+   "association": "Den lyxiga burgaren får helt enkelt heta LUXEMBURG"
   },
   {
    "land": "Spanien",
@@ -335,7 +336,7 @@
    "huvudstad": "Madrid",
    "lat": 40.402,
    "lon": -3.6853,
-   "association": ""
+   "association": "En galen (MAD på engelska) person RIDer på tjuren"
   },
   {
    "land": "Portugal",
@@ -343,7 +344,7 @@
    "huvudstad": "Lissabon",
    "lat": 38.7247,
    "lon": -9.1468,
-   "association": ""
+   "association": "LISA Simpson matar tuppen med en karamell (BONbon på franska)"
   },
   {
    "land": "Belgien",
@@ -351,7 +352,7 @@
    "huvudstad": "Bryssel",
    "lat": 50.8353,
    "lon": 4.3314,
-   "association": ""
+   "association": "Kaninen tuggar i sig BRYSSELkål"
   },
   {
    "land": "Nederländerna",
@@ -359,7 +360,7 @@
    "huvudstad": "Amsterdam",
    "lat": 52.3519,
    "lon": 4.9147,
-   "association": "",
+   "association": "Killen kastar anden ner i en damm där det simmar en stor hamster, en HAMSTER-DAMM",
    "not": "Regeringen sitter i Haag"
   },
   {
@@ -368,7 +369,7 @@
    "huvudstad": "Paris",
    "lat": 48.8581,
    "lon": 2.353,
-   "association": ""
+   "association": "Kocken driver en restaurang där allt har ett väldigt högt PRIS"
   },
   {
    "land": "Monaco",
@@ -376,7 +377,7 @@
    "huvudstad": "Monaco",
    "lat": 43.7396,
    "lon": 7.4069,
-   "association": ""
+   "association": "MONA KO vinner så mycket att huvudstaden döps efter henne själv"
   },
   {
    "land": "Sverige",
@@ -384,7 +385,7 @@
    "huvudstad": "Stockholm",
    "lat": 59.3241,
    "lon": 18.0663,
-   "association": ""
+   "association": "Om man skulle behöva en minnesbild för Stockholm kan man förstås tänka sig att Marge tuggar på en träSTOCK som Stefan HOLM hoppar över"
   },
   {
    "land": "Andorra",
@@ -392,7 +393,7 @@
    "huvudstad": "Andorra la Vella",
    "lat": 42.5108,
    "lon": 1.5266,
-   "association": ""
+   "association": "Anden använder WELLA-schampo för att tvätta sina fjädrar"
   },
   {
    "land": "Algeriet",
@@ -400,7 +401,7 @@
    "huvudstad": "Alger",
    "lat": 36.765,
    "lon": 3.0486,
-   "association": ""
+   "association": "Grodan har fått lite ALGER på ryggen också"
   },
   {
    "land": "Sao Tome & Principe",
@@ -416,7 +417,7 @@
    "huvudstad": "Rabat",
    "lat": 34.0253,
    "lon": -6.8364,
-   "association": ""
+   "association": "Dammsugaren råkar suga upp hela din blomRABATT"
   },
   {
    "land": "Västsahara",
@@ -424,8 +425,9 @@
    "huvudstad": "El Aaiún",
    "lat": 27.15,
    "lon": -13.2,
-   "association": "",
-   "not": "Omstritt område; Marocko kontrollerar större delen"
+   "association": "ALLA vet att JONas gömmer sig i sanden",
+   "not": "Omstritt område; Marocko kontrollerar större delen",
+   "kursnamn": "Al-Ayun"
   },
   {
    "land": "Mauretanien",
@@ -433,7 +435,7 @@
    "huvudstad": "Nouakchott",
    "lat": 18.0864,
    "lon": -15.9753,
-   "association": ""
+   "association": "NOAK seglar förbi med arken som sänks av ett SKOTT från Mao"
   },
   {
    "land": "Mali",
@@ -441,7 +443,7 @@
    "huvudstad": "Bamako",
    "lat": 12.652,
    "lon": -8.002,
-   "association": ""
+   "association": "Malen smäller ihop sina vingar med en smäll (som låter BAM!) för att skrämma en ko, den försöker BAMA en KO"
   },
   {
    "land": "Gambia",
@@ -449,7 +451,7 @@
    "huvudstad": "Banjul",
    "lat": 13.4539,
    "lon": -16.5917,
-   "association": ""
+   "association": "Masken blir tillplattad av ett BAN-HJUL som rullar över den"
   },
   {
    "land": "Senegal",
@@ -457,7 +459,7 @@
    "huvudstad": "Dakar",
    "lat": 14.7178,
    "lon": -17.4751,
-   "association": ""
+   "association": "I sängen sover två DRAKAR"
   },
   {
    "land": "Guinea",
@@ -465,7 +467,7 @@
    "huvudstad": "Conakry",
    "lat": 9.5335,
    "lon": -13.6822,
-   "association": ""
+   "association": "Marsvinet gömmer sig under en KONA för att gråta (CRY på engelska)"
   },
   {
    "land": "Guinea-Bissau",
@@ -473,7 +475,7 @@
    "huvudstad": "Bissau",
    "lat": 11.865,
    "lon": -15.5984,
-   "association": ""
+   "association": "PIZZA på pizzan helt enkelt"
   },
   {
    "land": "Sierra Leone",
@@ -481,7 +483,7 @@
    "huvudstad": "Freetown",
    "lat": 8.472,
    "lon": -13.2362,
-   "association": ""
+   "association": "Lejonet släpps ut i STADEN och är äntligen FRI"
   },
   {
    "land": "Burkina Faso",
@@ -489,7 +491,7 @@
    "huvudstad": "Ouagadougou",
    "lat": 12.3723,
    "lon": -1.5267,
-   "association": ""
+   "association": "Fasorna får din hund (dog på engelska) att svimma och du tar då upp den och vaggar den: VAGGA + DOG"
   },
   {
    "land": "Elfenbenskusten",
@@ -497,7 +499,7 @@
    "huvudstad": "Yamoussoukro",
    "lat": 6.8184,
    "lon": -5.2755,
-   "association": "",
+   "association": "Elefanten suger i sig en massa läckert (YUMMY) SOCKER med snabeln",
    "not": "Största staden och regeringssäte i praktiken: Abidjan"
   },
   {
@@ -506,7 +508,7 @@
    "huvudstad": "Monrovia",
    "lat": 6.3146,
    "lon": -10.7997,
-   "association": ""
+   "association": "Kvinnan i sovsäcken är Marilyn MONROE"
   },
   {
    "land": "Benin",
@@ -514,7 +516,7 @@
    "huvudstad": "Porto-Novo",
    "lat": 6.4833,
    "lon": 2.6166,
-   "association": "",
+   "association": "Du använder kycklingklubban för att banka mot en PORT som då exploderar i en super-NOVA",
    "not": "Regeringen sitter i Cotonou"
   },
   {
@@ -523,7 +525,7 @@
    "huvudstad": "Lomé",
    "lat": 6.1339,
    "lon": 1.2208,
-   "association": ""
+   "association": "LOtta BroMÉ kör tåget"
   },
   {
    "land": "Ghana",
@@ -531,7 +533,7 @@
    "huvudstad": "Accra",
    "lat": 5.552,
    "lon": -0.2187,
-   "association": ""
+   "association": "Garnen som görs av tråden blir mycket vACKRA"
   },
   {
    "land": "Tchad",
@@ -539,7 +541,8 @@
    "huvudstad": "N'Djamena",
    "lat": 12.115,
    "lon": 15.0472,
-   "association": ""
+   "association": "Du frågar om regissören inte är lite för gammal för att hälsa med “Tja!”, han blir förlägen och säger ursäktande: “Nä… JA MENAde… hej!”",
+   "kursnamn": "N’Djamena"
   },
   {
    "land": "Kamerun",
@@ -547,7 +550,7 @@
    "huvudstad": "Yaoundé",
    "lat": 3.8686,
    "lon": 11.5147,
-   "association": ""
+   "association": "JAG ÄR UNDER kammen, säger Ru"
   },
   {
    "land": "Nigeria",
@@ -555,7 +558,8 @@
    "huvudstad": "Abuja",
    "lat": 9.0546,
    "lon": 7.4895,
-   "association": ""
+   "association": "AH, det knäcker till när ballerinan ska BÖJA på benen!",
+   "kursnamn": "Abuya"
   },
   {
    "land": "Niger",
@@ -563,7 +567,7 @@
    "huvudstad": "Niamey",
    "lat": 13.5187,
    "lon": 2.1147,
-   "association": ""
+   "association": "Filmaren vill både bli nigd inför och bli niad, han säger: NIA MIG!"
   },
   {
    "land": "Libyen",
@@ -571,7 +575,7 @@
    "huvudstad": "Tripoli",
    "lat": 32.8925,
    "lon": 13.18,
-   "association": ""
+   "association": "När killen kommer fram blir han arresterad av TRE POLISER"
   },
   {
    "land": "Tunisien",
@@ -579,7 +583,7 @@
    "huvudstad": "Tunis",
    "lat": 36.8028,
    "lon": 10.1797,
-   "association": ""
+   "association": "Lite TUNN IS har också hamnat på skaftet till is-kniven"
   },
   {
    "land": "Egypten",
@@ -587,7 +591,7 @@
    "huvudstad": "Kairo",
    "lat": 30.0519,
    "lon": 31.248,
-   "association": ""
+   "association": "Pyramiden är full med vatten och har en KAJ dit man kan RO"
   },
   {
    "land": "Sudan",
@@ -595,7 +599,7 @@
    "huvudstad": "Khartoum",
    "lat": 15.59,
    "lon": 32.5322,
-   "association": ""
+   "association": "På baksidan av namnskylten finns en KARTA"
   },
   {
    "land": "Demokratiska Republiken Kongo",
@@ -603,7 +607,7 @@
    "huvudstad": "Kinshasa",
    "lat": -4.3278,
    "lon": 15.313,
-   "association": ""
+   "association": "Häxan ger barnen KINder-ägg och SJASAR sedan bort dem"
   },
   {
    "land": "Sydsudan",
@@ -611,7 +615,7 @@
    "huvudstad": "Juba",
    "lat": 4.83,
    "lon": 31.58,
-   "association": ""
+   "association": "Hunden måste JOBBA hårt för att hinna klart med lapptäcket"
   },
   {
    "land": "Centralafrikanska Republiken",
@@ -619,7 +623,7 @@
    "huvudstad": "Bangui",
    "lat": 4.3666,
    "lon": 18.5583,
-   "association": ""
+   "association": "När personen lyckas borra sig ner hela vägen till berggrunden slår han i den med ett BANG och studsar tillbaka: UIII!"
   },
   {
    "land": "Kenya",
@@ -627,7 +631,7 @@
    "huvudstad": "Nairobi",
    "lat": -1.2814,
    "lon": 36.8147,
-   "association": ""
+   "association": "Fågeln pekar ut Robin Hood för sheriffen: NEJ ROBIN!"
   },
   {
    "land": "Uganda",
@@ -635,7 +639,7 @@
    "huvudstad": "Kampala",
    "lat": 0.3186,
    "lon": 32.5814,
-   "association": ""
+   "association": "Geten tittar fram ur ett tält som den CAMPAR i"
   },
   {
    "land": "Eritrea",
@@ -643,7 +647,7 @@
    "huvudstad": "Asmara",
    "lat": 15.3333,
    "lon": 38.9333,
-   "association": ""
+   "association": "Löparen tränar AS-hårt för att kunna springa en MARA"
   },
   {
    "land": "Somalia",
@@ -651,7 +655,7 @@
    "huvudstad": "Mogadishu",
    "lat": 2.0686,
    "lon": 45.3647,
-   "association": ""
+   "association": "När blomman har MOGNAT kan man använda den som diskborste för att göra rent DISKEN"
   },
   {
    "land": "Etiopien",
@@ -659,7 +663,7 @@
    "huvudstad": "Addis Abeba",
    "lat": 9.0353,
    "lon": 38.6981,
-   "association": ""
+   "association": "Den grekiska dödsguden HADES erbjuder sig att ta med sig antilopen till dödsriket för att sätta honom i tjänst i hans aktiebolag (AB) men antilopbäraren tycker att erbjudandet är dåligt och säger bara BAH!"
   },
   {
    "land": "Djibouti",
@@ -667,7 +671,7 @@
    "huvudstad": "Djibouti",
    "lat": 11.595,
    "lon": 43.148,
-   "association": ""
+   "association": "DJ:en i båten har en egen liten båt med en DJ i som han håller i handen"
   },
   {
    "land": "Tanzania",
@@ -675,7 +679,7 @@
    "huvudstad": "Dodoma",
    "lat": -6.1833,
    "lon": 35.75,
-   "association": "",
+   "association": "Meteoriter faller ner runt omkring och världens undergång (DOOM på engelska) är här, men Tanzania-dansaren fortsätter orubbligt att dansa",
    "not": "Största staden: Dar es-Salaam"
   },
   {
@@ -684,7 +688,7 @@
    "huvudstad": "Kigali",
    "lat": -1.9516,
    "lon": 30.0586,
-   "association": ""
+   "association": "Personen måste KRIGA LITE för att ta sig ut ur buren under sig"
   },
   {
    "land": "Burundi",
@@ -692,7 +696,7 @@
    "huvudstad": "Gitega",
    "lat": -3.4271,
    "lon": 29.9246,
-   "association": "",
+   "association": "I buren sitter nu istället en GITarr som någon besökare försöker ÄGGA (=kasta ägg på)",
    "not": "Huvudstad sedan 2019 (tidigare Bujumbura)"
   },
   {
@@ -701,7 +705,7 @@
    "huvudstad": "Lusaka",
    "lat": -15.4147,
    "lon": 28.2814,
-   "association": ""
+   "association": "De båda hånglarna har munnen full av MOUSSAKA (kanske tillagad av en LUS)"
   },
   {
    "land": "Malawi",
@@ -709,7 +713,7 @@
    "huvudstad": "Lilongwe",
    "lat": -13.9833,
    "lon": 33.7833,
-   "association": ""
+   "association": "Den som maler är LIten och LÅNG"
   },
   {
    "land": "Mocambique",
@@ -717,7 +721,7 @@
    "huvudstad": "Maputo",
    "lat": -25.9533,
    "lon": 32.5872,
-   "association": ""
+   "association": "Varelsen har ritat hela världskartan (MAP) med pennan och är nu på väg för att se vad som finns UTANför den"
   },
   {
    "land": "Madagaskar",
@@ -725,7 +729,7 @@
    "huvudstad": "Antananarivo",
    "lat": -18.9147,
    "lon": 47.5147,
-   "association": ""
+   "association": "ANTON och ANNA hjälper killen att RIVa Ost"
   },
   {
    "land": "Angola",
@@ -733,7 +737,7 @@
    "huvudstad": "Luanda",
    "lat": -8.8363,
    "lon": 13.2325,
-   "association": ""
+   "association": "Katten håller upp klon för att visa för ett inkommande flygplan var det ska LANDA"
   },
   {
    "land": "Kongo-Brazzaville",
@@ -749,7 +753,7 @@
    "huvudstad": "Libreville",
    "lat": 0.3854,
    "lon": 9.458,
-   "association": ""
+   "association": "Spöket ville egentligen aldrig bli spöke utan drömde om att öppna ett bibliotek (LIBRARY + VILLE)"
   },
   {
    "land": "Ekvatorialguinea",
@@ -757,7 +761,7 @@
    "huvudstad": "Malabo",
    "lat": 3.75,
    "lon": 8.7833,
-   "association": "",
+   "association": "En fågel använder den röda färgen på markören för att MÅLA sitt BO",
    "not": "Ny huvudstad Ciudad de la Paz byggs"
   },
   {
@@ -766,7 +770,7 @@
    "huvudstad": "Windhoek",
    "lat": -22.57,
    "lon": 17.0835,
-   "association": ""
+   "association": "En VIND blåser undan flugan som kameleonten försöker fånga så att den råkar fånga en HÖK istället"
   },
   {
    "land": "Zimbabwe",
@@ -774,7 +778,7 @@
    "huvudstad": "Harare",
    "lat": -17.8158,
    "lon": 31.0428,
-   "association": ""
+   "association": "Aladdin tar på sig ett par kaninöron för att försöka göra karriär som påsk-HARE istället"
   },
   {
    "land": "Botswana",
@@ -782,15 +786,15 @@
    "huvudstad": "Gaborone",
    "lat": -24.6463,
    "lon": 25.9119,
-   "association": ""
+   "association": "Ängeln GABRIEL RÅNAR personen på hennes boots"
   },
   {
    "land": "Sydafrika",
    "region": "afrika",
-   "huvudstad": "Pretoria",
+   "huvudstad": "Pretoria / Kapstaden / Bloemfontein",
    "lat": -25.705,
    "lon": 28.2275,
-   "association": "",
+   "association": "Giraffen sätter sig på en PRUTTkudde vilket får några pirater (KAPARE) att skratta så mycket att de trillar ner i en fontän fylld med blommor, en BLOM-FONTÄN",
    "not": "Tre huvudstäder: Pretoria (regering), Kapstaden (parlament), Bloemfontein (domstolar)"
   },
   {
@@ -799,7 +803,7 @@
    "huvudstad": "Mbabane",
    "lat": -26.3167,
    "lon": 31.1333,
-   "association": "",
+   "association": "Ut ur näsborren kommer till slut en BANAN",
    "not": "Kunglig och lagstiftande huvudstad: Lobamba"
   },
   {
@@ -808,7 +812,7 @@
    "huvudstad": "Victoria",
    "lat": -4.6166,
    "lon": 55.45,
-   "association": ""
+   "association": "Halsbandet är till magdaskarkillens älskade, som visar sig vara kronprinsessan VICTORIA"
   },
   {
    "land": "Komorerna",
@@ -816,7 +820,7 @@
    "huvudstad": "Moroni",
    "lat": -11.7042,
    "lon": 43.2402,
-   "association": ""
+   "association": "Korna bär på en stor MOROT"
   },
   {
    "land": "Mauritius",
@@ -824,7 +828,7 @@
    "huvudstad": "Port Louis",
    "lat": -20.1666,
    "lon": 57.5,
-   "association": ""
+   "association": "Mauri knackar med mikrofonen på en PORT och kung LOUIE från Djungelboken öppnar"
   },
   {
    "land": "Kap Verde",
@@ -832,7 +836,7 @@
    "huvudstad": "Praia",
    "lat": 14.9167,
    "lon": -23.5167,
-   "association": ""
+   "association": "Skeppsvraket tas över av en PIRAYA"
   },
   {
    "land": "Lesotho",
@@ -840,7 +844,7 @@
    "huvudstad": "Maseru",
    "lat": -29.3167,
    "lon": 27.4833,
-   "association": ""
+   "association": "Otto blir MASSERAD samtidigt som han läser"
   },
   {
    "land": "Indonesien",
@@ -848,7 +852,7 @@
    "huvudstad": "Jakarta",
    "lat": -6.1725,
    "lon": 106.8275,
-   "association": "",
+   "association": "Hur ska du hitta bland alla dessa öar? JA, en KARTA!",
    "not": "Ny huvudstad Nusantara byggs"
   },
   {
@@ -857,7 +861,7 @@
    "huvudstad": "Manama",
    "lat": 26.2361,
    "lon": 50.5831,
-   "association": ""
+   "association": "Hjärnan är modellerad av MANDELMASSA"
   },
   {
    "land": "Singapore",
@@ -873,7 +877,7 @@
    "huvudstad": "Kuala Lumpur",
    "lat": 3.1398,
    "lon": 101.6887,
-   "association": "",
+   "association": "Malen lyfter upp en KOALA i luften och dumpar den i en hög med LUMPOR",
    "not": "Regeringen sitter i Putrajaya"
   },
   {
@@ -882,7 +886,7 @@
    "huvudstad": "Manila",
    "lat": 14.6061,
    "lon": 120.9803,
-   "association": ""
+   "association": "Om man äter maten Filip bjuder på så mår MAN ILLA"
   },
   {
    "land": "Taiwan",
@@ -890,7 +894,7 @@
    "huvudstad": "Taipei",
    "lat": 25.0358,
    "lon": 121.5683,
-   "association": ""
+   "association": "För att betala på Taiwan måste du använda betaltjänsten TaiPay"
   },
   {
    "land": "Kina",
@@ -898,7 +902,7 @@
    "huvudstad": "Peking",
    "lat": 39.9017,
    "lon": 116.3942,
-   "association": ""
+   "association": "Hönan har ett PEKFINGer på sin ena vinge"
   },
   {
    "land": "Östtimor",
@@ -906,7 +910,7 @@
    "huvudstad": "Dili",
    "lat": -8.5594,
    "lon": 125.5795,
-   "association": ""
+   "association": "Timon sitter och gnager på ett stort knippe DILL"
   },
   {
    "land": "Burma",
@@ -914,7 +918,7 @@
    "huvudstad": "Naypyidaw",
    "lat": 19.7685,
    "lon": 96.1167,
-   "association": ""
+   "association": "Myrsloken vill bara äta myror men just idag ska den istället få lära sig decimaler på pi: NEJ, PI IDAG!"
   },
   {
    "land": "Thailand",
@@ -922,7 +926,7 @@
    "huvudstad": "Bangkok",
    "lat": 13.7519,
    "lon": 100.5147,
-   "association": ""
+   "association": "Du sätter in fjärilen på kontot på din BANK och banken ger oväntat OK för detta"
   },
   {
    "land": "Kambodja",
@@ -930,7 +934,7 @@
    "huvudstad": "Phnom Penh",
    "lat": 11.552,
    "lon": 104.9147,
-   "association": ""
+   "association": "Personen är väldigt nöjd eftersom han förutom kammen också håller en FENOMenal PENna"
   },
   {
    "land": "Vietnam",
@@ -938,7 +942,7 @@
    "huvudstad": "Hanoi",
    "lat": 21.0353,
    "lon": 105.8481,
-   "association": ""
+   "association": "Vietnam-killen smaskar väldigt högt och du blir irriterad (ANNOYED på engelska)"
   },
   {
    "land": "Laos",
@@ -946,16 +950,17 @@
    "huvudstad": "Vientiane",
    "lat": 17.9667,
    "lon": 102.6,
-   "association": ""
+   "association": "Vindkraftverket blåser VIN TILL ANDRA sidan jorden"
   },
   {
    "land": "Sri Lanka",
    "region": "asien",
-   "huvudstad": "Colombo",
-   "lat": 6.932,
-   "lon": 79.8578,
-   "association": "",
-   "not": "Officiell huvudstad: Sri Jayawardenepura Kotte"
+   "huvudstad": "Sri Jayawardenepura Kotte",
+   "lat": 6.9,
+   "lon": 79.95,
+   "association": "Du försöker trösta den som gråter och säger SORRY, det kommer då fram till att det inte var Laika som var orsaken till gråten utan en väldigt ren kotte, personen håller upp den och säger, JAJA, det VAR DENNA PURA KOTTE",
+   "not": "Officiell huvudstad; största staden och regeringens säte i praktiken: Colombo",
+   "kursnamn": "Sri Jayawardenapura Kotte"
   },
   {
    "land": "Indien",
@@ -963,7 +968,7 @@
    "huvudstad": "New Delhi",
    "lat": 28.6,
    "lon": 77.2,
-   "association": ""
+   "association": "Glassen har fått en ny (NEW) DEL I ena änden"
   },
   {
    "land": "Bangladesh",
@@ -971,7 +976,7 @@
    "huvudstad": "Dhaka",
    "lat": 23.725,
    "lon": 90.4066,
-   "association": ""
+   "association": "Du doppar Din HAKA i toalettstolen"
   },
   {
    "land": "Bhutan",
@@ -979,7 +984,7 @@
    "huvudstad": "Thimphu",
    "lat": 27.473,
    "lon": 89.639,
-   "association": ""
+   "association": "Du får bada i byttan till en mycket dyr TIMPEnning"
   },
   {
    "land": "Nepal",
@@ -987,7 +992,7 @@
    "huvudstad": "Katmandu",
    "lat": 27.7186,
    "lon": 85.3147,
-   "association": ""
+   "association": "Du använder alla pengarna från tjecken för att omvandla dig till en KATT-MAN, DU!"
   },
   {
    "land": "Afghanistan",
@@ -995,7 +1000,7 @@
    "huvudstad": "Kabul",
    "lat": 34.5186,
    "lon": 69.1813,
-   "association": ""
+   "association": "Mannen har med sig en KABEL under turbanen, så att han alltid kan ladda mobilen"
   },
   {
    "land": "Pakistan",
@@ -1003,7 +1008,7 @@
    "huvudstad": "Islamabad",
    "lat": 33.6894,
    "lon": 73.0806,
-   "association": ""
+   "association": "En IS-LAMA BADar i den stora högen med kläder"
   },
   {
    "land": "Tadzjikistan",
@@ -1011,7 +1016,7 @@
    "huvudstad": "Dusjanbe",
    "lat": 38.56,
    "lon": 68.7739,
-   "association": ""
+   "association": "Ted Gärdestad har gått med i en sekt och uppmanar dig att be: DU SKA BE"
   },
   {
    "land": "Kirgizistan",
@@ -1019,7 +1024,7 @@
    "huvudstad": "Bisjkek",
    "lat": 42.875,
    "lon": 74.5833,
-   "association": ""
+   "association": "Städerskan försöker hålla uppe humöret under kriget och uppmanar dig att vara (BE på engelska) TJÄCK!"
   },
   {
    "land": "Iran",
@@ -1027,7 +1032,7 @@
    "huvudstad": "Teheran",
    "lat": 35.6739,
    "lon": 51.4224,
-   "association": ""
+   "association": "Tänk dig att det var den här personen som tog med te-et till Asien och satte igång den stora TE-ERAN"
   },
   {
    "land": "Japan",
@@ -1035,7 +1040,7 @@
    "huvudstad": "Tokyo",
    "lat": 35.687,
    "lon": 139.7495,
-   "association": ""
+   "association": "Sluta spruta vatten i min panna, jag blir TOKIG JU!!"
   },
   {
    "land": "Ryssland",
@@ -1043,7 +1048,7 @@
    "huvudstad": "Moskva",
    "lat": 55.7541,
    "lon": 37.6136,
-   "association": ""
+   "association": "Någon kastade potatismos på flaggan och trots att de försökte göra rent den finns det fortfarande lite MOS KVAR längst till vänster"
   },
   {
    "land": "Nordkorea",
@@ -1051,7 +1056,8 @@
    "huvudstad": "Pyongyang",
    "lat": 39.0214,
    "lon": 125.7527,
-   "association": ""
+   "association": "Den övre kon spelar ping-PONG för att hålla sig ung (YOUNG)",
+   "kursnamn": "Pyong-yang"
   },
   {
    "land": "Sydkorea",
@@ -1059,15 +1065,15 @@
    "huvudstad": "Seoul",
    "lat": 37.5683,
    "lon": 126.9978,
-   "association": ""
+   "association": "Den undre kon lyssnar på SOUL-musik"
   },
   {
    "land": "Mongoliet",
    "region": "asien",
-   "huvudstad": "Ulaanbaatar",
+   "huvudstad": "Ulan Bator",
    "lat": 47.9186,
    "lon": 106.9147,
-   "association": ""
+   "association": "MULAN simmar runt i spyan och Brottas med en alligATOR"
   },
   {
    "land": "Maldiverna",
@@ -1075,7 +1081,7 @@
    "huvudstad": "Malé",
    "lat": 4.172,
    "lon": 73.5089,
-   "association": ""
+   "association": "Dykaren övar på opera under vattnet, som MALEna Ernman"
   },
   {
    "land": "Brunei",
@@ -1083,7 +1089,7 @@
    "huvudstad": "Bandar Seri Begawan",
    "lat": 4.8833,
    "lon": 114.9333,
-   "association": ""
+   "association": "Du hjälper fjärilen med plåstret och BANDAR extra med ett förband också, ifall det skulle vara en SERIös skada, det funkar och ni båda kommer i mål och vinner tävlingen – ni BÄGGE VANN"
   },
   {
    "land": "Kazakstan",
@@ -1091,7 +1097,7 @@
    "huvudstad": "Astana",
    "lat": 51.1811,
    "lon": 71.4278,
-   "association": ""
+   "association": "Mästertjuven tappar kontrollen över sitt verktyg och råkar borra sig igenom hela banken: AH! STANNA!"
   },
   {
    "land": "Uzbekistan",
@@ -1099,7 +1105,7 @@
    "huvudstad": "Tasjkent",
    "lat": 41.3038,
    "lon": 69.2688,
-   "association": ""
+   "association": "Grävmaskinisten håller på att bygga en staty av bandet Kent, som ett tack för musiken: TACK KENT"
   },
   {
    "land": "Turkmenistan",
@@ -1107,7 +1113,7 @@
    "huvudstad": "Asjchabad",
    "lat": 37.95,
    "lon": 58.3833,
-   "association": ""
+   "association": "Sultanen går med på att alla hans män ska få bada i Kaspiska havet: ÄSCH, TJA, BAD går väl bra!"
   },
   {
    "land": "Georgien",
@@ -1115,7 +1121,7 @@
    "huvudstad": "Tbilisi",
    "lat": 41.727,
    "lon": 44.7888,
-   "association": ""
+   "association": "Du vill inte kyssa George och föreslår att han ska BE LISA istället"
   },
   {
    "land": "Azerbajdzjan",
@@ -1123,7 +1129,7 @@
    "huvudstad": "Baku",
    "lat": 40.3972,
    "lon": 49.8603,
-   "association": ""
+   "association": "Hönan BACKAR UT ur hönsgården"
   },
   {
    "land": "Armenien",
@@ -1131,7 +1137,7 @@
    "huvudstad": "Jerevan",
    "lat": 40.1831,
    "lon": 44.5116,
-   "association": ""
+   "association": "Soldaten körs av musen JERRY i en VAN"
   },
   {
    "land": "Irak",
@@ -1139,7 +1145,7 @@
    "huvudstad": "Bagdad",
    "lat": 33.3406,
    "lon": 44.3919,
-   "association": ""
+   "association": "Jultomten (din pappa – DAD – som har klätt ut sig) kommer in med paketet i en säck (BAG): BAG + DAD"
   },
   {
    "land": "Saudiarabien",
@@ -1147,7 +1153,7 @@
    "huvudstad": "Riyadh",
    "lat": 24.6345,
    "lon": 46.7205,
-   "association": ""
+   "association": "Du RED på en kamel genom öknen för att få tag i pergamentrullen"
   },
   {
    "land": "Jordanien",
@@ -1155,7 +1161,7 @@
    "huvudstad": "Amman",
    "lat": 31.952,
    "lon": 35.9314,
-   "association": ""
+   "association": "AMMAN har blivit trött och matar barnet med jord istället för mjölk"
   },
   {
    "land": "Libanon",
@@ -1163,7 +1169,7 @@
    "huvudstad": "Beirut",
    "lat": 33.8739,
    "lon": 35.5078,
-   "association": ""
+   "association": "Baseball-legendaren BABE RUTH övar genom att slå iväg limabönor istället för basebollar"
   },
   {
    "land": "Syrien",
@@ -1171,7 +1177,7 @@
    "huvudstad": "Damaskus",
    "lat": 33.502,
    "lon": 36.2981,
-   "association": ""
+   "association": "Ett par DAMASKER fräts sönder i syrabadet"
   },
   {
    "land": "Palestina",
@@ -1179,7 +1185,7 @@
    "huvudstad": "Ramallah",
    "lat": 31.9038,
    "lon": 35.2034,
-   "association": "",
+   "association": "Någon sätter en RAM runt ALLA pallar",
    "not": "Administrativt centrum; Palestina gör anspråk på Östra Jerusalem"
   },
   {
@@ -1188,7 +1194,7 @@
    "huvudstad": "Jerusalem",
    "lat": 31.7784,
    "lon": 35.2066,
-   "association": "",
+   "association": "JAG RUSAR HEM när jag ser ishackan",
    "not": "Omstritt; de flesta ambassader ligger i Tel Aviv"
   },
   {
@@ -1197,7 +1203,8 @@
    "huvudstad": "Kuwait City",
    "lat": 29.3717,
    "lon": 47.9764,
-   "association": ""
+   "association": "",
+   "kursnamn": "Kuwait"
   },
   {
    "land": "Qatar",
@@ -1205,7 +1212,7 @@
    "huvudstad": "Doha",
    "lat": 25.2866,
    "lon": 51.533,
-   "association": ""
+   "association": "Katten står i bakgrunden och sjunger i en DOA-kör"
   },
   {
    "land": "Förenade Arabemiraten",
@@ -1213,7 +1220,7 @@
    "huvudstad": "Abu Dhabi",
    "lat": 24.4667,
    "lon": 54.3666,
-   "association": ""
+   "association": "Fågeln är på auktion och ett bi flyger förbi, fågeln skriker då till och börjar buda på biet: AH! BUDA BI!"
   },
   {
    "land": "Oman",
@@ -1221,7 +1228,7 @@
    "huvudstad": "Muskat",
    "lat": 23.5852,
    "lon": 58.3783,
-   "association": ""
+   "association": "Oscarsstatyetten går till Tom & Jerry, en MUS och en KATT"
   },
   {
    "land": "Jemen",
@@ -1229,7 +1236,8 @@
    "huvudstad": "Sanaa",
    "lat": 15.3567,
    "lon": 44.2046,
-   "association": ""
+   "association": "SANNA är den som egentligen äger bägge pyramiderna",
+   "kursnamn": "Sana"
   },
   {
    "land": "Kanada",
@@ -1237,7 +1245,7 @@
    "huvudstad": "Ottawa",
    "lat": 45.4186,
    "lon": -75.702,
-   "association": ""
+   "association": "Personen broderar in en ÅTTA på sin jackärm"
   },
   {
    "land": "USA",
@@ -1245,7 +1253,7 @@
    "huvudstad": "Washington D.C.",
    "lat": 38.9015,
    "lon": -77.0114,
-   "association": ""
+   "association": "Du tvättar flaggan i en tvättmaskin (WASHING machine)"
   },
   {
    "land": "Haiti",
@@ -1253,7 +1261,8 @@
    "huvudstad": "Port-au-Prince",
    "lat": 18.543,
    "lon": -72.338,
-   "association": ""
+   "association": "IT-killen lyckas programmera fram en PORTAL där han kan livechatta med artisten PRINCE",
+   "kursnamn": "Port au Prince"
   },
   {
    "land": "Dominikanska Republiken",
@@ -1261,7 +1270,7 @@
    "huvudstad": "Santo Domingo",
    "lat": 18.4707,
    "lon": -69.9297,
-   "association": ""
+   "association": "Elefanten blåser ut en massa SAND ur snabeln, rakt på en FLAMINGO"
   },
   {
    "land": "Jamaica",
@@ -1269,7 +1278,7 @@
    "huvudstad": "Kingston",
    "lat": 17.9771,
    "lon": -76.7674,
-   "association": ""
+   "association": "Katten är jättestark och lyfter ett ton, vilket gör att den blir utsedd till kung: KING + TON"
   },
   {
    "land": "Kuba",
@@ -1277,7 +1286,7 @@
    "huvudstad": "Havanna",
    "lat": 23.1339,
    "lon": -82.3661,
-   "association": ""
+   "association": "Någon som heter Anna tar cigarren och kastar den i havet: HAV + ANNA"
   },
   {
    "land": "Mexiko",
@@ -1285,7 +1294,7 @@
    "huvudstad": "Mexico City",
    "lat": 19.4444,
    "lon": -99.1329,
-   "association": ""
+   "association": "Du beställer en tortillarulle inne i CITY"
   },
   {
    "land": "Belize",
@@ -1293,7 +1302,7 @@
    "huvudstad": "Belmopan",
    "lat": 17.252,
    "lon": -88.7671,
-   "association": ""
+   "association": "När Barts förslag om att “Be Lisa” inte funkar föreslår han först muppen Elmo och sedan Peter Pan: BE ELMO… PAN…?"
   },
   {
    "land": "Guatemala",
@@ -1301,7 +1310,7 @@
    "huvudstad": "Guatemala City",
    "lat": 14.6231,
    "lon": -90.5289,
-   "association": ""
+   "association": "Personen maler te till en hel stad (CITY)"
   },
   {
    "land": "El Salvador",
@@ -1309,7 +1318,7 @@
    "huvudstad": "San Salvador",
    "lat": 13.7033,
    "lon": -89.2156,
-   "association": ""
+   "association": "De råkar hälla ut salvan i sanden: SAND, SALVA DÄR!"
   },
   {
    "land": "Honduras",
@@ -1317,7 +1326,7 @@
    "huvudstad": "Tegucigalpa",
    "lat": 14.104,
    "lon": -87.2195,
-   "association": ""
+   "association": "Gumman i skottkärran funderar på om hon kan sno lite av det malda teet för att hjälpa henne att finansiera köpet av en Gucci-väska: Kan TE GUCCI HJÄLPA?"
   },
   {
    "land": "Nicaragua",
@@ -1325,7 +1334,7 @@
    "huvudstad": "Managua",
    "lat": 12.155,
    "lon": -86.2704,
-   "association": ""
+   "association": "Killen nickar och tänker “Jag är en MAN, jag är en MAN!”"
   },
   {
    "land": "Costa Rica",
@@ -1333,7 +1342,7 @@
    "huvudstad": "San José",
    "lat": 9.9304,
    "lon": -84.0788,
-   "association": ""
+   "association": "Agenten missar de rika och träffar ett paket apelsinjuice istället, juicen rinner ut i sanden och blir SAND-JUICE"
   },
   {
    "land": "Panama",
@@ -1341,7 +1350,8 @@
    "huvudstad": "Panama City",
    "lat": 8.97,
    "lon": -79.535,
-   "association": ""
+   "association": "Pannbandet kanske i sin tur är iklätt ett litet PANNBAND till",
+   "kursnamn": "Panama"
   },
   {
    "land": "Argentina",
@@ -1349,15 +1359,16 @@
    "huvudstad": "Buenos Aires",
    "lat": -34.6107,
    "lon": -58.4325,
-   "association": ""
+   "association": "Doktorn punkterar killens öga för att få ut kycklingklubban, “*god luft*” kommer ut ur det",
+   "kursnamn": "Buenos Aíres"
   },
   {
    "land": "Chile",
    "region": "sydamerika",
-   "huvudstad": "Santiago",
+   "huvudstad": "Santiago de Chile",
    "lat": -33.4402,
    "lon": -70.6505,
-   "association": ""
+   "association": "Det är *sant, jag åt Chile!*"
   },
   {
    "land": "Uruguay",
@@ -1365,7 +1376,7 @@
    "huvudstad": "Montevideo",
    "lat": -34.9054,
    "lon": -56.1868,
-   "association": ""
+   "association": "Vi *monte*rar fast en *video*apparat på uret"
   },
   {
    "land": "Paraguay",
@@ -1373,7 +1384,7 @@
    "huvudstad": "Asunción",
    "lat": -25.2907,
    "lon": -57.6258,
-   "association": ""
+   "association": "Fostret är *en sund son* (på skånska)."
   },
   {
    "land": "Brasilien",
@@ -1381,15 +1392,16 @@
    "huvudstad": "Brasília",
    "lat": -15.7814,
    "lon": -47.918,
-   "association": ""
+   "association": "Du har spetsat en *bra sill, ja*, på lejonets morrhår",
+   "kursnamn": "Brasilia"
   },
   {
    "land": "Bolivia",
    "region": "sydamerika",
-   "huvudstad": "Sucre",
+   "huvudstad": "Sucre / La Paz",
    "lat": -19.041,
    "lon": -65.2595,
-   "association": "",
+   "association": "Urnan är full med *socker* / Du har gömt din kompis *pass* i urnan",
    "not": "Regeringen sitter i La Paz"
   },
   {
@@ -1398,7 +1410,7 @@
    "huvudstad": "Lima",
    "lat": -12.0461,
    "lon": -77.052,
-   "association": ""
+   "association": "Bergsbestigaren har ett *lim*stift i bältet"
   },
   {
    "land": "Ecuador",
@@ -1406,7 +1418,7 @@
    "huvudstad": "Quito",
    "lat": -0.213,
    "lon": -78.502,
-   "association": ""
+   "association": "Du försöker stänga av vattenslangen, “make it *quit*”"
   },
   {
    "land": "Colombia",
@@ -1414,7 +1426,7 @@
    "huvudstad": "Bogotá",
    "lat": 4.5984,
    "lon": -74.0853,
-   "association": ""
+   "association": "Kon har dukat upp en buffé och det är *ba’ å gå å ta!*"
   },
   {
    "land": "Venezuela",
@@ -1422,7 +1434,7 @@
    "huvudstad": "Caracas",
    "lat": 10.5029,
    "lon": -66.919,
-   "association": ""
+   "association": "Vännen har en *maracas* i håret"
   },
   {
    "land": "Guyana",
@@ -1430,7 +1442,7 @@
    "huvudstad": "Georgetown",
    "lat": 6.802,
    "lon": -58.167,
-   "association": ""
+   "association": "Djungel-*George* klättrar runt i korset"
   },
   {
    "land": "Surinam",
@@ -1438,7 +1450,7 @@
    "huvudstad": "Paramaribo",
    "lat": 5.835,
    "lon": -55.167,
-   "association": ""
+   "association": "Surfiluren viftar med *para* för att muta *Mari* att få *bo* hos henne"
   },
   {
    "land": "Franska Guyana",
@@ -1446,7 +1458,7 @@
    "huvudstad": "Cayenne",
    "lat": 4.9224,
    "lon": -52.3135,
-   "association": "",
+   "association": "Vi kryddar snigeln med *cayenne*peppar",
    "not": "Franskt departement, inte självständigt land"
   },
   {
@@ -1455,7 +1467,7 @@
    "huvudstad": "Canberra",
    "lat": -35.283,
    "lon": 149.129,
-   "association": ""
+   "association": "För att klara sig i ödemarken har pionjären en burk (CAN) med bär (BERRIES) i fickan"
   },
   {
    "land": "Nya Zeeland",
@@ -1463,7 +1475,7 @@
    "huvudstad": "Wellington",
    "lat": -41.2921,
    "lon": 174.7772,
-   "association": ""
+   "association": "Staven är inlindad med WELLpapp men väger ändå ett TON"
   },
   {
    "land": "Samoa",
@@ -1471,7 +1483,7 @@
    "huvudstad": "Apia",
    "lat": -13.8357,
    "lon": -171.7686,
-   "association": ""
+   "association": "Moa ber om hjälp men hennes mamma säger bara till henne att sluta APA sig"
   },
   {
    "land": "Fiji",
@@ -1479,7 +1491,7 @@
    "huvudstad": "Suva",
    "lat": -18.133,
    "lon": 178.4417,
-   "association": ""
+   "association": "Pudeln har tråkigt nog drabbats av kraftig SNUVA lagom till semestern"
   },
   {
    "land": "Tonga",
@@ -1487,7 +1499,8 @@
    "huvudstad": "Nuku'alofa",
    "lat": -21.1385,
    "lon": -175.2206,
-   "association": ""
+   "association": "NU tar tången upp ett Q för det hAr den LOVAt",
+   "kursnamn": "Nuku’alofa"
   },
   {
    "land": "Tuvalu",
@@ -1495,7 +1508,7 @@
    "huvudstad": "Funafuti",
    "lat": -8.5167,
    "lon": 179.2166,
-   "association": ""
+   "association": "Ett par FULA FÖTTER trampar på tuvan"
   },
   {
    "land": "Nauru",
@@ -1503,7 +1516,7 @@
    "huvudstad": "Yaren",
    "lat": -0.5467,
    "lon": 166.9209,
-   "association": "",
+   "association": "Hammaren slår sönder burken (JAR på engelska, så “JAREN” på svengelska)",
    "not": "Ingen officiell huvudstad; regeringen sitter i Yaren"
   },
   {
@@ -1512,7 +1525,7 @@
    "huvudstad": "Honiara",
    "lat": -9.438,
    "lon": 159.9498,
-   "association": ""
+   "association": "Kungen ska välja ut någon att gifta sig med och väljer “HON som är iklädd (papegojsorten) ARA”"
   },
   {
    "land": "Marshallöarna",
@@ -1520,7 +1533,7 @@
    "huvudstad": "Majuro",
    "lat": 7.103,
    "lon": 171.38,
-   "association": ""
+   "association": "Marshallen tänds av en MAJOR"
   },
   {
    "land": "Mikronesien",
@@ -1528,7 +1541,7 @@
    "huvudstad": "Palikir",
    "lat": 6.9166,
    "lon": 158.15,
-   "association": ""
+   "association": "Dinosaurien försöker sno PALLen för att förvara sin KIR på den"
   },
   {
    "land": "Palau",
@@ -1536,15 +1549,15 @@
    "huvudstad": "Ngerulmud",
    "lat": 7.4874,
    "lon": 134.6265,
-   "association": ""
+   "association": "Nya Zeeland GER pallen en dyna av ULL för att täcka fläcken av lera (MUD) på den"
   },
   {
    "land": "Kiribati",
    "region": "oceanien",
-   "huvudstad": "Sydtarawa",
+   "huvudstad": "Södra Tarawa",
    "lat": 1.3382,
    "lon": 173.0176,
-   "association": ""
+   "association": "Fladdermusen är så hungrig att den flyger till de SÖDRA delarna av Stilla havet och TAR ett par RÄVAR som simmar där"
   },
   {
    "land": "Vanuatu",
@@ -1552,7 +1565,7 @@
    "huvudstad": "Port Vila",
    "lat": -17.7334,
    "lon": 168.3166,
-   "association": ""
+   "association": "Prinsen hade bara lagt sig vid PORTen för att VILA, och nu detta?!"
   },
   {
    "land": "Papua Nya Guinea",
@@ -1560,7 +1573,7 @@
    "huvudstad": "Port Moresby",
    "lat": -9.4647,
    "lon": 147.1925,
-   "association": ""
+   "association": "Dinosaurien står i en hamn (PORT) och slår med svansen för att skicka MORSE-signaler till en närliggande BY"
   },
   {
    "land": "Antigua & Barbuda",
@@ -1568,7 +1581,8 @@
    "huvudstad": "Saint John's",
    "lat": 17.118,
    "lon": -61.85,
-   "association": ""
+   "association": "Gubben som budar heter JOHN och vill att den heliga statyn ska bli hans",
+   "kursnamn": "Saint John’s"
   },
   {
    "land": "Saint Kitts & Nevis",
@@ -1576,7 +1590,7 @@
    "huvudstad": "Basseterre",
    "lat": 17.302,
    "lon": -62.717,
-   "association": ""
+   "association": "Katten blir jagad av en hund som heter BUSTER (uttala på engelska)"
   },
   {
    "land": "Dominica",
@@ -1584,7 +1598,7 @@
    "huvudstad": "Roseau",
    "lat": 15.301,
    "lon": -61.387,
-   "association": ""
+   "association": "Domaren har inga lagböcker, utan bara filosofiska skrifter av filosofen ROSSEAU"
   },
   {
    "land": "Saint Lucia",
@@ -1592,7 +1606,7 @@
    "huvudstad": "Castries",
    "lat": 14.0079,
    "lon": -60.9929,
-   "association": ""
+   "association": "Lucian KASTRERAR alla som kritiserar valet av henne som Lucia"
   },
   {
    "land": "Trinidad & Tobago",
@@ -1600,7 +1614,7 @@
    "huvudstad": "Port of Spain",
    "lat": 10.652,
    "lon": -61.517,
-   "association": ""
+   "association": "Tänk dig att pappan öppnar en PORT TILL SPANIEN som det kommer en massa tjurar springande ut ur"
   },
   {
    "land": "Saint Vincent & Grenadinerna",
@@ -1608,7 +1622,7 @@
    "huvudstad": "Kingstown",
    "lat": 13.1558,
    "lon": -61.2202,
-   "association": ""
+   "association": "Tänk dig att KUNG Carl XVI Gustaf är ditmålad på tavlan och tittar ut över den målade STADEN"
   },
   {
    "land": "Barbados",
@@ -1616,7 +1630,7 @@
    "huvudstad": "Bridgetown",
    "lat": 13.102,
    "lon": -59.6165,
-   "association": ""
+   "association": "Baren ligger mitt på en BRO (som är full med ölstop) i en liten STAD"
   },
   {
    "land": "Grenada",
@@ -1624,7 +1638,8 @@
    "huvudstad": "St. George's",
    "lat": 12.0526,
    "lon": -61.7416,
-   "association": ""
+   "association": "Polkagrisen tillhör Djungel-George, den är GEORGES",
+   "kursnamn": "St. Georges"
   },
   {
    "land": "Bahamas",
@@ -1632,7 +1647,7 @@
    "huvudstad": "Nassau",
    "lat": 25.0834,
    "lon": -77.35,
-   "association": ""
+   "association": "NASSE äter upp alla bananerna"
   }
  ]
 }
