@@ -179,7 +179,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '77';
+const V = '78';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -202,6 +202,11 @@ const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
 const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=4');
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
+// världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
+// i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)
+const USA_REMSA_GID = 1999;
+// havsmasken runt USA: döljer delstatskonst som hamnat utanför kusten
+const USA_MASK_GID = 1998;
 let usaLaddad = null;   // promise: klickytor/markörer/gränser + kartlager
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
@@ -342,6 +347,9 @@ function laddaUsa() {
       fetchJson('assets/usa-borders.json?v=' + V),
     ]);
     for (const f of reg.features) {
+      // dekordelar (konst målad i havet) delar id med sin delstat men
+      // huvudfeaturen ska äga uppslagen; remsorna är ingen delstat alls
+      if (f.properties.dekor || f.properties.remsa || f.properties.mask) continue;
       featureByFilename.set(f.properties.key.split('/')[1], f);
       featureByGid.set(f.id, f);
     }
@@ -359,11 +367,16 @@ function laddaUsa() {
       l.layout = Object.assign(l.layout || {}, { visibility: 'none' });
       map.addLayer(l, fore);
     };
-    // delstatskonst OCH delstatstäcke läggs UNDER världens gränslinjer:
-    // världens kust- och landsgränslinjer (USA/Kanada, Rio Grande) ritas
-    // ovanpå och är delstaternas ytterlinje både avslöjat och täckt —
-    // usa-borders innehåller bara delstat↔delstat, inga yttre kanter
+    // delstatskonsten läggs under världens täcke (grannarnas gröna yta
+    // döljer konst som spiller över gränsen), delstatstäcket ovanpå det.
+    // Täcket är klippt till världens målade USA-yta och usa-borders har en
+    // yttre kontur ur samma geometri; världens linjer längs USA-kanten
+    // (usakant) släcks i regionen, så varje kant får exakt en linje
     klona('art', 'usa-art', 'usa-art', 'cover');
+    // havsfärg över konstrester utanför kusten (direkt ovanpå konsten)
+    map.addLayer({ id: 'usa-mask', type: 'fill', source: 'usa-regioner',
+      filter: ['==', ['get', 'mask'], 1], layout: { visibility: 'none' },
+      paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'cover');
     klona('cover', 'usa-cover', 'usa-regioner', 'borders');
     klona('borders', 'usa-granser', 'usa-borders');
     klona('prickar', 'usa-prickar', 'usa-markorer');
@@ -382,10 +395,13 @@ function laddaUsa() {
   return forsok;
 }
 function visaUsaLager(pa) {
-  for (const id of ['usa-art', 'usa-cover', 'usa-granser', 'usa-prickar']) {
+  for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-granser', 'usa-prickar']) {
     try { map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none'); }
     catch (e) { /* lagren finns inte förrän laddaUsa körts */ }
   }
+  // världens USA-kontur ersätts av delstaternas egen yttre kontur
+  try { map.setFilter('borders', pa ? ['!=', ['get', 'usakant'], 1] : null); }
+  catch (e) {}
 }
 // klick och hover frågar delstatslagren FÖRST när regionen är aktiv —
 // de ligger överst och äger då USA-ytan
@@ -399,7 +415,8 @@ function spelLager() {
 function spelTraffar(hits) {
   if (aktivSlug !== 'usa') return hits;
   const uv = featureByFilename.get('usa');
-  return uv ? hits.filter(h => h.id !== uv.id) : hits;
+  return hits.filter(h => h.id !== USA_REMSA_GID && h.id !== USA_MASK_GID &&
+                          (!uv || h.id !== uv.id));
 }
 
 // Cirkeln har FAST storlek på kartan (geografiskt förankrad — den zoomar
@@ -1962,11 +1979,12 @@ async function startRegion(slug, flyg, delId) {
   }
   if (slug === 'usa') {
     for (const gid of aktivByGid.keys()) setLand(gid, { gron: false, tackt: true });
-    // världens USA-yta visar sin KONST (varken grön eller täckt) — där
-    // delstatslagren inte når (avlägsna öar som Kodiak) syns då samma
-    // teckning som i världsvyn i stället för gröna fläckar
+    // världens USA-yta är genomskinlig: dess täcke ligger OVANPÅ
+    // delstatskonsten och får inte skymma den. Delstatstäcket täcker hela
+    // ytan inom USA; läckaget in i Mexiko målas grönt som grannlandet
     const usaVarld = featureByFilename.get('usa');
     if (usaVarld) setLand(usaVarld.id, { gron: false, tackt: false });
+    setLand(USA_REMSA_GID, { gron: true, tackt: false });
   }
   // väggkartan bakas ur världsarkivet och känner inte delstaterna — göm
   // det vyvalet i delstatsregionen (globen + originalkartan räcker gott)
