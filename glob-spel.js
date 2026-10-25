@@ -184,7 +184,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '79';
+const V = '80';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -401,8 +401,9 @@ function laddaUsa() {
 }
 function visaUsaLager(pa) {
   for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-granser', 'usa-prickar']) {
-    try { map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none'); }
-    catch (e) { /* lagren finns inte förrän laddaUsa körts */ }
+    // lagren finns inte förrän laddaUsa körts (MapLibre loggar ett fel i
+    // stället för att kasta, så kolla först)
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none');
   }
   // världens USA-kontur ersätts av delstaternas egen yttre kontur
   try { map.setFilter('borders', pa ? ['!=', ['get', 'usakant'], 1] : null); }
@@ -1231,11 +1232,12 @@ function composeFlat() {
   for (const f of regionsGj.features) {
     const t = landState(f.id);
     // havs-badges och dekordelar (Malaysias ansikte) döljs i havsfärg när
-    // landet är täckt eller kvittofärgat — de har ingen landform att visa
-    const havBadge = (f.properties.badge === 1 && f.properties.hav === 1) ||
-                     f.properties.dekor === 1;
+    // landet är täckt eller kvittofärgat — de har ingen landform att visa.
+    // Dekordelar blinkar inte heller vid felklick/tips (samma som globen)
+    const havBadge = f.properties.badge === 1 && f.properties.hav === 1;
     let color = null, alpha = 1;
-    if (t.fel) { color = ROD; alpha = 0.92; }
+    if (f.properties.dekor === 1) { if (t.gron || t.tackt || t.svar) color = SJO; }
+    else if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
     else if (havBadge) { if (t.gron || t.tackt || t.svar) color = SJO; }
     else if (t.hover) {
@@ -1351,6 +1353,11 @@ function flatHit(ev) {
   // ÖVERST ritade featuren, och ritordningen är filordningen
   for (let fi = regionsGj.features.length - 1; fi >= 0; fi--) {
     const f = regionsGj.features[fi];
+    // dekordelar är hav medan konsten är dold (som spelTraffar på globen)
+    if (f.properties.dekor) {
+      const t = landState(f.id);
+      if (t.tackt || t.gron || (t.svar || 0) >= 1) continue;
+    }
     let inside = false;
     for (const poly of f.geometry.coordinates) {
       for (const ring of poly) {

@@ -104,9 +104,10 @@ python3 postprocess-usa-data.py   # OBS: alltid efteråt! (~6 min)
 
 Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
 och bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
-delstat; sömhål mellan två delstater delas längs gränslinjen. Konst målad
-i havet (North Carolinas fartstreck, Alaskas svans i Berings hav) blir
-dekor-features med samma id som delstaten. Världens USA-yta i Mexiko och
+delstat; sömhål mellan delstater delas längs delstatslinjen där den går
+genom hålet, annars går hålet till delstaten på samma sida om linjen.
+Konst målad i havet (North Carolinas fartstreck, Alaskas svans i Berings
+hav) blir dekor-features med samma id som delstaten. Världens USA-yta i Mexiko och
 de smala glipor där världens USA-yta och grannländerna inte möts blir en
 grön remsa (gid 1999), och en havsmask (gid 1998) döljer konstrester runt
 kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma
@@ -115,8 +116,11 @@ art-borders.json flyttas till en egen feature (`usakant: 1`) som spelet
 släcker i delstatsregionen. ⚠️ Delstatsdelen görs bara på rå
 make-tiles-data: är usa-regions.json redan efterbearbetad hoppar skriptet
 över den. Har världskartan bakats om sedan dess avbryter skriptet (havs-
-masken bär en summa av världens USA-yta) — kör då `--dataset usa`-
-exporten igen först. Bumpa `V` i glob-spel.js och glob.html efteråt.
+masken bär en summa av världens USA-yta och grannländerna runt den) — kör
+då `--dataset usa`-exporten igen först. Skriptet skriver också om
+usa-markers.json: Hawaiis omfång mäts på öarna i stället för på havs-
+konsten, så öarna får en klickprick i översiktsvyerna. Bumpa `V` i
+glob-spel.js och glob.html efteråt.
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
