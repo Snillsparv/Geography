@@ -17,6 +17,11 @@ const ROD = '#e05252';         // felklick
 // i kvittofärgen — bilden är redan avklarad och färgen är facit.
 // index = antal försök (1 = rätt direkt), 4 täcker även fler försök
 const SVAR_FARG = [null, '#1f7a3c', '#ffdc32', '#ff8c2e', '#e05252'];
+// 1 när landets bild är dold (täckt, grönt eller kvittofärgat), annars 0:
+// havsfärgen över konst ute i havet (havs-badges, dekordelar) följer den
+const DOLD_KONST = ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
+                                    ['boolean', ['feature-state', 'tackt'], false],
+                                    ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1, 0];
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 const KAMERA = {
@@ -179,7 +184,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '78';
+const V = '79';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -411,12 +416,20 @@ function spelLager() {
     : ['prickar', 'former', 'cover'];
 }
 // i delstatsregionen är världens USA-yta bara kuliss (konst under delstats-
-// lagren) — träffar på den räknas som hav, aldrig som svar eller hover
+// lagren) — träffar på den räknas som hav, aldrig som svar eller hover.
+// Detsamma gäller dekordelar (konst målad i havet) så länge konsten är dold:
+// då är de havsfärgade och ett klick där är ett klick i havet
 function spelTraffar(hits) {
-  if (aktivSlug !== 'usa') return hits;
-  const uv = featureByFilename.get('usa');
-  return hits.filter(h => h.id !== USA_REMSA_GID && h.id !== USA_MASK_GID &&
-                          (!uv || h.id !== uv.id));
+  const usa = aktivSlug === 'usa';
+  const uv = usa ? featureByFilename.get('usa') : null;
+  return hits.filter(h => {
+    if (usa && (h.id === USA_REMSA_GID || h.id === USA_MASK_GID || (uv && h.id === uv.id))) return false;
+    if (h.properties && h.properties.dekor) {
+      const t = landState(h.id);
+      if (t.tackt || t.gron || (t.svar || 0) >= 1) return false;
+    }
+    return true;
+  });
 }
 
 // Cirkeln har FAST storlek på kartan (geografiskt förankrad — den zoomar
@@ -668,11 +681,13 @@ function initMap() {
             // klick. Havs-badges hålls havsfärgade även vid hover (deras
             // cirkel lyser i stället).
             'fill-color': ['case',
+              // dekordelar blinkar aldrig rött/gult: medan konsten är dold
+              // är de hav, och felklick/tips ska inte rita fram dem som
+              // ränder ute i havet (North Carolinas fartstreck, Alaskas svans)
+              ['==', ['get', 'dekor'], 1], '#123050',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
-              ['any',
-                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
-                ['==', ['get', 'dekor'], 1]], '#123050',
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#123050',
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['boolean', ['feature-state', 'gron'], false], LJUSGRON,
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
@@ -685,16 +700,13 @@ function initMap() {
               ['>=', ['coalesce', ['feature-state', 'svar'], 0], 4], SVAR_FARG[4],
               TACK],
             'fill-opacity': ['case',
-              ['boolean', ['feature-state', 'fel'], false], 0.92,
-              ['boolean', ['feature-state', 'tips'], false], 0.92,
               // havs-badges/dekordelar döljs i havet även när landet fått
               // sin kvittofärg — bara den riktiga formen ska bära färgen
-              ['any',
-                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
-                ['==', ['get', 'dekor'], 1]],
-                ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
-                                 ['boolean', ['feature-state', 'tackt'], false],
-                                 ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1, 0],
+              // (dekor även under felblink/tips, se fill-color)
+              ['==', ['get', 'dekor'], 1], DOLD_KONST,
+              ['boolean', ['feature-state', 'fel'], false], 0.92,
+              ['boolean', ['feature-state', 'tips'], false], 0.92,
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], DOLD_KONST,
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
                                  ['boolean', ['feature-state', 'tackt'], false]], 1, 0.25],
@@ -714,15 +726,14 @@ function initMap() {
             'line-color': '#123050',
             'line-width': 3,
             'line-opacity': ['case',
+              // dekordelarna förblir hav vid felblink/tips/hover — fransen
+              // ska fortsätta döljas
+              ['==', ['get', 'dekor'], 1], DOLD_KONST,
               ['any',
                 ['boolean', ['feature-state', 'fel'], false],
                 ['boolean', ['feature-state', 'tips'], false],
                 ['boolean', ['feature-state', 'hover'], false]], 0,
-              ['any',
-                ['boolean', ['feature-state', 'tackt'], false],
-                ['boolean', ['feature-state', 'gron'], false],
-                ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1,
-              0],
+              DOLD_KONST],
           },
           layout: { 'line-join': 'round' } },
         // badge-ländernas RIKTIGA Natural Earth-form: medan landet är
@@ -2309,7 +2320,7 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
