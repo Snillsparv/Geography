@@ -184,7 +184,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '80';
+const V = '81';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -1254,7 +1254,8 @@ function composeFlat() {
     flatCtx.fillStyle = color;
     traceFeature(flatCtx, f);
     flatCtx.fill('evenodd');
-    if (havBadge && !t.fel && !t.tips) {
+    // (dolda dekordelar har alltid havsfärg, så de stryks även vid fel/tips)
+    if ((havBadge && !t.fel && !t.tips) || f.properties.dekor === 1) {
       // svälj bildens antialiasing-frans strax utanför klickytan
       flatCtx.strokeStyle = color;
       flatCtx.lineWidth = 3;

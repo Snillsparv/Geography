@@ -24,7 +24,8 @@ Här görs det på samma sätt som världskartan:
    instängda remsor av en delstat inne i grannens yta
    (Illinois-strecket i Wisconsins del av Michigansjön) går till grannen.
    Världens USA-yta blir då täckt utan hål (överlapp som finns i själva
-   konsten, ett par hundradels kvadratgrader, ligger kvar).
+   konsten ligger kvar: 0,25 kvadratgrader fördelat på ett hundratal
+   grannpar, som mest drygt en hundradel per par).
 2. DEKOR. Konst som ligger ute i havet blir egna features med dekor: 1
    (samma id → samma feature-state). Spelet målar dem i havsfärg medan
    delstaten är täckt och visar konsten när den avslöjas, precis som
@@ -41,7 +42,8 @@ Här görs det på samma sätt som världskartan:
    dekordelarna: den målar havsfärg över de konstrester som pixelägar-
    skapet aldrig fångade (fartstreckens tunna svansar, kustens frans).
 4. LINJER. usa-borders får en yttre kontur (yttre: 1) ur SAMMA geometri
-   som täcket, och delstatsgränserna klipps till USA-ytan. I världens
+   som täcket, och delstatsgränserna klipps till täcket (de slutar vid
+   kusten i stället för att sticka ut i vikar och mynningar). I världens
    art-borders bryts linjerna längs världens USA-kant ut till en egen
    feature (usakant: 1) som spelet släcker i delstatsregionen — då har
    varje kant exakt en linje, och den ligger där täcket slutar.
@@ -84,8 +86,12 @@ DEKOR_SPLITTER = 2e-5
 # linjer (kant och linje kommer ur samma sprickor men förenklas var för
 # sig: uppmätt avstånd högst ~1,3 z6-px ≈ 0,015°)
 KANT_AVSTAND = 0.02
-# delstatsgränser klipps till USA-ytan med den här marginalen (grader)
+# så långt från täcket och grannarna en remskust räknas som hav (grader)
 GRANS_MARGINAL = 0.01
+# delstatsgränserna klipps till täcket med den här marginalen (grader,
+# ungefär en pixel i största zoomen — linjen når den yttre konturen men
+# sticker inte ut i havet)
+KUST_MARGINAL = 0.001
 # förenkling av den yttre konturen (grader, under en z7-pixel)
 KONTUR_FORENKLING = 0.001
 # havsmaskens ram runt delstatskonsten, och hur mycket dekordelarna
@@ -229,11 +235,15 @@ def dela_skarv(bit, kand, tacke, linjetrad, linjelista):
     går genom det, och varje del går till den delstat den har längst kant
     mot (kanter längs en ritad linje oräknade) — i stället för att hela
     biten går till den delstat som råkar komma först."""
-    nara = [linjelista[i] for i in linjetrad.query(bit) if linjelista[i].intersects(bit)]
+    # linjerna som rör biten, även de som bara ligger längs dess kant
+    # (intersects missar dem på flyttalsavrundningen); bara de som går
+    # genom biten delar den
+    nara = [linjelista[i] for i in linjetrad.query(bit, predicate='dwithin', distance=LINJE_NARA)]
+    genom = [l for l in nara if l.intersects(bit)]
     delar = [bit]
-    if nara:
+    if genom:
         try:
-            delar = ytor(split(bit, unary_union(nara))) or [bit]
+            delar = ytor(split(bit, unary_union(genom))) or [bit]
         except Exception:
             delar = [bit]
     # kanter som ligger PÅ en ritad delstatslinje räknas inte: oftast
@@ -509,12 +519,12 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # ── 4a: delstatslinjer ur samma geometri som täcket ──
     inre = [f for f in usa_bor['features'] if not f['properties'].get('yttre')]
     inre_linjer = [LineString(l) for f in inre for l in f['geometry']['coordinates'] if len(l) >= 2]
-    yta = Wus.buffer(GRANS_MARGINAL)
-    klippta = [l for ls in inre_linjer for l in linjer(ls.intersection(yta)) if l.length > 0]
     slutliga = {f['id']: giltig(shape(f['geometry'])) for f in nya
                 if f['id'] < MASK_GID and not f['properties'].get('dekor')}
-    klippta, borttaget = rensa_inre_linjer(klippta, slutliga)
     tackyta = unary_union(list(slutliga.values()))
+    yta = tackyta.buffer(KUST_MARGINAL)
+    klippta = [l for ls in inre_linjer for l in linjer(ls.intersection(yta)) if l.length > 0]
+    klippta, borttaget = rensa_inre_linjer(klippta, slutliga)
     # konturen är täckets yttre kant och riktiga hål i världens USA-yta
     # (sjöar) — inte de mikroskopiska springor mellan två delstaters
     # avrundade kanter som annars blir svarta prickar längs gränserna
