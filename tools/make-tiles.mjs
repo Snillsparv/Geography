@@ -1472,10 +1472,11 @@ let usaSnap = null;   // { fyll: [pieces], skydd: [pieces] } — fylls i main()
 const HAWAII = ([lng, lat]) => lng > -162 && lng < -152 && lat > 17 && lat < 24;
 // konst som MEDVETET sticker ut över grannlandet och ska synas när delstaten
 // avslöjas fredas från klippet (lng0, lat0, lng1, lat1). Spelet lägger den
-// som en egen bild ovanpå grannens gröna (tools/usa-utstickare.py)
+// som en egen bild ovanpå grannens gröna (tools/make-usa-utstickare.mjs)
 const FREDAD_KONST = [
-  // Pennsylvanias penna ur pennskrinet: över Eriesjön in i Ontario
-  { key: 'usa/pennsylvania', box: [-81.0, 41.9, -79.8, 44.4] },
+  // Pennsylvanias penna ur pennskrinet: över Eriesjön in i Ontario. Lådan
+  // är bara pennans kolumn (resten av Eriestranden klipps och äts som vanligt)
+  { key: 'usa/pennsylvania', box: [-80.66, 41.9, -80.06, 44.4] },
 ];
 function snapPieces(geometry, cLng, filt) {
   const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
@@ -2145,31 +2146,58 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
   // våglängden måste svälja HELA den ritade konturens tjocklek (~0,1° i
   // Texas), annars överlever linjens inre hälft som en streckad dubbelkontur
   const RIBBON = Math.max(4, Math.round(world * 0.16 / 360));
+  // ljusa pixlar (konturens antialiasing) äts bara i ett smalt band: de
+  // första vågorna från utfyllnaden, eller högst LJUS_DJUP steg bakom en
+  // uppäten MÖRK bläckpixel. Annars flödade vågen genom hela ljusa fält
+  // (Maines orange, Texas rött, Alaskas grå) i alla RIBBON steg
+  const LJUS_DJUP = 3;
+  // 0 = orörd, 1 = utfylld eller uppäten mörk bläckpixel, n ≥ 2 = uppäten
+  // ljus pixel n−1 steg bakom närmsta sådan
+  const djup = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (fylld[i]) djup[i] = 1;
+  // är den ljusa pixeln teckningens färg uppblandad med svart bläck? Då är
+  // den en skalad (mörkare) kopia av underlägget på samma plats — samma
+  // proportioner mellan kanalerna. Riktiga ljusa färger som bara råkar
+  // vara mörkare än underlägget (orange mot krämvitt) har fel proportioner
+  const bläckblandad = (b, f) => {
+    const p0 = sheetBuf[b], p1 = sheetBuf[b + 1], p2 = sheetBuf[b + 2];
+    if (p0 > f[0] + 3 || p1 > f[1] + 3 || p2 > f[2] + 3) return false;
+    if (f[0] + f[1] + f[2] - p0 - p1 - p2 <= 24) return false;
+    const ff = f[0] * f[0] + f[1] * f[1] + f[2] * f[2];
+    if (!ff) return false;
+    const k = (p0 * f[0] + p1 * f[1] + p2 * f[2]) / ff;
+    return Math.max(Math.abs(p0 - k * f[0]), Math.abs(p1 - k * f[1]),
+                    Math.abs(p2 - k * f[2])) <= 14;
+  };
   for (let steg = 0; steg < RIBBON; steg++) {
-    const nasta = [];
+    const nasta = new Map();   // j → djup
     for (let i = 0; i < N; i++) {
       if (!fylld[i]) continue;
       for (const d of [-1, 1, -TG, TG]) {
         const j = i + d;
         if (j < 0 || j >= N || fylld[j]) continue;
+        // fredad konst (pennan) äts aldrig: vågen klättrade annars längs
+        // pennans svarta kontur från Eriesjöns strand, både ut över sjön och
+        // ner i pennskrinet, och bytte den mot gult och grönt underlägg
+        if (fredade.length && fredad(j)) continue;
         const b = j * 4;
         if (sheetBuf[b + 3] !== 255) continue;
+        let dj = 1;
         if (Math.max(sheetBuf[b], sheetBuf[b + 1], sheetBuf[b + 2]) >= 165) {
-          // ljusa pixlar äts bara när de är MÖRKARE än underlägget på samma
-          // plats: konturens inre antialiasing (rött med en aning svart) blev
-          // annars ett blekt streck längs den gamla kanten. Underlägget bär
-          // teckningens egna färger, så riktiga mörka nyanser äts aldrig
+          // ljusa pixlar: konturens inre antialiasing (rött med en aning
+          // svart) blev annars ett blekt streck längs den gamla kanten
+          dj = djup[i] + 1;
+          if (dj > LJUS_DJUP + 1) continue;
           const o = ownerBuf[j] || (kalla[j] >= 0 ? ownerBuf[kalla[j]] : 0);
           const f = o && fargFor(o, j % TG, (j / TG) | 0);
-          if (!f || sheetBuf[b] > f[0] + 3 || sheetBuf[b + 1] > f[1] + 3 ||
-              sheetBuf[b + 2] > f[2] + 3 ||
-              f[0] + f[1] + f[2] - sheetBuf[b] - sheetBuf[b + 1] - sheetBuf[b + 2] <= 24) continue;
+          if (!f || !bläckblandad(b, f)) continue;
         }
-        nasta.push(j);
+        const fore = nasta.get(j);
+        if (fore === undefined || dj < fore) nasta.set(j, dj);
       }
     }
-    if (!nasta.length) break;
-    for (const j of nasta) {
+    if (!nasta.size) break;
+    for (const [j, dj] of nasta) {
       const o = ownerBuf[j] || (kalla[j] >= 0 ? ownerBuf[kalla[j]] : 0);
       const f = o && fargFor(o, j % TG, (j / TG) | 0);
       if (!f) continue;
@@ -2177,6 +2205,7 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
       sheetBuf[j * 4 + 2] = f[2]; sheetBuf[j * 4 + 3] = 255;
       if (!ownerBuf[j]) ownerBuf[j] = o;
       fylld[j] = 1;
+      djup[j] = dj;
     }
   }
   // 5) ägarskapet i behandlade band majoritetsutjämnas (3×3, två pass) så

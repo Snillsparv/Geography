@@ -185,7 +185,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '82';
+const V = '83';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -206,7 +206,7 @@ async function fetchJson(path) {
 const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
-const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=5');
+const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=6');
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
 // världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
 // i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)
@@ -397,17 +397,29 @@ function laddaUsa() {
     // kusten och gränsen, så ett band med samma tjocklek (geografiskt, som
     // teckningens linjer) ligger innanför täckets yttre kant. Det syns bara
     // när bilden syns. Banden har delstatens id (feature-state följer med)
+    // Under felblink och tips (rött/gult täcke) göms bandet, och vid hover
+    // får det samma vita slöja (0,25) som resten av bilden
     map.addLayer({ id: 'usa-kant', type: 'fill', source: 'usa-regioner',
       filter: ['==', ['get', 'kant'], 1], layout: { visibility: 'none' },
-      paint: { 'fill-color': '#0a0a0a', 'fill-opacity': ['-', 1, DOLD_KONST] } }, 'borders');
+      paint: {
+        'fill-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#474747', '#0a0a0a'],
+        'fill-opacity': ['case',
+          ['any', ['boolean', ['feature-state', 'fel'], false],
+                  ['boolean', ['feature-state', 'tips'], false]], 0,
+          ['-', 1, DOLD_KONST]],
+      } }, 'borders');
     klona('borders', 'usa-granser', 'usa-borders');
     klona('prickar', 'usa-prickar', 'usa-markorer');
     usaUtstickare = [];
     for (const u of utst) {
       const lager = 'usa-utst-' + u.gid;
       map.addSource(lager, { type: 'image', url: dataUrl(u.bild + '?v=' + V), coordinates: u['hörn'] });
+      // byts direkt som delstatens bild (feature-state animeras aldrig)
+      const direkt = { duration: 0, delay: 0 };
       map.addLayer({ id: lager, type: 'raster', source: lager, layout: { visibility: 'none' },
-        paint: { 'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } },
+        paint: { 'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-resampling': 'linear',
+                 'raster-opacity-transition': direkt,
+                 'raster-brightness-min-transition': direkt } },
         'usa-prickar');
       usaUtstickare.push({ gid: u.gid, lager });
     }
@@ -426,13 +438,16 @@ function laddaUsa() {
   forsok.catch(() => { usaLaddad = null; });
   return forsok;
 }
-// utstickarbilden syns exakt när delstatens bild syns (DOLD_KONST = 0)
+// utstickarbilden syns exakt när delstatens bild syns (DOLD_KONST = 0) och
+// följer täcket ovanpå den: borta under felblink och tips (rött/gult täcke),
+// samma vita slöja vid hover (brightness-min 0,25 = vitt med 0,25 opacitet)
 function visaUtstickare(gid) {
   const u = usaUtstickare.find(x => x.gid === gid);
   if (!u || !map || !map.getLayer(u.lager)) return;
   const t = landState(gid);
-  const dold = t.gron || t.tackt || (t.svar || 0) >= 1;
+  const dold = t.gron || t.tackt || (t.svar || 0) >= 1 || t.fel || t.tips;
   map.setPaintProperty(u.lager, 'raster-opacity', dold ? 0 : 1);
+  map.setPaintProperty(u.lager, 'raster-brightness-min', !dold && t.hover ? 0.25 : 0);
 }
 function visaUsaLager(pa) {
   for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',
@@ -718,7 +733,9 @@ function initMap() {
             ['==', ['get', 'dekor'], 1]],
           paint: {
             'line-color': '#123050',
-            'line-width': 3,
+            // bredare i stor zoom: bläckfransen runt dekorn (Kubas cigarr)
+            // förstoras med kartan
+            'line-width': ['interpolate', ['linear'], ['zoom'], 6, 3, 9.5, 6],
             'line-opacity': ['case',
               // dekordelarna förblir hav vid felblink/tips/hover — fransen
               // ska fortsätta döljas

@@ -61,7 +61,9 @@ Här görs det på samma sätt som världskartan:
    grannstaterna men bara den tunna linjen mot havet. Varje delstat får ett
    band (kant: 1, samma id) med teckningslinjernas tjocklek innanför
    täckets yttre kant och sjöarnas stränder, som spelet ritar svart medan
-   bilden syns.
+   bilden syns. Tjockleken är teckningens konturlinje (KANT_PX pixlar på
+   USA-kartans duk) gånger delstatens skala från duken till jorden, så
+   Alaska (ritad i mindre skala på duken) får ett bredare band.
 
 Delstatsdelen (1–4a) görs bara på make-tiles råa export: är usa-regions
 redan efterbearbetad hoppar skriptet över den. Havsmasken bär en
@@ -144,20 +146,24 @@ MIKROHAL = 1e-4
 # USA-yta (North Carolinas fartstreck, Alaskas svans, Floridas bläckkant)
 # ligger alltid under havsmasken — bilden håller sig innanför konturen
 VISAD_DEKOR = {'usa/hawaii'}
-# den jämntjocka ytterkanten runt en avslöjad delstat (kant: 1): bredd i
-# Mercator-grader. Med den tunna yttre linjen ovanpå blir den lika tjock på
-# skärmen som teckningens egna linjer (uppmätt i spelet: ~5 px vid zoom
-# 5,6, där 0,05° gav 4 px)
-KANT_BREDD = 0.06
+# den jämntjocka ytterkanten runt en avslöjad delstat (kant: 1) är lika
+# bred som teckningens egen konturlinje: KANT_PX pixlar på USA-kartans duk
+# (assets/usa/config.json; medianen av den svarta ytterlinjen i delstats-
+# bilderna är 7 px), omräknad till jordytan med delstatens skala. Delstaterna
+# på huvudkartan delar skala (medianen, ~0,0106° per px); infälldas
+# (INFALLDA: Alaska i mindre skala, Hawaii) mäts var för sig
+KANT_PX = 7
+INFALLDA = {'usa/alaska', 'usa/hawaii'}
 # konst som medvetet sticker ut över grannlandet (make-tiles FREDAD_KONST,
 # samma ruta): biten utanför världens USA-yta blir en egen bild som spelet
 # lägger ovanpå grannens gröna när delstaten avslöjas
-UTSTICKARE = {'usa/pennsylvania': (-81.0, 41.9, -79.8, 44.4)}
+UTSTICKARE = {'usa/pennsylvania': (-80.66, 41.9, -80.06, 44.4)}
 UTSTICKARE_FIL = 'tools/data/usa-utstickare.json'
-# bilden fortsätter så här långt in i delstaten (grader) så att den täcker
-# ytterkanten och kustlinjen där pennan går över stranden, och strimlor
-# smalare än 2 × UTSTICKARE_SMAL längs stranden hör inte till pennan
-UTSTICKARE_FOT = 0.09
+# pennans fot (dess bredd vid stranden) fortsätter så här långt rakt ner i
+# delstaten (grader, mer än ytterkantens bredd): där ritas ingen ytterkant
+# och bilden täcker kustlinjen, så pennan går obruten ner i skrinet.
+# Strimlor smalare än 2 × UTSTICKARE_SMAL längs stranden hör inte till pennan
+UTSTICKARE_FOT = 0.12
 UTSTICKARE_SMAL = 0.012
 
 
@@ -224,15 +230,49 @@ def multipolygon(polys, minsta):
     return {'type': 'MultiPolygon', 'coordinates': delar} if delar else None
 
 
-def till_merc(g):
-    """lng/lat → (lng, Mercator-y i grader): avstånd blir lika på skärmen."""
+def ytarea(g):
+    """Verklig yta i kvadratgrader (ytriktig: y = sin(lat) i grader)."""
     return sh_transform(g, lambda c: np.column_stack(
-        [c[:, 0], np.degrees(np.arcsinh(np.tan(np.radians(c[:, 1]))))]))
+        [c[:, 0], np.degrees(np.sin(np.radians(c[:, 1])))])).area
 
 
-def fran_merc(g):
-    return sh_transform(g, lambda c: np.column_stack(
-        [c[:, 0], np.degrees(np.arctan(np.sinh(np.radians(c[:, 1]))))]))
+def stereografisk(lng0, lat0):
+    """Lokal stereografisk projektion kring (lng0, lat0) och dess invers.
+    Enheten är grader av storcirkel nära mitten: konform, så en buffert där
+    blir lika bred åt alla håll på jordytan (inom någon procent över en
+    delstat), till skillnad från lng/lat eller Mercator."""
+    p0, l0, R = math.radians(lat0), math.radians(lng0), 180 / math.pi
+    sp0, cp0 = math.sin(p0), math.cos(p0)
+
+    def fram(c):
+        la, ph = np.radians(c[:, 0]) - l0, np.radians(c[:, 1])
+        k = 2 / (1 + sp0 * np.sin(ph) + cp0 * np.cos(ph) * np.cos(la))
+        return np.column_stack([R * k * np.cos(ph) * np.sin(la),
+                                R * k * (cp0 * np.sin(ph) - sp0 * np.cos(ph) * np.cos(la))])
+
+    def bak(c):
+        x, y = c[:, 0] / R, c[:, 1] / R
+        rho = np.hypot(x, y)
+        cc = 2 * np.arctan(rho / 2)
+        sin_ph = np.cos(cc) * sp0 + np.where(rho > 0, y * np.sin(cc) * cp0 / np.where(rho > 0, rho, 1), 0)
+        la = l0 + np.arctan2(x * np.sin(cc), rho * cp0 * np.cos(cc) - y * sp0 * np.sin(cc))
+        lng = (np.degrees(la) + 180) % 360 - 180
+        return np.column_stack([lng, np.degrees(np.arcsin(np.clip(sin_ph, -1, 1)))])
+
+    return (lambda g: sh_transform(g, fram)), (lambda g: sh_transform(g, bak))
+
+
+def dukyta(key):
+    """Delstatsbildens målade yta i pixlar på USA-kartans duk."""
+    from PIL import Image
+    konf = las('assets/usa/config.json')
+    for c in konf['countries']:
+        if 'usa/' + c['filename'] == key:
+            bild = Image.open(os.path.join(REPO, 'assets/usa', c['file']))
+            alfa = np.asarray(bild.convert('RGBA'))[..., 3]
+            skala = c['width'] / bild.width
+            return float((alfa > 128).sum()) * skala * skala
+    return None
 
 
 def ar_kanthal(h, W):
@@ -445,22 +485,31 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # målas gröna med remsorna
     gl = glipor(W, grannar)
     grannmark = unary_union([grannar] + gl)
-    karna, dekor, utstick = {}, {}, {}
+    karna, dekor, utstick, skala = {}, {}, {}, {}
     W_marg = W.buffer(DEKOR_MARGINAL)
     for f in stater:
         S = giltig(shape(f['geometry']))
         karna[f['id']] = ytor(S.intersection(Wus))
         hav = S.difference(W_marg).difference(grannmark)
         dekor[f['id']] = [p for p in ytor(hav) if p.area >= DEKOR_SPLITTER]
+        # dukens skala: S är konstens målade yta lagd på jorden, så kvoten
+        # mot bildens målade pixlar är skalan i kvadrat (grader per px)
+        duk = dukyta(f['properties']['key'])
+        if duk:
+            skala[f['id']] = math.sqrt(ytarea(S) / duk)
         ruta = UTSTICKARE.get(f['properties']['key'])
         if ruta:
             # pennan: konsten utanför världens USA-yta i rutan, utan smala
-            # strimlor längs stranden, förlängd en bit ner i delstaten
+            # strimlor längs stranden (öppning), och fotens bredd vid
+            # stranden förlängd rakt ner i delstaten
             ute = S.intersection(box(*ruta)).difference(W)
-            kropp = ute.buffer(-UTSTICKARE_SMAL).buffer(UTSTICKARE_SMAL * 2)
+            kropp = ute.buffer(-UTSTICKARE_SMAL).buffer(UTSTICKARE_SMAL * 1.5)
             ute = unary_union([p for p in ytor(ute.intersection(kropp)) if p.area >= 1e-3])
             if not ute.is_empty:
-                fot = unary_union([translate(ute, yoff=-UTSTICKARE_FOT * k / 6) for k in range(7)])
+                bas = ute.intersection(W.buffer(UTSTICKARE_SMAL * 2))
+                steg = math.ceil(UTSTICKARE_FOT / UTSTICKARE_SMAL)
+                fot = unary_union([translate(bas, yoff=-UTSTICKARE_FOT * k / steg)
+                                   for k in range(steg + 1)])
                 utstick[f['id']] = unary_union([ute, fot.intersection(S)])
     tackt = unary_union([p for ps in karna.values() for p in ps])
     rest = ytor(Wus.difference(tackt))
@@ -649,29 +698,43 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # till världens USA-yta (klippt i havet, uppäten bredvid utfyllnaden).
     # I stället ritar spelet ett band av samma tjocklek innanför täckets
     # yttre kant och sjöarnas stränder när delstaten är avslöjad (kant: 1,
-    # samma id som delstaten). Bandet räknas i Mercator så att det blir lika
-    # tjockt på skärmen överallt, som teckningens linjer. Hawaii (konsten
-    # är större än öarna) får inget band, och pennans fot hålls fri
+    # samma id som delstaten). Bandet är lika brett på jordytan som
+    # teckningens kontur (KANT_PX dukpixlar × delstatens skala) och räknas
+    # i en lokal stereografisk projektion per delstat, så det blir lika
+    # tjockt åt alla håll — teckningens linjer följer jorden, inte lng/lat.
+    # Hawaii (konsten är större än öarna) får inget band, och pennans fot
+    # hålls fri
     hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
                        for p in ytor(tackyta)])
-    m = till_merc(hel)
-    band = m.difference(m.buffer(-KANT_BREDD, quad_segs=4))
     nyckel = {f['id']: f['properties'] for f in stater}
-    n_kant = 0
+    huvud = sorted(v for g, v in skala.items() if nyckel[g]['key'] not in INFALLDA)
+    huvudskala = huvud[len(huvud) // 2]
+    n_kant, bredder = 0, {}
     for gid, t in slutliga.items():
         if gid in visad:
             continue
-        b = till_merc(t).intersection(band)
+        sk = skala.get(gid, huvudskala) if nyckel[gid]['key'] in INFALLDA else huvudskala
+        bredd = KANT_PX * sk
+        storst = max(ytor(t), key=lambda p: p.area)
+        fram, bak = stereografisk(storst.centroid.x, storst.centroid.y)
+        # bara grannskapet: kanten mot en grannstat är ingen ytterkant
+        marg = 3 * bredd / math.cos(math.radians(min(75, t.bounds[3])))
+        P = giltig(fram(giltig(hel.intersection(t.buffer(marg, quad_segs=2)))))
+        b = P.difference(P.buffer(-bredd, quad_segs=4)).intersection(giltig(fram(t)))
+        b = giltig(bak(b))
         if gid in utstick:
-            b = b.difference(till_merc(utstick[gid]))
-        geom = multipolygon(ytor(fran_merc(b).simplify(KONTUR_FORENKLING)), SPLITTER)
+            b = b.difference(utstick[gid])
+        geom = multipolygon(ytor(b.simplify(KONTUR_FORENKLING)), SPLITTER)
         if geom:
             pr = nyckel[gid]
             nya.append({'type': 'Feature', 'id': gid,
                         'properties': {'gid': gid, 'key': pr['key'], 'namn': pr['namn'], 'kant': 1},
                         'geometry': geom})
             n_kant += 1
-    print(f'usa-regions: {n_kant} ytterkantband ({KANT_BREDD}° i Mercator)')
+            bredder[pr['namn']] = bredd
+    print(f'usa-regions: {n_kant} ytterkantband, {KANT_PX} dukpx = '
+          f'{KANT_PX * huvudskala:.4f}° på huvudkartan' +
+          ''.join(f', {n} {b:.4f}°' for n, b in bredder.items() if abs(b - KANT_PX * huvudskala) > 1e-9))
 
     # ── 4c: utstickare (Pennsylvanias penna) till make-usa-utstickare.mjs ──
     spara(UTSTICKARE_FIL, {'type': 'FeatureCollection', 'features': [

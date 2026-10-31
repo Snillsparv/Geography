@@ -626,11 +626,6 @@ def main():
             if n:
                 print(f'    art-borders: {n} konturlinjer utbrutna')
 
-    print('art-regions: riktig form')
-    for key in SANN_FORM_LANDER:
-        if sann_form(regions, borders, varlden, key):
-            andrad_reg = andrad_bor = True
-
     print('art-regions: emblemländer')
     for key in EMBLEM_LANDER:
         res = befordra_emblem(regions, markers, varlden, key)
@@ -645,6 +640,14 @@ def main():
     print('art-regions: emblem på land')
     if emblem_pa_land(regions, markers, varlden):
         andrad_reg = True
+
+    # EFTER emblemen: sann_form flyttar varje allmän konturlinje inom Kubas
+    # konstzon till Kubas dekor, och röken ligger över Bahamas — Bahamas
+    # egna konturer måste redan ha flyttats till sitt emblem
+    print('art-regions: riktig form')
+    for key in SANN_FORM_LANDER:
+        if sann_form(regions, borders, varlden, key):
+            andrad_reg = andrad_bor = True
 
     satt_smal(markers, regions)
     spara(reg_p, regions)

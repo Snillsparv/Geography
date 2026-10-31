@@ -117,7 +117,9 @@ make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
 (assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
 ovanpå grannens gröna när delstaten är avslöjad. Avslöjade delstater får
 en jämntjock svart ytterkant (`kant: 1`-features) där teckningens egen
-kontur klipptes eller åts upp. Världens USA-yta i Mexiko och
+kontur klipptes eller åts upp: lika bred på jordytan som teckningens
+konturlinje (`KANT_PX` dukpixlar på USA-kartan gånger delstatens skala,
+så Alaska — ritad i mindre skala — får bredare kant). Världens USA-yta i Mexiko och
 de smala glipor där världens USA-yta och grannländerna inte möts blir en
 grön remsa (gid 1999), och en havsmask (gid 1998) döljer konstrester runt
 kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma
@@ -130,7 +132,9 @@ masken bär en summa av världens USA-yta och grannländerna runt den) — kör
 då `--dataset usa`-exporten igen först. Skriptet skriver också om
 usa-markers.json: Hawaiis omfång mäts på öarna i stället för på havs-
 konsten, så öarna får en klickprick i översiktsvyerna. Bumpa `V` i
-glob-spel.js och glob.html efteråt.
+glob-spel.js och glob.html efteråt, och `USA_TILE_URL`-versionen när
+usa.pmtiles bakats om (arkivet hämtas bara i skivor, så `TILE_CACHE` i
+sw.js behöver inte bytas för det).
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
