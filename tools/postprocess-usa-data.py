@@ -26,11 +26,17 @@ Här görs det på samma sätt som världskartan:
    Världens USA-yta blir då täckt utan hål (överlapp som finns i själva
    konsten ligger kvar: 0,25 kvadratgrader fördelat på ett hundratal
    grannpar, som mest drygt en hundradel per par).
-2. DEKOR. Konst som ligger ute i havet blir egna features med dekor: 1
-   (samma id → samma feature-state). Spelet målar dem i havsfärg medan
-   delstaten är täckt och visar konsten när den avslöjas, precis som
-   Malaysias ögon och spröt. Konst över grannländerna kastas ur täcket —
-   grannens gröna yta döljer den redan.
+2. DEKOR. Konsten ska hålla sig innanför konturen även när delstaten är
+   avslöjad, så konst ute i havet (North Carolinas fartstreck, Alaskas
+   svans, Floridas bläckkant) hamnar under havsmasken (steg 3). Bara
+   Hawaii, vars konst medvetet är mycket större än öarna (VISAD_DEKOR),
+   får egna features med dekor: 1 (samma id → samma feature-state) som
+   spelet målar i havsfärg medan delstaten är täckt och visar när den
+   avslöjas. Konst över grannländerna kastas ur täcket — grannens gröna yta
+   döljer den. Undantaget är konst som MEDVETET sticker ut (Pennsylvanias
+   penna, UTSTICKARE): dess fotavtryck skrivs till usa-utstickare.json och
+   make-usa-utstickare.mjs gör en egen bild av den som spelet lägger ovanpå
+   grannens gröna när delstaten är avslöjad.
 3. REMSOR. Världens USA-yta läcker in i Mexiko (Tamaulipas-kusten, Baja,
    Sonora): där räckte Mexikos konst inte ut och USA:s underlag fyllde i.
    De bitarna blir en egen feature (remsa: 1) som spelet målar grön i
@@ -49,6 +55,13 @@ Här görs det på samma sätt som världskartan:
    varje kant exakt en linje, och den ligger där täcket slutar.
    Delstatslinjer som efter flyttarna i steg 1 har samma delstat på båda
    sidor tas bort.
+5. YTTERKANT. Teckningens egen kontur försvann där konsten inte nådde
+   exakt fram till kusten och gränsen (klippt, eller uppäten bredvid
+   bakningens utfyllnad), så avslöjade delstater hade tjock linje mot
+   grannstaterna men bara den tunna linjen mot havet. Varje delstat får ett
+   band (kant: 1, samma id) med teckningslinjernas tjocklek innanför
+   täckets yttre kant och sjöarnas stränder, som spelet ritar svart medan
+   bilden syns.
 
 Delstatsdelen (1–4a) görs bara på make-tiles råa export: är usa-regions
 redan efterbearbetad hoppar skriptet över den. Havsmasken bär en
@@ -58,10 +71,13 @@ lämna ett täcke klippt mot den gamla ytan.
 """
 import hashlib
 import json
+import math
 import os
 
+import numpy as np
+
 from shapely import (STRtree, distance as sh_distance, points as sh_points,
-                     segmentize, set_precision)
+                     segmentize, set_precision, transform as sh_transform)
 from shapely.affinity import translate
 from shapely.geometry import LineString, Point, Polygon, box, shape
 from shapely.ops import split, unary_union
@@ -123,6 +139,26 @@ LINJE_PROV = (0.004, 0.012, 0.02)
 # hål i täcket mindre än så här (kvadratgrader) som ligger i världens
 # USA-yta är avrundningsspringor mellan delstater, inga sjöar
 MIKROHAL = 1e-4
+# delstater vars havskonst SKA synas när delstaten avslöjas: Hawaiis konst
+# är medvetet mycket större än öarna. All annan konst utanför världens
+# USA-yta (North Carolinas fartstreck, Alaskas svans, Floridas bläckkant)
+# ligger alltid under havsmasken — bilden håller sig innanför konturen
+VISAD_DEKOR = {'usa/hawaii'}
+# den jämntjocka ytterkanten runt en avslöjad delstat (kant: 1): bredd i
+# Mercator-grader. Med den tunna yttre linjen ovanpå blir den lika tjock på
+# skärmen som teckningens egna linjer (uppmätt i spelet: ~5 px vid zoom
+# 5,6, där 0,05° gav 4 px)
+KANT_BREDD = 0.06
+# konst som medvetet sticker ut över grannlandet (make-tiles FREDAD_KONST,
+# samma ruta): biten utanför världens USA-yta blir en egen bild som spelet
+# lägger ovanpå grannens gröna när delstaten avslöjas
+UTSTICKARE = {'usa/pennsylvania': (-81.0, 41.9, -79.8, 44.4)}
+UTSTICKARE_FIL = 'tools/data/usa-utstickare.json'
+# bilden fortsätter så här långt in i delstaten (grader) så att den täcker
+# ytterkanten och kustlinjen där pennan går över stranden, och strimlor
+# smalare än 2 × UTSTICKARE_SMAL längs stranden hör inte till pennan
+UTSTICKARE_FOT = 0.09
+UTSTICKARE_SMAL = 0.012
 
 
 def las(namn):
@@ -186,6 +222,23 @@ def multipolygon(polys, minsta):
         halen = [avrunda_ring(h.coords) for h in p.interiors]
         delar.append([yttre] + [h for h in halen if len(h) >= 4])
     return {'type': 'MultiPolygon', 'coordinates': delar} if delar else None
+
+
+def till_merc(g):
+    """lng/lat → (lng, Mercator-y i grader): avstånd blir lika på skärmen."""
+    return sh_transform(g, lambda c: np.column_stack(
+        [c[:, 0], np.degrees(np.arcsinh(np.tan(np.radians(c[:, 1]))))]))
+
+
+def fran_merc(g):
+    return sh_transform(g, lambda c: np.column_stack(
+        [c[:, 0], np.degrees(np.arctan(np.sinh(np.radians(c[:, 1]))))]))
+
+
+def ar_kanthal(h, W):
+    """Är hålet en riktig sjö/vik (kant) och inte en avrundningsspringa?"""
+    hal = Polygon(h)
+    return hal.area >= MIKROHAL or hal.difference(W).area > hal.area / 2
 
 
 def vast_om_datumgransen(g):
@@ -392,13 +445,23 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # målas gröna med remsorna
     gl = glipor(W, grannar)
     grannmark = unary_union([grannar] + gl)
-    karna, dekor = {}, {}
+    karna, dekor, utstick = {}, {}, {}
     W_marg = W.buffer(DEKOR_MARGINAL)
     for f in stater:
         S = giltig(shape(f['geometry']))
         karna[f['id']] = ytor(S.intersection(Wus))
         hav = S.difference(W_marg).difference(grannmark)
         dekor[f['id']] = [p for p in ytor(hav) if p.area >= DEKOR_SPLITTER]
+        ruta = UTSTICKARE.get(f['properties']['key'])
+        if ruta:
+            # pennan: konsten utanför världens USA-yta i rutan, utan smala
+            # strimlor längs stranden, förlängd en bit ner i delstaten
+            ute = S.intersection(box(*ruta)).difference(W)
+            kropp = ute.buffer(-UTSTICKARE_SMAL).buffer(UTSTICKARE_SMAL * 2)
+            ute = unary_union([p for p in ytor(ute.intersection(kropp)) if p.area >= 1e-3])
+            if not ute.is_empty:
+                fot = unary_union([translate(ute, yoff=-UTSTICKARE_FOT * k / 6) for k in range(7)])
+                utstick[f['id']] = unary_union([ute, fot.intersection(S)])
     tackt = unary_union([p for ps in karna.values() for p in ps])
     rest = ytor(Wus.difference(tackt))
     tacke = {gid: unary_union(ps) for gid, ps in karna.items() if ps}
@@ -438,7 +501,13 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     n_dekor = 0
     dekorfeats = []
     ra_dekor = {gid: unary_union(ps) for gid, ps in dekor.items() if ps}
+    visad = {f['id'] for f in stater if f['properties']['key'] in VISAD_DEKOR}
+    dold_dekor = 0.0
     for f in stater:
+        if f['id'] not in visad and dekor.get(f['id']):
+            # havskonsten döljs alltid: havsmasken täcker den
+            dold_dekor += sum(p.area for p in dekor[f['id']])
+            dekor[f['id']] = []
         # dekordelen breddas med konstens frans (antialiasing, tunna svansar
         # under ägarskapets alfagräns) så att havsfärgen sväljer den medan
         # delstaten är täckt — men aldrig in över USA-ytan, grannarna eller
@@ -449,7 +518,8 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
             # där två delstaters konst överlappar får båda behålla den —
             # annars äger ingen den och havsmasken skär ett streck genom
             # konsten när båda är avslöjade
-            andras = unary_union([g for gid, g in ra_dekor.items() if gid != f['id']])
+            andras = unary_union([g for gid, g in ra_dekor.items()
+                                  if gid != f['id'] and gid in visad])
             andras = andras.difference(ra_dekor[f['id']])
             delar = ytor(unary_union(delar).buffer(MASK_FRANS, quad_segs=2)
                          .simplify(KONTUR_FORENKLING).difference(W).difference(grannmark)
@@ -512,7 +582,8 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
               f"(konsten är mest havsdekor)")
     print(f'usa-regions: {len(stater)} delstater klippta till världens USA-yta, '
           f'{tilldelade} otäckta bitar tilldelade (varav {delade} delade mellan '
-          f'delstater), {instangda} instängda remsor flyttade, {n_dekor} dekorfeatures, '
+          f'delstater), {instangda} instängda remsor flyttade, {n_dekor} dekorfeatures '
+          f'({dold_dekor:.2f}° havskonst dold under masken), '
           f'{len(gl)} glipor fyllda, '
           f'{len(remsa_geom["coordinates"]) if remsa_geom else 0} remsdelar')
 
@@ -552,14 +623,65 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     def koord(ls):
         return [[[round(x, 5), round(y, 5)] for x, y in l.coords] for l in ls if len(l.coords) >= 2]
 
+    # Hawaiis konst är mycket större än öarna: öarnas kustlinjer ritas bara
+    # medan bilden är dold (sann: 1, samma id), annars korsar de konsten
+    sanna = {}
+    for gid in visad:
+        zon = slutliga[gid].buffer(KANT_NARA) if gid in slutliga else None
+        if zon is not None:
+            sanna[gid] = [l for l in yttre if zon.contains(l)]
+    i_sann = {id(l) for ls in sanna.values() for l in ls}
     usa_bor['features'] = [
         {'type': 'Feature', 'properties': {},
          'geometry': {'type': 'MultiLineString', 'coordinates': koord(klippta)}},
         {'type': 'Feature', 'properties': {'yttre': 1},
-         'geometry': {'type': 'MultiLineString', 'coordinates': koord(yttre)}},
-    ]
+         'geometry': {'type': 'MultiLineString',
+                      'coordinates': koord([l for l in yttre if id(l) not in i_sann])}},
+    ] + [
+        {'type': 'Feature', 'id': gid, 'properties': {'gid': gid, 'yttre': 1, 'sann': 1},
+         'geometry': {'type': 'MultiLineString', 'coordinates': koord(ls)}}
+        for gid, ls in sanna.items() if ls]
     print(f'usa-borders: {len(klippta)} delstatsgränser ({borttaget:.2f}° linje med samma '
           f'delstat på båda sidor borttagen), {len(yttre)} yttre konturlinjer')
+
+    # ── 4b: jämntjock ytterkant runt avslöjade delstater ──
+    # Teckningens egen kontur försvann där konsten inte nådde exakt fram
+    # till världens USA-yta (klippt i havet, uppäten bredvid utfyllnaden).
+    # I stället ritar spelet ett band av samma tjocklek innanför täckets
+    # yttre kant och sjöarnas stränder när delstaten är avslöjad (kant: 1,
+    # samma id som delstaten). Bandet räknas i Mercator så att det blir lika
+    # tjockt på skärmen överallt, som teckningens linjer. Hawaii (konsten
+    # är större än öarna) får inget band, och pennans fot hålls fri
+    hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
+                       for p in ytor(tackyta)])
+    m = till_merc(hel)
+    band = m.difference(m.buffer(-KANT_BREDD, quad_segs=4))
+    nyckel = {f['id']: f['properties'] for f in stater}
+    n_kant = 0
+    for gid, t in slutliga.items():
+        if gid in visad:
+            continue
+        b = till_merc(t).intersection(band)
+        if gid in utstick:
+            b = b.difference(till_merc(utstick[gid]))
+        geom = multipolygon(ytor(fran_merc(b).simplify(KONTUR_FORENKLING)), SPLITTER)
+        if geom:
+            pr = nyckel[gid]
+            nya.append({'type': 'Feature', 'id': gid,
+                        'properties': {'gid': gid, 'key': pr['key'], 'namn': pr['namn'], 'kant': 1},
+                        'geometry': geom})
+            n_kant += 1
+    print(f'usa-regions: {n_kant} ytterkantband ({KANT_BREDD}° i Mercator)')
+
+    # ── 4c: utstickare (Pennsylvanias penna) till make-usa-utstickare.mjs ──
+    spara(UTSTICKARE_FIL, {'type': 'FeatureCollection', 'features': [
+        {'type': 'Feature', 'id': gid,
+         'properties': {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn']},
+         'geometry': multipolygon(ytor(g), SPLITTER)}
+        for gid, g in utstick.items()]})
+    for gid, g in utstick.items():
+        print(f"usa-utstickare: {nyckel[gid]['namn']} {g.area:.3f}° "
+              f"({', '.join(f'{v:.2f}' for v in g.bounds)})")
 
 
 
