@@ -262,6 +262,24 @@ def stereografisk(lng0, lat0):
     return (lambda g: sh_transform(g, fram)), (lambda g: sh_transform(g, bak))
 
 
+def pennlutning(g):
+    """Utstickarens lutning (grader longitud per grad latitud) nära foten:
+    medel av väster- och österkantens lutning i tunna skivor av den nedre
+    delen, som pennans sidor följer."""
+    x0, y0, x1, _ = g.bounds
+    lat, vast, ost = [], [], []
+    for k in range(1, 14):
+        y = y0 + 0.05 * k
+        skiva = g.intersection(box(x0 - 1, y, x1 + 1, y + 0.005))
+        if not skiva.is_empty:
+            lat.append(y)
+            vast.append(skiva.bounds[0])
+            ost.append(skiva.bounds[2])
+    if len(lat) < 3:
+        return 0.0
+    return float((np.polyfit(lat, vast, 1)[0] + np.polyfit(lat, ost, 1)[0]) / 2)
+
+
 def dukyta(key):
     """Delstatsbildens målade yta i pixlar på USA-kartans duk."""
     from PIL import Image
@@ -501,14 +519,18 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
         if ruta:
             # pennan: konsten utanför världens USA-yta i rutan, utan smala
             # strimlor längs stranden (öppning), och fotens bredd vid
-            # stranden förlängd rakt ner i delstaten
+            # stranden förlängd ner i delstaten i pennans egen lutning (rakt
+            # ner lämnade en grön kil utan ytterkant bredvid den sneda
+            # konturen)
             ute = S.intersection(box(*ruta)).difference(W)
             kropp = ute.buffer(-UTSTICKARE_SMAL).buffer(UTSTICKARE_SMAL * 1.5)
             ute = unary_union([p for p in ytor(ute.intersection(kropp)) if p.area >= 1e-3])
             if not ute.is_empty:
+                lut = pennlutning(ute)
                 bas = ute.intersection(W.buffer(UTSTICKARE_SMAL * 2))
                 steg = math.ceil(UTSTICKARE_FOT / UTSTICKARE_SMAL)
-                fot = unary_union([translate(bas, yoff=-UTSTICKARE_FOT * k / steg)
+                fot = unary_union([translate(bas, xoff=-lut * UTSTICKARE_FOT * k / steg,
+                                             yoff=-UTSTICKARE_FOT * k / steg)
                                    for k in range(steg + 1)])
                 utstick[f['id']] = unary_union([ute, fot.intersection(S)])
     tackt = unary_union([p for ps in karna.values() for p in ps])
