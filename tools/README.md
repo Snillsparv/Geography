@@ -91,6 +91,47 @@ python3 tools/dekor-fran-farg.py     # kräver tiles-build/ från bakningen
 python3 tools/postprocess-art-data.py
 ```
 
+USA:s delstater (`--dataset usa`) har ett eget efterbearbetningssteg som
+körs efter delstatsexporten och efter `postprocess-art-data.py`, eftersom
+det läser världens målade USA-yta (`nordamerika/usa` i art-regions.json):
+
+```bash
+node make-tiles.mjs --dataset usa --outline 0 --out tiles/usa.pmtiles
+node make-tiles.mjs --dataset usa --outline 0 --borders assets/usa-borders.json \
+                    --regions assets/usa-regions.json \
+                    --markers assets/usa-markers.json
+python3 postprocess-usa-data.py   # OBS: alltid efteråt! (~6 min)
+node make-usa-utstickare.mjs      # pennan ur arkivet, efter båda ovan
+```
+
+Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
+och bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
+delstat; sömhål mellan delstater delas längs delstatslinjen där den går
+genom hålet, annars går hålet till delstaten på samma sida om linjen.
+Konst målad i havet (North Carolinas fartstreck, Alaskas svans i Berings
+hav) döljs alltid under havsmasken — bilden ska hålla sig innanför
+konturen; bara Hawaii (konsten är större än öarna) har dekor-features med
+samma id som delstaten. Konst som medvetet sticker ut över grannlandet
+(Pennsylvanias penna) fredas från bakningens klipp (`FREDAD_KONST` i
+make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
+(assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
+ovanpå grannens gröna när delstaten är avslöjad. Avslöjade delstater får
+en jämntjock svart ytterkant (`kant: 1`-features) där teckningens egen
+kontur klipptes eller åts upp. Världens USA-yta i Mexiko och
+de smala glipor där världens USA-yta och grannländerna inte möts blir en
+grön remsa (gid 1999), och en havsmask (gid 1998) döljer konstrester runt
+kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma
+geometri som täcket, och världens linjer längs USA-kanten i
+art-borders.json flyttas till en egen feature (`usakant: 1`) som spelet
+släcker i delstatsregionen. ⚠️ Delstatsdelen görs bara på rå
+make-tiles-data: är usa-regions.json redan efterbearbetad hoppar skriptet
+över den. Har världskartan bakats om sedan dess avbryter skriptet (havs-
+masken bär en summa av världens USA-yta och grannländerna runt den) — kör
+då `--dataset usa`-exporten igen först. Skriptet skriver också om
+usa-markers.json: Hawaiis omfång mäts på öarna i stället för på havs-
+konsten, så öarna får en klickprick i översiktsvyerna. Bumpa `V` i
+glob-spel.js och glob.html efteråt.
+
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
 
@@ -169,3 +210,16 @@ node tools/vectorize.mjs assets --force     # rebuild everything
 > **Tip:** for maximum fidelity, run the pipeline on your original
 > high-resolution scans rather than the downscaled webp in the repo, then
 > drop the resulting SVGs in place.
+
+## Förberedd data: Sveriges landskap och huvudstäder
+
+- `data/svenska_landskap.geojson` — alla 25 landskap (CC0, från
+  [perliedman/svenska-landskap](https://github.com/perliedman/svenska-landskap))
+  plus Vänern och Vättern (Natural Earth 10m lakes, public domain).
+  `name`/`filename` matchar `assets/sverige/config.json`, `typ` är
+  `landskap` eller `sjo`. Tänkt som geometrikälla för en kommande
+  `--dataset sverige`, på samma sätt som `us_states.geojson` för USA.
+- `../assets/huvudstader.json` — huvudstaden för vart och ett av spelets 202
+  länder (svenska namn, koordinater ur Natural Earth populated places).
+  `association` är tom och fylls i med Jonas minnesregler; `not` förklarar
+  länder med flera eller omstridda huvudstäder.

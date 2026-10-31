@@ -29,6 +29,14 @@ på (idempotent: säkert att köra flera gånger).
    den klickbara cirkeln. Samma mekanism som Malta, Monaco och de andra
    ö-nationerna redan använder.
 
+2b. RIKTIG FORM. Kubas cigarr ligger förskjuten norr om ön och röken
+   ringlar upp över Bahamas, så dekordelningen ovan lämnade bara några
+   fläckar av ön som land. För de här länderna (SANN_FORM_LANDER) blir
+   täcket landets riktiga form — helt ifyllt när landet är täckt, grönt
+   eller kvittofärgat — all konst utanför den blir dekor, konstens
+   konturer släcks medan bilden är dold, och den riktiga kustlinjen läggs
+   till (sann: 1) och syns bara medan bilden är dold.
+
 3. SMAL (tjocklek) i art-markers. omfang är längsta bbox-axeln — avlånga
    länder (Kuba: 10,75° långt men under 1° tjockt) räknades som "stora
    nog att klicka på" och fick aldrig sin prick. smal = max över
@@ -48,6 +56,13 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEKOR_LANDER = ['asien/malaysia', 'nordamerika/kuba', 'sydamerika/eciador']
 # länder som befordras till emblem: konsten döljs, riktiga formen visas
 EMBLEM_LANDER = ['vastindien/bahamas']
+# länder vars konst ligger förskjuten mot den riktiga formen (Kubas cigarr
+# ligger norr om ön och ryker in över Bahamas): täcket blir den RIKTIGA
+# formen, all konst utanför den blir dekor och konstens konturer släcks
+# medan bilden är dold — då ritas den riktiga kustlinjen i stället (sann: 1)
+SANN_FORM_LANDER = ['nordamerika/kuba']
+# konturer så här nära konsten räknas till den (grader)
+SANN_KONTUR = 0.02
 # hur långt utanför den verkliga landytan en del måste ligga för att
 # räknas som dekor (grader) och hur stor andel av delen som får ligga på
 # riktig mark
@@ -348,6 +363,95 @@ def dela_konturer(borders, dekor_polys, mark_polys, egenskaper):
     return len(flyttade)
 
 
+def sann_form(regions, borders, varlden, key):
+    """Ge landet dess riktiga form som täcke (körs efter dela_dekor).
+
+    Konsten (land + dekor) delas om: täcket blir världens verkliga form
+    (world-borders.json) och ALL konst utanför den blir dekor, som spelet
+    målar i havsfärg medan bilden är dold. Konturlinjerna runt konsten
+    flyttas till dekorlinjerna (släcks medan bilden är dold) och landets
+    riktiga kustlinje läggs till som en egen linje (sann: 1) som bara syns
+    medan bilden är dold. Omkörbart: slain_dekor slår ihop delarna igen och
+    den gamla kustlinjen tas bort här."""
+    from shapely.geometry import shape, LineString, MultiLineString
+    from shapely.ops import unary_union
+    land = hitta(regions['features'], key)
+    if land is None:
+        print(f'  {key}: finns inte i art-regions — hoppar över')
+        return False
+    gid = land['properties']['gid']
+    namn = land['properties']['namn']
+    borders['features'] = [f for f in borders['features']
+                           if not (f['properties'].get('gid') == gid and f['properties'].get('sann'))]
+    sant_f = [f for f in varlden['features']
+              if (f['properties'].get('namn') or f['properties'].get('name')) == namn]
+    if not sant_f:
+        print(f'  {key}: saknar verklig geometri i world-borders — hoppar över')
+        return False
+    sant = unary_union([shape(f['geometry']).buffer(0) for f in sant_f])
+    dek = [f for f in regions['features']
+           if f['properties'].get('key') == key and f['properties'].get('dekor')]
+    konst = unary_union([shape(f['geometry']).buffer(0) for f in dek + [land]])
+    for f in dek:
+        regions['features'].remove(f)
+    land['geometry'] = {'type': 'MultiPolygon', 'coordinates': _multi(sant)}
+    dekor_g = konst.difference(sant)
+    dekor = _multi(dekor_g)
+    if dekor:
+        # dekordelen FÖRE täcket: den riktiga formen ritas sist och vinner
+        # kanten mot havsfärgen (även på väggkartan, som stryker dekorn)
+        regions['features'].insert(regions['features'].index(land), {
+            'type': 'Feature', 'id': gid,
+            'properties': {'gid': gid, 'key': key, 'namn': namn, 'dekor': 1},
+            'geometry': {'type': 'MultiPolygon', 'coordinates': dekor},
+        })
+    # konstens konturer (i den generella featuren) → dekorlinjerna
+    zon = konst.buffer(SANN_KONTUR)
+    gen = borders['features'][0]
+
+    def delar(g):
+        if g.is_empty:
+            return []
+        if isinstance(g, LineString):
+            return [g] if g.length > KONTUR_MINSTA else []
+        if isinstance(g, MultiLineString):
+            return [l for l in g.geoms if l.length > KONTUR_MINSTA]
+        return [l for bit in getattr(g, 'geoms', []) for l in delar(bit)]
+
+    def koord(ls):
+        return [[round(x, 5), round(y, 5)] for x, y in ls.coords]
+
+    kvar, flyttade = [], []
+    for line in gen['geometry']['coordinates']:
+        ls = LineString([(p[0], p[1]) for p in line])
+        if not ls.intersects(zon):
+            kvar.append(line)
+            continue
+        kvar += [koord(b) for b in delar(ls.difference(zon))]
+        flyttade += [koord(b) for b in delar(ls.intersection(zon))]
+    gen['geometry']['coordinates'] = kvar
+    dlinje = next((f for f in borders['features']
+                   if f['properties'].get('gid') == gid and f['properties'].get('dekor')), None)
+    if dlinje is None:
+        dlinje = {'type': 'Feature', 'id': gid,
+                  'properties': {'gid': gid, 'namn': namn, 'dekor': 1},
+                  'geometry': {'type': 'MultiLineString', 'coordinates': []}}
+        borders['features'].append(dlinje)
+    dlinje['geometry']['coordinates'] += flyttade
+    kust = []
+    for p in getattr(sant, 'geoms', [sant]):
+        kust.append(koord(p.exterior))
+        kust += [koord(h) for h in p.interiors]
+    borders['features'].append({
+        'type': 'Feature', 'id': gid,
+        'properties': {'gid': gid, 'namn': namn, 'sann': 1},
+        'geometry': {'type': 'MultiLineString', 'coordinates': kust},
+    })
+    print(f'  {key}: riktiga formen som täcke ({sant.area:.2f}°), {dekor_g.area:.2f}° konst som '
+          f'dekor, {len(flyttade)} konturbitar släcks med bilden, {len(kust)} kustringar')
+    return True
+
+
 def flytta_konturer(borders, mal, egenskaper):
     """Flytta konturlinjerna som ligger på mal-polygonerna till egen feature."""
     gid = egenskaper['gid']
@@ -521,6 +625,11 @@ def main():
                  flytta_konturer(borders, res['polys'], egenskaper))
             if n:
                 print(f'    art-borders: {n} konturlinjer utbrutna')
+
+    print('art-regions: riktig form')
+    for key in SANN_FORM_LANDER:
+        if sann_form(regions, borders, varlden, key):
+            andrad_reg = andrad_bor = True
 
     print('art-regions: emblemländer')
     for key in EMBLEM_LANDER:

@@ -17,6 +17,11 @@ const ROD = '#e05252';         // felklick
 // i kvittofärgen — bilden är redan avklarad och färgen är facit.
 // index = antal försök (1 = rätt direkt), 4 täcker även fler försök
 const SVAR_FARG = [null, '#1f7a3c', '#ffdc32', '#ff8c2e', '#e05252'];
+// 1 när landets bild är dold (täckt, grönt eller kvittofärgat), annars 0:
+// havsfärgen över konst ute i havet (havs-badges, dekordelar) följer den
+const DOLD_KONST = ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
+                                    ['boolean', ['feature-state', 'tackt'], false],
+                                    ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1, 0];
 
 const WORLD_SLUGS = ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 const KAMERA = {
@@ -122,6 +127,7 @@ function setLand(gid, patch) {
       map.setFeatureState({ source: pre + 'markorer', id: gid }, t);
       map.setFeatureState({ source: pre + 'borders', id: gid }, t);
     } catch (e) { /* källan inte laddad än — tillståndet ligger i tillstand-mappen */ }
+    if (gid >= USA_GID && usaUtstickare.length) visaUtstickare(gid);
   }
   flatDirty();
   origApplyState(gid, t);
@@ -179,7 +185,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '77';
+const V = '82';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -200,9 +206,18 @@ async function fetchJson(path) {
 const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
-const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=4');
+const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=5');
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
+// världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
+// i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)
+const USA_REMSA_GID = 1999;
+// havsmasken runt USA: döljer delstatskonst som hamnat utanför kusten
+const USA_MASK_GID = 1998;
 let usaLaddad = null;   // promise: klickytor/markörer/gränser + kartlager
+// delstatskonst som medvetet sticker ut över grannlandet (Pennsylvanias
+// penna in i Ontario): egen bild ovanpå grannens gröna, synlig bara när
+// delstaten är avslöjad. [{ gid, lager }]
+let usaUtstickare = [];
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
 let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
@@ -336,12 +351,18 @@ function laddaUsa() {
   // cachas BARA vid framgång (som loadRegionConfig) — en nätblipp får inte
   // göra delstatsregionen obrukbar för resten av sessionen
   const forsok = (async () => {
-    const [reg, mark, grans] = await Promise.all([
+    const [reg, mark, grans, utst] = await Promise.all([
       fetchJson('assets/usa-regions.json?v=' + V),
       fetchJson('assets/usa-markers.json?v=' + V),
       fetchJson('assets/usa-borders.json?v=' + V),
+      fetchJson('assets/usa-utstickare.json?v=' + V).catch(() => []),
     ]);
     for (const f of reg.features) {
+      // dekordelar (konst målad i havet) och ytterkantbanden delar id med
+      // sin delstat men huvudfeaturen ska äga uppslagen; remsorna är ingen
+      // delstat alls
+      if (f.properties.dekor || f.properties.remsa || f.properties.mask ||
+          f.properties.kant) continue;
       featureByFilename.set(f.properties.key.split('/')[1], f);
       featureByGid.set(f.id, f);
     }
@@ -359,14 +380,37 @@ function laddaUsa() {
       l.layout = Object.assign(l.layout || {}, { visibility: 'none' });
       map.addLayer(l, fore);
     };
-    // delstatskonst OCH delstatstäcke läggs UNDER världens gränslinjer:
-    // världens kust- och landsgränslinjer (USA/Kanada, Rio Grande) ritas
-    // ovanpå och är delstaternas ytterlinje både avslöjat och täckt —
-    // usa-borders innehåller bara delstat↔delstat, inga yttre kanter
+    // delstatskonsten läggs under världens täcke (grannarnas gröna yta
+    // döljer konst som spiller över gränsen), delstatstäcket ovanpå det.
+    // Täcket är klippt till världens målade USA-yta och usa-borders har en
+    // yttre kontur ur samma geometri; världens linjer längs USA-kanten
+    // (usakant) släcks i regionen, så varje kant får exakt en linje
     klona('art', 'usa-art', 'usa-art', 'cover');
+    // havsfärg över konstrester utanför kusten (direkt ovanpå konsten)
+    map.addLayer({ id: 'usa-mask', type: 'fill', source: 'usa-regioner',
+      filter: ['==', ['get', 'mask'], 1], layout: { visibility: 'none' },
+      paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'cover');
     klona('cover', 'usa-cover', 'usa-regioner', 'borders');
+    map.setFilter('usa-cover', ['!=', ['get', 'kant'], 1]);
+    // jämntjock ytterkant runt avslöjade delstater: teckningens egen kontur
+    // klipptes bort eller åts upp där konsten inte nådde exakt fram till
+    // kusten och gränsen, så ett band med samma tjocklek (geografiskt, som
+    // teckningens linjer) ligger innanför täckets yttre kant. Det syns bara
+    // när bilden syns. Banden har delstatens id (feature-state följer med)
+    map.addLayer({ id: 'usa-kant', type: 'fill', source: 'usa-regioner',
+      filter: ['==', ['get', 'kant'], 1], layout: { visibility: 'none' },
+      paint: { 'fill-color': '#0a0a0a', 'fill-opacity': ['-', 1, DOLD_KONST] } }, 'borders');
     klona('borders', 'usa-granser', 'usa-borders');
     klona('prickar', 'usa-prickar', 'usa-markorer');
+    usaUtstickare = [];
+    for (const u of utst) {
+      const lager = 'usa-utst-' + u.gid;
+      map.addSource(lager, { type: 'image', url: dataUrl(u.bild + '?v=' + V), coordinates: u['hörn'] });
+      map.addLayer({ id: lager, type: 'raster', source: lager, layout: { visibility: 'none' },
+        paint: { 'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } },
+        'usa-prickar');
+      usaUtstickare.push({ gid: u.gid, lager });
+    }
     // tillstånd satta innan lagren fanns (t.ex. återbesök) läggs på igen
     for (const [gid, t] of tillstand) {
       if (gid < USA_GID) continue;
@@ -376,16 +420,30 @@ function laddaUsa() {
         map.setFeatureState({ source: 'usa-borders', id: gid }, t);
       } catch (e) {}
     }
+    for (const u of usaUtstickare) visaUtstickare(u.gid);
   })();
   usaLaddad = forsok;
   forsok.catch(() => { usaLaddad = null; });
   return forsok;
 }
+// utstickarbilden syns exakt när delstatens bild syns (DOLD_KONST = 0)
+function visaUtstickare(gid) {
+  const u = usaUtstickare.find(x => x.gid === gid);
+  if (!u || !map || !map.getLayer(u.lager)) return;
+  const t = landState(gid);
+  const dold = t.gron || t.tackt || (t.svar || 0) >= 1;
+  map.setPaintProperty(u.lager, 'raster-opacity', dold ? 0 : 1);
+}
 function visaUsaLager(pa) {
-  for (const id of ['usa-art', 'usa-cover', 'usa-granser', 'usa-prickar']) {
-    try { map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none'); }
-    catch (e) { /* lagren finns inte förrän laddaUsa körts */ }
+  for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',
+                    ...usaUtstickare.map(u => u.lager)]) {
+    // lagren finns inte förrän laddaUsa körts (MapLibre loggar ett fel i
+    // stället för att kasta, så kolla först)
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none');
   }
+  // världens USA-kontur ersätts av delstaternas egen yttre kontur
+  try { map.setFilter('borders', pa ? ['!=', ['get', 'usakant'], 1] : null); }
+  catch (e) {}
 }
 // klick och hover frågar delstatslagren FÖRST när regionen är aktiv —
 // de ligger överst och äger då USA-ytan
@@ -395,11 +453,20 @@ function spelLager() {
     : ['prickar', 'former', 'cover'];
 }
 // i delstatsregionen är världens USA-yta bara kuliss (konst under delstats-
-// lagren) — träffar på den räknas som hav, aldrig som svar eller hover
+// lagren) — träffar på den räknas som hav, aldrig som svar eller hover.
+// Detsamma gäller dekordelar (konst målad i havet) så länge konsten är dold:
+// då är de havsfärgade och ett klick där är ett klick i havet
 function spelTraffar(hits) {
-  if (aktivSlug !== 'usa') return hits;
-  const uv = featureByFilename.get('usa');
-  return uv ? hits.filter(h => h.id !== uv.id) : hits;
+  const usa = aktivSlug === 'usa';
+  const uv = usa ? featureByFilename.get('usa') : null;
+  return hits.filter(h => {
+    if (usa && (h.id === USA_REMSA_GID || h.id === USA_MASK_GID || (uv && h.id === uv.id))) return false;
+    if (h.properties && h.properties.dekor) {
+      const t = landState(h.id);
+      if (t.tackt || t.gron || (t.svar || 0) >= 1) return false;
+    }
+    return true;
+  });
 }
 
 // Cirkeln har FAST storlek på kartan (geografiskt förankrad — den zoomar
@@ -639,6 +706,30 @@ function initMap() {
         { id: 'hav', type: 'fill', source: 'jorden',
           paint: { 'fill-color': '#123050' } },
         { id: 'art', type: 'raster', source: 'art', paint: { 'raster-resampling': 'linear' } },
+        // bildens antialiasing-frans (alfa < 128) ligger strax UTANFÖR
+        // klickytan — en kantlinje i havsfärg sväljer den så inga
+        // konturrester av den dolda bilden skymtar på havet. Linjen ligger
+        // UNDER täcket: där dekorn möter landets egen yta (Kubas riktiga
+        // form, Ecuadors kust) vinner täcket, och linjens yttre halva tar
+        // ändå fransen ute i havet
+        { id: 'cover-kant', type: 'line', source: 'regioner',
+          filter: ['any',
+            ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
+            ['==', ['get', 'dekor'], 1]],
+          paint: {
+            'line-color': '#123050',
+            'line-width': 3,
+            'line-opacity': ['case',
+              // dekordelarna förblir hav vid felblink/tips/hover — fransen
+              // ska fortsätta döljas
+              ['==', ['get', 'dekor'], 1], DOLD_KONST,
+              ['any',
+                ['boolean', ['feature-state', 'fel'], false],
+                ['boolean', ['feature-state', 'tips'], false],
+                ['boolean', ['feature-state', 'hover'], false]], 0,
+              DOLD_KONST],
+          },
+          layout: { 'line-join': 'round' } },
         // täcket: badge-öar (bilden ligger i havet men har inte landets
         // form) döljs med HAVSFÄRG när de är täckta/gröna — den riktiga
         // formen och pricken nedanför visar var landet faktiskt finns.
@@ -651,11 +742,13 @@ function initMap() {
             // klick. Havs-badges hålls havsfärgade även vid hover (deras
             // cirkel lyser i stället).
             'fill-color': ['case',
+              // dekordelar blinkar aldrig rött/gult: medan konsten är dold
+              // är de hav, och felklick/tips ska inte rita fram dem som
+              // ränder ute i havet (North Carolinas fartstreck, Alaskas svans)
+              ['==', ['get', 'dekor'], 1], '#123050',
               ['boolean', ['feature-state', 'fel'], false], ROD,
               ['boolean', ['feature-state', 'tips'], false], GUL,
-              ['any',
-                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
-                ['==', ['get', 'dekor'], 1]], '#123050',
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], '#123050',
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['boolean', ['feature-state', 'gron'], false], LJUSGRON,
                          ['boolean', ['feature-state', 'tackt'], false], HOVERGUL,
@@ -668,16 +761,13 @@ function initMap() {
               ['>=', ['coalesce', ['feature-state', 'svar'], 0], 4], SVAR_FARG[4],
               TACK],
             'fill-opacity': ['case',
-              ['boolean', ['feature-state', 'fel'], false], 0.92,
-              ['boolean', ['feature-state', 'tips'], false], 0.92,
               // havs-badges/dekordelar döljs i havet även när landet fått
               // sin kvittofärg — bara den riktiga formen ska bära färgen
-              ['any',
-                ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
-                ['==', ['get', 'dekor'], 1]],
-                ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
-                                 ['boolean', ['feature-state', 'tackt'], false],
-                                 ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1, 0],
+              // (dekor även under felblink/tips, se fill-color)
+              ['==', ['get', 'dekor'], 1], DOLD_KONST,
+              ['boolean', ['feature-state', 'fel'], false], 0.92,
+              ['boolean', ['feature-state', 'tips'], false], 0.92,
+              ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]], DOLD_KONST,
               ['boolean', ['feature-state', 'hover'], false],
                 ['case', ['any', ['boolean', ['feature-state', 'gron'], false],
                                  ['boolean', ['feature-state', 'tackt'], false]], 1, 0.25],
@@ -686,28 +776,6 @@ function initMap() {
               ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1], 1,
               0],
           } },
-        // bildens antialiasing-frans (alfa < 128) ligger strax UTANFÖR
-        // klickytan — en kantlinje i havsfärg sväljer den så inga
-        // konturrester av den dolda bilden skymtar på havet
-        { id: 'cover-kant', type: 'line', source: 'regioner',
-          filter: ['any',
-            ['all', ['==', ['get', 'badge'], 1], ['==', ['get', 'hav'], 1]],
-            ['==', ['get', 'dekor'], 1]],
-          paint: {
-            'line-color': '#123050',
-            'line-width': 3,
-            'line-opacity': ['case',
-              ['any',
-                ['boolean', ['feature-state', 'fel'], false],
-                ['boolean', ['feature-state', 'tips'], false],
-                ['boolean', ['feature-state', 'hover'], false]], 0,
-              ['any',
-                ['boolean', ['feature-state', 'tackt'], false],
-                ['boolean', ['feature-state', 'gron'], false],
-                ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]], 1,
-              0],
-          },
-          layout: { 'line-join': 'round' } },
         // badge-ländernas RIKTIGA Natural Earth-form: medan landet är
         // täckt syns BARA cirkeln — formen visas först när landet
         // avslöjats (och som grön geografi i den gröna omvärlden)
@@ -735,6 +803,9 @@ function initMap() {
             // id = gid) släcks när landet är täckt/grönt/kvittofärgat —
             // bilden de ramar in är ju dold då
             'line-opacity': ['case',
+              // riktiga kustlinjen för länder med förskjuten konst (Kuba):
+              // syns bara medan bilden är dold, som täckets riktiga form
+              ['==', ['get', 'sann'], 1], ['*', 0.9, DOLD_KONST],
               ['all',
                 ['any', ['==', ['get', 'badge'], 1], ['==', ['get', 'dekor'], 1]],
                 ['any', ['boolean', ['feature-state', 'tackt'], false],
@@ -969,8 +1040,11 @@ fetchJson('assets/art-borders.json?v=' + V)
   .then(gj => {
     borderFeats = gj.features.map(f => ({
       // badge-blobbar OCH dekordelar (Malaysias ansikte) bär sitt gid så
-      // konturerna kan släckas medan landet är täckt
-      gid: f.properties && (f.properties.badge || f.properties.dekor) ? f.properties.gid : 0,
+      // konturerna kan släckas medan landet är täckt; Kubas riktiga
+      // kustlinje (sann) ritas tvärtom bara medan bilden är dold
+      gid: f.properties && (f.properties.badge || f.properties.dekor || f.properties.sann)
+        ? f.properties.gid : 0,
+      sann: f.properties && f.properties.sann ? 1 : 0,
       lines: f.geometry.coordinates,
     }));
     flatDirty();
@@ -1203,11 +1277,12 @@ function composeFlat() {
   for (const f of regionsGj.features) {
     const t = landState(f.id);
     // havs-badges och dekordelar (Malaysias ansikte) döljs i havsfärg när
-    // landet är täckt eller kvittofärgat — de har ingen landform att visa
-    const havBadge = (f.properties.badge === 1 && f.properties.hav === 1) ||
-                     f.properties.dekor === 1;
+    // landet är täckt eller kvittofärgat — de har ingen landform att visa.
+    // Dekordelar blinkar inte heller vid felklick/tips (samma som globen)
+    const havBadge = f.properties.badge === 1 && f.properties.hav === 1;
     let color = null, alpha = 1;
-    if (t.fel) { color = ROD; alpha = 0.92; }
+    if (f.properties.dekor === 1) { if (t.gron || t.tackt || t.svar) color = SJO; }
+    else if (t.fel) { color = ROD; alpha = 0.92; }
     else if (t.tips) { color = GUL; alpha = 0.92; }
     else if (havBadge) { if (t.gron || t.tackt || t.svar) color = SJO; }
     else if (t.hover) {
@@ -1224,7 +1299,8 @@ function composeFlat() {
     flatCtx.fillStyle = color;
     traceFeature(flatCtx, f);
     flatCtx.fill('evenodd');
-    if (havBadge && !t.fel && !t.tips) {
+    // (dolda dekordelar har alltid havsfärg, så de stryks även vid fel/tips)
+    if ((havBadge && !t.fel && !t.tips) || f.properties.dekor === 1) {
       // svälj bildens antialiasing-frans strax utanför klickytan
       flatCtx.strokeStyle = color;
       flatCtx.lineWidth = 3;
@@ -1261,9 +1337,10 @@ function composeFlat() {
     flatCtx.beginPath();
     for (const bf of borderFeats) {
       if (bf.gid) {
-        // badge-blobbens kontur ritas bara när bilden faktiskt syns
+        // badge-blobbens kontur ritas bara när bilden faktiskt syns, den
+        // riktiga kustlinjen bara när den är dold
         const t = landState(bf.gid);
-        if (t.tackt || t.gron || t.svar) continue;
+        if (!!(t.tackt || t.gron || t.svar) !== !!bf.sann) continue;
       }
       for (const line of bf.lines) {
         let prev = null;
@@ -1323,6 +1400,11 @@ function flatHit(ev) {
   // ÖVERST ritade featuren, och ritordningen är filordningen
   for (let fi = regionsGj.features.length - 1; fi >= 0; fi--) {
     const f = regionsGj.features[fi];
+    // dekordelar är hav medan konsten är dold (som spelTraffar på globen)
+    if (f.properties.dekor) {
+      const t = landState(f.id);
+      if (t.tackt || t.gron || (t.svar || 0) >= 1) continue;
+    }
     let inside = false;
     for (const poly of f.geometry.coordinates) {
       for (const ring of poly) {
@@ -1962,11 +2044,12 @@ async function startRegion(slug, flyg, delId) {
   }
   if (slug === 'usa') {
     for (const gid of aktivByGid.keys()) setLand(gid, { gron: false, tackt: true });
-    // världens USA-yta visar sin KONST (varken grön eller täckt) — där
-    // delstatslagren inte når (avlägsna öar som Kodiak) syns då samma
-    // teckning som i världsvyn i stället för gröna fläckar
+    // världens USA-yta är genomskinlig: dess täcke ligger OVANPÅ
+    // delstatskonsten och får inte skymma den. Delstatstäcket täcker hela
+    // ytan inom USA; läckaget in i Mexiko målas grönt som grannlandet
     const usaVarld = featureByFilename.get('usa');
     if (usaVarld) setLand(usaVarld.id, { gron: false, tackt: false });
+    setLand(USA_REMSA_GID, { gron: true, tackt: false });
   }
   // väggkartan bakas ur världsarkivet och känner inte delstaterna — göm
   // det vyvalet i delstatsregionen (globen + originalkartan räcker gott)
@@ -2291,7 +2374,7 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
