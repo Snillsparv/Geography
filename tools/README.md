@@ -116,10 +116,14 @@ samma id som delstaten. Konst som medvetet sticker ut över grannlandet
 make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
 (assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
 ovanpå grannens gröna när delstaten är avslöjad. Avslöjade delstater får
-en jämntjock svart ytterkant (`kant: 1`-features) där teckningens egen
-kontur klipptes eller åts upp: lika bred på jordytan som teckningens
+en jämntjock svart kant runt om, lika bred på jordytan som teckningens
 konturlinje (`KANT_PX` dukpixlar på USA-kartan gånger delstatens skala,
-så Alaska — ritad i mindre skala — får bredare kant). Världens USA-yta i Mexiko och
+så Alaska — ritad i mindre skala — får bredare kant): `kant: 1` (samma
+id som delstaten) har hela bredden mot havet och grannländerna och halva
+bredden mot varje grannstat, och `kant: 2` (egna id från `INRE_KANT_ID`,
+`gid` + `granne`) är andra halvan mot en grannstat, som spelet tänder när
+grannens bild inte syns. Kanten blir då lika tjock oavsett i vilken
+ordning delstaterna avslöjas. Världens USA-yta i Mexiko och
 de smala glipor där världens USA-yta och grannländerna inte möts blir en
 grön remsa (gid 1999), och en havsmask (gid 1998) döljer konstrester runt
 kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma

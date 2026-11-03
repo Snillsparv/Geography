@@ -128,6 +128,7 @@ function setLand(gid, patch) {
       map.setFeatureState({ source: pre + 'borders', id: gid }, t);
     } catch (e) { /* källan inte laddad än — tillståndet ligger i tillstand-mappen */ }
     if (gid >= USA_GID && usaUtstickare.length) visaUtstickare(gid);
+    if (gid >= USA_GID && usaInreKant.size) visaInreKant(gid);
   }
   flatDirty();
   origApplyState(gid, t);
@@ -185,7 +186,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '84';
+const V = '85';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -218,6 +219,9 @@ let usaLaddad = null;   // promise: klickytor/markörer/gränser + kartlager
 // penna in i Ontario): egen bild ovanpå grannens gröna, synlig bara när
 // delstaten är avslöjad. [{ gid, lager }]
 let usaUtstickare = [];
+// kantbandens andra halva mot en grannstat (kant: 2): gid → de bitar där
+// delstaten är den ena eller andra parten, {id, gid, granne}
+let usaInreKant = new Map();
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
 let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
@@ -357,10 +361,18 @@ function laddaUsa() {
       fetchJson('assets/usa-borders.json?v=' + V),
       fetchJson('assets/usa-utstickare.json?v=' + V).catch(() => []),
     ]);
+    usaInreKant = new Map();
     for (const f of reg.features) {
-      // dekordelar (konst målad i havet) och ytterkantbanden delar id med
-      // sin delstat men huvudfeaturen ska äga uppslagen; remsorna är ingen
-      // delstat alls
+      if (f.properties.kant === 2) {
+        const bit = { id: f.id, gid: f.properties.gid, granne: f.properties.granne };
+        for (const g of [bit.gid, bit.granne]) {
+          if (!usaInreKant.has(g)) usaInreKant.set(g, []);
+          usaInreKant.get(g).push(bit);
+        }
+      }
+      // dekordelar (konst målad i havet) och kantbanden delar id med sin
+      // delstat (eller har egna) men huvudfeaturen ska äga uppslagen;
+      // remsorna är ingen delstat alls
       if (f.properties.dekor || f.properties.remsa || f.properties.mask ||
           f.properties.kant) continue;
       featureByFilename.set(f.properties.key.split('/')[1], f);
@@ -391,19 +403,24 @@ function laddaUsa() {
       filter: ['==', ['get', 'mask'], 1], layout: { visibility: 'none' },
       paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'cover');
     klona('cover', 'usa-cover', 'usa-regioner', 'borders');
-    map.setFilter('usa-cover', ['!=', ['get', 'kant'], 1]);
-    // jämntjock ytterkant runt avslöjade delstater: teckningens egen kontur
+    map.setFilter('usa-cover', ['!', ['has', 'kant']]);
+    // jämntjock kant runt avslöjade delstater: teckningens egen kontur
     // klipptes bort eller åts upp där konsten inte nådde exakt fram till
-    // kusten och gränsen, så ett band med samma tjocklek (geografiskt, som
-    // teckningens linjer) ligger innanför täckets yttre kant. Det syns bara
-    // när bilden syns. Banden har delstatens id (feature-state följer med)
-    // Under felblink och tips (rött/gult täcke) göms bandet, och vid hover
-    // får det samma vita slöja (0,25) som resten av bilden
+    // kusten och gränsen, och mot en grannstat ägs gränsen ofta av grannens
+    // bild. Ett band med samma tjocklek (geografiskt, som teckningens
+    // linjer) ligger därför innanför delstatens kant och syns när bilden
+    // syns. kant: 1 har delstatens id (feature-state följer med): hela
+    // bredden mot havet, halva mot grannstaterna — två avslöjade grannar
+    // ger en hel bredd tillsammans. kant: 2 är andra halvan mot EN granne,
+    // med eget id; visaInreKant tänder den när delstatens bild syns men
+    // grannens inte gör det. Under felblink och tips (rött/gult täcke) göms
+    // bandet, och vid hover får det samma vita slöja (0,25) som bilden
     map.addLayer({ id: 'usa-kant', type: 'fill', source: 'usa-regioner',
-      filter: ['==', ['get', 'kant'], 1], layout: { visibility: 'none' },
+      filter: ['has', 'kant'], layout: { visibility: 'none' },
       paint: {
         'fill-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#474747', '#0a0a0a'],
         'fill-opacity': ['case',
+          ['==', ['get', 'kant'], 2], ['case', ['boolean', ['feature-state', 'vis'], false], 1, 0],
           ['any', ['boolean', ['feature-state', 'fel'], false],
                   ['boolean', ['feature-state', 'tips'], false]], 0,
           ['-', 1, DOLD_KONST]],
@@ -433,6 +450,7 @@ function laddaUsa() {
       } catch (e) {}
     }
     for (const u of usaUtstickare) visaUtstickare(u.gid);
+    for (const gid of usaInreKant.keys()) visaInreKant(gid);
   })();
   usaLaddad = forsok;
   forsok.catch(() => { usaLaddad = null; });
@@ -448,6 +466,27 @@ function visaUtstickare(gid) {
   const dold = t.gron || t.tackt || (t.svar || 0) >= 1 || t.fel || t.tips;
   map.setPaintProperty(u.lager, 'raster-opacity', dold ? 0 : 1);
   map.setPaintProperty(u.lager, 'raster-brightness-min', !dold && t.hover ? 0.25 : 0);
+}
+// syns delstatens bild? (samma villkor som DOLD_KONST, plus felblink och
+// tips, när täcket är rött/gult)
+function konstSyns(gid) {
+  const t = landState(gid);
+  return !(t.gron || t.tackt || (t.svar || 0) >= 1 || t.fel || t.tips);
+}
+// andra halvan av kanten mot en grannstat syns när delstatens bild syns men
+// grannens inte gör det (täckt, grön, kvittofärgad): då blir kanten lika
+// tjock som mot havet. Syns båda bilderna räcker de två första halvorna
+function visaInreKant(gid) {
+  const bitar = usaInreKant.get(gid);
+  if (!bitar || !map) return;
+  for (const b of bitar) {
+    try {
+      map.setFeatureState({ source: 'usa-regioner', id: b.id }, {
+        vis: konstSyns(b.gid) && !konstSyns(b.granne),
+        hover: !!landState(b.gid).hover,
+      });
+    } catch (e) { /* källan inte laddad än */ }
+  }
 }
 function visaUsaLager(pa) {
   for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',

@@ -55,15 +55,18 @@ Här görs det på samma sätt som världskartan:
    varje kant exakt en linje, och den ligger där täcket slutar.
    Delstatslinjer som efter flyttarna i steg 1 har samma delstat på båda
    sidor tas bort.
-5. YTTERKANT. Teckningens egen kontur försvann där konsten inte nådde
+5. KANTBAND. Teckningens egen kontur försvann där konsten inte nådde
    exakt fram till kusten och gränsen (klippt, eller uppäten bredvid
    bakningens utfyllnad), så avslöjade delstater hade tjock linje mot
-   grannstaterna men bara den tunna linjen mot havet. Varje delstat får ett
-   band (kant: 1, samma id) med teckningslinjernas tjocklek innanför
-   täckets yttre kant och sjöarnas stränder, som spelet ritar svart medan
-   bilden syns. Tjockleken är teckningens konturlinje (KANT_PX pixlar på
-   USA-kartans duk) gånger delstatens skala från duken till jorden, så
-   Alaska (ritad i mindre skala på duken) får ett bredare band.
+   grannstaterna men bara den tunna linjen mot havet — och mot en täckt
+   grannstat bara ibland, beroende på vems bild som ägde gränsen. Varje
+   delstat får ett band (kant: 1, samma id) med teckningslinjernas
+   tjocklek innanför täckets yttre kant och sjöarnas stränder och halva
+   tjockleken längs grannstaterna, plus en andra halva per grannstat
+   (kant: 2, gid och granne) som spelet tänder när grannens bild inte syns.
+   Tjockleken är teckningens konturlinje (KANT_PX pixlar på USA-kartans
+   duk) gånger delstatens skala från duken till jorden, så Alaska (ritad i
+   mindre skala på duken) får ett bredare band.
 
 Delstatsdelen (1–4a) görs bara på make-tiles råa export: är usa-regions
 redan efterbearbetad hoppar skriptet över den. Havsmasken bär en
@@ -165,6 +168,11 @@ UTSTICKARE_FIL = 'tools/data/usa-utstickare.json'
 # Strimlor smalare än 2 × UTSTICKARE_SMAL längs stranden hör inte till pennan
 UTSTICKARE_FOT = 0.12
 UTSTICKARE_SMAL = 0.012
+# kantbandens andra halva mot grannstaterna (kant: 2) får egna id från
+# det här (delstaterna ligger på 1001–1050, remsa och mask på 1998–1999)
+INRE_KANT_ID = 5000
+# längsta sträcka mellan två punkter när kantbanden projiceras (grader)
+TATHET = 0.05
 
 
 def las(namn):
@@ -496,6 +504,100 @@ def main():
     print('klart')
 
 
+def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick):
+    """Jämntjocka svarta band runt avslöjade delstater (steg 5).
+
+    Teckningens egen kontur försvann där konsten inte nådde exakt fram till
+    världens USA-yta (klippt i havet, uppäten bredvid utfyllnaden), och mot
+    en grannstat ägs gränsen ofta av grannens bild: avslöjad bredvid en
+    täckt granne fick delstaten bara den tunna linjen där. Spelet ritar
+    därför band av teckningens linjetjocklek (KANT_PX dukpixlar × delstatens
+    skala, lika brett på jordytan) innanför delstatens kant:
+
+    - kant: 1 (samma id som delstaten, syns när bilden syns): hela bredden
+      innanför täckets yttre kant och sjöarnas stränder, plus HALVA bredden
+      längs varje grannstat. Två avslöjade grannar ger tillsammans en hel
+      bredd mitt på gränsen.
+    - kant: 2 (egna id från INRE_KANT_ID, gid = delstaten, granne = den
+      andra): andra halvan längs en grannstat. Spelet tänder den när
+      delstatens bild syns men grannens inte gör det, så kanten mot en täckt
+      eller grön granne blir lika tjock som mot havet — oavsett i vilken
+      ordning delstaterna avslöjas.
+
+    Banden räknas i en lokal stereografisk projektion per delstat, så de
+    blir lika tjocka åt alla håll — teckningens linjer följer jorden, inte
+    lng/lat. Hawaii (konsten är större än öarna) får inget band, och pennans
+    fot hålls fri."""
+    hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
+                       for p in ytor(tackyta)])
+    huvud = sorted(v for g, v in skala.items() if nyckel[g]['key'] not in INFALLDA)
+    huvudskala = huvud[len(huvud) // 2]
+    andra = [(g, t) for g, t in slutliga.items() if g not in visad]
+    ut, n_inre, bredder, nasta_id = [], 0, {}, INRE_KANT_ID
+    for gid, t in andra:
+        pr = nyckel[gid]
+        sk = skala.get(gid, huvudskala) if pr['key'] in INFALLDA else huvudskala
+        bredd = KANT_PX * sk
+        storst = max(ytor(t), key=lambda p: p.area)
+        fram, bak = stereografisk(storst.centroid.x, storst.centroid.y)
+        # bara grannskapet: allt längre bort än några bandbredder påverkar
+        # inte bandet
+        marg = 3 * bredd / math.cos(math.radians(min(75, t.bounds[3])))
+        fonster = t.buffer(marg, quad_segs=2)
+        # tätare punkter före projiceringen: en lång rak sträcka i lng/lat
+        # (49:e breddgraden) är en båge i projektionen, och utan
+        # mellanpunkter hamnar bandets inre kant snett
+        T = giltig(fram(segmentize(t, TATHET)))
+        # ytterkanten: hela bredden innanför täckets yttre kant
+        P = giltig(fram(segmentize(giltig(hel.intersection(fonster)), TATHET)))
+        yttre = P.difference(P.buffer(-bredd, quad_segs=4)).intersection(T)
+        # grannstaterna: täcken som rör delstaten
+        nara = t.buffer(KANT_NARA)
+        grannar = {}
+        for g2, t2 in andra:
+            if g2 == gid or not t2.intersects(nara):
+                continue
+            N = giltig(fram(segmentize(giltig(t2.intersection(fonster)), TATHET)))
+            if not N.is_empty:
+                grannar[g2] = N
+        alla = unary_union(list(grannar.values())) if grannar else None
+        halv = (T.intersection(alla.buffer(bredd / 2, quad_segs=4))
+                if alla is not None else Polygon())
+        band = giltig(bak(unary_union([yttre, halv])))
+        if gid in utstick:
+            band = band.difference(utstick[gid])
+        geom = multipolygon(ytor(band.simplify(KONTUR_FORENKLING)), SPLITTER)
+        if geom:
+            ut.append({'type': 'Feature', 'id': gid,
+                       'properties': {'gid': gid, 'key': pr['key'], 'namn': pr['namn'], 'kant': 1},
+                       'geometry': geom})
+            bredder[pr['namn']] = bredd
+        # andra halvan mot varje granne. Den överlappar den första halvan
+        # en bit (från en fjärdedels bredd) så förenklingen av de två
+        # var för sig aldrig lämnar en glipa mellan dem
+        if alla is None:
+            continue
+        inre_halva = alla.buffer(bredd / 4, quad_segs=4)
+        for g2, N in grannar.items():
+            b = T.intersection(N.buffer(bredd, quad_segs=4)).difference(inre_halva)
+            b = giltig(bak(b))
+            if gid in utstick:
+                b = b.difference(utstick[gid])
+            geom = multipolygon(ytor(b.simplify(KONTUR_FORENKLING)), SPLITTER)
+            if geom:
+                ut.append({'type': 'Feature', 'id': nasta_id,
+                           'properties': {'gid': gid, 'granne': g2, 'key': pr['key'],
+                                          'namn': pr['namn'], 'kant': 2},
+                           'geometry': geom})
+                nasta_id += 1
+                n_inre += 1
+    print(f'usa-regions: {len(bredder)} kantband ({n_inre} halvor mot grannstater), '
+          f'{KANT_PX} dukpx = {KANT_PX * huvudskala:.4f}° på huvudkartan' +
+          ''.join(f', {n} {b:.4f}°' for n, b in bredder.items()
+                  if abs(b - KANT_PX * huvudskala) > 1e-9))
+    return ut
+
+
 def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # ── 1–3: täcke, dekor, remsor ──
     stater = usa_reg['features']
@@ -715,48 +817,9 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     print(f'usa-borders: {len(klippta)} delstatsgränser ({borttaget:.2f}° linje med samma '
           f'delstat på båda sidor borttagen), {len(yttre)} yttre konturlinjer')
 
-    # ── 4b: jämntjock ytterkant runt avslöjade delstater ──
-    # Teckningens egen kontur försvann där konsten inte nådde exakt fram
-    # till världens USA-yta (klippt i havet, uppäten bredvid utfyllnaden).
-    # I stället ritar spelet ett band av samma tjocklek innanför täckets
-    # yttre kant och sjöarnas stränder när delstaten är avslöjad (kant: 1,
-    # samma id som delstaten). Bandet är lika brett på jordytan som
-    # teckningens kontur (KANT_PX dukpixlar × delstatens skala) och räknas
-    # i en lokal stereografisk projektion per delstat, så det blir lika
-    # tjockt åt alla håll — teckningens linjer följer jorden, inte lng/lat.
-    # Hawaii (konsten är större än öarna) får inget band, och pennans fot
-    # hålls fri
-    hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
-                       for p in ytor(tackyta)])
+    # ── 4b: jämntjock kant runt avslöjade delstater ──
     nyckel = {f['id']: f['properties'] for f in stater}
-    huvud = sorted(v for g, v in skala.items() if nyckel[g]['key'] not in INFALLDA)
-    huvudskala = huvud[len(huvud) // 2]
-    n_kant, bredder = 0, {}
-    for gid, t in slutliga.items():
-        if gid in visad:
-            continue
-        sk = skala.get(gid, huvudskala) if nyckel[gid]['key'] in INFALLDA else huvudskala
-        bredd = KANT_PX * sk
-        storst = max(ytor(t), key=lambda p: p.area)
-        fram, bak = stereografisk(storst.centroid.x, storst.centroid.y)
-        # bara grannskapet: kanten mot en grannstat är ingen ytterkant
-        marg = 3 * bredd / math.cos(math.radians(min(75, t.bounds[3])))
-        P = giltig(fram(giltig(hel.intersection(t.buffer(marg, quad_segs=2)))))
-        b = P.difference(P.buffer(-bredd, quad_segs=4)).intersection(giltig(fram(t)))
-        b = giltig(bak(b))
-        if gid in utstick:
-            b = b.difference(utstick[gid])
-        geom = multipolygon(ytor(b.simplify(KONTUR_FORENKLING)), SPLITTER)
-        if geom:
-            pr = nyckel[gid]
-            nya.append({'type': 'Feature', 'id': gid,
-                        'properties': {'gid': gid, 'key': pr['key'], 'namn': pr['namn'], 'kant': 1},
-                        'geometry': geom})
-            n_kant += 1
-            bredder[pr['namn']] = bredd
-    print(f'usa-regions: {n_kant} ytterkantband, {KANT_PX} dukpx = '
-          f'{KANT_PX * huvudskala:.4f}° på huvudkartan' +
-          ''.join(f', {n} {b:.4f}°' for n, b in bredder.items() if abs(b - KANT_PX * huvudskala) > 1e-9))
+    nya += kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick)
 
     # ── 4c: utstickare (Pennsylvanias penna) till make-usa-utstickare.mjs ──
     spara(UTSTICKARE_FIL, {'type': 'FeatureCollection', 'features': [
