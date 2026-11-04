@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="sv"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solsystemet på kartan – Jonas geografi</title>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style>
+  :root { color-scheme: dark; --bg: rgba(10,22,38,.94); --line: rgba(91,191,255,.28); --txt: #d6e4f0; --dim: #85a7c2; --acc: #f0c64a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; background: #081320; color: var(--txt); }
+  #map { position: absolute; inset: 0; }
+  #panel { position: fixed; top: 12px; left: 12px; width: 330px; max-height: calc(100vh - 24px); overflow: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; z-index: 2; }
+  h1 { font-size: 1.05rem; margin: 0 0 4px; }
+  p.hint { font-size: .82rem; color: var(--dim); margin: 0 0 10px; line-height: 1.45; }
+  form { display: flex; gap: 6px; margin-bottom: 10px; }
+  input[type=search] { flex: 1; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: #0d1d30; color: var(--txt); }
+  button { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--txt); cursor: pointer; font-size: .82rem; }
+  button.on { background: #2980b9; border-color: #5bbfff; color: #fff; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  ol { list-style: none; padding: 0; margin: 0; }
+  li { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px 8px; align-items: center; padding: 7px 6px;
+    border-top: 1px solid rgba(255,255,255,.06); cursor: pointer; border-radius: 6px; }
+  li:hover { background: rgba(255,255,255,.04); }
+  li.active { background: rgba(240,198,74,.14); outline: 1px solid rgba(240,198,74,.5); }
+  li .dot { width: 12px; height: 12px; border-radius: 50%; }
+  li .name { font-weight: 600; font-size: .9rem; }
+  li .dist { font-size: .78rem; color: var(--dim); text-align: right; }
+  li .obj { grid-column: 2 / 4; font-size: .78rem; color: var(--dim); }
+  li .obj b { color: var(--acc); font-weight: 500; }
+  li input { grid-column: 2 / 4; padding: 4px 7px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: #0d1d30; color: var(--txt); font-size: .78rem; }
+  #status { font-size: .8rem; color: var(--acc); min-height: 1.2em; margin: 6px 0 8px; }
+  .sun-marker { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #fff6b0, #ffb300 55%, #ff6a00);
+    box-shadow: 0 0 14px 4px rgba(255,170,0,.7); cursor: grab; }
+  .pl-marker { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,.6); cursor: grab; }
+  .pl-label { position: absolute; left: 20px; top: -3px; white-space: nowrap; font-size: 12px; font-weight: 600; color: #fff;
+    text-shadow: 0 0 3px #000, 0 0 3px #000; pointer-events: none; }
+  @media (max-width: 600px) { #panel { width: auto; right: 12px; max-height: 45vh; } }
+</style>
+</head><body>
+<div id="map"></div>
+<div id="panel">
+  <h1>Solsystemet på kartan</h1>
+  <p class="hint">Solen är en pilatesboll. Klicka på kartan där du vill ha den (eller sök en adress). Välj sedan en planet i listan och klicka där du vill ha den: den hamnar alltid på rätt avstånd från solen. Planeterna går att dra runt sin cirkel.</p>
+  <form id="search"><input type="search" id="q" placeholder="Sök adress, t.ex. Skövde"><button>Sök</button></form>
+  <div class="row">
+    <button id="bSat" class="on">Satellit</button><button id="bStreet">Karta</button>
+    <button id="bPluto">Pluto</button><button id="bFit">Visa allt</button>
+  </div>
+  <div id="status"></div>
+  <ol id="list"></ol>
+  <div class="row" style="margin-top:12px">
+    <button id="bKml">Ladda ner KML (Google My Maps)</button><button id="bReset">Börja om</button>
+  </div>
+  <p class="hint">Avstånd och föremål enligt <i>Bli ett minnesgeni</i>, kapitel 7.</p>
+</div>
+<script src="vendor/maplibre-gl.js"></script>
+<script>
+// Distances (m) and objects from the book's rymdpromenad: sun = pilates ball
+const BODIES = [
+  { id: 'sun', name: 'Solen', d: 0, obj: 'pilatesboll', color: '#ffb300' },
+  { id: 'merkurius', name: 'Merkurius', d: 25, obj: 'senapsfrö', color: '#b8b1a6' },
+  { id: 'venus', name: 'Venus', d: 45, obj: 'blåbär', color: '#e8c27a' },
+  { id: 'jorden', name: 'Jorden', d: 60, obj: 'ärta (månen: gruskorn 15 cm bort)', color: '#3fa0ff' },
+  { id: 'mars', name: 'Mars', d: 90, obj: 'pepparkorn (rosépeppar)', color: '#e0553a' },
+  { id: 'jupiter', name: 'Jupiter', d: 310, obj: 'tennisboll', color: '#d9a066' },
+  { id: 'saturnus', name: 'Saturnus', d: 570, obj: 'biljardboll nr 6', color: '#e6d27a' },
+  { id: 'uranus', name: 'Uranus', d: 1150, obj: 'golfboll', color: '#8fe3e8' },
+  { id: 'neptunus', name: 'Neptunus', d: 1852, obj: 'pingisboll', color: '#4f6dff' },
+  { id: 'pluto', name: 'Pluto', d: 2370, obj: 'sandkorn', color: '#c9a98a', bonus: true },
+];
+const KEY = 'planeter-v1';
+let state = { sun: null, planets: {}, notes: {}, pluto: false };
+try { Object.assign(state, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+// --- geodesy (sphere) ---
+const R = 6371008.8, rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
+function dest([lon, lat], bearing, d) {
+  const p1 = rad(lat), l1 = rad(lon), b = rad(bearing), a = d / R;
+  const p2 = Math.asin(Math.sin(p1) * Math.cos(a) + Math.cos(p1) * Math.sin(a) * Math.cos(b));
+  const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(a) * Math.cos(p1), Math.cos(a) - Math.sin(p1) * Math.sin(p2));
+  return [deg(l2), deg(p2)];
+}
+function bearing([lon1, lat1], [lon2, lat2]) {
+  const p1 = rad(lat1), p2 = rad(lat2), dl = rad(lon2 - lon1);
+  return deg(Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl)));
+}
+const ring = (c, d) => Array.from({ length: 181 }, (_, i) => dest(c, i * 2, d));
+
+// --- map ---
+const SAT = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: 'Bilder © Esri, Maxar, Earthstar Geographics',
+  tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] };
+const OSM = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap',
+  tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'] };
+const map = new maplibregl.Map({ container: 'map', center: state.sun || [13.845, 58.39], zoom: state.sun ? 14 : 12,
+  style: { version: 8, sources: { sat: SAT, osm: OSM }, layers: [
+    { id: 'osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
+    { id: 'sat', type: 'raster', source: 'sat' } ] } });
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+
+const bodies = () => BODIES.filter(b => b.id !== 'sun' && (!b.bonus || state.pluto));
+let active = null, sunMarker = null; const markers = {};
+
+function drawRings() {
+  const src = map.getSource('rings'); if (!src) return;
+  src.setData({ type: 'FeatureCollection', features: state.sun ? bodies().map(b => ({
+    type: 'Feature', properties: { color: b.color, active: b.id === active ? 1 : 0 },
+    geometry: { type: 'LineString', coordinates: ring(state.sun, b.d) } })) : [] });
+}
+function placeSun(ll) {
+  const old = state.sun; state.sun = ll;
+  if (!sunMarker) {
+    const el = document.createElement('div'); el.className = 'sun-marker'; el.title = 'Solen (pilatesboll)';
+    sunMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(map);
+    sunMarker.on('drag', () => placeSun(sunMarker.getLngLat().toArray()));
+  } else sunMarker.setLngLat(ll);
+  // planets keep their direction from the sun when the sun moves
+  for (const b of bodies()) if (state.planets[b.id] != null) setPlanet(b, state.planets[b.id]);
+  drawRings(); save(); render();
+}
+function setPlanet(b, brg) {
+  state.planets[b.id] = brg;
+  const ll = dest(state.sun, brg, b.d);
+  if (!markers[b.id]) {
+    const el = document.createElement('div'); el.className = 'pl-marker'; el.style.background = b.color;
+    const lab = document.createElement('span'); lab.className = 'pl-label'; lab.textContent = b.name; el.appendChild(lab);
+    const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(map);
+    m.on('drag', () => { const brg = bearing(state.sun, m.getLngLat().toArray()); m.setLngLat(dest(state.sun, brg, b.d)); state.planets[b.id] = brg; });
+    m.on('dragend', save);
+    el.addEventListener('click', e => { e.stopPropagation(); select(b.id); });
+    markers[b.id] = m;
+  } else markers[b.id].setLngLat(ll);
+}
+function select(id) {
+  active = active === id ? null : id; drawRings(); render();
+  const b = BODIES.find(x => x.id === id);
+  if (active && state.sun) {
+    const p = Math.max(b.d * 1.25, 40), n = dest(state.sun, 0, p), s = dest(state.sun, 180, p), e = dest(state.sun, 90, p), w = dest(state.sun, 270, p);
+    map.fitBounds([[w[0], s[1]], [e[0], n[1]]], { padding: 40, maxZoom: 19 });
+  }
+}
+map.on('click', e => {
+  const ll = e.lngLat.toArray();
+  if (!state.sun || active === 'sun') { placeSun(ll); const n = bodies().find(x => state.planets[x.id] == null); active = n ? n.id : null; drawRings(); render(); return; }
+  if (active) { const b = BODIES.find(x => x.id === active); setPlanet(b, bearing(state.sun, ll)); save();
+    const next = bodies().find(x => state.planets[x.id] == null); active = next ? next.id : null; drawRings(); render(); }
+});
+map.on('load', () => {
+  map.addSource('rings', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'rings', type: 'line', source: 'rings', paint: { 'line-color': ['get', 'color'],
+    'line-width': ['case', ['==', ['get', 'active'], 1], 4, 2], 'line-opacity': ['case', ['==', ['get', 'active'], 1], 1, .7],
+    'line-dasharray': [3, 2] } });
+  if (state.sun) placeSun(state.sun);
+});
+
+// --- panel ---
+const $ = id => document.getElementById(id), list = $('list'), status = $('status');
+function fmt(d) { return d >= 1000 ? (d / 1000).toLocaleString('sv', { maximumFractionDigits: 2 }) + ' km' : d + ' m'; }
+function render() {
+  status.textContent = !state.sun ? 'Klicka på kartan där solen ska ligga.' :
+    active === 'sun' ? 'Klicka där solen ska flyttas.' :
+    active ? 'Klicka var som helst åt det håll ' + BODIES.find(b => b.id === active).name + ' ska ligga.' :
+    bodies().every(b => state.planets[b.id] != null) ? 'Hela solsystemet är utplacerat!' : 'Välj en planet i listan.';
+  list.innerHTML = '';
+  for (const b of BODIES.filter(b => b.id === 'sun' || bodies().includes(b))) {
+    const li = document.createElement('li'); if (b.id === active) li.className = 'active';
+    const placed = b.id === 'sun' ? !!state.sun : state.planets[b.id] != null;
+    li.innerHTML = `<span class="dot" style="background:${b.color};opacity:${placed ? 1 : .35}"></span><span class="name">${b.name}</span>
+      <span class="dist">${b.d ? fmt(b.d) : ''}</span><span class="obj">Bild: <b>${b.obj}</b></span>`;
+    const inp = document.createElement('input'); inp.placeholder = 'Var hamnade den? (t.ex. grannens pool)';
+    inp.value = state.notes[b.id] || ''; inp.onclick = e => e.stopPropagation();
+    inp.oninput = () => { state.notes[b.id] = inp.value; save(); };
+    li.appendChild(inp); li.onclick = () => select(b.id); list.appendChild(li);
+  }
+}
+$('search').onsubmit = async e => {
+  e.preventDefault(); const q = $('q').value.trim(); if (!q) return;
+  status.textContent = 'Söker…';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+    const [hit] = await r.json(); if (!hit) { status.textContent = 'Hittade inget.'; return; }
+    map.flyTo({ center: [+hit.lon, +hit.lat], zoom: 17 }); render();
+  } catch (err) { status.textContent = 'Sökningen misslyckades.'; }
+};
+function base(sat) { map.setLayoutProperty('sat', 'visibility', sat ? 'visible' : 'none'); map.setLayoutProperty('osm', 'visibility', sat ? 'none' : 'visible');
+  $('bSat').classList.toggle('on', sat); $('bStreet').classList.toggle('on', !sat); }
+$('bSat').onclick = () => base(true); $('bStreet').onclick = () => base(false);
+$('bPluto').classList.toggle('on', state.pluto);
+$('bPluto').onclick = () => { state.pluto = !state.pluto; $('bPluto').classList.toggle('on', state.pluto);
+  if (!state.pluto && markers.pluto) { markers.pluto.remove(); delete markers.pluto; delete state.planets.pluto; }
+  if (state.sun) placeSun(state.sun); save(); render(); };
+$('bFit').onclick = () => { if (!state.sun) return; const far = bodies().slice(-1)[0]; active = null; select(far.id); active = null; drawRings(); render(); };
+$('bReset').onclick = () => { if (!confirm('Ta bort solen och alla planeter?')) return;
+  Object.values(markers).forEach(m => m.remove()); for (const k in markers) delete markers[k];
+  sunMarker && sunMarker.remove(); sunMarker = null; state = { sun: null, planets: {}, notes: {}, pluto: state.pluto }; active = null; save(); drawRings(); render(); };
+$('bKml').onclick = () => {
+  if (!state.sun) return;
+  const esc = s => String(s).replace(/[<&>]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;' }[c]));
+  const pm = (name, desc, [lo, la]) => `<Placemark><name>${esc(name)}</name><description>${esc(desc)}</description><Point><coordinates>${lo},${la},0</coordinates></Point></Placemark>`;
+  const sun = BODIES[0]; let pts = pm(sun.name, sun.obj + (state.notes.sun ? ' – ' + state.notes.sun : ''), state.sun), rings = '';
+  for (const b of bodies()) {
+    if (state.planets[b.id] != null) pts += pm(b.name, `${b.obj}, ${fmt(b.d)} från solen` + (state.notes[b.id] ? ' – ' + state.notes[b.id] : ''), dest(state.sun, state.planets[b.id], b.d));
+    rings += `<Placemark><name>${esc(b.name)}s bana</name><LineString><coordinates>${ring(state.sun, b.d).map(c => c.join(',') + ',0').join(' ')}</coordinates></LineString></Placemark>`;
+  }
+  const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Mitt solsystem</name>${pts}${rings}</Document></kml>`;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }));
+  a.download = 'mitt-solsystem.kml'; a.click();
+};
+render();
+</script>
+</body></html>
