@@ -12,36 +12,100 @@
     background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; z-index: 2; }
   h1 { font-size: 1.05rem; margin: 0 0 4px; }
   p.hint { font-size: .82rem; color: var(--dim); margin: 0 0 10px; line-height: 1.45; }
-  form { display: flex; gap: 6px; margin-bottom: 10px; }
-  input[type=search] { flex: 1; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: #0d1d30; color: var(--txt); }
   button { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--txt); cursor: pointer; font-size: .82rem; }
   button.on { background: #2980b9; border-color: #5bbfff; color: #fff; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-  ol { list-style: none; padding: 0; margin: 0; }
-  li { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px 8px; align-items: center; padding: 7px 6px;
+
+  /* address search with suggestions */
+  #search { position: relative; display: flex; gap: 6px; margin-bottom: 10px; }
+  #q { flex: 1; min-width: 0; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: #0d1d30; color: var(--txt); font-size: .85rem; }
+  #sugg { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5; margin: 0; padding: 4px; list-style: none;
+    background: #0d1d30; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-height: 290px; overflow: auto; }
+  #sugg li { padding: 7px 9px; border-radius: 7px; cursor: pointer; line-height: 1.3; }
+  #sugg li b { display: block; font-size: .86rem; font-weight: 600; }
+  #sugg li span { font-size: .75rem; color: var(--dim); }
+  #sugg li.sel, #sugg li:hover { background: rgba(91,191,255,.16); }
+  #sugg li.none { color: var(--dim); cursor: default; font-size: .8rem; background: none; }
+
+  /* what to place next */
+  #status { display: flex; gap: 9px; align-items: center; font-size: .82rem; line-height: 1.4; min-height: 1.2em; margin: 6px 0 10px;
+    padding: 8px 10px; border-radius: 10px; background: rgba(240,198,74,.1); border: 1px solid rgba(240,198,74,.35); }
+  #status:empty { display: none; }
+  #status b, #tip b, #next b { color: var(--acc); }
+  #status .ico { width: 30px; height: 30px; }
+
+  #list { list-style: none; padding: 0; margin: 0; }
+  #list li { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 8px; align-items: center; padding: 7px 6px;
     border-top: 1px solid rgba(255,255,255,.06); cursor: pointer; border-radius: 6px; }
-  li:hover { background: rgba(255,255,255,.04); }
-  li.active { background: rgba(240,198,74,.14); outline: 1px solid rgba(240,198,74,.5); }
-  li .dot { width: 12px; height: 12px; border-radius: 50%; }
-  li .name { font-weight: 600; font-size: .9rem; }
-  li .dist { font-size: .78rem; color: var(--dim); text-align: right; }
-  li .obj { grid-column: 2 / 4; font-size: .78rem; color: var(--dim); }
-  li .obj b { color: var(--acc); font-weight: 500; }
-  li input { grid-column: 2 / 4; padding: 4px 7px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: #0d1d30; color: var(--txt); font-size: .78rem; }
-  #status { font-size: .8rem; color: var(--acc); min-height: 1.2em; margin: 6px 0 8px; }
-  .sun-marker { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #fff6b0, #ffb300 55%, #ff6a00);
-    box-shadow: 0 0 14px 4px rgba(255,170,0,.7); cursor: grab; }
-  .pl-marker { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,.6); cursor: grab; }
-  .pl-label { position: absolute; left: 20px; top: -3px; white-space: nowrap; font-size: 12px; font-weight: 600; color: #fff;
-    text-shadow: 0 0 3px #000, 0 0 3px #000; pointer-events: none; }
-  @media (max-width: 600px) { #panel { width: auto; right: 12px; max-height: 45vh; } }
+  #list li:hover { background: rgba(255,255,255,.04); }
+  #list li.active { background: rgba(240,198,74,.14); outline: 1px solid rgba(240,198,74,.5); }
+  #list .ico { width: 28px; height: 28px; }
+  #list li.todo .ico { opacity: .5; }
+  #list .name { font-weight: 600; font-size: .9rem; }
+  #list .dist { font-size: .78rem; color: var(--dim); text-align: right; }
+  #list .obj { grid-column: 2 / 4; font-size: .78rem; color: var(--dim); }
+  #list .obj b { color: var(--acc); font-weight: 500; }
+  #list input { grid-column: 2 / 4; padding: 4px 7px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: #0d1d30; color: var(--txt); font-size: .78rem; }
+
+  .ico { display: block; flex: none; }
+  .ico svg, .mk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  /* map markers drawn as the memory objects */
+  .mk { width: 34px; height: 34px; cursor: grab; filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+  .mk.sun { width: 52px; height: 52px; filter: drop-shadow(0 0 8px rgba(255,140,0,.85)); }
+  .mk .lab { position: absolute; left: 27px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 12px; font-weight: 600;
+    color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; pointer-events: none; }
+  .mk.sun .lab { left: 46px; }
+  .mk.ghost { opacity: .65; cursor: default; pointer-events: none; }
+
+  #tip { position: fixed; z-index: 4; pointer-events: none; display: none; align-items: center; gap: 9px; max-width: 270px;
+    background: rgba(10,22,38,.94); border: 1px solid rgba(240,198,74,.55); border-radius: 10px; padding: 7px 10px; font-size: .8rem; line-height: 1.35;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  #tip .ico { width: 32px; height: 32px; }
+  #tip small { color: var(--dim); font-size: .74rem; }
+
+  /* touch screens have no hover, so they get a bar at the bottom instead */
+  #next { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: none; align-items: center; gap: 8px; pointer-events: none;
+    max-width: calc(100vw - 32px); background: rgba(10,22,38,.94); border: 1px solid rgba(240,198,74,.55); border-radius: 22px;
+    padding: 6px 14px 6px 8px; font-size: .82rem; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  #next .ico { width: 28px; height: 28px; }
+  @media (hover: none) { #next.show { display: flex; } }
+
+  .maplibregl-popup-content { background: #0d1d30; color: var(--txt); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: .82rem; }
+  .maplibregl-popup-tip { border-top-color: #0d1d30 !important; border-bottom-color: #0d1d30 !important; }
+  .maplibregl-popup-close-button { color: var(--dim); font-size: 16px; }
+  .addr-pin { width: 14px; height: 14px; border-radius: 50%; background: #ff4d6d; border: 2px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,.7); }
+  .popbtn { margin-top: 8px; width: 100%; background: #b8730f; border-color: #f0c64a; color: #fff; font-weight: 600; }
+
+  @media (max-width: 600px) {
+    #panel { width: auto; right: 12px; max-height: 45vh; }
+    #next { bottom: 46px; }
+    .maplibregl-ctrl-top-right { display: none; }   /* pinch to zoom instead; the panel covers this corner */
+  }
 </style>
 </head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <radialGradient id="g-sun" cx=".38" cy=".33" r=".75"><stop offset="0" stop-color="#fff4b0"/><stop offset=".45" stop-color="#ffb21e"/><stop offset="1" stop-color="#d9480f"/></radialGradient>
+  <radialGradient id="g-seed" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f7e4a3"/><stop offset=".6" stop-color="#d6aa45"/><stop offset="1" stop-color="#8a6420"/></radialGradient>
+  <radialGradient id="g-berry" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#9aa8dc"/><stop offset=".45" stop-color="#44529a"/><stop offset="1" stop-color="#1a2150"/></radialGradient>
+  <radialGradient id="g-pea" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e2f8a6"/><stop offset=".55" stop-color="#74c43e"/><stop offset="1" stop-color="#2f6e1d"/></radialGradient>
+  <radialGradient id="g-pepper" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffc9d2"/><stop offset=".55" stop-color="#e35a73"/><stop offset="1" stop-color="#8f2037"/></radialGradient>
+  <radialGradient id="g-tennis" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f8ffb0"/><stop offset=".55" stop-color="#d7ea2e"/><stop offset="1" stop-color="#92a614"/></radialGradient>
+  <radialGradient id="g-pool6" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#8fe6a0"/><stop offset=".5" stop-color="#22a043"/><stop offset="1" stop-color="#0c4c1c"/></radialGradient>
+  <radialGradient id="g-golf" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef1f4"/><stop offset="1" stop-color="#a9b3bc"/></radialGradient>
+  <radialGradient id="g-pingis" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f6f2e8"/><stop offset="1" stop-color="#c6bca6"/></radialGradient>
+  <radialGradient id="g-sand" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f6e0b4"/><stop offset=".6" stop-color="#cfa063"/><stop offset="1" stop-color="#85602f"/></radialGradient>
+  <clipPath id="clip14"><circle cx="20" cy="20" r="14"/></clipPath>
+</defs></svg>
 <div id="map"></div>
 <div id="panel">
   <h1>Solsystemet på kartan</h1>
-  <p class="hint">Solen är en pilatesboll. Klicka på kartan där du vill ha den (eller sök en adress). Välj sedan en planet i listan och klicka där du vill ha den: den hamnar alltid på rätt avstånd från solen. Planeterna går att dra runt sin cirkel.</p>
-  <form id="search"><input type="search" id="q" placeholder="Sök adress, t.ex. Skövde"><button>Sök</button></form>
+  <p class="hint">Solen är en pilatesboll. Sök din adress eller klicka på kartan där du vill ha den. Sedan lägger du ut planeterna en i taget: de hamnar alltid på rätt avstånd från solen, och går att dra runt sin cirkel.</p>
+  <form id="search" autocomplete="off">
+    <input type="search" id="q" placeholder="Sök adress, t.ex. Storgatan 1, Skövde" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
+    <button>Sök</button>
+    <ul id="sugg" role="listbox" hidden></ul>
+  </form>
   <div class="row">
     <button id="bSat" class="on">Satellit</button><button id="bStreet">Karta</button>
     <button id="bPluto">Pluto</button><button id="bFit">Visa allt</button>
@@ -53,6 +117,8 @@
   </div>
   <p class="hint">Avstånd och föremål enligt <i>Bli ett minnesgeni</i>, kapitel 7.</p>
 </div>
+<div id="tip"></div>
+<div id="next"></div>
 <script src="vendor/maplibre-gl.js"></script>
 <script>
 // Distances (m) and objects from the book's rymdpromenad: sun = pilates ball
@@ -60,7 +126,7 @@ const BODIES = [
   { id: 'sun', name: 'Solen', d: 0, obj: 'pilatesboll', color: '#ffb300' },
   { id: 'merkurius', name: 'Merkurius', d: 25, obj: 'senapsfrö', color: '#b8b1a6' },
   { id: 'venus', name: 'Venus', d: 45, obj: 'blåbär', color: '#e8c27a' },
-  { id: 'jorden', name: 'Jorden', d: 60, obj: 'ärta (månen: gruskorn 15 cm bort)', color: '#3fa0ff' },
+  { id: 'jorden', name: 'Jorden', d: 60, obj: 'ärta', extra: 'Månen är ett gruskorn 15 cm bort.', color: '#3fa0ff' },
   { id: 'mars', name: 'Mars', d: 90, obj: 'pepparkorn (rosépeppar)', color: '#e0553a' },
   { id: 'jupiter', name: 'Jupiter', d: 310, obj: 'tennisboll', color: '#d9a066' },
   { id: 'saturnus', name: 'Saturnus', d: 570, obj: 'biljardboll nr 6', color: '#e6d27a' },
@@ -68,10 +134,46 @@ const BODIES = [
   { id: 'neptunus', name: 'Neptunus', d: 1852, obj: 'pingisboll', color: '#4f6dff' },
   { id: 'pluto', name: 'Pluto', d: 2370, obj: 'sandkorn', color: '#c9a98a', bonus: true },
 ];
+const byId = id => BODIES.find(b => b.id === id);
 const KEY = 'planeter-v1';
 let state = { sun: null, planets: {}, notes: {}, pluto: false };
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+const esc = s => String(s).replace(/[<&>"]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// --- icons: each planet is drawn as the object the book uses for its size ---
+const HL = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff" opacity=".55" transform="rotate(-30 ${cx} ${cy})"/>`;
+function star(cx, cy, R, r) {
+  let d = '';
+  for (let i = 0; i < 10; i++) {
+    const a = Math.PI / 5 * i - Math.PI / 2, k = i % 2 ? r : R;
+    d += (i ? 'L' : 'M') + (cx + k * Math.cos(a)).toFixed(2) + ' ' + (cy + k * Math.sin(a)).toFixed(2);
+  }
+  return d + 'Z';
+}
+const flame = (cx, b, h, w, fill) => `<path d="M${cx - w} ${b}C${cx - w - 1} ${b - h * .45} ${cx - 1.5} ${b - h * .55} ${cx} ${b - h}C${cx + 1.5} ${b - h * .55} ${cx + w + 1} ${b - h * .45} ${cx + w} ${b}Z" fill="${fill}"/>`;
+const fire = (cx, b, h, w) => flame(cx, b, h, w, '#ff6a1f') + flame(cx, b, h * .62, w * .55, '#ffd54a');
+let dimples = '';
+for (let i = 0; i < 9; i++) for (let j = 0; j < 9; j++) {
+  const x = -10.4 + j * 2.6 + (i % 2 ? 1.3 : 0), y = -10.4 + i * 2.6;
+  if (x * x + y * y < 92) dimples += `<circle cx="${(20 + x).toFixed(1)}" cy="${(20 + y).toFixed(1)}" r=".8"/>`;
+}
+const ICONS = {
+  sun: `<svg viewBox="0 0 48 48">${fire(15, 15.5, 9, 4)}${fire(33, 15.5, 9, 4)}${fire(24, 13, 12, 5)}<circle cx="24" cy="28" r="17" fill="url(#g-sun)"/><path d="M24 11Q14.5 28 24 45M24 11Q33.5 28 24 45" stroke="#fff" stroke-opacity=".35" fill="none"/>${HL(17, 21, 5, 3.2)}</svg>`,
+  merkurius: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="5" fill="url(#g-seed)" stroke="#6b4d14" stroke-width=".6"/>${HL(18.4, 18.3, 1.6, 1)}</svg>`,
+  venus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="21" r="8.5" fill="url(#g-berry)"/><path d="${star(20, 14.4, 2.8, 1.15)}" fill="#151a38"/>${HL(16.6, 18.6, 2.4, 1.5)}</svg>`,
+  jorden: `<svg viewBox="0 0 40 40"><circle cx="19" cy="21" r="9" fill="url(#g-pea)"/>${HL(15.8, 17.6, 2.6, 1.6)}<path d="M30.2 9.3l1.6-.9 1.5.6.4 1.6-1 1.3-1.7.1-1-1z" fill="#a7a49e" stroke="#55524c" stroke-width=".5"/></svg>`,
+  mars: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="6.5" fill="url(#g-pepper)"/><path d="M16.5 18.5q2 1.5 1 4M21 15.5q1.2 2.2 3.6 2.6M20.5 24.4q1.6-2 4-1.6" stroke="#7d1a30" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>${HL(18, 17.6, 1.8, 1.1)}</svg>`,
+  jupiter: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="url(#g-tennis)"/><g clip-path="url(#clip14)" fill="none" stroke="#fff" stroke-width="1.8"><path d="M8 9C15.5 15 15.5 25 8 31"/><path d="M32 9C24.5 15 24.5 25 32 31"/></g>${HL(14.5, 13.5, 3.2, 2)}</svg>`,
+  saturnus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="url(#g-pool6)"/><circle cx="20" cy="20" r="6.3" fill="#fbfaf2"/><text x="20" y="23.3" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="9.2" fill="#111">6</text>${HL(13.8, 12.8, 3.2, 1.9)}</svg>`,
+  uranus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="11.5" fill="url(#g-golf)"/><g fill="#5a6672" fill-opacity=".28">${dimples}</g>${HL(15.6, 15, 2.8, 1.7)}</svg>`,
+  neptunus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="11" fill="url(#g-pingis)"/><path d="M9.2 21.5Q20 25 30.8 21.5" stroke="#000" stroke-opacity=".12" stroke-width=".7" fill="none"/><path d="${star(16.6, 17.4, 1.5, .6)}${star(20, 17.4, 1.5, .6)}${star(23.4, 17.4, 1.5, .6)}" fill="#e0601a"/>${HL(15.6, 14.2, 2.6, 1.5)}</svg>`,
+  pluto: `<svg viewBox="0 0 40 40"><path d="M17 18.6l2.9-2.2 3.2 1.2.5 3.1-2.4 2.3-3.3-.4z" fill="url(#g-sand)" stroke="#6b4b22" stroke-width=".5"/></svg>`,
+};
+// in the panel and tooltips each object fills its icon, so the small ones are easy to see
+const CLOSEUP = { merkurius: '13 13 14 14', venus: '10 10 20 20', jorden: '8 7 27 27', mars: '12 12 16 16', jupiter: '5 5 30 30',
+  saturnus: '5 5 30 30', uranus: '7.5 7.5 25 25', neptunus: '8 8 24 24', pluto: '15 15 10 10' };
+const ico = id => `<span class="ico">${CLOSEUP[id] ? ICONS[id].replace(/viewBox="[^"]*"/, `viewBox="${CLOSEUP[id]}"`) : ICONS[id]}</span>`;
 
 // --- geodesy (sphere) ---
 const R = 6371008.8, rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
@@ -87,12 +189,63 @@ function bearing([lon1, lat1], [lon2, lat2]) {
 }
 const ring = (c, d) => Array.from({ length: 181 }, (_, i) => dest(c, i * 2, d));
 
+// --- satellite tiles ---
+// Esri has no sharp imagery everywhere at the closest zoom levels and then
+// sends a grey "Map data not yet available" tile. Ask for a 404 instead
+// (blankTile=false), and also recognise the grey tile in case one slips
+// through. A missing tile is cut from the closest zoom level that has one.
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/';
+async function isPlaceholder(buf) {
+  try {
+    const img = await createImageBitmap(new Blob([buf], { type: 'image/jpeg' }));
+    const c = document.createElement('canvas'); c.width = c.height = 24;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data; let grey = 0;
+    for (let i = 0; i < d.length; i += 4)
+      if (Math.abs(d[i] - 197) < 9 && Math.abs(d[i + 1] - 197) < 9 && Math.abs(d[i + 2] - 197) < 9) grey++;
+    return grey > 0.8 * d.length / 4;
+  } catch (e) { return false; }
+}
+async function esriTile(z, x, y, signal) {   // ArrayBuffer, or null when Esri has no imagery here
+  let r;
+  try { r = await fetch(`${ESRI}${z}/${y}/${x}?blankTile=false`, { signal }); }
+  catch (e) { if (e.name === 'AbortError') throw e; return null; }
+  if (!r.ok) return null;
+  const buf = await r.arrayBuffer();
+  return z >= 13 && buf.byteLength < 60000 && await isPlaceholder(buf) ? null : buf;
+}
+const parents = new Map();
+function parentImage(z, x, y) {
+  const k = `${z}/${x}/${y}`;
+  if (!parents.has(k)) {
+    parents.set(k, esriTile(z, x, y).then(b => b && createImageBitmap(new Blob([b], { type: 'image/jpeg' }))).catch(() => { parents.delete(k); return null; }));
+    if (parents.size > 48) parents.delete(parents.keys().next().value);
+  }
+  return parents.get(k);
+}
+maplibregl.addProtocol('esri', async (params, ctrl) => {
+  const [z, x, y] = params.url.slice(7).split('/').map(Number);
+  const own = await esriTile(z, x, y, ctrl.signal);
+  if (own) return { data: own };
+  for (let dz = 1; dz <= 7 && dz <= z; dz++) {
+    const img = await parentImage(z - dz, x >> dz, y >> dz);
+    if (ctrl.signal.aborted) throw new DOMException('aborted', 'AbortError');
+    if (!img) continue;
+    const s = img.width / (1 << dz), m = (1 << dz) - 1;
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+    g.drawImage(img, (x & m) * s, (y & m) * s, s, s, 0, 0, 256, 256);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', .9));
+    return { data: await blob.arrayBuffer() };
+  }
+  throw new Error('Inga flygbilder här');
+});
+
 // --- map ---
-const SAT = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: 'Bilder © Esri, Maxar, Earthstar Geographics',
-  tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] };
-const OSM = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap',
-  tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'] };
-const map = new maplibregl.Map({ container: 'map', center: state.sun || [13.845, 58.39], zoom: state.sun ? 14 : 12,
+const SAT = { type: 'raster', tileSize: 256, maxzoom: 20, attribution: 'Bilder © Esri, Maxar, Earthstar Geographics', tiles: ['esri://{z}/{x}/{y}'] };
+const OSM = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'] };
+const map = new maplibregl.Map({ container: 'map', center: state.sun || [13.845, 58.39], zoom: state.sun ? 14 : 12, maxZoom: 21,
   style: { version: 8, sources: { sat: SAT, osm: OSM }, layers: [
     { id: 'osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
     { id: 'sat', type: 'raster', source: 'sat' } ] } });
@@ -100,8 +253,22 @@ map.addControl(new maplibregl.NavigationControl(), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
 const bodies = () => BODIES.filter(b => b.id !== 'sun' && (!b.bonus || state.pluto));
-let active = null, sunMarker = null; const markers = {};
+const nextTodo = () => (bodies().find(b => state.planets[b.id] == null) || {}).id || null;
+let active = null, sunMarker = null, dragging = false, hovering = false, lastDrag = 0, addr = null; const markers = {};
+const fmt = d => d >= 1000 ? (d / 1000).toLocaleString('sv', { maximumFractionDigits: 2 }) + ' km' : d + ' m';
 
+function markerEl(b, ghost) {
+  const el = document.createElement('div');
+  el.className = 'mk' + (b.id === 'sun' ? ' sun' : '') + (ghost ? ' ghost' : '');
+  el.innerHTML = ICONS[b.id] + (ghost ? '' : `<span class="lab">${b.name}</span>`);
+  if (!ghost) {
+    el.addEventListener('mouseenter', e => { hovering = true; ghost?.remove(); showTip(e, infoHtml(b)); });
+    el.addEventListener('click', e => { e.stopPropagation(); if (b.id !== 'sun' && Date.now() - lastDrag > 300) select(b.id); });
+    el.addEventListener('mousemove', e => showTip(e, infoHtml(b)));
+    el.addEventListener('mouseleave', () => { hovering = false; hideTip(); });
+  }
+  return el;
+}
 function drawRings() {
   const src = map.getSource('rings'); if (!src) return;
   src.setData({ type: 'FeatureCollection', features: state.sun ? bodies().map(b => ({
@@ -109,11 +276,12 @@ function drawRings() {
     geometry: { type: 'LineString', coordinates: ring(state.sun, b.d) } })) : [] });
 }
 function placeSun(ll) {
-  const old = state.sun; state.sun = ll;
+  state.sun = ll;
   if (!sunMarker) {
-    const el = document.createElement('div'); el.className = 'sun-marker'; el.title = 'Solen (pilatesboll)';
-    sunMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(map);
+    sunMarker = new maplibregl.Marker({ element: markerEl(BODIES[0]), draggable: true }).setLngLat(ll).addTo(map);
+    sunMarker.on('dragstart', () => { dragging = true; hideTip(); });
     sunMarker.on('drag', () => placeSun(sunMarker.getLngLat().toArray()));
+    sunMarker.on('dragend', () => { dragging = false; lastDrag = Date.now(); });
   } else sunMarker.setLngLat(ll);
   // planets keep their direction from the sun when the sun moves
   for (const b of bodies()) if (state.planets[b.id] != null) setPlanet(b, state.planets[b.id]);
@@ -123,80 +291,189 @@ function setPlanet(b, brg) {
   state.planets[b.id] = brg;
   const ll = dest(state.sun, brg, b.d);
   if (!markers[b.id]) {
-    const el = document.createElement('div'); el.className = 'pl-marker'; el.style.background = b.color;
-    const lab = document.createElement('span'); lab.className = 'pl-label'; lab.textContent = b.name; el.appendChild(lab);
+    const el = markerEl(b);
     const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(map);
+    m.on('dragstart', () => { dragging = true; hideTip(); });
     m.on('drag', () => { const brg = bearing(state.sun, m.getLngLat().toArray()); m.setLngLat(dest(state.sun, brg, b.d)); state.planets[b.id] = brg; });
-    m.on('dragend', save);
-    el.addEventListener('click', e => { e.stopPropagation(); select(b.id); });
+    m.on('dragend', () => { dragging = false; lastDrag = Date.now(); save(); });
     markers[b.id] = m;
   } else markers[b.id].setLngLat(ll);
 }
+
+// keep the map so that the ring being placed is visible and not too small
+function padding() {
+  const r = document.getElementById('panel').getBoundingClientRect(), W = innerWidth, H = innerHeight;
+  const p = r.width < W * .5 ? { left: r.right + 24, top: 50, right: 60, bottom: 50 } : { top: r.bottom + 16, left: 24, right: 24, bottom: 70 };
+  if (W - p.left - p.right < 120) p.left = p.right = 20;
+  if (H - p.top - p.bottom < 120) p.top = p.bottom = 20;
+  return p;
+}
+function showRing(b, force) {
+  if (!state.sun || !b || b.id === 'sun') return;
+  const d = b.d * 1.12, pts = [0, 90, 180, 270].map(a => dest(state.sun, a, d));
+  const pad = padding(), W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+  const px = pts.map(p => map.project(p));
+  const fits = px.every(p => p.x >= pad.left && p.x <= W - pad.right && p.y >= pad.top && p.y <= H - pad.bottom);
+  const small = px[1].x - px[3].x < 160;
+  if (force || !fits || small)
+    map.fitBounds([[pts[3][0], pts[2][1]], [pts[1][0], pts[0][1]]], { padding: pad, maxZoom: 20, duration: 800 });
+}
 function select(id) {
   active = active === id ? null : id; drawRings(); render();
-  const b = BODIES.find(x => x.id === id);
-  if (active && state.sun) {
-    const p = Math.max(b.d * 1.25, 40), n = dest(state.sun, 0, p), s = dest(state.sun, 180, p), e = dest(state.sun, 90, p), w = dest(state.sun, 270, p);
-    map.fitBounds([[w[0], s[1]], [e[0], n[1]]], { padding: 40, maxZoom: 19 });
-  }
+  if (active) showRing(byId(active), true);
 }
+
+// --- what to place next: tooltip + preview on the ring ---
+const tip = document.getElementById('tip');
+let ghost = null, ghostFor = null;
+function placing() { return !state.sun || active === 'sun' ? BODIES[0] : active ? byId(active) : null; }
+function placeHtml(b) {
+  return b.id === 'sun'
+    ? `${ico('sun')}<div><b>Solen</b> = pilatesboll<br><small>Klicka där solen ska ligga, till exempel vid ditt hus.</small></div>`
+    : `${ico(b.id)}<div><b>${b.name}</b> = ${b.obj}<br><small>${fmt(b.d)} från solen. Klicka åt det håll den ska ligga.</small></div>`;
+}
+function infoHtml(b) {
+  const note = state.notes[b.id] ? `<br><small>${esc(state.notes[b.id])}</small>` : '';
+  return `${ico(b.id)}<div><b>${b.name}</b> = ${b.obj}<br><small>${b.d ? fmt(b.d) + ' från solen.' : 'Mitten av solsystemet.'}${b.extra ? ' ' + b.extra : ''}</small>${note}</div>`;
+}
+function showTip(e, html) {
+  tip.innerHTML = html; tip.style.display = 'flex';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(e.clientX + 18, innerWidth - w - 8) + 'px';
+  tip.style.top = (e.clientY + 18 + h > innerHeight - 8 ? e.clientY - h - 14 : e.clientY + 18) + 'px';
+}
+function hideTip() { tip.style.display = 'none'; ghost?.remove(); }
+map.on('mousemove', e => {
+  const b = placing();
+  if (!b || dragging || hovering) { if (!hovering) hideTip(); return; }
+  const ll = e.lngLat.toArray();
+  if (ghostFor !== b.id) { ghost?.remove(); ghost = new maplibregl.Marker({ element: markerEl(b, true) }); ghostFor = b.id; }
+  ghost.setLngLat(b.id === 'sun' ? ll : dest(state.sun, bearing(state.sun, ll), b.d)).addTo(map);
+  showTip(e.originalEvent, placeHtml(b));
+});
+map.on('mouseout', hideTip);
+map.on('dragstart', () => { ghost?.remove(); });
+
 map.on('click', e => {
   const ll = e.lngLat.toArray();
-  if (!state.sun || active === 'sun') { placeSun(ll); const n = bodies().find(x => state.planets[x.id] == null); active = n ? n.id : null; drawRings(); render(); return; }
-  if (active) { const b = BODIES.find(x => x.id === active); setPlanet(b, bearing(state.sun, ll)); save();
-    const next = bodies().find(x => state.planets[x.id] == null); active = next ? next.id : null; drawRings(); render(); }
+  const b = placing(); if (!b) return;
+  if (b.id === 'sun') { placeSun(ll); clearAddr(); }
+  else { setPlanet(b, bearing(state.sun, ll)); save(); }
+  active = nextTodo(); drawRings(); render(); hideTip();
+  if (active) showRing(byId(active));
 });
 map.on('load', () => {
   map.addSource('rings', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'rings', type: 'line', source: 'rings', paint: { 'line-color': ['get', 'color'],
     'line-width': ['case', ['==', ['get', 'active'], 1], 4, 2], 'line-opacity': ['case', ['==', ['get', 'active'], 1], 1, .7],
     'line-dasharray': [3, 2] } });
-  if (state.sun) placeSun(state.sun);
+  if (state.sun) { placeSun(state.sun); active = nextTodo(); drawRings(); render(); }
 });
 
 // --- panel ---
-const $ = id => document.getElementById(id), list = $('list'), status = $('status');
-function fmt(d) { return d >= 1000 ? (d / 1000).toLocaleString('sv', { maximumFractionDigits: 2 }) + ' km' : d + ' m'; }
+const $ = id => document.getElementById(id), list = $('list'), status = $('status'), next = $('next');
 function render() {
-  status.textContent = !state.sun ? 'Klicka på kartan där solen ska ligga.' :
-    active === 'sun' ? 'Klicka där solen ska flyttas.' :
-    active ? 'Klicka var som helst åt det håll ' + BODIES.find(b => b.id === active).name + ' ska ligga.' :
-    bodies().every(b => state.planets[b.id] != null) ? 'Hela solsystemet är utplacerat!' : 'Välj en planet i listan.';
+  const b = placing();
+  status.innerHTML = b ? `${ico(b.id)}<span>Nästa: <b>${b.name}</b> = ${b.obj}${b.d ? `, ${fmt(b.d)} från solen` : ''}. ${b.id === 'sun' ? 'Klicka på kartan där den ska ligga.' : 'Klicka åt det håll den ska ligga.'}</span>`
+    : state.sun && !nextTodo() ? '<span>Hela solsystemet är utplacerat! Dra i planeterna för att flytta dem.</span>' : '';
+  next.innerHTML = b ? `${ico(b.id)}<span>Tryck där <b>${b.name}</b> (${b.obj}) ska ligga</span>` : '';
+  next.classList.toggle('show', !!b);
   list.innerHTML = '';
   for (const b of BODIES.filter(b => b.id === 'sun' || bodies().includes(b))) {
-    const li = document.createElement('li'); if (b.id === active) li.className = 'active';
     const placed = b.id === 'sun' ? !!state.sun : state.planets[b.id] != null;
-    li.innerHTML = `<span class="dot" style="background:${b.color};opacity:${placed ? 1 : .35}"></span><span class="name">${b.name}</span>
-      <span class="dist">${b.d ? fmt(b.d) : ''}</span><span class="obj">Bild: <b>${b.obj}</b></span>`;
+    const li = document.createElement('li'); li.className = (b.id === active ? 'active ' : '') + (placed ? '' : 'todo');
+    li.innerHTML = `${ico(b.id)}<span class="name">${b.name}</span><span class="dist">${b.d ? fmt(b.d) : ''}</span><span class="obj">Bild: <b>${b.obj}</b>${b.extra ? ' · ' + b.extra : ''}</span>`;
     const inp = document.createElement('input'); inp.placeholder = 'Var hamnade den? (t.ex. grannens pool)';
     inp.value = state.notes[b.id] || ''; inp.onclick = e => e.stopPropagation();
     inp.oninput = () => { state.notes[b.id] = inp.value; save(); };
     li.appendChild(inp); li.onclick = () => select(b.id); list.appendChild(li);
   }
 }
+
+// --- address search with suggestions (Photon, OpenStreetMap data) ---
+const q = $('q'), sugg = $('sugg');
+let hits = [], sel = -1, timer = 0, ctl = null;
+function label(p) {
+  const street = [p.street, p.housenumber].filter(Boolean).join(' ');
+  const title = p.name || street || p.city || p.county || '';
+  const sub = [p.name && street ? street : '', p.postcode && (p.city || p.locality) ? `${p.postcode} ${p.city || p.locality}` : (p.city || p.locality || p.district),
+    p.county || p.state, p.country].filter((s, i, a) => s && s !== title && a.indexOf(s) === i);
+  return { title, sub: sub.join(', ') };
+}
+async function lookup(text) {
+  ctl?.abort(); ctl = new AbortController();
+  const c = map.getCenter();
+  const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=6&lang=default&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`, { signal: ctl.signal });
+  if (!r.ok) throw new Error('Photon ' + r.status);
+  return (await r.json()).features || [];
+}
+function showSugg(msg) {
+  sugg.innerHTML = msg ? `<li class="none">${msg}</li>` : hits.map((f, i) => { const l = label(f.properties);
+    return `<li role="option" data-i="${i}"${i === sel ? ' class="sel"' : ''}><b>${esc(l.title)}</b><span>${esc(l.sub)}</span></li>`; }).join('');
+  sugg.hidden = !msg && !hits.length; q.setAttribute('aria-expanded', String(!sugg.hidden));
+}
+function closeSugg() { sugg.hidden = true; sel = -1; q.setAttribute('aria-expanded', 'false'); }
+q.addEventListener('input', () => {
+  clearTimeout(timer);
+  const text = q.value.trim();
+  if (text.length < 3) { hits = []; closeSugg(); return; }
+  timer = setTimeout(async () => {
+    try { hits = await lookup(text); sel = -1; showSugg(hits.length ? '' : 'Hittade inget med det namnet.'); }
+    catch (e) { if (e.name !== 'AbortError') showSugg('Sökningen misslyckades.'); }
+  }, 250);
+});
+q.addEventListener('keydown', e => {
+  if (sugg.hidden || !hits.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : hits.length - 1) + (sel < 0 && e.key === 'ArrowUp' ? 1 : 0)) % hits.length; showSugg();
+  } else if (e.key === 'Escape') closeSugg();
+});
+q.addEventListener('blur', () => setTimeout(closeSugg, 150));
+sugg.addEventListener('mousedown', e => {
+  const li = e.target.closest('li[data-i]'); if (!li) return;
+  e.preventDefault(); go(hits[+li.dataset.i]);
+});
 $('search').onsubmit = async e => {
-  e.preventDefault(); const q = $('q').value.trim(); if (!q) return;
-  status.textContent = 'Söker…';
-  try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
-    const [hit] = await r.json(); if (!hit) { status.textContent = 'Hittade inget.'; return; }
-    map.flyTo({ center: [+hit.lon, +hit.lat], zoom: 17 }); render();
-  } catch (err) { status.textContent = 'Sökningen misslyckades.'; }
+  e.preventDefault(); clearTimeout(timer);
+  if (!sugg.hidden && hits.length) { go(hits[Math.max(sel, 0)]); return; }
+  const text = q.value.trim(); if (!text) return;
+  try { hits = await lookup(text); hits.length ? go(hits[0]) : showSugg('Hittade inget med det namnet.'); }
+  catch (err) { if (err.name !== 'AbortError') showSugg('Sökningen misslyckades.'); }
 };
+function clearAddr() { if (addr) { addr.pin.remove(); addr.pop.remove(); addr = null; } }
+function go(f) {
+  closeSugg(); clearAddr();
+  const ll = f.geometry.coordinates, p = f.properties, l = label(p);
+  q.value = l.title + (l.sub ? ', ' + l.sub.split(', ')[0] : '');
+  const e = p.extent;
+  if (e && !p.housenumber) map.fitBounds([[Math.min(e[0], e[2]), Math.min(e[1], e[3])], [Math.max(e[0], e[2]), Math.max(e[1], e[3])]], { padding: padding(), maxZoom: 18 });
+  else map.flyTo({ center: ll, zoom: 18 });
+  const el = document.createElement('div'); el.className = 'addr-pin';
+  const box = document.createElement('div');
+  box.innerHTML = `<b>${esc(l.title)}</b>${l.sub ? `<br><span style="color:var(--dim)">${esc(l.sub)}</span>` : ''}`;
+  const btn = document.createElement('button'); btn.className = 'popbtn'; btn.type = 'button';
+  btn.textContent = state.sun ? 'Flytta solen hit' : 'Lägg solen här';
+  btn.onclick = () => { placeSun(ll); clearAddr(); if (!active || active === 'sun') { active = nextTodo(); drawRings(); render(); } if (active) showRing(byId(active)); };
+  box.appendChild(btn);
+  const pop = new maplibregl.Popup({ offset: 12, closeOnClick: false, maxWidth: '240px' }).setDOMContent(box);
+  addr = { pin: new maplibregl.Marker({ element: el }).setLngLat(ll).setPopup(pop).addTo(map), pop };
+  addr.pin.togglePopup();
+}
+
 function base(sat) { map.setLayoutProperty('sat', 'visibility', sat ? 'visible' : 'none'); map.setLayoutProperty('osm', 'visibility', sat ? 'none' : 'visible');
   $('bSat').classList.toggle('on', sat); $('bStreet').classList.toggle('on', !sat); }
 $('bSat').onclick = () => base(true); $('bStreet').onclick = () => base(false);
 $('bPluto').classList.toggle('on', state.pluto);
 $('bPluto').onclick = () => { state.pluto = !state.pluto; $('bPluto').classList.toggle('on', state.pluto);
-  if (!state.pluto && markers.pluto) { markers.pluto.remove(); delete markers.pluto; delete state.planets.pluto; }
-  if (state.sun) placeSun(state.sun); save(); render(); };
-$('bFit').onclick = () => { if (!state.sun) return; const far = bodies().slice(-1)[0]; active = null; select(far.id); active = null; drawRings(); render(); };
+  if (!state.pluto) { if (markers.pluto) { markers.pluto.remove(); delete markers.pluto; } delete state.planets.pluto; if (active === 'pluto') active = null; }
+  if (state.sun) { placeSun(state.sun); if (!active) active = nextTodo(); drawRings(); }
+  save(); render(); };
+$('bFit').onclick = () => { if (state.sun) showRing(bodies().slice(-1)[0], true); };
 $('bReset').onclick = () => { if (!confirm('Ta bort solen och alla planeter?')) return;
   Object.values(markers).forEach(m => m.remove()); for (const k in markers) delete markers[k];
-  sunMarker && sunMarker.remove(); sunMarker = null; state = { sun: null, planets: {}, notes: {}, pluto: state.pluto }; active = null; save(); drawRings(); render(); };
+  sunMarker && sunMarker.remove(); sunMarker = null; hovering = false; hideTip(); state = { sun: null, planets: {}, notes: {}, pluto: state.pluto }; active = null; save(); drawRings(); render(); };
 $('bKml').onclick = () => {
   if (!state.sun) return;
-  const esc = s => String(s).replace(/[<&>]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;' }[c]));
   const pm = (name, desc, [lo, la]) => `<Placemark><name>${esc(name)}</name><description>${esc(desc)}</description><Point><coordinates>${lo},${la},0</coordinates></Point></Placemark>`;
   const sun = BODIES[0]; let pts = pm(sun.name, sun.obj + (state.notes.sun ? ' – ' + state.notes.sun : ''), state.sun), rings = '';
   for (const b of bodies()) {
