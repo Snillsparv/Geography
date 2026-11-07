@@ -294,6 +294,8 @@ def dukyta(key):
     konf = las('assets/usa/config.json')
     for c in konf['countries']:
         if 'usa/' + c['filename'] == key:
+            # globens egen bild (glob) om delstaten har en, som bakningen
+            c = c.get('glob') or c
             bild = Image.open(os.path.join(REPO, 'assets/usa', c['file']))
             alfa = np.asarray(bild.convert('RGBA'))[..., 3]
             skala = c['width'] / bild.width

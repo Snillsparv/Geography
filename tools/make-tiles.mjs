@@ -333,8 +333,22 @@ function matchRegions() {
     const countries = [];
     for (const c of cfg.countries) {
       const base = c.filename;
-      const svgPath = path.join(repo, 'assets', slug, 'countries', base + '.svg');
+      // glob: en egen bild bara för globen (ritad om mot statens riktiga
+      // gräns, med egen placering på duken) — platta kartan behåller sin
+      // bild, som följer regionkartans egna konturlinjer
+      const g = c.glob || null;
+      const svgPath = path.join(repo, 'assets', slug,
+        g ? g.file.replace(/\.[^.]+$/, '.svg') : path.join('countries', base + '.svg'));
+      const bild = path.join(repo, 'assets', slug, g ? g.file : path.join('countries', base + '.webp'));
       if (!existsSync(svgPath)) continue;
+      // varpen förankras ändå i den VANLIGA bildens massa: globbilden är
+      // ritad mot mallen, som räknades med den varpen — förankrades varpen
+      // i den nya bildens massa skulle hela staten glida bort från linjen
+      // den ritades mot
+      const ankare = g ? {
+        svgPath: path.join(repo, 'assets', slug, 'countries', base + '.svg'),
+        left: c.left, top: c.top, width: c.width, height: c.height,
+      } : null;
       const f = bySv[norm(base)] || (ALIAS[base] && byA3[ALIAS[base]]);
       if (!f) continue;
       const key = f.properties.GU_A3 || f.properties.ISO_A3 || f.properties.NAME;
@@ -345,8 +359,8 @@ function matchRegions() {
       // anchors against the FULL geometry instead of the largest polygon.
       const anchor = lock ? f.geometry : anchorGeometry(f.geometry);
       countries.push({
-        base, svgPath, lock, key: `${slug}/${base}`, gid: ++gid, name: c.name,
-        left: c.left, top: c.top, width: c.width, height: c.height,
+        base, svgPath, bild, ankare, lock, key: `${slug}/${base}`, gid: ++gid, name: c.name,
+        left: (g || c).left, top: (g || c).top, width: (g || c).width, height: (g || c).height,
         centroid: geoCentroid(anchor),
         anchor, fullGeom: f.geometry,
       });
@@ -677,7 +691,7 @@ async function buildWarps(regions) {
     };
     // region-wide compositional anchor: affine over centres → true centroids
     const A = fitAffine(
-      r.countries.map(c => [c.left + c.width / 2, c.top + c.height / 2]),
+      r.countries.map(c => { const an = c.ankare || c; return [an.left + an.width / 2, an.top + an.height / 2]; }),
       r.countries.map(c => [mercX(unwrap(c.centroid[0])), mercY(c.centroid[1])]),
     );
     // Precompute shape-lock geometry: polygon rings in unit Mercator
@@ -779,23 +793,24 @@ async function buildWarps(regions) {
         c.gapSegs = { pts, minX: sminX, minY: sminY, maxX: smaxX, maxY: smaxY };
       }
       const pm = polyMoments(c.mercGeom.rings);
-      const mask = await getArtMask(`${r.slug}/${c.base}`, c.svgPath);
+      const an = c.ankare || c;   // bilden varpen förankras i (se matchRegions)
+      const mask = await getArtMask(`${r.slug}/${c.base}${c.ankare ? '#ankare' : ''}`, an.svgPath);
       // Many artworks carry memory-aid decorations OUTSIDE the country body
       // (Ecuador's water jet, Bolivia's ball). Including them in the mass
       // moments squeezes the actual country. Trim iteratively: fit the
       // moment transport, drop mask pixels that land outside the true
       // polygon, refit — after a couple of rounds only the body steers.
-      const regC = (0.02 * Math.hypot(c.width, c.height)) ** 2;
+      const regC = (0.02 * Math.hypot(an.width, an.height)) ** 2;
       const regQ = (0.02 * Math.hypot(c.mercGeom.maxX - c.mercGeom.minX, c.mercGeom.maxY - c.mercGeom.minY)) ** 2;
       const lookup = pm ? polygonLookup(c.mercGeom) : null;
       const upright = PIN_UPRIGHT.has(c.key);
       let weights = null;
       let am = maskMoments(mask, null);
-      let mx = c.left + am.cx * c.width, my = c.top + am.cy * c.height;
+      let mx = an.left + am.cx * an.width, my = an.top + am.cy * an.height;
       let Cm = [
-        am.cxx * c.width * c.width + regC,
-        upright ? 0 : am.cxy * c.width * c.height,
-        am.cyy * c.height * c.height + regC,
+        am.cxx * an.width * an.width + regC,
+        upright ? 0 : am.cxy * an.width * an.height,
+        am.cyy * an.height * an.height + regC,
       ];
       let toTrue = null;
       if (pm && lookup) {
@@ -812,7 +827,7 @@ async function buildWarps(regions) {
           const w = new Float64Array(mask.us.length);
           let kept = 0;
           for (let i = 0; i < mask.us.length; i++) {
-            const q = map([c.left + mask.us[i] * c.width, c.top + mask.vs[i] * c.height]);
+            const q = map([an.left + mask.us[i] * an.width, an.top + mask.vs[i] * an.height]);
             w[i] = lookup.contains(q[0], q[1]) ? 1 : 0;
             kept += w[i];
           }
@@ -821,11 +836,11 @@ async function buildWarps(regions) {
           if (kept < total * 0.4) break;
           weights = w;
           am = maskMoments(mask, weights);
-          mx = c.left + am.cx * c.width; my = c.top + am.cy * c.height;
+          mx = an.left + am.cx * an.width; my = an.top + am.cy * an.height;
           Cm = [
-            am.cxx * c.width * c.width + regC,
-            upright ? 0 : am.cxy * c.width * c.height,
-            am.cyy * c.height * c.height + regC,
+            am.cxx * an.width * an.width + regC,
+            upright ? 0 : am.cxy * an.width * an.height,
+            am.cyy * an.height * an.height + regC,
           ];
         }
       }
@@ -833,7 +848,7 @@ async function buildWarps(regions) {
       // (Pacific and Caribbean micro-states, Maldives …). Squeezing them into
       // their true footprint makes them invisible and tears the field around
       // them — keep them at the hand-drawn composition instead.
-      const bodyArea = am.n / mask.total * c.width * c.height;
+      const bodyArea = am.n / mask.total * an.width * an.height;
       const ratio = pm ? Math.sqrt(bodyArea * detA / Math.max(pm.area, 1e-12)) : 1;
       // delstaterna: Hawaii är överritat men SKA till sin riktiga plats —
       // inga kompositionsplacerade badges i usa-datasetet
@@ -1881,7 +1896,7 @@ async function byggMallar(regions) {
   for (const [gid, mal] of resultat) {
     const { c } = perGid.get(gid);
     if (!mal.ut.length) { matning.push({ gid, namn: mal.namn, base: mal.base, max: 0, andel: 0 }); continue; }
-    const img = await loadImage(path.join(repo, 'assets/usa/countries', mal.base + '.webp'));
+    const img = await loadImage(c.bild);
     const ic = createCanvas(img.width, img.height);
     const ix = ic.getContext('2d');
     ix.drawImage(img, 0, 0);

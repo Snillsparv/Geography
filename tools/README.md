@@ -104,6 +104,19 @@ python3 postprocess-usa-data.py   # OBS: alltid efteråt! (~6 min)
 node make-usa-utstickare.mjs      # pennan ur arkivet, efter båda ovan
 ```
 
+En delstat kan ha en egen bild bara för globen: `glob` i
+`assets/usa/config.json` (fil + placering på duken) pekar på
+`countries/<stat>-glob.webp`, och bakningen läser `<stat>-glob.svg` bredvid.
+Platta kartan (klassiska spelet och Originalkartan) behåller den vanliga
+bilden, eftersom regionkartans konturlinjer (overlay.webp) följer den.
+Varpen förankras fortfarande i den vanliga bildens massa: globbilden ritas
+mot mallen (`--guides`), som räknades med just den varpen, och med ankare i
+den nya bildens massa gled staten ~10 PSD-px bort från linjen. New
+York har en sådan: Jonas omritning mot mallen, källan i full PSD-upplösning
+ligger i `psd/omritade/new_york-glob.png` (läge i USA.psd: x 4675, y 728).
+SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
+kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
+
 Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
 och bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
 delstat; sömhål mellan delstater delas längs delstatslinjen där den går

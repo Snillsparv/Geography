@@ -344,6 +344,13 @@
       "width": 541,
       "height": 410,
       "filename": "new_york",
+      "glob": {
+        "file": "countries/new_york-glob.webp",
+        "left": 3117,
+        "top": 485,
+        "width": 543,
+        "height": 443
+      },
       "desc": "New York är en av USA:s mest kända delstater, hem för New York City med Frihetsgudinnan och Times Square. Men delstaten har mycket mer än storstaden, med Niagarafallen och de vackra Adirondack-bergen i norr. New York kallas \"The Empire State\" och har varit ett centrum för invandring och kultur.",
       "imageAssociation": "En kille som betraktar en modell av staden NEW YORK"
     },
