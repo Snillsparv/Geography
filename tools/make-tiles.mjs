@@ -1093,7 +1093,33 @@ async function getUnderlay(key, svgPath) {
 
 // The artwork with transparent pixels BFS-filled from their nearest opaque
 // neighbour, up to capFrac of the width (Infinity = fill everything).
-async function extendArt(svgPath, capFrac) {
+// Släcker frön (fro[i] = 1) i ljusa fält (fyrgrannar) mindre än minFlack px
+function slackSmaFlackar(W, H, fro, minFlack) {
+  const N = W * H, q = new Int32Array(N);
+  const sedd = new Uint8Array(N);
+  let slackt = false, stortFalt = false;
+  for (let s = 0; s < N; s++) {
+    if (!fro[s] || sedd[s]) continue;
+    let h = 0, t = 0;
+    q[t++] = s; sedd[s] = 1;
+    while (h < t) {
+      const i = q[h++], x = i % W;
+      if (x > 0 && fro[i - 1] && !sedd[i - 1]) { sedd[i - 1] = 1; q[t++] = i - 1; }
+      if (x < W - 1 && fro[i + 1] && !sedd[i + 1]) { sedd[i + 1] = 1; q[t++] = i + 1; }
+      if (i >= W && fro[i - W] && !sedd[i - W]) { sedd[i - W] = 1; q[t++] = i - W; }
+      if (i + W < N && fro[i + W] && !sedd[i + W]) { sedd[i + W] = 1; q[t++] = i + W; }
+    }
+    if (t < minFlack) { for (let k = 0; k < t; k++) fro[q[k]] = 0; slackt = true; }
+    else stortFalt = true;
+  }
+  // inga stora fält alls (Rhode Island: grå kropp som räknas som mörk, bara
+  // ögonen är ljusa) — då får de små fälten så som förr, annars blev
+  // underlägget tomt och fyllnaden uteblev helt
+  if (slackt && !stortFalt) {
+    for (let i = 0; i < N; i++) if (sedd[i]) fro[i] = 1;
+  }
+}
+async function extendArt(svgPath, capFrac, rimDjup = 6, minFlack = 0) {
   const png = new Resvg(readFileSync(svgPath, 'utf8'), { fitTo: { mode: 'width', value: 1024 } }).render().asPng();
   const img = await loadImage(png);
   const W = img.width, H = img.height;
@@ -1129,7 +1155,7 @@ async function extendArt(svgPath, capFrac) {
   const rim = new Uint8Array(W * H);
   {
     const q = new Int32Array(W * H);
-    const rdist = new Uint8Array(W * H);
+    const rdist = new Uint16Array(W * H);
     let h = 0, t = 0;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -1144,7 +1170,11 @@ async function extendArt(svgPath, capFrac) {
         if (touch) { rim[i] = 1; rdist[i] = 1; q[t++] = i; }
       }
     }
-    const RIMDEPTH = 6;
+    const RIMDEPTH = rimDjup;
+    // bortom RIM_BAS steg går randen bara genom svart bläck: små delstaters
+    // djupa rand (snäppet) åt annars upp mörka fyllfärger som hänger ihop med
+    // konturen (Rhode Islands grå, Indianas marinblå, Illinois bruna)
+    const RIM_BAS = 16, BLACK = 40;
     while (h < t) {
       const i = q[h++];
       if (rdist[i] >= RIMDEPTH) continue;
@@ -1154,6 +1184,8 @@ async function extendArt(svgPath, capFrac) {
         if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
         const ni = ny * W + nx;
         if (rim[ni] || !dark[ni]) continue;
+        if (rdist[i] >= RIM_BAS &&
+            Math.max(d[ni * 4], d[ni * 4 + 1], d[ni * 4 + 2]) > BLACK) continue;
         rim[ni] = 1; rdist[ni] = rdist[i] + 1; q[t++] = ni;
       }
     }
@@ -1192,15 +1224,23 @@ async function extendArt(svgPath, capFrac) {
       }
     }
   }
+  // seed only from real FILL colours: saturated or light pixels well clear
+  // of any contour line — never the grey contour blends
+  const fro = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) {
-    // seed only from real FILL colours: saturated or light pixels well clear
-    // of any contour line — never the grey contour blends
     const a = d[i * 4 + 3];
     const mx = Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]);
-    if (a > 200 && mx > 110 && !nearDark[i]) {
-      car[i * 3] = d[i * 4]; car[i * 3 + 1] = d[i * 4 + 1]; car[i * 3 + 2] = d[i * 4 + 2];
-      seen[i] = 1; queue[qt++] = i;
-    }
+    if (a > 200 && mx > 110 && !nearDark[i]) fro[i] = 1;
+  }
+  // minFlack (bara snäppets underlägg): små ljusa fält (Maines dregeldroppar,
+  // ögon, stjärnor, prickar på småöar) färgar inte utfyllnaden — de vann annars
+  // närmsta-frö-racet utanför teckningen och spred droppvitt över halva
+  // Penobscotbukten. Fältets egna pixlar behåller sin färg
+  if (minFlack > 0) slackSmaFlackar(W, H, fro, minFlack);
+  for (let i = 0; i < W * H; i++) {
+    if (!fro[i]) continue;
+    car[i * 3] = d[i * 4]; car[i * 3 + 1] = d[i * 4 + 1]; car[i * 3 + 2] = d[i * 4 + 2];
+    seen[i] = 1; queue[qt++] = i;
   }
   while (qh < qt) {
     const i = queue[qh++];
@@ -1232,21 +1272,24 @@ async function extendArt(svgPath, capFrac) {
 const underlayFullCache = new Map();       // key → canvas (1024, extended)
 const underlayFullDataCache = new Map();   // key@bucket → {data, w, h}
 
-async function getUnderlayFullBase(key, svgPath) {
-  let base = underlayFullCache.get(key);
+const underlagNyckel = (key, rimDjup, minFlack) =>
+  key + (rimDjup === 6 ? '' : '|rim' + rimDjup) + (minFlack ? '|fl' + minFlack : '');
+async function getUnderlayFullBase(key, svgPath, rimDjup = 6, minFlack = 0) {
+  const bk = underlagNyckel(key, rimDjup, minFlack);
+  let base = underlayFullCache.get(bk);
   if (!base) {
-    const ext = await extendArt(svgPath, Infinity);
+    const ext = await extendArt(svgPath, Infinity, rimDjup, minFlack);
     base = ext.canvas;
-    underlayFullCache.set(key, base);
+    underlayFullCache.set(bk, base);
   }
   return base;
 }
-async function getUnderlayFullData(key, svgPath, width) {
-  const base = await getUnderlayFullBase(key, svgPath);
+async function getUnderlayFullData(key, svgPath, width, rimDjup = 6, minFlack = 0) {
+  const base = await getUnderlayFullBase(key, svgPath, rimDjup, minFlack);
   let bucket = 64;
   while (bucket < width && bucket < base.width) bucket *= 2;
   bucket = Math.min(bucket, base.width);
-  const ck = key + '@' + bucket;
+  const ck = underlagNyckel(key, rimDjup, minFlack) + '@' + bucket;
   if (underlayFullDataCache.has(ck)) return underlayFullDataCache.get(ck);
   const c = createCanvas(bucket, Math.max(2, Math.round(base.height * bucket / base.width)));
   const cx = c.getContext('2d');
@@ -1958,6 +2001,40 @@ async function byggMallar(regions) {
     writeFileSync(path.join(UT, `${rang}-${m.base}-avvikelse-${m.max}px.png`), await c.encode('png'));
     antal++;
   }
+  // Hawaii har ingen avvikelse att mäta (hajen är havsdekor, med flit större
+  // än öarna). Mallen visar i stället de riktiga öarna (us_states.geojson,
+  // utan Midway) inversvarpade genom Hawaiis varpnät: magenta kontur med
+  // rosa fyllning = där öarna hamnar på globen med hajen där den är
+  const hiFil = `${String(antal + 1).padStart(2, '0')}-hawaii-oarna.png`;
+  const hiRegion = regions.find(r => r.countries.length && r.countries.every(c => HAWAII_BAS.has(c.base)));
+  if (hiRegion) {
+    const delst = JSON.parse(readFileSync(path.join(here, 'data/us_states.geojson'), 'utf8'));
+    const hi = delst.features.find(f => f.properties.NAME === 'Hawaii');
+    const inv = gorInverterare(hiRegion.grid);
+    const ringar = [];
+    for (const poly of hi.geometry.coordinates) {
+      if (poly[0][0][0] < -161) continue;          // Midway hör inte till delstaten
+      for (const ring of poly) {
+        ringar.push(ring.map(([lng, lat]) => {
+          const [cx, cy] = inv(mercX(lng), mercY(lat));
+          return [cx * SKALA, cy * SKALA];
+        }));
+      }
+    }
+    const c = createCanvas(PW, PH);
+    const cx2 = c.getContext('2d');
+    const spar = () => {
+      cx2.beginPath();
+      for (const rg of ringar) {
+        rg.forEach(([x, y], i) => (i ? cx2.lineTo(x, y) : cx2.moveTo(x, y)));
+        cx2.closePath();
+      }
+    };
+    spar();
+    cx2.fillStyle = 'rgba(255,0,255,0.16)'; cx2.fill('evenodd');
+    cx2.lineJoin = 'round'; cx2.strokeStyle = '#ff00ff'; cx2.lineWidth = 5; cx2.stroke();
+    writeFileSync(path.join(UT, hiFil), await c.encode('png'));
+  }
   // översikt: hela kompositionen med alla mållinjer över kartbilden
   const ov = createCanvas(Math.round(PW * 0.35), Math.round(PH * 0.35));
   const ox = ov.getContext('2d');
@@ -1989,10 +2066,12 @@ på (0,0) i full storlek (den snäpper dit själv med Place). Lägg mallagret
   låt konsten ligga kvar som den är där.
 
 Bara kantstater har mallar (${antal} st). Inlandsstaterna ser redan bra ut.
-Hawaii har ingen mall — dess bilder är med flit större än öarna och ska
-inte ändras. Filnamnen är sorterade efter hur stor avvikelsen är i dag,
-värst först — siffran är största avståndet från mållinjen till närmaste
-målade pixel.
+Filnamnen är sorterade efter hur stor avvikelsen är i dag, värst först —
+siffran är största avståndet från mållinjen till närmaste målade pixel.
+
+Hawaii har en egen mall utanför rangordningen (${hiFil}): magenta
+kontur med rosa fyllning = de riktiga öarna. Hajen runt öarna är havsdekor
+och visas i spelet, men öarna i teckningen bör täcka de rosa fälten.
 
 | # | Stat | Största avvikelse | Andel av kanten utanför konsten |
 |---|------|-------------------|--------------------------------|
@@ -2001,11 +2080,22 @@ ${rader.join('\n')}
 När du är klar: spara och skicka USA.psd som vanligt, så bygger vi om
 kartrutorna — då följer delstaterna kanterna exakt, utan maskinlagningar.
 `);
-  console.log(`\nSkrev ${antal} mallar + OVERSIKT + LAS-MIG till ${UT}`);
+  console.log(`\nSkrev ${antal} mallar + Hawaiis ömall + OVERSIKT + LAS-MIG till ${UT}`);
   for (const m of matning.slice(0, 12)) console.log(`  ${m.namn}: max ${m.max}px, ${(m.andel * 100).toFixed(0)}% utanför`);
 }
 
 // chamfer 3-4: heltalsavstånd + närmsta-källa-index, två svep över rutan
+// snäppets underlägg: teckningens YTTRE kontur bortrensad på hela sin
+// tjocklek. Jonas linjer är ~8 dukpixlar breda, men underlägget ritas alltid
+// 1024 px brett, så i små delstater blir linjen mycket bredare där (Maine
+// ~29 px, Delaware ~105 px). Djupet räknas därför i dukpixlar: 12 räcker för
+// en diagonal linje (stegen går fyrvägs, √2 × 8), minst SNAP_RIMDJUP steg.
+// Med för grunt djup blev en tunn kärna kvar, och när underlägget hämtas på
+// rätt dukposition syntes den som en dubbelkontur innanför den nya kanten
+const SNAP_RIMDJUP = +(process.env.SNAP_RIMDJUP || 16);
+const SNAP_RIM_DUK = 12;
+const SNAP_MIN_FLACK = 40;     // dukpx²: mindre ljusa fält sår inte utfyllnaden
+const FRI_FYLL = new Set(['usa/alaska']);
 async function usaSnapPass(world, tx, ty, sheetDraws) {
   const mFyll = snapMask(usaSnap.fyll, world, tx, ty);
   if (!mFyll) return;                       // rutan rör inte målad USA-yta
@@ -2094,9 +2184,9 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
     else { dKalla[i] = INF; kalla[i] = -1; }
   }
   svep(dKalla, kalla);
-  const understod = new Map();   // gid → { un, x0, y0, x1, y1 } (warpad bbox)
+  const understod = new Map();   // gid → { un, x0, y0, x1, y1 (warpad bbox), drag: [d …] }
   for (const d of sheetDraws || []) {
-    if (understod.has(d.gid)) continue;
+    if (understod.has(d.gid)) { understod.get(d.gid).drag.push(d); continue; }
     const g = d.grid;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (let gy = d.gy0; gy <= d.gy1; gy++) for (let gx = d.gx0; gx <= d.gx1; gx++) {
@@ -2106,27 +2196,114 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
       if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
     if (!(maxX > minX)) continue;
-    const un = await getUnderlayFullData(d.key, d.svgPath, 1024);
-    understod.set(d.gid, { un, x0: minX, y0: minY, x1: maxX, y1: maxY });
+    const k = 1024 / d.srcW;                 // underläggs-px per dukpixel
+    const rimDjup = Math.max(SNAP_RIMDJUP, Math.ceil(SNAP_RIM_DUK * k));
+    const minFlack = Math.round(SNAP_MIN_FLACK * k * k);
+    const un = await getUnderlayFullData(d.key, d.svgPath, 1024, rimDjup, minFlack);
+    understod.set(d.gid, { un, x0: minX, y0: minY, x1: maxX, y1: maxY, drag: [d] });
   }
+  // underlägget hämtas på pixelns DUKPOSITION, genom regionens varpnät
+  // (samma bilinjära invers som renderSheetPx). Den tidigare bbox-linjära
+  // avbildningen spände över hela cellraden (större än bilden) och bortsåg
+  // från varpens krökning: färgen hämtades upp till en flaggstångsbredd fel
+  // (New Mexicos gröna i stången, Kaliforniens solstolsrött vid kusten)
+  const HINK = 32, NHINK = Math.ceil(TG / HINK);
+  const natCache = new Map();   // grid → Map(off → hinkar med celler)
+  const natFor = (g, off) => {
+    let perOff = natCache.get(g);
+    if (!perOff) { perOff = new Map(); natCache.set(g, perOff); }
+    let nat = perOff.get(off);
+    if (nat) return nat;
+    nat = new Array(NHINK * NHINK);
+    const ox = -tx * TILE + off + G, oy = -ty * TILE + G;
+    const row = (g.nx + 1) * 2;
+    for (let gy = 0; gy < g.ny; gy++) {
+      for (let gx = 0; gx < g.nx; gx++) {
+        const i00 = (gy * (g.nx + 1) + gx) * 2;
+        const Ax = g.u[i00] * world + ox, Ay = g.u[i00 + 1] * world + oy;
+        const Bx = g.u[i00 + 2] * world + ox, By = g.u[i00 + 3] * world + oy;
+        const Dx = g.u[i00 + row] * world + ox, Dy = g.u[i00 + row + 1] * world + oy;
+        const Cx = g.u[i00 + row + 2] * world + ox, Cy = g.u[i00 + row + 3] * world + oy;
+        const minx = Math.min(Ax, Bx, Cx, Dx), maxx = Math.max(Ax, Bx, Cx, Dx);
+        const miny = Math.min(Ay, By, Cy, Dy), maxy = Math.max(Ay, By, Cy, Dy);
+        if (maxx < 0 || minx > TG || maxy < 0 || miny > TG) continue;
+        const cell = {
+          gx, gy, Ax, Ay,
+          Ex: Bx - Ax, Ey: By - Ay, Fx: Dx - Ax, Fy: Dy - Ay,
+          Gx: Cx - Bx - Dx + Ax, Gy: Cy - By - Dy + Ay,
+        };
+        cell.qa = cell.Fy * cell.Gx - cell.Fx * cell.Gy;
+        const hx0 = Math.max(0, Math.floor(minx / HINK)), hx1 = Math.min(NHINK - 1, Math.floor(maxx / HINK));
+        const hy0 = Math.max(0, Math.floor(miny / HINK)), hy1 = Math.min(NHINK - 1, Math.floor(maxy / HINK));
+        for (let hy = hy0; hy <= hy1; hy++) for (let hx = hx0; hx <= hx1; hx++) {
+          const h = hy * NHINK + hx;
+          (nat[h] || (nat[h] = [])).push(cell);
+        }
+      }
+    }
+    perOff.set(off, nat);
+    return nat;
+  };
+  const dukpunkt = (g, off, px, py) => {
+    const lista = natFor(g, off)[Math.floor(py / HINK) * NHINK + Math.floor(px / HINK)];
+    if (!lista) return null;
+    for (const c of lista) {
+      const hx = px + 0.5 - c.Ax, hy = py + 0.5 - c.Ay;
+      const qb = hx * c.Gy - hy * c.Gx + c.Fy * c.Ex - c.Fx * c.Ey;
+      const qc = hx * c.Ey - hy * c.Ex;
+      let v;
+      if (Math.abs(c.qa) < 1e-9) {
+        if (Math.abs(qb) < 1e-12) continue;
+        v = -qc / qb;
+      } else {
+        const sq = Math.sqrt(Math.max(0, qb * qb - 4 * c.qa * qc));
+        v = (-qb + sq) / (2 * c.qa);
+        if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * c.qa);
+      }
+      if (v < -1e-4 || v > 1.0001) continue;
+      const den1 = c.Ex + v * c.Gx, den2 = c.Ey + v * c.Gy;
+      const u = Math.abs(den1) > Math.abs(den2) ? (hx - v * c.Fx) / den1 : (hy - v * c.Fy) / den2;
+      if (u < -1e-4 || u > 1.0001) continue;
+      return [g.x0 + (c.gx + u) * g.step, g.y0 + (c.gy + v) * g.step];
+    }
+    return null;
+  };
   const fargFor = (gid, px, py) => {
     const u = understod.get(gid);
     if (!u) return null;
-    const wx = tx * TILE + px - G + 0.5, wy = ty * TILE + py - G + 0.5;
-    const fu = Math.min(1, Math.max(0, (wx - u.x0) / (u.x1 - u.x0)));
-    const fv = Math.min(1, Math.max(0, (wy - u.y0) / (u.y1 - u.y0)));
-    const kx = Math.min(u.un.w - 1, Math.max(0, Math.round(fu * u.un.w - 0.5)));
-    const ky = Math.min(u.un.h - 1, Math.max(0, Math.round(fv * u.un.h - 0.5)));
+    let kx = -1, ky = -1;
+    for (const d of u.drag) {
+      const p = dukpunkt(d.grid, d.off, px, py);
+      if (!p) continue;
+      kx = Math.min(u.un.w - 1, Math.max(0, Math.round((p[0] - d.left) / d.srcW * u.un.w - 0.5)));
+      ky = Math.min(u.un.h - 1, Math.max(0, Math.round((p[1] - d.top) / d.srcH * u.un.h - 0.5)));
+      break;
+    }
+    if (kx < 0) {
+      // utanför regionens nät: bbox-linjärt som förut
+      const wx = tx * TILE + px - G + 0.5, wy = ty * TILE + py - G + 0.5;
+      const fu = Math.min(1, Math.max(0, (wx - u.x0) / (u.x1 - u.x0)));
+      const fv = Math.min(1, Math.max(0, (wy - u.y0) / (u.y1 - u.y0)));
+      kx = Math.min(u.un.w - 1, Math.max(0, Math.round(fu * u.un.w - 0.5)));
+      ky = Math.min(u.un.h - 1, Math.max(0, Math.round(fv * u.un.h - 0.5)));
+    }
     const si = (ky * u.un.w + kx) * 4;
     if (!u.un.data[si + 3]) return null;
     return [u.un.data[si], u.un.data[si + 1], u.un.data[si + 2]];
   };
   // 2) fyll omålat innanför fyllmålet
+  // Alaska fylls utan räckviddstak: teckningen täcker bara en del av
+  // fotavtrycket (Sewardhalvön ligger 1,3–1,7° från närmsta målade pixel),
+  // och där inget fylldes lyste världskartans USA-flagga igenom. Taket finns
+  // för underläggsläckorna in i Mexiko, som inte finns i Alaska
+  const friFyll = new Set();
+  for (const d of sheetDraws || []) if (FRI_FYLL.has(d.key)) friFyll.add(d.gid);
   const fylld = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
     if (!mFyll[i] || sheetBuf[i * 4 + 3]) continue;
-    if (dKalla[i] > FYLL_PX * 3 || kalla[i] < 0) continue;
+    if (kalla[i] < 0) continue;
     const o = ownerBuf[kalla[i]];
+    if (dKalla[i] > FYLL_PX * 3 && !friFyll.has(o)) continue;
     const f = fargFor(o, i % TG, (i / TG) | 0);
     if (!f) continue;
     sheetBuf[i * 4] = f[0]; sheetBuf[i * 4 + 1] = f[1];

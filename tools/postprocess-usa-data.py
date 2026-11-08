@@ -168,9 +168,11 @@ LINJE_PROV = (0.004, 0.012, 0.02)
 # USA-yta är avrundningsspringor mellan delstater, inga sjöar
 MIKROHAL = 1e-4
 # delstater vars havskonst SKA synas när delstaten avslöjas: Hawaiis konst
-# är medvetet mycket större än öarna. All annan konst utanför världens
+# (hajen) är mycket större än öarna. All annan konst utanför världens
 # USA-yta (North Carolinas fartstreck, Alaskas svans, Floridas bläckkant)
-# ligger alltid under havsmasken — bilden håller sig innanför konturen
+# ligger alltid under havsmasken — bilden håller sig innanför konturen.
+# Tas Hawaii bort härifrån klipps hajen till öarna (provat 2026-11-08: då
+# syns bara grå öar, huvudet och tänderna hamnar i havet)
 VISAD_DEKOR = {'usa/hawaii'}
 # den jämntjocka ytterkanten runt en avslöjad delstat (kant: 1) är lika
 # bred som teckningens egen konturlinje: KANT_PX pixlar på USA-kartans duk
@@ -185,6 +187,10 @@ INFALLDA = {'usa/alaska', 'usa/hawaii'}
 # blev de svarta klumpar. Där blir bandet högst så här stor del av den
 # största inskrivna cirkelns radie, så konsten syns innanför
 SMAL_KANT = 0.35
+# delstater där VARJE ö får det smalare bandet (gäller bara när de har
+# band, alltså inte står i VISAD_DEKOR): Hawaiis band räknas i Hawaiis egen
+# (större) skala, och de små öarna blev helt svarta
+SMALA_OAR = {'usa/hawaii'}
 # konst som medvetet sticker ut över grannlandet (make-tiles FREDAD_KONST,
 # samma ruta): biten utanför världens USA-yta blir en egen bild som spelet
 # lägger ovanpå grannens gröna när delstaten avslöjas
@@ -566,9 +572,10 @@ def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick, sjoar):
 
     Banden räknas i en lokal stereografisk projektion per delstat, så de
     blir lika tjocka åt alla håll — teckningens linjer följer jorden, inte
-    lng/lat. Hawaii (konsten är större än öarna) får inget band, och pennans
-    fot hålls fri. Öar och avskurna uddar i de stora sjöarna får ett
-    smalare band (SMAL_KANT), annars blev de helt svarta."""
+    lng/lat. Delstater i VISAD_DEKOR (Hawaii, konsten är större än öarna)
+    får inget band, och pennans fot hålls fri. Öar och avskurna uddar i de
+    stora sjöarna, och öarna i SMALA_OAR, får ett smalare band (SMAL_KANT),
+    annars blev de helt svarta."""
     hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
                        for p in ytor(tackyta)])
     huvud = sorted(v for g, v in skala.items() if nyckel[g]['key'] not in INFALLDA)
@@ -596,7 +603,8 @@ def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick, sjoar):
         ringar = []
         for p in ytor(P):
             w = bredd
-            if L is not None and p.intersects(T) and p.distance(L) < bredd / 10:
+            if pr['key'] in SMALA_OAR or (
+                    L is not None and p.intersects(T) and p.distance(L) < bredd / 10):
                 r = maximum_inscribed_circle(p, bredd / 50).length
                 w = min(bredd, SMAL_KANT * r)
             ringar.append(p.difference(p.buffer(-w, quad_segs=4)))

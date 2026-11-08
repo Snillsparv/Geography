@@ -123,8 +123,36 @@ for (const f of fc.features) {
         slackta++;
       }
     }
+    // utanför pennans svarta sidolinjer ute i sjön finns bara bakningens
+    // utfyllnad (pennans gula, utdraget förbi linjen): per rad släcks allt
+    // till vänster om första och till höger om sista bläckstråken (minst
+    // STRAK px i följd, så enstaka mörka prickar i utfyllnaden räknas inte).
+    // Stråken söks över hela raden, även på land: vid stranden går sjökanten
+    // snett genom pennan, och bara sjödelen av raden gav hål mitt i pennan
+    const STRAK = 3;
+    let utanfor = 0;
+    for (let y = 0; y < H; y++) {
+      const ink = x => {
+        const i = (y * W + x) * 4;
+        return d[i + 3] && Math.max(d[i], d[i + 1], d[i + 2]) <= MORK;
+      };
+      let xl = -1, xr = -1;
+      for (let x = 0, n = 0; x < W; x++) {
+        n = ink(x) ? n + 1 : 0;
+        if (n === STRAK) { if (xl < 0) xl = x - STRAK + 1; xr = x; }
+        else if (n > STRAK) xr = x;
+      }
+      if (xl < 0 || xr <= xl) continue;
+      for (let x = 0; x < W; x++) {
+        if (x >= xl && x <= xr) continue;
+        const i = (y * W + x) * 4;
+        if (!maskData[i + 3] || !d[i + 3]) continue;
+        d[i + 3] = 0;
+        utanfor++;
+      }
+    }
     ctx.putImageData(bild, 0, 0);
-    console.log(`  ${slackta} gröna eller grå pixlar ute i sjön släckta`);
+    console.log(`  ${slackta} gröna eller grå pixlar ute i sjön släckta, ${utanfor} utanför pennans sidolinjer`);
   }
   const fil = f.properties.key.split('/')[1];
   const rel = `assets/usa/utstickare/${fil}.webp`;

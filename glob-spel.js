@@ -186,7 +186,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '87';
+const V = '88';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -207,7 +207,7 @@ async function fetchJson(path) {
 const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
-const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=7');
+const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=8');
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
 // världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
 // i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)

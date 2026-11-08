@@ -256,6 +256,13 @@
       "width": 515,
       "height": 538,
       "filename": "new_mexico",
+      "glob": {
+        "file": "countries/new_mexico-glob.webp",
+        "left": 1016,
+        "top": 1347,
+        "width": 515,
+        "height": 578
+      },
       "desc": "New Mexico ligger i sydvästra USA och kallas \"Land of Enchantment\" för sina magiska landskap. Delstaten har en unik blandning av ursprungsamerikansk, spansk och mexikansk kultur. Santa Fe, delstatens huvudstad, är USA:s äldsta huvudstad och känd för sin adobe-arkitektur.",
       "imageAssociation": "Skatteindrivaren ska bilda en ny stat, NEW MEXICO, med skattepengarna och håller därför i en ny version av Mexikos flagga"
     },

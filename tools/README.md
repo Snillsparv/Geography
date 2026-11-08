@@ -114,8 +114,28 @@ mot mallen (`--guides`), som räknades med just den varpen, och med ankare i
 den nya bildens massa gled staten ~10 PSD-px bort från linjen. New
 York har en sådan: Jonas omritning mot mallen, källan i full PSD-upplösning
 ligger i `psd/omritade/new_york-glob.png` (läge i USA.psd: x 4675, y 728).
+New Mexico har också en: USA.psd-lagret med flaggans gröna fält förlängt
+40 dukpixlar (60 PSD-px) nedåt förbi den riktiga gränsen (bootheel), gjord med
+`tools/new-mexico-glob.py` (`psd/omritade/new_mexico-glob.png`).
 SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
 kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
+Vektoriseringen tappar ibland detaljer; då lagas SVG:n direkt (Arizona:
+konturerna runt Z, Z och O spårade ur USA.psd och lagda överst; Colorado:
+det gröna strecket enfärgat ända ut, som de andra strecken).
+
+Där teckningen inte når fram till statens riktiga kant fyller bakningen
+(`usaSnapPass` i make-tiles) med delstatens underlägg: bilden med
+närmaste färg utdragen och den yttre konturen bortrensad. Underlägget ritas
+1024 px brett oavsett delstatens storlek, så rensningsdjupet räknas i
+dukpixlar (`SNAP_RIM_DUK`, minst `SNAP_RIMDJUP` steg); bortom 16 steg går
+det bara genom svart bläck, så mörka fyllfärger (Rhode Islands grå) står
+kvar. Små ljusa fält (under `SNAP_MIN_FLACK` dukpx², som Maines
+dregeldroppar) färgar inte utfyllnaden, utom när en delstat bara har små
+ljusa fält. Underlägget hämtas på pixelns dukposition genom varpnätet (förut
+bbox-linjärt, vilket gav fel färger: Kaliforniens solstolsrött vid kusten,
+grönt i New Mexicos flaggstång). Fyllnaden når högst ~1,25° från
+teckningen (underläggets läckor in i Mexiko ska inte fyllas) utom i
+Alaska (`FRI_FYLL`), där teckningen inte täcker Sewardhalvön.
 
 Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
 utan de stora sjöarna (`tools/data/stora_sjoarna.geojson`, samma fil som
@@ -131,8 +151,11 @@ delstat; sömhål mellan delstater delas längs delstatslinjen där den går
 genom hålet, annars går hålet till delstaten på samma sida om linjen.
 Konst målad i havet (North Carolinas fartstreck, Alaskas svans i Berings
 hav) döljs alltid under havsmasken — bilden ska hålla sig innanför
-konturen; bara Hawaii (konsten är större än öarna) har dekor-features med
-samma id som delstaten. Konst som medvetet sticker ut över grannlandet
+konturen; bara Hawaii (konsten är större än öarna, `VISAD_DEKOR`) har
+dekor-features med samma id som delstaten. Hawaiis mall
+(`psd/delstatsmallar/36-hawaii-oarna.png`, ritad av `--guides` efter
+kantstaternas) är de riktiga öarna i `tools/data/us_states.geojson` (utan
+Midway) inversvarpade genom Hawaiis varpnät till USA.psd-pixlar. Konst som medvetet sticker ut över grannlandet
 (Pennsylvanias penna) fredas från bakningens klipp (`FREDAD_KONST` i
 make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
 (assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
