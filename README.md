@@ -3,6 +3,12 @@
 Huvudspelet är jordgloben i `glob.html` — den serveras som förstasida på
 webben. Den äldre kartsidan finns kvar som `klassisk.html`.
 
+`siffror.html` är en fristående övningssida för sifferalfabetet (julkalenderns
+lucka 12, bygger på kapitel 9–10 i *Så får du ett superminne*). Den hänger inte
+ihop med spelet: innehållet ligger i `siffror-data.js`, ljudreglerna i
+`siffror-ljud.js` och logiken i `siffror.js`. Kör `node test/siffror.mjs` efter
+att du ändrat ord eller regler — testet kollar att varje ord blir rätt tal.
+
 ## Hur man spelar (gamla kartsidan)
 
 1. Öppna `klassisk.html` i en webbläsare
