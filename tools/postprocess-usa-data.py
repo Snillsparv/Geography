@@ -26,6 +26,13 @@ Här görs det på samma sätt som världskartan:
    Världens USA-yta blir då täckt utan hål (överlapp som finns i själva
    konsten ligger kvar: 0,25 kvadratgrader fördelat på ett hundratal
    grannpar, som mest drygt en hundradel per par).
+   De STORA SJÖARNA dras först bort ur världens USA-yta: världskartan har
+   dem som land (USA och Kanada möts på gränsen mitt i sjön), men
+   delstaterna slutar vid den riktiga stranden, som på den platta kartan och
+   i Photoshop-mallarna. Sjöarna blir en egen feature (sjo: 1) som spelet
+   målar i havsfärg ovanpå Kanadas gröna, och Kanadas stränder får linje.
+   Bitar som klippet skilde från resten av delstaten och som ligger på en
+   grannstats riktiga mark (us_states.geojson) går till grannen.
 2. DEKOR. Konsten ska hålla sig innanför konturen även när delstaten är
    avslöjad, så konst ute i havet (North Carolinas fartstreck, Alaskas
    svans, Floridas bläckkant) hamnar under havsmasken (steg 3). Bara
@@ -81,11 +88,13 @@ import os
 
 import numpy as np
 
-from shapely import (STRtree, distance as sh_distance, points as sh_points,
-                     segmentize, set_precision, transform as sh_transform)
+from shapely import (STRtree, distance as sh_distance, maximum_inscribed_circle,
+                     points as sh_points, segmentize, set_precision,
+                     transform as sh_transform)
 from shapely.affinity import translate
 from shapely.geometry import LineString, Point, Polygon, box, shape
 from shapely.ops import split, unary_union
+from shapely.prepared import prep
 from shapely.validation import make_valid
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -94,6 +103,20 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # världen under 1000)
 REMSA_GID = 1999
 MASK_GID = 1998
+SJO_GID = 1997
+# De stora sjöarna (Natural Earth, samma fil som make-tiles --guides drar
+# bort ur mallarna). Världskartan har dem som land: USA:s och Kanadas
+# målade ytor möts på gränsen mitt i sjön. Delstaterna slutar i stället vid
+# den riktiga stranden, som på den platta kartan och i Photoshop-mallarna —
+# annars sträcktes täcket och bakningens utfyllnad ut över halva sjön och
+# teckningarna (New Yorks ansikte, Michigans vante) blev klumpar.
+SJOFIL = 'tools/data/stora_sjoarna.geojson'
+# delstaternas riktiga mark (Natural Earth), för bitar som sjöklippet skilde
+# från resten av delstaten
+DELSTATSFIL = 'tools/data/us_states.geojson'
+# en sådan bit går till grannstaten vars riktiga mark den ligger på om den
+# är högst så här stor (kvadratgrader; Michigans övre halvö är ~7)
+SJOEXKLAV_MAX_YTA = 0.05
 # marginal runt Natural Earths USA: där räknas världens USA-yta som USA
 # (grader). Utanför den är det läckage in i grannlandet.
 USA_MARGINAL = 0.15
@@ -157,6 +180,11 @@ VISAD_DEKOR = {'usa/hawaii'}
 # (INFALLDA: Alaska i mindre skala, Hawaii) mäts var för sig
 KANT_PX = 7
 INFALLDA = {'usa/alaska', 'usa/hawaii'}
+# öar och avskurna uddar i de stora sjöarna (Isle Royale, Keweenaws spets,
+# Door-halvöns norra del, Drummond) är smalare än två band: med full bredd
+# blev de svarta klumpar. Där blir bandet högst så här stor del av den
+# största inskrivna cirkelns radie, så konsten syns innanför
+SMAL_KANT = 0.35
 # konst som medvetet sticker ut över grannlandet (make-tiles FREDAD_KONST,
 # samma ruta): biten utanför världens USA-yta blir en egen bild som spelet
 # lägger ovanpå grannens gröna när delstaten avslöjas
@@ -417,12 +445,16 @@ def flytta_instangda(karna):
     return flyttade
 
 
-def rensa_inre_linjer(linjelista, tacken):
+def rensa_inre_linjer(linjelista, tacken, sjoar):
     """Tar bort de delar av delstatslinjerna som har samma delstat på båda
-    sidor (provat på flera avstånd vinkelrätt mot linjen)."""
+    sidor (provat på flera avstånd vinkelrätt mot linjen). Ett prov som
+    hamnar ute i de stora sjöarna säger inget om linjen och hoppas över
+    (den gamla gränsen mot Wisconsins bit på Stonington-halvön, som nu är
+    Michigans, slutar vid stranden), men närmaste provet måste träffa land."""
     ids = list(tacken)
     geoms = [tacken[g] for g in ids]
     trad = STRtree(geoms)
+    i_sjon = prep(sjoar)
 
     def agare(x, y):
         p = Point(x, y)
@@ -440,8 +472,12 @@ def rensa_inre_linjer(linjelista, tacken):
                 continue
             mx, my, nx, ny = (x0 + x1) / 2, (y0 + y1) / 2, -dy / n, dx / n
             samma = True
-            for d in LINJE_PROV:
-                v, h = agare(mx + nx * d, my + ny * d), agare(mx - nx * d, my - ny * d)
+            for i, d in enumerate(LINJE_PROV):
+                pv, ph = (mx + nx * d, my + ny * d), (mx - nx * d, my - ny * d)
+                v, h = agare(*pv), agare(*ph)
+                if i and ((not v and i_sjon.contains(Point(pv)))
+                          or (not h and i_sjon.contains(Point(ph)))):
+                    continue
                 if not (len(v) == 1 and v == h):
                     samma = False
                     break
@@ -472,7 +508,9 @@ def main():
     ne_usa = next(f for f in ne['features']
                   if f['properties'].get('ADM0_A3') == 'USA' or f['properties'].get('GU_A3') == 'USA')
     US = giltig(shape(ne_usa['geometry'])).buffer(USA_MARGINAL)
-    Wus = W.intersection(US)
+    sjoar = giltig(unary_union([giltig(shape(f['geometry'])) for f in las(SJOFIL)['features']]))
+    # delstaternas mark: världens USA-yta utan de stora sjöarna
+    Wus = W.difference(sjoar).intersection(US)
     # grannarnas mark: alla andra länders målade yta (havsritade emblem och
     # dekordelar är inte mark)
     narheten = W.buffer(2).envelope
@@ -498,7 +536,7 @@ def main():
         print('usa-regions/usa-borders: redan efterbearbetade (kör make-tiles '
               '--dataset usa först för att göra om dem)')
     else:
-        bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa)
+        bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa, sjoar)
         spara('assets/usa-regions.json', usa_reg)
         spara('assets/usa-borders.json', usa_bor)
         spara('assets/usa-markers.json', usa_mark)
@@ -506,7 +544,7 @@ def main():
     print('klart')
 
 
-def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick):
+def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick, sjoar):
     """Jämntjocka svarta band runt avslöjade delstater (steg 5).
 
     Teckningens egen kontur försvann där konsten inte nådde exakt fram till
@@ -529,7 +567,8 @@ def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick):
     Banden räknas i en lokal stereografisk projektion per delstat, så de
     blir lika tjocka åt alla håll — teckningens linjer följer jorden, inte
     lng/lat. Hawaii (konsten är större än öarna) får inget band, och pennans
-    fot hålls fri."""
+    fot hålls fri. Öar och avskurna uddar i de stora sjöarna får ett
+    smalare band (SMAL_KANT), annars blev de helt svarta."""
     hel = unary_union([Polygon(p.exterior, [h for h in p.interiors if ar_kanthal(h, W)])
                        for p in ytor(tackyta)])
     huvud = sorted(v for g, v in skala.items() if nyckel[g]['key'] not in INFALLDA)
@@ -552,7 +591,16 @@ def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick):
         T = giltig(fram(segmentize(t, TATHET)))
         # ytterkanten: hela bredden innanför täckets yttre kant
         P = giltig(fram(segmentize(giltig(hel.intersection(fonster)), TATHET)))
-        yttre = P.difference(P.buffer(-bredd, quad_segs=4)).intersection(T)
+        sjo = sjoar.intersection(fonster)
+        L = giltig(fram(segmentize(sjo, TATHET))) if not sjo.is_empty else None
+        ringar = []
+        for p in ytor(P):
+            w = bredd
+            if L is not None and p.intersects(T) and p.distance(L) < bredd / 10:
+                r = maximum_inscribed_circle(p, bredd / 50).length
+                w = min(bredd, SMAL_KANT * r)
+            ringar.append(p.difference(p.buffer(-w, quad_segs=4)))
+        yttre = unary_union(ringar).intersection(T)
         # grannstaterna: täcken som rör delstaten
         nara = t.buffer(KANT_NARA)
         grannar = {}
@@ -600,12 +648,52 @@ def kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick):
     return ut
 
 
-def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
+def flytta_sjoexklaver(karna, sjoar, riktiga):
+    """Bitar av en delstat som sjöklippet skilde från resten av delstaten
+    och som ligger på en grannstats riktiga mark går till grannen. Före
+    klippet hängde de ihop över sjön: spetsen av Wisconsins gaffel på
+    Michigans Stonington-halvö, Michigans flik på Minnesotas Pigeon Point.
+    Öarna i sjöarna ligger på delstatens egen mark och stannar."""
+    flyttade = 0
+    hela = {g: unary_union(ps) for g, ps in karna.items() if ps}
+    nara_sjon = sjoar.buffer(KANT_NARA)
+    for gid in list(karna):
+        delar = ytor(unary_union(karna[gid]))
+        if len(delar) < 2:
+            continue
+        storst = max(delar, key=lambda p: p.area)
+        behall = [storst]
+        for d in delar:
+            if d is storst or d.area > SJOEXKLAV_MAX_YTA or not d.intersects(nara_sjon):
+                behall.append(d)
+                continue
+            andel = {g: r.intersection(d).area / d.area for g, r in riktiga.items()
+                     if r.intersects(d)}
+            agare = max(andel, key=andel.get) if andel else gid
+            if (agare != gid and andel[agare] > 0.5 and agare in hela
+                    and hela[agare].distance(d) < KANT_NARA):
+                karna[agare].append(d)
+                flyttade += 1
+                if os.environ.get('USA_DEBUG'):
+                    c = d.representative_point()
+                    print(f'  sjöexklav {gid}→{agare} yta {d.area:.5f} vid ({c.x:.3f},{c.y:.3f})')
+            else:
+                behall.append(d)
+        karna[gid] = behall
+    return flyttade
+
+
+def bearbeta_delstater(usa_reg, usa_bor, usa_mark, Wv, US, Wus, grannar, summa, sjoar):
     # ── 1–3: täcke, dekor, remsor ──
     stater = usa_reg['features']
+    # Wv är världens målade USA-yta, W samma yta utan de stora sjöarna:
+    # delstaternas mark. Konst ute i sjöarna behandlas som havskonst (döljs
+    # under havsmasken), och sjöarnas stränder blir yttre kant med helt band
+    W = Wv.difference(sjoar)
     # glipor mot grannarna räknas som grannmark: ingen dekor där, och de
-    # målas gröna med remsorna
-    gl = glipor(W, grannar)
+    # målas gröna med remsorna (mätta mot världens yta som förut — sjöarna
+    # dras bort ur remsorna nedan)
+    gl = glipor(Wv, grannar)
     grannmark = unary_union([grannar] + gl)
     karna, dekor, utstick, skala = {}, {}, {}, {}
     W_marg = W.buffer(DEKOR_MARGINAL)
@@ -625,17 +713,28 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
             # strimlor längs stranden (öppning), och fotens bredd vid
             # stranden förlängd ner i delstaten i pennans egen lutning (rakt
             # ner lämnade en grön kil utan ytterkant bredvid den sneda
-            # konturen)
-            ute = S.intersection(box(*ruta)).difference(W)
+            # konturen). Pennan räknas mot världens yta (Wv: delen över
+            # Kanada); delstatens övriga konst ute i sjön ska döljas, inte
+            # bli utstickare
+            ute = S.intersection(box(*ruta)).difference(Wv)
             kropp = ute.buffer(-UTSTICKARE_SMAL).buffer(UTSTICKARE_SMAL * 1.5)
             ute = unary_union([p for p in ytor(ute.intersection(kropp)) if p.area >= 1e-3])
             if not ute.is_empty:
                 lut = pennlutning(ute)
-                bas = ute.intersection(W.buffer(UTSTICKARE_SMAL * 2))
-                steg = math.ceil(UTSTICKARE_FOT / UTSTICKARE_SMAL)
-                fot = unary_union([translate(bas, xoff=-lut * UTSTICKARE_FOT * k / steg,
-                                             yoff=-UTSTICKARE_FOT * k / steg)
-                                   for k in range(steg + 1)])
+                bas = ute.intersection(Wv.buffer(UTSTICKARE_SMAL * 2))
+                # pennans tvärsnitt vid världens USA-kant (mitt i Eriesjön)
+                # svepas ner i pennans lutning över sjön och sedan
+                # UTSTICKARE_FOT in i delstatens mark (W, utan sjöarna)
+                svep, pa_land = [bas], 0
+                for k in range(1, 400):
+                    b = translate(bas, xoff=-lut * UTSTICKARE_SMAL * k,
+                                  yoff=-UTSTICKARE_SMAL * k)
+                    svep.append(b)
+                    if b.intersection(W).area >= b.area / 2:
+                        pa_land += 1
+                        if pa_land * UTSTICKARE_SMAL >= UTSTICKARE_FOT:
+                            break
+                fot = unary_union(svep)
                 utstick[f['id']] = unary_union([ute, fot.intersection(S)])
     tackt = unary_union([p for ps in karna.values() for p in ps])
     rest = ytor(Wus.difference(tackt))
@@ -663,6 +762,12 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
             karna[kand[0]].append(bit)
         tilldelade += 1
     instangda = flytta_instangda(karna)
+    riktiga = {}
+    for f in las(DELSTATSFIL)['features']:
+        riktiga[f['properties']['NAME_SV']] = giltig(shape(f['geometry']))
+    riktiga = {f['id']: riktiga[f['properties']['key'].split('/')[1]] for f in stater
+               if f['properties']['key'].split('/')[1] in riktiga}
+    sjoexklaver = flytta_sjoexklaver(karna, sjoar, riktiga)
 
     nya = []
     for f in stater:
@@ -710,7 +815,7 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # zoomnivåerna förenklas formerna så att en havsfärgad dekordel kan
     # glida in över en smal ö (Cumberland Island) — då ska ön vinna
     nya = dekorfeats + nya
-    remsor = ytor(unary_union(ytor(W.difference(US)) + gl))
+    remsor = ytor(unary_union(ytor(Wv.difference(US)) + gl).difference(sjoar))
     remsa_geom = multipolygon(remsor, SPLITTER)
     if remsa_geom:
         nya.append({'type': 'Feature', 'id': REMSA_GID,
@@ -721,7 +826,10 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     # målar havsfärg över konstrester som pixelägarskapet aldrig fångade —
     # fartstreckens tunna svansar och antialiasing utanför kusten.
     # Ramen räknas med Aleuterna väster om datumgränsen flyttade −360°
-    # och delas vid 180° om den sticker över
+    # och delas vid 180° om den sticker över. De stora sjöarna lämnas
+    # utanför: sjölagret målar dem redan ovanpå konsten, och sjöarnas öar
+    # som hål i den här jättepolygonen ritades fel i några zoomnivåer
+    # (North Manitou fick sjöfärg mitt i ön i z9)
     allt = unary_union([vast_om_datumgransen(p) for f in stater
                         for p in ytor(giltig(shape(f['geometry'])))])
     minx, miny, maxx, maxy = allt.bounds
@@ -730,7 +838,7 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     if minx < -180:
         ram = ram.union(box(minx + 360, miny, 180, maxy))
     dekor_yta = unary_union([p for ps in dekor.values() for p in ps])
-    mask = ram.difference(unary_union([W, dekor_yta] + remsor)).simplify(KONTUR_FORENKLING)
+    mask = ram.difference(unary_union([W, sjoar, dekor_yta] + remsor)).simplify(KONTUR_FORENKLING)
     mask_geom = multipolygon(ytor(mask), SPLITTER)
     nya.append({'type': 'Feature', 'id': MASK_GID,
                 'properties': {'gid': MASK_GID, 'key': 'usa/_mask', 'namn': '', 'mask': 1,
@@ -757,7 +865,8 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
               f"(konsten är mest havsdekor)")
     print(f'usa-regions: {len(stater)} delstater klippta till världens USA-yta, '
           f'{tilldelade} otäckta bitar tilldelade (varav {delade} delade mellan '
-          f'delstater), {instangda} instängda remsor flyttade, {n_dekor} dekorfeatures '
+          f'delstater), {instangda} instängda remsor flyttade, {sjoexklaver} sjöexklaver '
+          f'till grannen, {n_dekor} dekorfeatures '
           f'({dold_dekor:.2f}° havskonst dold under masken), '
           f'{len(gl)} glipor fyllda, '
           f'{len(remsa_geom["coordinates"]) if remsa_geom else 0} remsdelar')
@@ -770,7 +879,7 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
     tackyta = unary_union(list(slutliga.values()))
     yta = tackyta.buffer(KUST_MARGINAL)
     klippta = [l for ls in inre_linjer for l in linjer(ls.intersection(yta)) if l.length > 0]
-    klippta, borttaget = rensa_inre_linjer(klippta, slutliga)
+    klippta, borttaget = rensa_inre_linjer(klippta, slutliga, sjoar)
     # konturen är täckets yttre kant och riktiga hål i världens USA-yta
     # (sjöar) — inte de mikroskopiska springor mellan två delstaters
     # avrundade kanter som annars blir svarta prickar längs gränserna
@@ -793,6 +902,18 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
             ringar = [r.exterior] + [h for h in r.interiors if Polygon(h).area >= MIKROHAL]
             yttre += [l for ring in ringar
                       for l in linjer(LineString(ring.coords).difference(upptaget))]
+    # sjöarnas stränder där inget täcke slutar (Kanadas sida och dess öar):
+    # världskartan har ingen linje där, sjön har bara målats ovanpå
+    # (tät marginal: täckets kant ÄR sjöns ring där de möts, och vid
+    # flodmynningarna ligger Kanadas strand bara några hundradels grader
+    # från ett täcke — med GRANS_MARGINAL saknades linjen där)
+    langs_tacket = tackyta.buffer(KUST_MARGINAL)
+    n_sjokust = 0
+    for p in ytor(sjoar):
+        for ring in [p.exterior] + list(p.interiors):
+            bitar = linjer(LineString(ring.coords).difference(langs_tacket))
+            yttre += bitar
+            n_sjokust += len(bitar)
     yttre = [l.simplify(KONTUR_FORENKLING) for l in yttre if l.length > 0]
 
     def koord(ls):
@@ -817,16 +938,28 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa):
          'geometry': {'type': 'MultiLineString', 'coordinates': koord(ls)}}
         for gid, ls in sanna.items() if ls]
     print(f'usa-borders: {len(klippta)} delstatsgränser ({borttaget:.2f}° linje med samma '
-          f'delstat på båda sidor borttagen), {len(yttre)} yttre konturlinjer')
+          f'delstat på båda sidor borttagen), {len(yttre)} yttre konturlinjer '
+          f'(varav {n_sjokust} sjöstränder utan täcke)')
 
     # ── 4b: jämntjock kant runt avslöjade delstater ──
     nyckel = {f['id']: f['properties'] for f in stater}
-    nya += kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick)
+    nya += kantband(slutliga, tackyta, W, nyckel, skala, visad, utstick, sjoar)
+    # sjöarna som egen feature: spelet målar dem i havsfärg ovanpå världens
+    # täcke (Kanadas gröna halva av sjön) och under delstaternas täcke
+    nya.append({'type': 'Feature', 'id': SJO_GID,
+                'properties': {'gid': SJO_GID, 'key': 'usa/_sjo', 'namn': '', 'sjo': 1},
+                'geometry': multipolygon(ytor(sjoar), SPLITTER)})
+    print(f'usa-regions: de stora sjöarna ({sjoar.area:.2f} kvadratgrader) som egen sjöfeature, '
+          f'utanför delstaternas täcke')
 
     # ── 4c: utstickare (Pennsylvanias penna) till make-usa-utstickare.mjs ──
     spara(UTSTICKARE_FIL, {'type': 'FeatureCollection', 'features': [
         {'type': 'Feature', 'id': gid,
-         'properties': {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn']},
+         'properties': {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn'],
+                        # delen ute i sjön: där ska bara pennan synas, inte
+                        # delstatens gröna konst bredvid den (svepet följer
+                        # inte pennans sidor exakt)
+                        'sjo': multipolygon(ytor(g.intersection(sjoar)), SPLITTER)},
          'geometry': multipolygon(ytor(g), SPLITTER)}
         for gid, g in utstick.items()]})
     for gid, g in utstick.items():

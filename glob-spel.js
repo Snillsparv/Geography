@@ -186,7 +186,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '86';
+const V = '87';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -374,7 +374,7 @@ function laddaUsa() {
       // delstat (eller har egna) men huvudfeaturen ska äga uppslagen;
       // remsorna är ingen delstat alls
       if (f.properties.dekor || f.properties.remsa || f.properties.mask ||
-          f.properties.kant) continue;
+          f.properties.kant || f.properties.sjo) continue;
       featureByFilename.set(f.properties.key.split('/')[1], f);
       featureByGid.set(f.id, f);
     }
@@ -403,7 +403,14 @@ function laddaUsa() {
       filter: ['==', ['get', 'mask'], 1], layout: { visibility: 'none' },
       paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'cover');
     klona('cover', 'usa-cover', 'usa-regioner', 'borders');
-    map.setFilter('usa-cover', ['!', ['has', 'kant']]);
+    map.setFilter('usa-cover', ['all', ['!', ['has', 'kant']], ['!', ['has', 'sjo']]]);
+    // de stora sjöarna: världskartan har dem som land (USA och Kanada möts
+    // mitt i sjön), men delstaterna slutar vid den riktiga stranden som på
+    // den platta kartan. Sjön målas i havsfärg ovanpå världens täcke
+    // (Kanadas gröna halva) och under delstaternas täcke
+    map.addLayer({ id: 'usa-sjo', type: 'fill', source: 'usa-regioner',
+      filter: ['==', ['get', 'sjo'], 1], layout: { visibility: 'none' },
+      paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'usa-cover');
     // jämntjock kant runt avslöjade delstater: teckningens egen kontur
     // klipptes bort eller åts upp där konsten inte nådde exakt fram till
     // kusten och gränsen, och mot en grannstat ägs gränsen ofta av grannens
@@ -489,7 +496,7 @@ function visaInreKant(gid) {
   }
 }
 function visaUsaLager(pa) {
-  for (const id of ['usa-art', 'usa-mask', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',
+  for (const id of ['usa-art', 'usa-mask', 'usa-sjo', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',
                     ...usaUtstickare.map(u => u.lager)]) {
     // lagren finns inte förrän laddaUsa körts (MapLibre loggar ett fel i
     // stället för att kasta, så kolla först)
@@ -503,16 +510,23 @@ function visaUsaLager(pa) {
 // de ligger överst och äger då USA-ytan
 function spelLager() {
   return aktivSlug === 'usa'
-    ? ['usa-prickar', 'usa-cover', 'prickar', 'former', 'cover']
+    ? ['usa-prickar', 'usa-cover', 'usa-sjo', 'prickar', 'former', 'cover']
     : ['prickar', 'former', 'cover'];
 }
 // i delstatsregionen är världens USA-yta bara kuliss (konst under delstats-
 // lagren) — träffar på den räknas som hav, aldrig som svar eller hover.
 // Detsamma gäller dekordelar (konst målad i havet) så länge konsten är dold:
-// då är de havsfärgade och ett klick där är ett klick i havet
+// då är de havsfärgade och ett klick där är ett klick i havet.
+// De stora sjöarna (usa-sjo) är också hav: världskartan har Kanada under
+// sjöns kanadensiska halva, men allt som ligger under sjön i ritordningen
+// (träffarna kommer överst först) är dolt och räknas inte
 function spelTraffar(hits) {
   const usa = aktivSlug === 'usa';
   const uv = usa ? featureByFilename.get('usa') : null;
+  if (usa) {
+    const sjo = hits.findIndex(h => h.properties && h.properties.sjo);
+    if (sjo >= 0) hits = hits.slice(0, sjo);
+  }
   return hits.filter(h => {
     if (usa && (h.id === USA_REMSA_GID || h.id === USA_MASK_GID || (uv && h.id === uv.id))) return false;
     if (h.properties && h.properties.dekor) {

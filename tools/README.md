@@ -118,7 +118,15 @@ SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
 kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
 
 Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
-och bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
+utan de stora sjöarna (`tools/data/stora_sjoarna.geojson`, samma fil som
+`--guides` drar bort ur mallarna). Världskartan har sjöarna som land, med
+USA och Kanada som möts mitt i sjön, men delstaterna slutar vid den
+riktiga stranden som på den platta kartan. Sjöarna blir en egen feature
+(`sjo: 1`, gid 1997) som spelet målar i havsfärg ovanpå Kanadas gröna
+(klick och hover där räknas som hav), och Kanadas stränder får linje.
+Bitar som klippet skiljer från resten av delstaten och som ligger på en
+grannstats riktiga mark (`tools/data/us_states.geojson`) går till
+grannen. Bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
 delstat; sömhål mellan delstater delas längs delstatslinjen där den går
 genom hålet, annars går hålet till delstaten på samma sida om linjen.
 Konst målad i havet (North Carolinas fartstreck, Alaskas svans i Berings
@@ -128,7 +136,9 @@ samma id som delstaten. Konst som medvetet sticker ut över grannlandet
 (Pennsylvanias penna) fredas från bakningens klipp (`FREDAD_KONST` i
 make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
 (assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
-ovanpå grannens gröna när delstaten är avslöjad. Avslöjade delstater får
+ovanpå grannens gröna när delstaten är avslöjad; ute i sjön släcker
+make-usa-utstickare.mjs delstatens gröna konst bredvid pennan
+(`properties.sjo`), så bara pennan syns över vattnet. Avslöjade delstater får
 en jämntjock svart kant runt om, lika bred på jordytan som teckningens
 konturlinje (`KANT_PX` dukpixlar på USA-kartan gånger delstatens skala,
 så Alaska — ritad i mindre skala — får bredare kant): `kant: 1` (samma
@@ -136,9 +146,12 @@ id som delstaten) har hela bredden mot havet och grannländerna och halva
 bredden mot varje grannstat, och `kant: 2` (egna id från `INRE_KANT_ID`,
 `gid` + `granne`) är andra halvan mot en grannstat, som spelet tänder när
 grannens bild inte syns. Kanten blir då lika tjock oavsett i vilken
-ordning delstaterna avslöjas. Världens USA-yta i Mexiko och
+ordning delstaterna avslöjas. Öar och avskurna uddar i de stora sjöarna
+(Isle Royale, Keweenaws spets) får smalare kant (`SMAL_KANT` gånger den
+största inskrivna cirkelns radie), annars blev de helt svarta. Världens USA-yta i Mexiko och
 de smala glipor där världens USA-yta och grannländerna inte möts blir en
-grön remsa (gid 1999), och en havsmask (gid 1998) döljer konstrester runt
+grön remsa (gid 1999), och en havsmask (gid 1998, utom de stora sjöarna som
+sjölagret målar) döljer konstrester runt
 kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma
 geometri som täcket, och världens linjer längs USA-kanten i
 art-borders.json flyttas till en egen feature (`usakant: 1`) som spelet

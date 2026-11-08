@@ -29,6 +29,7 @@ const arg = (name, dflt) => {
 const TILES = path.resolve(repo, arg('tiles', 'tiles/usa.pmtiles'));
 const TILE = 512;                      // make-tiles rutstorlek
 const KANT = 2;                        // px marginal runt fotavtrycket
+const MORK = 60;                       // ljusare än så (största kanalen) är inte kontur
 
 class FilKalla {
   constructor(p) { this.p = p; this.fd = openSync(p, 'r'); }
@@ -90,6 +91,41 @@ for (const f of fc.features) {
   mc.fill('evenodd');
   ctx.globalCompositeOperation = 'destination-in';
   ctx.drawImage(m, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  // ute i sjön (properties.sjo) ska bara pennan synas: fotavtrycket är
+  // pennans tvärsnitt svept över sjön och följer inte sidorna exakt, så
+  // delstatens gröna konst bredvid pennan släcks där: allt som varken är
+  // varmt (pennans gula och trä: röd kanal över grön) eller mörkt (konturen)
+  const sjo = f.properties.sjo;
+  if (sjo) {
+    const s = createCanvas(W, H);
+    const sc = s.getContext('2d');
+    sc.fillStyle = '#fff';
+    sc.beginPath();
+    for (const poly of sjo.coordinates) {
+      for (const ring of poly) {
+        ring.forEach(([lng, lat], i) => {
+          const x = mx(lng) - x0, y = my(lat) - y0;
+          if (i) sc.lineTo(x, y); else sc.moveTo(x, y);
+        });
+        sc.closePath();
+      }
+    }
+    sc.fill('evenodd');
+    const maskData = sc.getImageData(0, 0, W, H).data;
+    const bild = ctx.getImageData(0, 0, W, H);
+    const d = bild.data;
+    let slackta = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (maskData[i + 3] === 0 || d[i + 3] === 0) continue;
+      if (d[i + 1] >= d[i] && Math.max(d[i], d[i + 1], d[i + 2]) > MORK) {
+        d[i + 3] = 0;
+        slackta++;
+      }
+    }
+    ctx.putImageData(bild, 0, 0);
+    console.log(`  ${slackta} gröna eller grå pixlar ute i sjön släckta`);
+  }
   const fil = f.properties.key.split('/')[1];
   const rel = `assets/usa/utstickare/${fil}.webp`;
   writeFileSync(path.join(repo, rel), await c.encode('webp', 90));
