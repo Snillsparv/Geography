@@ -1,5 +1,5 @@
 // Kontrollerar sifferssidans data mot ljudomvandlaren: varje ord i lathunden,
-// övningarna, förslagen och pi-promenaden ska bli rätt tal.
+// övningen, förslagen, årtalen och pi-promenaden ska bli rätt tal.
 // Kör:  node test/siffror.mjs
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
@@ -22,21 +22,15 @@ const tal2 = i => String(i).padStart(2, '0');
 
 kolla('lathunden har 100 ord', String(D.lathund.length), '100');
 D.lathund.forEach(([ord], i) => kolla(`lathund ${tal2(i)} ${ord}`, tillSiffror(ord), tal2(i)));
-D.ensam.forEach(([ord], i) => kolla(`ensam ${i} ${ord}`, tillSiffror(ord), String(i)));
-for (const lista of Object.values(D.ordlistor)) {
-  for (const o of lista.ord) kolla(`${lista.namn}: ${o.ord}`, tillSiffror(o.ord), o.svar);
-}
+kolla('tio ensamma siffror', String(D.ensam.length), '10');
+D.ensam.forEach((ord, i) => kolla(`ensam ${i} ${ord}`, tillSiffror(ord), String(i)));
+for (const o of D.ordovning) kolla(`övningen: ${o.ord}`, tillSiffror(o.ord), o.svar);
 for (const [tal, ord] of D.boktal) kolla(`boktal ${tal} ${ord}`, tillSiffror(ord), tal);
-for (const [tal, ord] of D.tresiffriga) kolla(`tresiffrigt ${tal} ${ord}`, tillSiffror(ord), tal);
 for (const a of D.artal) {
   kolla(`årtal ${a.ar} ${a.ord}`, tillSiffror(a.ord), a.tal);
   kolla(`årtal ${a.ar} slutar på talet`, a.ar.slice(2), a.tal);
   kolla(`årtal ${a.ar} = lathundens ord`, D.lathund[+a.tal][0], a.ord);
-}
-for (const f of D.fakta) {
-  const s = tillSiffror(f.ord);
-  kolla(`fakta ${f.ord}`, s.slice(0, f.svar.length), f.svar);
-  kolla(`fakta ${f.ord} mask`, String((f.mask.match(/_/g) || []).length), String(f.svar.length));
+  kolla(`årtal ${a.ar}: ordet står i bilden`, String(a.bild.toLowerCase().includes(a.ord.toLowerCase())), 'true');
 }
 // pi-promenaden: paren ska bli decimalerna i rätt ordning
 const pipar = D.pi.platser.flatMap(p => p.par).join('');
@@ -46,7 +40,11 @@ kolla('pi stämmer med Math.PI', D.pi.decimaler.slice(0, 15), String(Math.PI).sl
 kolla('palatset räcker till pi', String(D.palats.length >= D.pi.platser.length), 'true');
 kolla('varje plats finns på kartan', String(D.palatsPos.length), String(D.palats.length));
 kolla('kartans platser ligger på bilden', String(D.palatsPos.every(([x, y]) => x >= 0 && x <= 100 && y >= 0 && y <= 100)), 'true');
-for (const f of D.fakta) if (f.illu) kolla(`teckning ${f.illu} finns`, String(existsSync(new URL(`assets/siffror/${f.illu}.webp`, rot))), 'true');
+// teckningarna som sidan använder
+const html = readFileSync(new URL('siffror.html', rot), 'utf8') + readFileSync(new URL('siffror.js', rot), 'utf8');
+for (const [, fil] of html.matchAll(/assets\/siffror\/([\w-]+\.(?:svg|webp|woff2))/g)) {
+  kolla(`${fil} finns`, String(existsSync(new URL(`assets/siffror/${fil}`, rot))), 'true');
+}
 
 // några uttalsregler för sig
 const regler = {

@@ -10,7 +10,7 @@
   <meta property="og:description" content="Lär dig sifferalfabetet och kom ihåg vilka siffror som helst, med Jonas von Essen.">
   <meta property="og:url" content="https://www.jonasgeografi.se/siffror.html">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=2">
+  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=3">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
@@ -18,9 +18,10 @@
   <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
   <link rel="preload" href="assets/siffror/league-gothic.woff2" as="font" type="font/woff2" crossorigin>
   <style>
-    /* Formen kommer från boken Så får du ett superminne: vita sidor, smala
-       versala rubriker, prickade rutor, Jonas egna teckningar och orange
-       försättsblad med vita klotter. League Gothic står in för bokens Kapra. */
+    /* Formen kommer från boken Så får du ett superminne: en vit sida på det
+       orange försättsbladet, smala versala rubriker och Jonas egna teckningar.
+       Varje steg har samma upplägg: teckning, rubrik, kort text, övning.
+       League Gothic står in för bokens Kapra. */
     @font-face {
       font-family: 'League Gothic';
       src: url('assets/siffror/league-gothic.woff2') format('woff2');
@@ -29,17 +30,15 @@
     :root {
       --rubrik: 'League Gothic', 'Arial Narrow', Impact, sans-serif;
       --brod: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      --svart: #1a1a1a; --text: #1a1a1a; --text2: #3d3a36; --text3: #716c65;
-      --linje: #dcd6cd; --yta: #f5f2ed; --prick: #8f8a83;
-      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211;
+      --svart: #1a1a1a; --text2: #3d3a36; --text3: #716c65; --ljus: #a39d94;
+      --prick: #8f8a83; --yta: #f5f2ed;
+      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c;
       --ratt: #11865a; --fel: #cc2936;
-      --c0: #c25e00; --c1: #1f63c6; --c2: #0b7d5a; --c3: #7c3aad; --c4: #cc2936;
-      --c5: #8f6a00; --c6: #c0267a; --c7: #08778a; --c8: #7a4a28; --c9: #4a4fb5;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
     body {
-      font-family: var(--brod); color: var(--text); line-height: 1.55; min-height: 100vh;
+      font-family: var(--brod); color: var(--svart); line-height: 1.55; min-height: 100vh;
       background: var(--o2) linear-gradient(90deg, var(--o1), var(--o2) 50%, var(--o3));
     }
     /* försättsbladets klotter */
@@ -49,77 +48,46 @@
     }
     button { font: inherit; color: inherit; cursor: pointer; }
     a { color: inherit; }
-    img { max-width: 100%; }
-    .d0 { --c: var(--c0); } .d1 { --c: var(--c1); } .d2 { --c: var(--c2); } .d3 { --c: var(--c3); }
-    .d4 { --c: var(--c4); } .d5 { --c: var(--c5); } .d6 { --c: var(--c6); } .d7 { --c: var(--c7); }
-    .d8 { --c: var(--c8); } .d9 { --c: var(--c9); }
-    .sf { color: var(--c); font-variant-numeric: tabular-nums; }
-    .dold { display: none !important; }
+    img { max-width: 100%; height: auto; }
+    ul { list-style: none; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .rubrikstil { font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .03em; }
+    .liten { font-size: .86rem; color: var(--text3); }
 
     /* ── omslaget ── */
-    .hero { padding: 26px 16px 24px; }
-    .hero-inre { max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .hero-bild { width: 112px; height: auto; flex: none; }
-    .lucka {
-      display: inline-block; background: var(--svart); color: #fff; font-family: var(--rubrik);
-      font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2;
-      padding: 3px 10px 1px; border-radius: 3px;
-    }
+    .hero { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 26px 16px 24px; }
+    .hero-bild { width: 92px; flex: none; }
     h1 {
-      font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; color: var(--svart);
-      font-size: clamp(3.1rem, 16vw, 5.6rem); line-height: .88; letter-spacing: .005em; margin: 8px 0 6px;
+      font-family: var(--rubrik); font-weight: 400; text-transform: uppercase;
+      font-size: clamp(3rem, 15vw, 5.4rem); line-height: .88; letter-spacing: .005em;
     }
-    .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; color: var(--svart); }
+    .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; margin-top: 8px; }
 
     /* ── boksidan ── */
-    .sida { background: #fff; max-width: 820px; margin: 0 auto; }
-    .oppning { max-width: 640px; margin: 0 auto; padding: 22px 18px 18px; }
-    .oppning blockquote { text-align: center; font-style: italic; font-size: .95rem; color: var(--text2); }
-    .oppning cite { display: block; font-style: normal; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-top: 3px; }
-    .ingress { margin-top: 14px; font-size: 1.02rem; }
-    .inled { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.2em; letter-spacing: .03em; line-height: 1; }
-
-    /* ── flikar ── */
-    .flikar { position: sticky; top: 0; z-index: 50; background: #fff; border-top: 1.5px dotted var(--prick); border-bottom: 1.5px dotted var(--prick); }
-    .flikar-inre { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; max-width: 760px; margin: 0 auto; padding: 0 10px; }
-    .flikar-inre::-webkit-scrollbar { display: none; }
-    .flik {
-      flex: none; text-decoration: none; font-family: var(--rubrik); font-size: 1.3rem; letter-spacing: .03em;
-      text-transform: uppercase; line-height: 1.1; color: var(--text3); white-space: nowrap;
-      padding: 11px 8px 6px; border-bottom: 4px solid transparent; transition: color .15s, border-color .15s;
+    .sida { background: #fff; max-width: 720px; margin: 0 auto; }
+    .steg-nav { display: flex; justify-content: center; gap: 7px; padding: 18px 16px 0; }
+    .steg-nav a {
+      width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--svart);
+      display: grid; place-items: center; text-decoration: none;
+      font-family: var(--rubrik); font-size: 1.25rem; line-height: 1; padding-top: 2px;
     }
-    .flik b { font-weight: 400; color: var(--o3); margin-right: 4px; }
-    .flik:hover { color: var(--text); }
-    .flik[aria-current="page"] { color: var(--text); border-bottom-color: var(--o2); }
+    .steg-nav a:hover { background: var(--yta); }
+    .steg-nav a[aria-current="page"] { background: var(--svart); color: #fff; }
 
-    /* ── vyer ── */
-    main { max-width: 720px; margin: 0 auto; padding: 4px 18px 36px; }
+    main { max-width: 620px; margin: 0 auto; padding: 0 20px 36px; }
     .vy { animation: in .25s ease-out; }
     @keyframes in { from { opacity: 0; transform: translateY(6px); } }
-    .steg { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .06em; font-size: 1.15rem; text-align: center; margin-top: 28px; line-height: 1.2; }
+    .vy-bild { display: block; width: auto; height: 64px; margin: 28px auto 8px; }
+    .vy-bild.lag { height: 44px; margin-top: 40px; }
     h2 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; text-align: center;
-      font-size: clamp(2.5rem, 11vw, 3.3rem); line-height: .95; letter-spacing: .005em; margin: 2px 0 14px;
+      font-size: clamp(2.5rem, 11vw, 3.2rem); line-height: .95; letter-spacing: .005em; margin-bottom: 14px;
     }
-    .vy > p.under, .text p { font-size: 1rem; }
-    .text p + p { text-indent: 1.3em; }
-    .kort {
-      position: relative; background: #fff; border: 1.5px dotted var(--prick);
-      padding: 20px 18px; margin-top: 20px;
-    }
-    .kort h3, .mellanrubrik h3 {
+    h3 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .03em;
-      font-size: 1.55rem; line-height: 1.05; text-align: center; margin-bottom: 8px;
+      font-size: 1.55rem; line-height: 1.05; margin: 28px 0 8px;
     }
-    .kort p, .kort li { font-size: .98rem; }
-    .kort p + p { margin-top: 8px; }
-    .kort ul { list-style: none; margin-top: 6px; }
-    .kort li { position: relative; padding-left: 14px; }
-    .kort li::before { content: "·"; position: absolute; left: 2px; top: -.08em; font-weight: 900; font-size: 1.2em; }
-    .kort li + li { margin-top: 6px; }
-    .liten { font-size: .86rem !important; color: var(--text3) !important; }
+    .ovning h3 { margin-top: 0; }
+    main p + p { margin-top: 10px; }
 
     .knapp {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -132,48 +100,120 @@
     .knapp:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--o2); }
     .knapp:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--o2); }
     .knapp.sekundar { background: #fff; color: var(--svart); box-shadow: 3px 3px 0 #d6cfc4; }
-    .knapp.sekundar:hover { box-shadow: 2px 2px 0 #d6cfc4; }
-    .knapp.liten-k { font-size: 1.1rem; padding: 6px 12px 4px; }
-    .knapp:disabled { opacity: .4; cursor: default; transform: none; }
-    .knapp:focus-visible, .val button:focus-visible, .flik:focus-visible, .alfa-kort:focus-visible,
-    .knappsats button:focus-visible, .ljudval button:focus-visible, .rutnat button:focus-visible {
-      outline: 3px solid var(--o2); outline-offset: 2px;
-    }
-    .knapprad { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .nasta-steg { display: flex; justify-content: flex-end; margin-top: 26px; }
+    .knapp:disabled { opacity: .35; cursor: default; transform: none; }
+    .lank { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text2); font-size: .92rem; padding: 6px 2px; }
+    .knapp:focus-visible, .lank:focus-visible, .steg-nav a:focus-visible, .val button:focus-visible,
+    .knappsats button:focus-visible, .ljudval button:focus-visible { outline: 3px solid var(--o2); outline-offset: 2px; }
+    .knapprad { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+    .nasta-steg { display: flex; justify-content: flex-end; margin-top: 30px; }
 
-    .val { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    /* övningarna ligger i prickade rutor, som i boken */
+    .ovning { border: 1.5px dotted var(--prick); padding: 20px 16px; margin-top: 24px; text-align: center; }
+
+    /* ── alfabetet ── */
+    .exempel { display: flex; justify-content: center; align-items: flex-start; gap: 12px; margin: 18px 0 6px; }
+    .exempel .upp b { font-size: 1.8rem; }
+    .exempel .upp i { font-size: 1.6rem; }
+    .exempel .blir { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1.2; color: var(--siffra); }
+    .alfabet { margin-top: 18px; border-top: 1.5px dotted var(--prick); }
+    .alfabet li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); break-inside: avoid; }
+    .alfabet .s { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1; color: var(--siffra); }
+    .alfabet b { display: block; font-size: 1.05rem; }
+    .regel { display: block; font-size: .92rem; color: var(--text2); line-height: 1.45; }
+    .regler li { position: relative; padding-left: 16px; }
+    .regler li::before { content: "·"; position: absolute; left: 2px; top: -.1em; font-weight: 900; font-size: 1.3em; }
+    .regler li + li { margin-top: 6px; }
+
+    /* ── övningarna ── */
+    .ov-topp { display: flex; justify-content: space-between; font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .05em; font-size: 1.05rem; color: var(--text3); }
+    .fraga { color: var(--text3); font-weight: 700; font-size: .95rem; margin-top: 8px; }
+    .handelse { font-size: 1.12rem; font-weight: 700; margin-top: 12px; }
+    .stor {
+      font-family: var(--rubrik); font-size: clamp(3.3rem, 17vw, 5rem); line-height: 1; letter-spacing: .02em;
+      margin: 4px 0 2px; word-break: break-word;
+    }
+    .stor.ord { font-family: var(--brod); font-weight: 800; font-size: clamp(2rem, 9vw, 2.8rem); letter-spacing: -.01em; line-height: 1.15; }
+    .stor.lang { font-size: clamp(1.3rem, 5.8vw, 2rem); }
+    .tom { color: var(--ljus); }
+    .ov-svar { min-height: 58px; margin: 8px auto 4px; display: flex; justify-content: center; align-items: flex-end; gap: 3px; flex-wrap: wrap; }
+    .ruta {
+      min-width: 34px; height: 54px; border-bottom: 3px solid #dcd6cd; font-family: var(--rubrik); font-size: 2.7rem;
+      line-height: 1; display: inline-flex; align-items: flex-end; justify-content: center; padding: 0 3px 2px;
+    }
+    .ruta.fast { border-bottom-color: transparent; color: var(--text3); min-width: 0; }
+    .ruta.mark { border-bottom-color: var(--o2); }
+    .skaka { animation: skaka .35s; }
+    @keyframes skaka { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+    .aterkoppling { min-height: 24px; font-weight: 700; margin-top: 6px; }
+    .aterkoppling.ratt { color: var(--ratt); }
+    .aterkoppling.fel { color: var(--fel); }
+    .forklaring { color: var(--text2); font-size: .95rem; }
+    .forklaring p { margin-top: 6px; }
+    .resultat img { width: 96px; display: block; margin: 4px auto 8px; }
+    .resultat .stor { font-size: clamp(2.4rem, 11vw, 3.4rem); text-transform: uppercase; }
+
+    .knappsats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 330px; margin: 12px auto 4px; }
+    .knappsats button {
+      height: 56px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff;
+      font-family: var(--rubrik); font-size: 2rem; line-height: 1; box-shadow: 0 3px 0 var(--svart);
+      touch-action: manipulation; transition: transform .06s, box-shadow .06s;
+    }
+    .knappsats button:active { transform: translateY(3px); box-shadow: 0 0 0 var(--svart); }
+    .knappsats .klar { background: var(--svart); color: #fff; font-family: var(--brod); font-size: 1.5rem; }
+    .knappsats .radera { font-family: var(--brod); font-size: 1.3rem; color: var(--text3); }
+    .knappsats.tio { grid-template-columns: repeat(5, 1fr); max-width: 380px; }
+    .knappsats.tio button { height: 52px; }
+    .ljudval { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; max-width: 360px; margin: 12px auto 4px; }
+    .ljudval button {
+      height: 50px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff;
+      font-family: var(--rubrik); font-size: 1.45rem; letter-spacing: .05em; box-shadow: 0 3px 0 var(--svart);
+    }
+    .ljudval button.ratt { background: #d6f5e6; color: var(--ratt); border-color: var(--ratt); box-shadow: 0 3px 0 var(--ratt); }
+    .ljudval button.fel { background: #fde0e2; color: var(--fel); border-color: var(--fel); box-shadow: 0 3px 0 var(--fel); }
+
+    /* ett ord bokstav för bokstav, med siffran under varje konsonantljud */
+    .upp { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; margin-top: 8px; }
+    .upp > span { display: inline-flex; flex-direction: column; align-items: center; min-width: 13px; }
+    .upp b { font-size: 1.3rem; line-height: 1.3; padding: 0 2px; font-weight: 400; color: var(--ljus); }
+    .upp .ljud b { font-weight: 800; color: var(--svart); }
+    .upp i { font-style: normal; font-family: var(--rubrik); font-size: 1.3rem; line-height: 1.1; min-height: 1.2em; color: var(--siffra); }
+    .upp .mellan { width: 10px; }
+
+    input[type="text"] {
+      width: 100%; font: inherit; font-size: 1.15rem; font-weight: 700; padding: 10px 13px;
+      border: 1.5px solid var(--svart); border-radius: 6px; color: var(--svart); background: #fff;
+    }
+    input[type="text"]:focus { outline: none; box-shadow: 0 0 0 3px #f59f4b88; }
+    .rad-in { display: flex; gap: 8px; margin-top: 12px; }
+    .rad-in .knapp { flex: none; }
+    .prova-ut { text-align: center; margin-top: 6px; }
+
+    /* ── lathunden ── */
+    .val { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
     .val button {
-      border: 1.5px solid var(--svart); background: #fff; color: var(--svart); border-radius: 999px;
-      font-family: var(--rubrik); font-size: 1.12rem; letter-spacing: .04em; text-transform: uppercase;
-      line-height: 1.2; padding: 4px 12px 2px;
+      border: 1.5px solid var(--svart); background: #fff; border-radius: 999px; padding: 4px 0 2px;
+      font-family: var(--rubrik); font-size: 1.1rem; letter-spacing: .03em; line-height: 1.2;
     }
     .val button[aria-pressed="true"] { background: var(--svart); color: #fff; }
-    .val-rubrik { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .07em; font-size: 1rem; color: var(--text3); margin-top: 12px; }
-    .val-rubrik + .val { margin-top: 4px; }
-    .ovning .val { justify-content: center; }
-    #ord-ovning, #tal-ovning, #lathund-ovning { margin-top: 16px; }
+    .ordlista { columns: 2; column-gap: 20px; text-align: left; max-width: 400px; margin: 0 auto; }
+    .ordlista li { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; break-inside: avoid; }
+    .ordlista .nr, .dina-platser b, .plats-par b { font-family: var(--rubrik); font-weight: 400; font-size: 1.3rem; color: var(--siffra); letter-spacing: .03em; }
+    .ordlista .nr { min-width: 22px; }
+    .ordlista small { display: block; font-size: .8rem; line-height: 1.2; color: var(--text3); }
+    .vandkort { min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
 
-    /* ── teckningar ur boken ── */
-    .hornbild { position: absolute; pointer-events: none; height: auto; }
-    .med-horn { margin-top: 36px; }
-    .utrop-bild { width: 50px; top: -30px; right: 14px; }
-    .abc-bild { width: 76px; top: -30px; right: -4px; }
-    .raket-bild { width: 108px; bottom: -26px; right: -8px; }
-    .sektionsbild { display: block; height: auto; margin: 0 auto; }
-    .binar-bild { width: min(290px, 80%); margin-top: -4px; margin-bottom: 4px; }
-    .pi-bild { width: min(290px, 78%); margin-top: 2px; margin-bottom: 8px; }
-    .mellanrubrik { display: flex; align-items: center; gap: 12px; margin-top: 30px; }
-    .mellanrubrik img { width: 52px; height: auto; flex: none; }
-    .mellanrubrik h3 { text-align: left; margin-bottom: 2px; }
-    .mellanrubrik p { font-size: .95rem; color: var(--text2); }
-    .tips-ruta { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; }
-    .tips-ruta img { width: 84px; height: auto; }
-    .tips-ruta h3 { text-align: left; }
-    .fakta-bild { display: block; width: 100%; max-width: 250px; height: auto; margin: 10px auto 2px; }
-    .fakta-bild.hog { max-width: 76px; }
-    .karta { position: relative; width: 100%; max-width: 210px; margin: 0 auto; }
-    .karta img { display: block; width: 100%; height: auto; }
+    /* ── årtalen ── */
+    .artal-lista { margin-top: 18px; border-top: 1.5px dotted var(--prick); }
+    .artal-lista li { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); }
+    .artal-lista .ar { font-family: var(--rubrik); font-size: 1.8rem; line-height: 1.05; }
+    .artal-lista .bild { display: block; font-size: .92rem; font-style: italic; color: var(--text3); }
+    .artal-lista .bild b { font-style: normal; color: var(--svart); }
+
+    /* ── pi ── */
+    .pi-rad { font-family: var(--rubrik); font-size: clamp(1.5rem, 6.4vw, 2rem); line-height: 1.5; letter-spacing: .04em; word-spacing: .15em; text-align: center; margin-top: 16px; }
+    .pi-rad .nu { background: #fde3cf; border-radius: 4px; padding: 0 4px; }
+    .karta { position: relative; width: 100%; max-width: 200px; margin: 0 auto; }
+    .karta img { display: block; width: 100%; }
     .karta .ring {
       position: absolute; width: 12%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%);
       border: 3px solid var(--svart); box-shadow: 0 0 0 3px #fff, inset 0 0 0 2px #fff;
@@ -181,219 +221,49 @@
     }
     .karta .ring.liten { width: 9%; border-color: var(--o3); animation: none; transition: none; }
     @keyframes puls { 50% { transform: translate(-50%, -50%) scale(1.18); } }
-
-    /* ── alfabetet ── */
-    .exempel { display: grid; gap: 8px; margin-top: 16px; }
-    .exempel > div { background: var(--yta); border-radius: 4px; padding: 10px 12px; font-size: .96rem; }
-    .exempel .tal { font-family: var(--rubrik); font-size: 1.9rem; line-height: 1; letter-spacing: .03em; margin-right: 8px; vertical-align: -3px; }
-    .regler { margin-top: 30px; }
-    .alfa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
-    .alfa-kort {
-      position: relative; text-align: left; border: 1.5px solid var(--svart); background: #fff; color: var(--text);
-      border-radius: 10px; padding: 12px 12px 12px; box-shadow: 4px 4px 0 var(--c);
-      display: flex; flex-direction: column; gap: 5px; transition: transform .1s, box-shadow .1s;
-    }
-    .alfa-kort:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--c); }
-    .alfa-topp { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .alfa-siffra { font-family: var(--rubrik); font-size: 3.4rem; line-height: .9; color: var(--c); }
-    .alfa-trick {
-      min-width: 54px; height: 50px; display: grid; place-items: center; padding: 0 8px;
-      font-family: var(--rubrik); font-size: 2.1rem; color: var(--c); background: var(--yta); border-radius: 8px;
-    }
-    .alfa-trick .vrid { display: inline-block; transition: transform .6s cubic-bezier(.3,1.4,.5,1); }
-    .alfa-kort.visa .vrid.m { transform: rotate(90deg); }
-    .alfa-kort.visa .vrid.spegel { transform: scaleX(-1); }
-    .alfa-trick small { font-size: 1.2rem; letter-spacing: .03em; }
-    .alfa-ljud { display: flex; flex-wrap: wrap; gap: 4px; }
-    .ljudbricka { display: inline-block; background: var(--c); color: #fff; font-weight: 700; font-size: .92rem; padding: 1px 8px; border-radius: 4px; }
-    .alfa-regel { font-size: .86rem; color: var(--text2); line-height: 1.4; }
-    .alfa-tips { font-size: .76rem; color: var(--text3); font-style: italic; }
-
-    /* ── övningar ── */
-    .ovning { text-align: center; }
-    .ov-topp { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .05em; font-size: 1.05rem; color: var(--text3); }
-    .ov-prog { height: 5px; background: var(--yta); border-radius: 99px; overflow: hidden; margin: 6px 0 4px; }
-    .ov-prog i { display: block; height: 100%; width: 0; background: var(--o2); transition: width .25s; }
-    .fraga-text { color: var(--text3); font-weight: 700; font-size: .95rem; margin-top: 10px; }
-    .stor {
-      font-family: var(--rubrik); font-size: clamp(3.3rem, 17vw, 5.2rem); line-height: 1; letter-spacing: .02em;
-      margin: 6px 0 2px; color: var(--text); word-break: break-word;
-    }
-    .stor.ord { font-family: var(--brod); font-weight: 800; font-size: clamp(2rem, 9vw, 3rem); letter-spacing: -.01em; line-height: 1.15; }
-    .stor.lang { font-size: clamp(1.3rem, 5.8vw, 2rem); }
-    .stor .emoji { display: block; font-size: .9em; line-height: 1.2; }
-    .ov-svar { min-height: 58px; margin: 8px auto 4px; display: flex; justify-content: center; align-items: flex-end; gap: 3px; flex-wrap: wrap; }
-    .ruta {
-      min-width: 34px; height: 54px; border-bottom: 3px solid var(--linje); font-family: var(--rubrik); font-size: 2.7rem;
-      line-height: 1; display: inline-flex; align-items: flex-end; justify-content: center; padding: 0 3px 2px;
-    }
-    .ruta.fast { border-bottom-color: transparent; color: var(--text3); min-width: 0; }
-    .ruta.mark { border-bottom-color: var(--o2); }
-    .ov-svar.skaka, .pi-forhor-tal.skaka { animation: skaka .35s; }
-    @keyframes skaka { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
-    .aterkoppling { min-height: 24px; font-weight: 700; margin-top: 6px; }
-    .aterkoppling.ratt { color: var(--ratt); }
-    .aterkoppling.fel { color: var(--fel); }
-    .forklaring { margin-top: 8px; color: var(--text2); font-size: .93rem; }
-    .forklaring .bild { background: var(--yta); border-radius: 4px; padding: 9px 12px; margin-top: 8px; text-align: left; }
-    .resultat { padding: 4px 0 2px; }
-    .resultat img { width: 104px; height: auto; display: block; margin: 4px auto 8px; }
-    .resultat .stor { font-size: clamp(2.4rem, 11vw, 3.4rem); text-transform: uppercase; }
-
-    .knappsats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 330px; margin: 12px auto 4px; }
-    .knappsats button {
-      height: 56px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff; color: var(--text);
-      font-family: var(--rubrik); font-size: 2rem; line-height: 1; box-shadow: 0 3px 0 var(--svart);
-      touch-action: manipulation; transition: transform .06s, box-shadow .06s;
-    }
-    .knappsats button:active { transform: translateY(3px); box-shadow: 0 0 0 var(--svart); }
-    .knappsats button.farg { color: var(--c); }
-    .knappsats .klar { background: var(--svart); color: #fff; font-family: var(--brod); font-size: 1.5rem; }
-    .knappsats .radera { font-family: var(--brod); font-size: 1.3rem; color: var(--text3); }
-    .knappsats.tio { grid-template-columns: repeat(5, 1fr); max-width: 380px; }
-    .knappsats.tio button { height: 52px; }
-    .ljudval { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; max-width: 360px; margin: 12px auto 4px; }
-    .ljudval button {
-      height: 50px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff; color: var(--text);
-      font-family: var(--rubrik); font-size: 1.45rem; letter-spacing: .05em; box-shadow: 0 3px 0 var(--svart);
-    }
-    .ljudval button.ratt { background: #d6f5e6; color: var(--ratt); border-color: var(--ratt); box-shadow: 0 3px 0 var(--ratt); }
-    .ljudval button.fel { background: #fde0e2; color: var(--fel); border-color: var(--fel); box-shadow: 0 3px 0 var(--fel); }
-    .tangenttips { font-size: .76rem; color: var(--text3); margin-top: 10px; }
-    @media (hover: none), (pointer: coarse) { .tangenttips { display: none; } }
-
-    /* uppdelning av ett ord i ljud */
-    .upp { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 2px; margin-top: 8px; }
-    .upp > span { display: inline-flex; flex-direction: column; align-items: center; min-width: 14px; }
-    .upp b { font-size: 1.3rem; line-height: 1.3; padding: 0 3px; border-radius: 4px; }
-    .upp .ljudet b { background: var(--c); color: #fff; }
-    .upp .tyst b { color: #a39d94; font-weight: 600; }
-    .upp i { font-style: normal; font-family: var(--rubrik); font-size: 1.25rem; line-height: 1.1; min-height: 1.2em; }
-    .upp .mellan { width: 10px; }
-
-    .prova input, .tal-in input, .eget-in input {
-      width: 100%; font: inherit; font-size: 1.15rem; font-weight: 700; padding: 10px 13px;
-      border: 1.5px solid var(--svart); border-radius: 6px; color: var(--text); background: #fff;
-    }
-    .prova input:focus, .tal-in input:focus, .eget-in input:focus { outline: none; box-shadow: 0 0 0 3px #f59f4b88; }
-    .prova-ut { min-height: 96px; text-align: center; }
-    .prova-ut .stor { font-size: clamp(2.4rem, 11vw, 3.4rem); }
-    .tal-in { display: flex; gap: 8px; margin-top: 12px; }
-    .tal-in .knapp { flex: none; }
-    .ljudtips { display: flex; justify-content: center; gap: 14px; margin-top: 2px; }
-    .ljudtips span { display: flex; flex-direction: column; align-items: center; font-weight: 800; font-size: .82rem; color: var(--c); }
-    .ljudtips b { font-family: var(--rubrik); font-weight: 400; font-size: 1.4rem; line-height: 1.1; }
-
-    /* ── lathunden ── */
-    .rutnat { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 12px auto 0; max-width: 460px; }
-    .rutnat button {
-      aspect-ratio: 1; border: none; border-radius: 4px; padding: 0; line-height: 1;
-      font-family: var(--rubrik); font-size: clamp(.95rem, 4.2vw, 1.3rem); letter-spacing: .03em;
-      background: var(--yta); color: var(--text3);
-    }
-    .rutnat button[data-niva="1"] { background: #fde0e2; color: var(--fel); }
-    .rutnat button[data-niva="2"] { background: #c9efdc; color: #0b6b47; }
-    .rutnat button[data-niva="3"] { background: #8fdcb5; color: #064a31; }
-    .rutnat button[data-niva="4"], .rutnat button[data-niva="5"] { background: var(--ratt); color: #fff; }
-    .rutnat button.eget { box-shadow: inset 0 0 0 2px var(--o2); }
-    .teckenforklaring { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 10px; font-size: .8rem; color: var(--text3); }
-    .teckenforklaring span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--f); }
-    .lathund-lista { columns: 2 150px; column-gap: 20px; margin-top: 12px; }
-    .lathund-lista > div { break-inside: avoid; display: flex; align-items: baseline; gap: 7px; padding: 2px 0; font-size: .95rem; line-height: 1.35; }
-    .lathund-lista .nr { font-family: var(--rubrik); font-size: 1.2rem; min-width: 24px; letter-spacing: .03em; }
-    .lathund-lista .em { font-size: 1rem; }
-    .lathund-lista small { color: var(--text3); font-size: .82rem; }
-    details summary { cursor: pointer; font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .04em; font-size: 1.4rem; text-align: center; }
-    details[open] summary { margin-bottom: 4px; }
-    .vandkort { min-height: 172px; display: flex; flex-direction: column; justify-content: center; }
-
-    .dialog-bakgrund { position: fixed; inset: 0; z-index: 200; background: #1a1a1acc; display: grid; place-items: center; padding: 16px; }
-    .dialog {
-      background: #fff; color: var(--text); border: 2px solid var(--svart); border-radius: 10px; padding: 18px;
-      width: min(420px, 100%); box-shadow: 6px 6px 0 var(--o2); text-align: center; max-height: 92vh; overflow: auto;
-    }
-    .dialog .stang { float: right; border: 1.5px solid var(--svart); background: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; }
-    .dialog hr { border: none; border-top: 1.5px dotted var(--prick); margin: 14px 0 10px; }
-    .eget-rubrik { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .04em; font-size: 1.25rem; text-align: left; }
-    .eget-in { display: flex; gap: 8px; margin-top: 6px; }
-    .eget-in input { font-size: 1rem; padding: 9px 12px; }
-    .eget-status { font-size: .85rem; min-height: 1.3em; margin-top: 4px; font-weight: 700; }
-
-    /* ── pi ── */
-    .pi-rad { font-family: var(--rubrik); font-size: clamp(1.6rem, 6.8vw, 2.1rem); line-height: 1.45; letter-spacing: .04em; word-spacing: .18em; text-align: center; }
-    .pi-rad .par { display: inline-block; padding: 0 3px; border-radius: 4px; }
-    .pi-rad .par.nu { background: #f59f4b66; }
-    .promenad { display: grid; gap: 14px; margin-top: 10px; }
-    .promenad .karta { max-width: 180px; }
-    .plats-kort { text-align: center; }
+    .promenad { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 14px; text-align: left; }
+    .promenad .karta { max-width: none; }
     .plats-nr { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .06em; font-size: 1.05rem; color: var(--text3); }
-    .plats-namn { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .02em; font-size: 2rem; line-height: 1; margin: 2px 0 12px; }
-    .plats-par { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-    .plats-par > div { background: var(--yta); border-radius: 6px; padding: 8px 14px; min-width: 104px; }
-    .plats-par .em { font-size: 2rem; display: block; line-height: 1.2; }
-    .plats-par .nr { font-family: var(--rubrik); font-size: 1.8rem; display: block; line-height: 1; }
-    .plats-par .w { font-weight: 700; }
-    .plats-bild { margin-top: 12px; font-size: 1rem; font-style: italic; }
-    .prickar { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
-    .prickar button { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--svart); background: #fff; padding: 0; }
-    .prickar button[aria-current="true"] { background: var(--svart); }
+    .plats-namn { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .02em; font-size: clamp(1.5rem, 6.5vw, 2rem); line-height: 1; margin-top: 0 !important; }
+    .plats-par { display: flex; flex-wrap: wrap; gap: 4px 16px; font-weight: 700; font-size: 1.1rem; }
+    .plats-bild { font-style: italic; }
     .pi-forhor-tal {
       font-family: var(--rubrik); font-size: clamp(1.7rem, 7.6vw, 2.3rem); letter-spacing: .04em; line-height: 1.45; min-height: 3.2em;
-      text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 0 .4em; margin-top: 8px;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 0 .4em; margin-top: 8px;
     }
-    .pi-forhor-tal .par { display: inline-block; white-space: nowrap; }
-    .pi-forhor-tal .par.ny-plats { margin-left: .35em; }
+    .pi-forhor-tal .par { white-space: nowrap; }
+    .pi-forhor-tal .ny-plats { margin-left: .35em; }
     .pi-forhor-tal .tom { color: #cfc8bd; }
     .pi-forhor-tal .nu { color: var(--o3); }
     .pi-forhor-tal .miss { text-decoration: underline wavy var(--fel); text-underline-offset: 5px; }
     .pi-tips { min-height: 1.4em; font-size: .9rem; color: var(--text3); font-weight: 700; }
 
     /* ── ditt tal ── */
-    .dina-platser { display: grid; gap: 8px; margin-top: 12px; }
-    .dina-platser > div { background: var(--yta); border-radius: 4px; padding: 9px 12px; text-align: left; }
-    .dina-platser .pn { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .05em; font-size: 1rem; color: var(--text3); }
-    .dina-platser .po { font-size: 1.05rem; font-weight: 700; }
-    .dina-platser .po .nr { font-family: var(--rubrik); font-weight: 400; font-size: 1.35rem; letter-spacing: .03em; }
-    .dittal-karta { margin: 16px auto 0; }
+    .dina-platser { margin-top: 14px; }
+    .dina-platser li { padding: 7px 0; border-bottom: 1.5px dotted var(--prick); font-weight: 700; }
+    .dina-platser .pn { display: block; font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .05em; font-size: 1rem; color: var(--text3); }
+    .dittal-karta { margin-top: 18px; }
 
-    /* ── årtal ── */
-    .artal-kort { padding-bottom: 34px; }
-    .artal-lista { display: grid; gap: 8px; margin-top: 12px; }
-    .artal-lista > div { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; background: var(--yta); border-radius: 4px; padding: 10px 12px; align-items: start; }
-    .artal-lista .ar { font-family: var(--rubrik); font-size: 1.9rem; line-height: 1; letter-spacing: .03em; grid-row: span 2; white-space: nowrap; }
-    .artal-lista .ar small { font-size: 1em; color: var(--text3); }
-    .artal-lista .h { font-size: .95rem; }
-    .artal-lista .b { color: var(--text3); font-size: .86rem; font-style: italic; }
-    .artal-lista .fakta-bild { grid-column: 1 / -1; max-width: 220px; margin-top: 6px; }
-    .artal-lista .fakta-bild.hog { max-width: 70px; }
-
-    footer { max-width: 720px; margin: 0 auto; padding: 22px 18px 30px; text-align: center; font-size: .86rem; color: var(--text3); border-top: 1.5px dotted var(--prick); }
-    footer .hjarna { width: 64px; height: auto; display: block; margin: 0 auto 8px; }
-    footer .lopande { font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--text2); margin-bottom: 6px; }
-    footer a { color: var(--text); }
-    footer p + p { margin-top: 6px; }
+    footer { max-width: 620px; margin: 0 auto; padding: 20px 20px 28px; text-align: center; font-size: .86rem; color: var(--text3); border-top: 1.5px dotted var(--prick); }
+    footer p + p { margin-top: 4px; }
 
     @media (max-width: 360px) {
-      .hero-bild { width: 86px; }
-      .lucka { font-size: .92rem; letter-spacing: .04em; }
+      .hero-bild { width: 74px; }
       .hero-under { font-size: .98rem; letter-spacing: .05em; }
+      .val button { font-size: .98rem; }
     }
     @media (min-width: 600px) {
-      .hero-bild { width: 150px; }
-      .kort { padding: 24px 26px; }
-      .exempel { grid-template-columns: repeat(3, 1fr); }
-      .promenad { grid-template-columns: 210px 1fr; align-items: center; gap: 22px; }
-      .promenad .karta { max-width: 210px; }
-      .tips-ruta { grid-template-columns: 100px 1fr; }
-      .tips-ruta img { width: 100px; }
-      .lathund-lista { columns: 3 150px; }
+      .hero-bild { width: 140px; }
+      .steg-nav a { width: 38px; height: 38px; font-size: 1.35rem; }
+      .vy-bild { height: 76px; }
+      .vy-bild.lag { height: 52px; }
+      .ovning { padding: 24px 26px; }
+      .alfabet { columns: 2; column-gap: 28px; border-top: none; }
+      .alfabet li:first-child, .alfabet li:nth-child(6) { border-top: 1.5px dotted var(--prick); }
+      .promenad { grid-template-columns: 200px 1fr; gap: 22px; }
     }
-    @media (min-width: 700px) {
-      .alfa-grid { grid-template-columns: repeat(5, 1fr); }
-    }
-    @media (min-width: 860px) {
+    @media (min-width: 760px) {
       .hero { padding: 40px 16px 34px; }
-      .hero-bild { width: 172px; }
       .sida { margin-bottom: 56px; box-shadow: 0 14px 44px rgba(90, 30, 0, .35); }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -401,213 +271,136 @@
     }
     @media print {
       body { background: #fff; }
-      body::before { display: none; }
-      .flikar, .hero, footer, .nasta-steg, .knapprad, .val { display: none !important; }
+      body::before, .steg-nav, .nasta-steg, .knapprad { display: none !important; }
     }
   </style>
 </head>
 <body>
 
 <header class="hero">
-  <div class="hero-inre">
-    <img class="hero-bild" src="assets/siffror/kapitel.svg" alt="" width="555" height="588">
-    <div class="hero-text">
-      <span class="lucka">🎄 Julkalendern · lucka 12</span>
-      <h1>Bli ett siffergeni!</h1>
-      <p class="hero-under">Sifferalfabetet i sju steg</p>
-    </div>
+  <img class="hero-bild" src="assets/siffror/kapitel.svg" alt="" width="555" height="588">
+  <div>
+    <h1>Bli ett siffergeni!</h1>
+    <p class="hero-under">Sifferalfabetet i sju steg</p>
   </div>
 </header>
 
 <div class="sida">
 
-<section class="oppning" aria-label="Inledning">
-  <blockquote>»Numbers have life, they’re not just symbols on paper.«
-    <cite>Shakuntala Devi, minneskonstnär och mänsklig miniräknare</cite></blockquote>
-  <p class="ingress"><span class="inled">Med sifferalfabetet</span> blir varje tal ett ord som du kan se framför dig.
-    Det är samma system som jag använde när jag rabblade 13&nbsp;208 decimaler av pi.</p>
-</section>
-
-<nav class="flikar" aria-label="Steg">
-  <div class="flikar-inre">
-    <a class="flik" href="#alfabetet"><b>1</b>Alfabetet</a>
-    <a class="flik" href="#ord"><b>2</b>Ord → siffror</a>
-    <a class="flik" href="#tal"><b>3</b>Siffror → ord</a>
-    <a class="flik" href="#lathund"><b>4</b>Lathunden</a>
-    <a class="flik" href="#artal"><b>5</b>Årtal</a>
-    <a class="flik" href="#pi"><b>6</b>Pi</a>
-    <a class="flik" href="#dittal"><b>7</b>Ditt tal</a>
-  </div>
+<nav class="steg-nav" aria-label="Steg">
+  <a href="#alfabetet" title="Sifferalfabetet"><span class="sr">Steg </span>1<span class="sr">: Sifferalfabetet</span></a>
+  <a href="#ord" title="Ord till siffror"><span class="sr">Steg </span>2<span class="sr">: Ord till siffror</span></a>
+  <a href="#tal" title="Siffror till ord"><span class="sr">Steg </span>3<span class="sr">: Siffror till ord</span></a>
+  <a href="#lathund" title="Lathunden"><span class="sr">Steg </span>4<span class="sr">: Lathunden</span></a>
+  <a href="#artal" title="Årtal"><span class="sr">Steg </span>5<span class="sr">: Årtal</span></a>
+  <a href="#pi" title="Pi-utmaningen"><span class="sr">Steg </span>6<span class="sr">: Pi-utmaningen</span></a>
+  <a href="#dittal" title="Ditt eget tal"><span class="sr">Steg </span>7<span class="sr">: Ditt eget tal</span></a>
 </nav>
 
 <main>
 
   <!-- 1. ALFABETET -->
-  <section class="vy" id="vy-alfabetet" data-vy="alfabetet" aria-labelledby="h-alfabetet">
-    <p class="steg">Steg 1 av 7</p>
+  <section class="vy" id="vy-alfabetet" aria-labelledby="h-alfabetet">
+    <img class="vy-bild" src="assets/siffror/abc.svg" alt="" width="316" height="224">
     <h2 id="h-alfabetet">Sifferalfabetet</h2>
-    <div class="text">
-      <p><span class="inled">Siffror är svåra</span> att se framför sig. Men du har redan knäckt en sådan kod en gång:
-        du lärde dig koppla bokstäver till ljud, och nu kan du läsa. Siffrorna är bara tio!</p>
-      <p>Varje siffra har ett eller ett par konsonantljud. Byt ut siffrorna mot ljud,
-        stoppa in vilka vokaler du vill, och vips har du ett ord som du kan se framför dig.</p>
-    </div>
-    <div class="exempel">
-      <div><span class="tal"><span class="sf d6">6</span><span class="sf d2">2</span><span class="sf d0">0</span></span>
-        J · N · S blir <b>Jonas</b>. Ska du ta buss 620? Tänk dig att jag kör bussen. Välkommen ombord!</div>
-      <div><span class="tal"><span class="sf d2">2</span><span class="sf d5">5</span></span>
-        N · L blir <b>nål</b>, <b>nalle</b> eller <b>ängel</b>. Det är ljuden som räknas, inte stavningen.</div>
-      <div><span class="tal"><span class="sf d1">1</span><span class="sf d2">2</span></span>
-        T · N blir <b>ton</b>. EU-flaggan har 12 stjärnor: en vikt på ett ton dunsar ner mitt i stjärncirkeln.</div>
-    </div>
-    <div class="kort regler">
-      <img class="hornbild utrop-bild" src="assets/siffror/utrop.svg" alt="" width="189" height="166">
-      <h3>Tre regler</h3>
-      <ul>
-        <li><b>Vokaler och H är fria.</b> Stoppa in dem var du vill.</li>
-        <li><b>Ljuden räknas, inte bokstäverna.</b> Nalle har två L men bara ett L-ljud, och g:et i geting låter som J.</li>
-        <li><b>Ljud som bildas på samma ställe i munnen hör ihop.</b> Säg P och B efter varandra, sedan F och V. Visst ligger de nära?</li>
-      </ul>
-    </div>
-
-    <div class="mellanrubrik">
-      <img src="assets/siffror/lampa.svg" alt="" width="432" height="482">
-      <div>
-        <h3>En minnesregel per siffra</h3>
-        <p>Läs knepen på korten, och tryck på 3:an, 6:an och 9:an.</p>
-      </div>
-    </div>
-    <div class="alfa-grid" id="alfa-grid"></div>
-
-    <div class="kort ovning" id="alfa-quiz"></div>
-
-    <div class="nasta-steg"><a class="knapp" href="#ord">Nästa: ord till siffror →</a></div>
+    <p>Siffror är svåra att se framför sig, men ord är lätta. Med sifferalfabetet får varje siffra
+      ett konsonantljud. Stoppa in vilka vokaler du vill, så blir talet ett ord.
+      Det är samma system som jag använde när jag rabblade 13&nbsp;208 decimaler av pi.</p>
+    <div class="exempel" id="exempel"></div>
+    <ul class="alfabet" id="alfabet"></ul>
+    <h3>Tre regler</h3>
+    <ul class="regler">
+      <li><b>Vokaler och H är fria.</b> Stoppa in dem var du vill.</li>
+      <li><b>Ljuden räknas, inte bokstäverna.</b> Nalle har två L men bara ett L-ljud, och g:et i geting låter som J.</li>
+      <li><b>Ljud som bildas på samma ställe i munnen hör ihop.</b> Säg P och B efter varandra. Visst ligger de nära?</li>
+    </ul>
+    <div class="ovning" id="alfa-quiz"></div>
+    <div class="nasta-steg"><a class="knapp" href="#ord">Nästa: Ord till siffror →</a></div>
   </section>
 
   <!-- 2. ORD → SIFFROR -->
-  <section class="vy" id="vy-ord" data-vy="ord" aria-labelledby="h-ord" hidden>
-    <p class="steg">Steg 2 av 7</p>
+  <section class="vy" id="vy-ord" aria-labelledby="h-ord" hidden>
+    <img class="vy-bild lag" src="assets/siffror/binar.svg" alt="" width="877" height="173">
     <h2 id="h-ord">Ord till siffror</h2>
-    <img class="sektionsbild binar-bild" src="assets/siffror/binar.svg" alt="" width="877" height="173">
-    <p class="under">Översätt orden till siffror. Bara konsonantljuden räknas, så ord med många vokaler blir korta tal!</p>
-    <div class="kort ovning">
-      <div class="val" id="ord-val" role="group" aria-label="Välj ordlista"></div>
-      <div id="ord-ovning"></div>
-    </div>
-    <div class="kort prova">
-      <h3>Prova själv</h3>
-      <p>Skriv vilket ord som helst, till exempel ditt namn, så räknar jag ut vilket tal det blir.</p>
-      <label class="sr" for="prova-in">Ett ord att göra om till siffror</label>
-      <input id="prova-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Skriv ett ord …" style="margin-top:10px">
-      <div class="prova-ut" id="prova-ut" aria-live="polite"></div>
-      <p class="liten">Datorn gissar hur ordet uttalas. Säger du det på ett annat sätt är det ditt uttal som gäller.</p>
-    </div>
-    <div class="nasta-steg"><a class="knapp" href="#tal">Nästa: siffror till ord →</a></div>
+    <p>Översätt orden till siffror. Bara konsonantljuden räknas, så ord med många vokaler blir korta tal.</p>
+    <div class="ovning" id="ord-ovning"></div>
+    <h3>Prova själv</h3>
+    <label class="sr" for="prova-in">Ett ord att göra om till siffror</label>
+    <input id="prova-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Skriv till exempel ditt namn …">
+    <div class="prova-ut" id="prova-ut" aria-live="polite"></div>
+    <div class="nasta-steg"><a class="knapp" href="#tal">Nästa: Siffror till ord →</a></div>
   </section>
 
   <!-- 3. SIFFROR → ORD -->
-  <section class="vy" id="vy-tal" data-vy="tal" aria-labelledby="h-tal" hidden>
-    <p class="steg">Steg 3 av 7</p>
+  <section class="vy" id="vy-tal" aria-labelledby="h-tal" hidden>
+    <img class="vy-bild" src="assets/siffror/lampa.svg" alt="" width="432" height="482">
     <h2 id="h-tal">Siffror till ord</h2>
-    <p class="under">Nu åt andra hållet: hitta på ett ord för talet. Det finns inget enda rätt svar!</p>
-    <div class="kort ovning">
-      <div class="val" id="tal-val" role="group" aria-label="Välj tal"></div>
-      <div id="tal-ovning"></div>
-    </div>
-    <div class="kort tips-ruta">
-      <img src="assets/siffror/burj.webp" alt="Burj Khalifa med en trumpet i toppen" width="282" height="596" loading="lazy">
-      <div>
-        <h3>Knep: för många ljud går bra</h3>
-        <p>Vet du hur många siffror talet har får ordet gärna ha fler ljud än så. Fanfar blir 8284,
-          men eftersom världens högsta byggnad är tresiffrig vet du att Burj Khalifa är 828 meter hög.</p>
-      </div>
-    </div>
-    <div class="nasta-steg"><a class="knapp" href="#lathund">Nästa: lathunden →</a></div>
+    <p>Nu åt andra hållet: hitta på ett ord för talet. Det finns inget enda rätt svar.</p>
+    <div class="ovning" id="tal-ovning"></div>
+    <div class="nasta-steg"><a class="knapp" href="#lathund">Nästa: Lathunden →</a></div>
   </section>
 
   <!-- 4. LATHUNDEN -->
-  <section class="vy" id="vy-lathund" data-vy="lathund" aria-labelledby="h-lathund" hidden>
-    <p class="steg">Steg 4 av 7</p>
+  <section class="vy" id="vy-lathund" aria-labelledby="h-lathund" hidden>
+    <img class="vy-bild" src="assets/siffror/hjarna.svg" alt="" width="383" height="286">
     <h2 id="h-lathund">Lathunden 00–99</h2>
-    <p class="under">Den som tävlar har ett färdigt ord för varje tal från 00 till 99, så att bilderna
-      kommer av sig själva. Här är mina. Lär in dem tio i taget!</p>
-    <div class="kort med-horn">
-      <img class="hornbild abc-bild" src="assets/siffror/abc.svg" alt="" width="316" height="224">
-      <h3 id="lathund-summa">Dina 100 ord</h3>
-      <div class="rutnat" id="lathund-rutnat" aria-label="Lathunden, tryck på ett tal"></div>
-      <div class="teckenforklaring">
-        <span style="--f: var(--yta)">inte övat</span>
-        <span style="--f: #fde0e2">öva mer</span>
-        <span style="--f: #8fdcb5">kan</span>
-        <span style="--f: var(--ratt)">sitter som berget</span>
-      </div>
-      <p class="liten" style="margin-top:8px;text-align:center">Tryck på ett tal för att se ordet, eller byta ut det mot ett eget som du ser tydligare framför dig.</p>
-    </div>
-    <div class="kort ovning">
-      <h3>Öva</h3>
-      <div class="val-rubrik" id="lr-lek">Vilka tal?</div>
-      <div class="val" id="lathund-lek" role="group" aria-labelledby="lr-lek"></div>
-      <div class="val-rubrik" id="lr-hall">Hur?</div>
-      <div class="val" id="lathund-hall" role="group" aria-labelledby="lr-hall"></div>
+    <p>Den som tävlar har ett färdigt ord för varje tal från 00 till 99, så att bilderna kommer av sig själva.
+      Här är mina. Lär in dem tio i taget.</p>
+    <div class="ovning">
+      <div class="val" id="lathund-val" role="group" aria-label="Välj tiotal"></div>
       <div id="lathund-ovning"></div>
     </div>
-    <div class="kort">
-      <details>
-        <summary>Lathund för »sifferord«</summary>
-        <div class="lathund-lista" id="lathund-lista"></div>
-      </details>
-    </div>
-    <div class="nasta-steg"><a class="knapp" href="#artal">Nästa: årtal →</a></div>
+    <div class="nasta-steg"><a class="knapp" href="#artal">Nästa: Årtal →</a></div>
   </section>
 
   <!-- 5. ÅRTAL -->
-  <section class="vy" id="vy-artal" data-vy="artal" aria-labelledby="h-artal" hidden>
-    <p class="steg">Steg 5 av 7</p>
-    <h2 id="h-artal">Årtal och sifferfakta</h2>
-    <p class="under">Vet du vilket århundrade något hände räcker det med de två sista siffrorna.
-      Plugga in bilderna, sedan <a href="#artal-ovning" data-till-forhor>förhör jag dig</a>.</p>
-    <div class="kort artal-kort">
-      <img class="hornbild raket-bild" src="assets/siffror/raket.svg" alt="" width="373" height="174">
-      <div class="val" id="artal-val" role="group" aria-label="Välj lista"></div>
-      <div class="artal-lista" id="artal-lista"></div>
-    </div>
-    <div class="kort ovning" id="artal-ovning"></div>
-    <div class="nasta-steg"><a class="knapp" href="#pi">Nästa: pi-utmaningen →</a></div>
+  <section class="vy" id="vy-artal" aria-labelledby="h-artal" hidden>
+    <img class="vy-bild" src="assets/siffror/raket.svg" alt="" width="373" height="174">
+    <h2 id="h-artal">Årtal</h2>
+    <p>Vet du vilket århundrade något hände räcker det med de två sista siffrorna.
+      Läs bilderna, sedan förhör jag dig.</p>
+    <ul class="artal-lista" id="artal-lista"></ul>
+    <div class="ovning" id="artal-ovning"></div>
+    <div class="nasta-steg"><a class="knapp" href="#pi">Nästa: Pi →</a></div>
   </section>
 
   <!-- 6. PI -->
-  <section class="vy" id="vy-pi" data-vy="pi" aria-labelledby="h-pi" hidden>
-    <p class="steg">Steg 6 av 7</p>
+  <section class="vy" id="vy-pi" aria-labelledby="h-pi" hidden>
+    <img class="vy-bild" src="assets/siffror/pi.svg" alt="" width="768" height="328">
     <h2 id="h-pi">Pi-utmaningen</h2>
-    <img class="sektionsbild pi-bild" src="assets/siffror/pi.svg" alt="" width="768" height="328">
-    <p class="under">Med lathunden och ett minnespalats lär du dig de 30 första decimalerna av pi på några minuter.</p>
-    <div class="kort">
-      <h3>1. Dela upp decimalerna i par</h3>
-      <p>Varje par blir ett ord ur lathunden. Två par åt gången får en plats i ett minnespalats,
-        här mitt eget hus från bokens andra kapitel. Låt den första bilden göra något med den andra, så vet du vilken som kommer först.</p>
-      <div class="pi-rad" id="pi-rad" style="margin-top:10px"></div>
+    <p>Med lathunden och ett minnespalats lär du dig de 30 första decimalerna av pi på några minuter.
+      Varje par blir ett ord, och två ord i taget får en plats i mitt hus från bokens andra kapitel.
+      Låt den första bilden göra något med den andra, så vet du vilken som kommer först.</p>
+    <p class="pi-rad" id="pi-rad"></p>
+    <div class="ovning" id="pi-promenad">
+      <h3>Gå promenaden</h3>
+      <div class="promenad">
+        <div class="karta">
+          <img src="assets/siffror/palats.webp" alt="Mitt minnespalats från boken: ett hus med 15 numrerade platser" width="383" height="471">
+          <span class="ring" data-ring></span>
+        </div>
+        <div data-plats></div>
+      </div>
+      <div class="knapprad">
+        <button class="knapp sekundar" type="button" data-forra>← Förra</button>
+        <button class="knapp" type="button" data-nasta>Nästa plats →</button>
+      </div>
     </div>
-    <div class="kort plats-kort" id="pi-promenad"></div>
-    <div class="kort ovning" id="pi-forhor"></div>
-    <div class="nasta-steg"><a class="knapp" href="#dittal">Nästa: ditt eget tal →</a></div>
+    <div class="ovning" id="pi-forhor"></div>
+    <div class="nasta-steg"><a class="knapp" href="#dittal">Nästa: Ditt eget tal →</a></div>
   </section>
 
   <!-- 7. DITT TAL -->
-  <section class="vy" id="vy-dittal" data-vy="dittal" aria-labelledby="h-dittal" hidden>
-    <p class="steg">Steg 7 av 7</p>
+  <section class="vy ph-no-capture" id="vy-dittal" aria-labelledby="h-dittal" hidden>
+    <img class="vy-bild" src="assets/siffror/utrop.svg" alt="" width="189" height="166">
     <h2 id="h-dittal">Ditt eget tal</h2>
-    <p class="under">Telefonnummer, portkoder, födelsedagar: alla tal går att göra om till bilder.</p>
-    <div class="kort ph-no-capture">
-      <p>Skriv ett tal så delar jag upp det i par, hämtar orden ur lathunden och lägger
-        två bilder på varje plats i minnespalatset.</p>
-      <label class="sr" for="dittal-in">Ditt tal</label>
-      <div class="tal-in"><input id="dittal-in" type="text" inputmode="numeric" autocomplete="off" placeholder="Till exempel 0701234567"></div>
-      <div class="dina-platser" id="dittal-ut" aria-live="polite"></div>
-      <div class="karta dittal-karta" id="dittal-karta">
-        <img src="assets/siffror/palats.webp" alt="Mitt minnespalats från boken: ett hus med 15 numrerade platser" width="383" height="471" loading="lazy">
-      </div>
-      <p class="liten" style="margin-top:10px;text-align:center">Promenaden går genom mitt hus. Byt gärna till ditt eget hem!</p>
-      <p class="liten" style="margin-top:6px;text-align:center">🔒 Talet stannar i din webbläsare och skickas ingenstans.</p>
+    <p>Telefonnummer, portkoder, födelsedagar: alla tal går att göra om till bilder.
+      Skriv ett tal så lägger jag orden i mitt minnespalats. Talet stannar i din webbläsare.</p>
+    <label class="sr" for="dittal-in">Ditt tal</label>
+    <input id="dittal-in" type="text" inputmode="numeric" autocomplete="off" placeholder="Till exempel 0701234567" style="margin-top:16px">
+    <ul class="dina-platser" id="dittal-ut" aria-live="polite"></ul>
+    <div class="karta dittal-karta" id="dittal-karta">
+      <img src="assets/siffror/palats.webp" alt="Mitt minnespalats från boken: ett hus med 15 numrerade platser" width="383" height="471" loading="lazy">
     </div>
     <div class="nasta-steg"><a class="knapp" href="#alfabetet">Till början ↺</a></div>
   </section>
@@ -615,17 +408,15 @@
 </main>
 
 <footer>
-  <img class="hjarna" src="assets/siffror/hjarna.svg" alt="" width="383" height="286" loading="lazy">
-  <p class="lopande">Så får du ett superminne</p>
-  <p>Allt bygger på kapitlet »Bli ett siffergeni!« i min bok <i>Så får du ett superminne</i>. Text och teckningar: Jonas von Essen.</p>
+  <p>Allt bygger på kapitlet »Bli ett siffergeni!« i min bok <i>Så får du ett superminne</i>.</p>
   <p><a href="https://www.jonasvonessen.se">Jonas von Essen</a> · <a href="/">Jonas geografi</a></p>
 </footer>
 
 </div>
 
 <script src="siffror-ljud.js?v=1"></script>
-<script src="siffror-data.js?v=2"></script>
-<script src="siffror.js?v=2"></script>
+<script src="siffror-data.js?v=3"></script>
+<script src="siffror.js?v=3"></script>
 <script src="kakor.js?v=76"></script>
 </body>
 </html>

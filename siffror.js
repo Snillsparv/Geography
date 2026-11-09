@@ -1,6 +1,6 @@
 // ── Sifferssidan: sju steg från sifferalfabetet till pi ──
 // Fristående från spelet: behöver bara siffror-ljud.js, siffror-data.js och
-// (valfritt) kakor.js för statistiken. Framsteg sparas i localStorage.
+// (valfritt) kakor.js för statistiken. Rekorden sparas i localStorage.
 (() => {
   'use strict';
   const D = window.SIFFROR;
@@ -17,21 +17,19 @@
     }
     return a;
   };
-  const tal2 = i => String(i).padStart(2, '0');
   const REDUCERAD = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sekunder = start => Math.max(1, Math.round((Date.now() - start) / 1000));
   const sekText = n => n === 1 ? '1 sekund' : `${n} sekunder`;
+  const missText = n => `${n} ${n === 1 ? 'miss' : 'missar'}`;
 
-  // efter ett svar krymper eller växer övningskortet (knappsatsen byts mot
-  // en knapp …) — scrolla så lite som möjligt så att kortet syns igen
+  // efter ett svar växer eller krymper övningsrutan: scrolla så lite som
+  // möjligt så att hela rutan syns igen
   function iSikte(el) {
-    if (!el) return;
-    const navUnder = $('.flikar').getBoundingClientRect().bottom;
     const r = el.getBoundingClientRect();
     let dy = 0;
-    if (r.top < navUnder + 8) dy = r.top - navUnder - 8;
-    else if (r.bottom > window.innerHeight - 8) dy = Math.min(r.bottom - window.innerHeight + 8, r.top - navUnder - 8);
-    if (Math.abs(dy) > 2) window.scrollBy({ top: dy, behavior: REDUCERAD ? 'auto' : 'smooth' });
+    if (r.top < 8) dy = r.top - 8;
+    else if (r.bottom > innerHeight - 8) dy = Math.min(r.bottom - innerHeight + 8, r.top - 8);
+    if (Math.abs(dy) > 2) scrollBy({ top: dy, behavior: REDUCERAD ? 'auto' : 'smooth' });
   }
 
   const lagra = {
@@ -45,52 +43,27 @@
     try { if (window.kakSpara) window.kakSpara('siffror_' + namn, props || {}); } catch (e) {}
   };
 
-  // ── lathunden, med egna ord om man bytt ut något ──
-  let egna = lagra.hamta('egna', {});
-  function ordFor(tal) {
-    if (tal.length === 1) {
-      const [ord, emoji] = D.ensam[+tal];
-      return { ord, emoji, not: '', eget: false };
-    }
-    const [ord, emoji, not] = D.lathund[+tal];
-    if (egna[tal]) return { ord: egna[tal], emoji: '✏️', not: 'ditt eget ord', eget: true, bok: ord };
-    return { ord, emoji, not: not || '', eget: false, bok: ord };
-  }
+  // lathundens ord för ett tal (en ensam siffra har ett eget ord)
+  const ordFor = t => t.length === 1 ? D.ensam[+t] : D.lathund[+t][0];
 
-  // ── små byggbitar ──
-  const sifferHTML = s => [...String(s)].map(c =>
-    /\d/.test(c) ? `<span class="sf d${c}">${c}</span>` : esc(c)).join('');
-
-  function uppdelningHTML(delar) {
-    return '<span class="upp">' + delar.map(d => {
-      if (!d.t.trim()) return '<span class="mellan"></span>';
-      if (!d.d) return `<span class="tyst"><b>${esc(d.t)}</b><i></i></span>`;
-      return `<span class="ljudet d${d.d[0]}"><b>${esc(d.t)}</b><i>${sifferHTML(d.d)}</i></span>`;
-    }).join('') + '</span>';
-  }
-
-  // bokens karta över minnespalatset, med en ring på en plats
-  const ringStil = n => `left:${D.palatsPos[n][0]}%;top:${D.palatsPos[n][1]}%`;
-  const kartaHTML = (ringar = '') => `<div class="karta">
-    <img src="assets/siffror/palats.webp" alt="Minnespalatset från boken: ett hus med 15 numrerade platser" width="383" height="471">${ringar}</div>`;
-
-  const ordHTML = (o, klass = '') =>
-    `<div class="stor ord ${klass}"><span class="emoji" aria-hidden="true">${o.emoji}</span>${esc(o.ord)}</div>` +
-    (o.not ? `<p class="liten">(${esc(o.not)})</p>` : '');
+  // ordet bokstav för bokstav, med siffran under varje konsonantljud
+  const uppdelningHTML = delar => '<span class="upp">' + delar.map(d => !d.t.trim()
+    ? '<span class="mellan"></span>'
+    : `<span${d.d ? ' class="ljud"' : ''}><b>${esc(d.t)}</b><i>${d.d}</i></span>`).join('') + '</span>';
+  const upp = text => uppdelningHTML(L.analysera(text).delar);
 
   // knappsats: 1–9, ⌫, 0, ✓ (eller bara siffrorna i två rader med tio:true)
-  function knappsats(tryck, { klar = true, radera = true, tio = false } = {}) {
+  function knappsats(tryck, { klar = true, tio = false } = {}) {
     const el = document.createElement('div');
     el.className = 'knappsats' + (tio ? ' tio' : '');
-    const tangenter = tio ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
-      : ['1', '2', '3', '4', '5', '6', '7', '8', '9', radera ? 'Backspace' : '', '0', klar ? 'Enter' : ''];
+    const tangenter = tio ? [...'1234567890'] : [...'123456789', 'Backspace', '0', klar ? 'Enter' : ''];
     for (const t of tangenter) {
       const b = document.createElement('button');
       b.type = 'button';
       if (!t) { b.style.visibility = 'hidden'; b.tabIndex = -1; b.setAttribute('aria-hidden', 'true'); }
       else if (t === 'Backspace') { b.className = 'radera'; b.textContent = '⌫'; b.setAttribute('aria-label', 'Radera'); }
       else if (t === 'Enter') { b.className = 'klar'; b.textContent = '✓'; b.setAttribute('aria-label', 'Rätta'); }
-      else { b.className = `farg d${t}`; b.textContent = t; }
+      else b.textContent = t;
       if (t) {
         b.addEventListener('click', () => tryck(t));
         // musklick ska inte ge knappen fokus: då hamnar Enter på knappen i
@@ -103,40 +76,34 @@
   }
 
   // svarsrutor efter en mask: '19__' → 1 9 [ ][ ]
-  function rutorHTML(mask, skrivet, { markera = true } = {}) {
-    let i = 0, html = '';
-    let forstaTomma = true;
+  function rutorHTML(mask, skrivet) {
+    let i = 0, html = '', forsta = true;
     for (const c of mask) {
-      if (c === '_') {
-        const s = skrivet[i++];
-        if (s != null) html += `<span class="ruta">${sifferHTML(s)}</span>`;
-        else {
-          html += `<span class="ruta${markera && forstaTomma ? ' mark' : ''}"></span>`;
-          forstaTomma = false;
-        }
-      } else html += `<span class="ruta fast">${esc(c)}</span>`;
+      if (c !== '_') { html += `<span class="ruta fast">${esc(c)}</span>`; continue; }
+      const s = skrivet[i++];
+      if (s != null) html += `<span class="ruta">${s}</span>`;
+      else { html += `<span class="ruta${forsta ? ' mark' : ''}"></span>`; forsta = false; }
     }
     return html;
   }
-  const fyllMask = (mask, svar) => { let i = 0; return mask.replace(/_/g, () => svar[i++] || '_'); };
 
-  // bokens teckningar: pokalen när allt satt, glödlampan när något lärdes på vägen
-  const TECKNING = { pokal: [427, 495], lampa: [432, 482], kapitel: [555, 588] };
-  const teckningHTML = (namn, stil = '') =>
-    `<img src="assets/siffror/${namn}.svg" alt="" width="${TECKNING[namn][0]}" height="${TECKNING[namn][1]}"${stil ? ` style="${stil}"` : ''}>`;
-  function resultatHTML({ bild, rubrik, text }) {
-    return `<div class="resultat">
-      ${teckningHTML(bild)}
-      <div class="stor">${rubrik}</div>
-      <p>${text}</p></div>`;
-  }
+  // resultatet efter en övning: bokens pokal när allt satt
+  const resultatHTML = (rubrik, text, perfekt) => `<div class="resultat">
+    ${perfekt ? '<img src="assets/siffror/pokal.svg" alt="" width="427" height="495">' : ''}
+    <div class="stor">${rubrik}</div><p>${text}</p></div>
+    <div class="knapprad"><button class="knapp sekundar" type="button" data-igen>Kör igen</button></div>`;
 
-  // ── tangentbordet: siffror, Enter och pilar går till vyn som syns ──
+  const nastaKnapp = (text, el) => {
+    const kn = $('[data-knappar]', el);
+    kn.innerHTML = `<div class="knapprad"><button class="knapp" type="button" data-nasta>${text}</button></div>`;
+    return $('[data-nasta]', kn);
+  };
+
+  // ── tangentbordet: siffror, Enter och pilar går till steget som syns ──
   const tangenter = {};
   let aktivVy = 'alfabetet';
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if ($('.dialog-bakgrund')) { if (e.key === 'Escape') stangDialog(); return; }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     // Enter/mellanslag på en fokuserad knapp är knappens eget klick
@@ -145,58 +112,13 @@
     if (f && f(e.key)) e.preventDefault();
   });
 
-  // ── dialogrutan ──
-  let fokusFore = null;
-  function oppnaDialog(html, efter) {
-    stangDialog();
-    fokusFore = document.activeElement;
-    const bg = document.createElement('div');
-    bg.className = 'dialog-bakgrund';
-    bg.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">
-      <button class="stang" type="button" aria-label="Stäng">✕</button>${html}</div>`;
-    bg.addEventListener('click', e => { if (e.target === bg) stangDialog(); });
-    bg.querySelector('.stang').addEventListener('click', stangDialog);
-    document.body.appendChild(bg);
-    if (efter) efter(bg.firstElementChild);
-    bg.querySelector('.stang').focus();
-  }
-  function stangDialog() {
-    const bg = $('.dialog-bakgrund');
-    if (!bg) return;
-    bg.remove();
-    if (fokusFore && fokusFore.focus) fokusFore.focus();
-  }
-
   // ════════════════════════════════════════════════════════════════════
   // 1. SIFFERALFABETET
   // ════════════════════════════════════════════════════════════════════
-  const TRICK = {
-    sol: '☀️', streck1: '<small>T D</small>', streck2: 'N',
-    m: '<span class="vrid m">M</span>', fyra: '<small>fyRRRa</small>', hand: '✋',
-    sexa: '<span class="vrid spegel">6</span>', sjuk: '<small>sjuK</small>',
-    seger: '✌️', nia: '<span class="vrid spegel">9</span>',
-  };
-  const VRID_TIPS = { m: 'Tryck så välter M:et!', sexa: 'Tryck så spegelvänds sexan!', nia: 'Tryck så spegelvänds nian!' };
-
-  function byggAlfabet() {
-    const grid = $('#alfa-grid');
-    grid.innerHTML = D.alfabet.map(a => `
-      <button type="button" class="alfa-kort d${a.s}" aria-pressed="false"
-        aria-label="${a.s}: ${a.ljud.join(', ')}. ${esc(a.regel)}">
-        <span class="alfa-topp">
-          <span class="alfa-siffra">${a.s}</span>
-          <span class="alfa-trick" aria-hidden="true">${TRICK[a.trick]}</span>
-        </span>
-        <span class="alfa-ljud">${a.ljud.map(l => `<span class="ljudbricka">${l}</span>`).join('')}</span>
-        <span class="alfa-regel">${esc(a.regel)}</span>
-        ${VRID_TIPS[a.trick] ? `<span class="alfa-tips">${VRID_TIPS[a.trick]}</span>` : ''}
-      </button>`).join('');
-    grid.addEventListener('click', e => {
-      const k = e.target.closest('.alfa-kort');
-      if (!k) return;
-      const pa = k.classList.toggle('visa');
-      k.setAttribute('aria-pressed', String(pa));
-    });
+  function alfabet() {
+    $('#exempel').innerHTML = `${upp('Jonas')}<span class="blir">= 620</span>`;
+    $('#alfabet').innerHTML = D.alfabet.map(a => `<li><span class="s">${a.s}</span>
+      <span><b>${a.ljud.join(' ')}</b><span class="regel">${esc(a.regel)}</span></span></li>`).join('');
   }
 
   // snabbquiz: varje siffra två gånger (siffra → ljud och ljud → siffra)
@@ -205,16 +127,10 @@
     const el = $('#alfa-quiz');
     let fragor = [], i = 0, missar = 0, start = 0, klocka = null, last = false, omgang = 0;
 
-    function startsida() {
-      clearInterval(klocka);
-      const bast = lagra.hamta('alfa-bast', null);
-      el.innerHTML = `<h3>Testa dig själv</h3>
-        <p>20 snabba frågor, från siffra till ljud och från ljud till siffra. Hur snabbt kan du hela alfabetet?</p>
-        ${bast ? `<p class="liten" style="margin-top:6px">Ditt rekord: ${sekText(bast)}</p>` : ''}
-        <div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-start>Starta ▶</button></div>`;
-      el.querySelector('[data-start]').addEventListener('click', starta);
-      tangenter.alfabetet = null;
-    }
+    el.innerHTML = `<h3>Testa dig själv</h3>
+      <p>20 snabba frågor. Hur snabbt kan du hela alfabetet?</p>
+      <div class="knapprad"><button class="knapp" type="button" data-start>Starta ▶</button></div>`;
+    $('[data-start]', el).addEventListener('click', starta);
 
     function starta() {
       const fr = [];
@@ -228,6 +144,7 @@
       clearInterval(klocka);
       klocka = setInterval(() => { const k = $('[data-klocka]', el); if (k) k.textContent = sekunder(start) + ' s'; }, 500);
       visa();
+      iSikte(el);
     }
 
     function visa() {
@@ -236,13 +153,11 @@
       last = false;
       el.innerHTML = `
         <div class="ov-topp"><span>Fråga ${Math.min(i + 1, 20)} av ${Math.max(20, fragor.length)}</span><span data-klocka>${sekunder(start)} s</span></div>
-        <div class="ov-prog"><i style="width:${(i / fragor.length) * 100}%"></i></div>
         ${f.typ === 'ljud'
-          ? `<div class="fraga-text">Vilket ljud har</div><div class="stor sf d${f.s}">${f.s}</div>`
-          : `<div class="fraga-text">Vilken siffra är ljudet</div><div class="stor">${f.ljud}</div>`}
+          ? `<p class="fraga">Vilket ljud har</p><div class="stor">${f.s}</div>`
+          : `<p class="fraga">Vilken siffra är ljudet</p><div class="stor">${f.ljud}</div>`}
         <div data-svar></div>
-        <div class="aterkoppling" aria-live="polite" data-ak></div>
-        <p class="tangenttips">${f.typ === 'ljud' ? 'Tips: tryck på bokstaven på tangentbordet.' : 'Tips: skriv siffran på tangentbordet.'}</p>`;
+        <p class="aterkoppling" aria-live="polite" data-ak></p>`;
       const svar = $('[data-svar]', el);
       if (f.typ === 'ljud') {
         const v = document.createElement('div');
@@ -294,25 +209,18 @@
 
     function klart() {
       clearInterval(klocka);
+      tangenter.alfabetet = null;
       const tid = sekunder(start);
       const bast = lagra.hamta('alfa-bast', null);
       const rekord = !bast || tid < bast;
       if (rekord) lagra.spara('alfa-bast', tid);
       statistik('alfabet_klart', { sek: tid, missar });
-      el.innerHTML = resultatHTML({
-        bild: missar ? 'lampa' : 'pokal',
-        rubrik: sekText(tid),
-        text: (missar ? `${missar} ${missar === 1 ? 'miss' : 'missar'}, och de kom tillbaka tills du kunde dem. `
-          : 'Inte en enda miss! ') + (rekord && bast ? 'Nytt rekord! 🎉' : rekord ? '' : `Ditt rekord är ${sekText(bast)}.`),
-      }) + `<div class="knapprad" style="justify-content:center">
-          <button class="knapp sekundar" type="button" data-igen>Kör igen</button>
-          <a class="knapp" href="#ord">Nästa steg →</a></div>`;
-      el.querySelector('[data-igen]').addEventListener('click', starta);
-      tangenter.alfabetet = null;
+      el.innerHTML = resultatHTML(sekText(tid),
+        (missar ? `${missText(missar)} på vägen.` : 'Inte en enda miss!') +
+        (bast ? (rekord ? ' Nytt rekord!' : ` Ditt rekord är ${sekText(bast)}.`) : ''), !missar);
+      $('[data-igen]', el).addEventListener('click', starta);
       iSikte(el);
     }
-
-    startsida();
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -320,45 +228,23 @@
   // ════════════════════════════════════════════════════════════════════
   function ordTillSiffror() {
     const el = $('#ord-ovning');
-    const VAL = [['bok', 'Bokens övning'], ['jul', 'Julord'], ['lathund', 'Lathundens ord']];
-    let lista = 'bok', ord = [], i = 0, ratta = 0, skrivet = '', lage = 'svarar';
+    const ord = D.ordovning;
+    let i = 0, ratta = 0, skrivet = '', lage = 'svarar';
 
-    const valEl = $('#ord-val');
-    valEl.innerHTML = VAL.map(([k, n]) => `<button type="button" data-lista="${k}" aria-pressed="${k === lista}">${n}</button>`).join('');
-    valEl.addEventListener('click', e => {
-      const b = e.target.closest('[data-lista]');
-      if (!b) return;
-      lista = b.dataset.lista;
-      $$('[data-lista]', valEl).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-      starta();
-    });
-
-    function starta() {
-      if (lista === 'lathund') {
-        ord = blanda([...Array(100).keys()]).slice(0, 10).map(n => {
-          const t = tal2(n), o = ordFor(t);
-          return { ord: o.ord, svar: t, emoji: o.emoji };
-        });
-      } else ord = D.ordlistor[lista].ord.slice();
-      i = 0; ratta = 0;
-      visa();
-    }
+    function starta() { i = 0; ratta = 0; visa(); }
 
     function visa() {
       if (i >= ord.length) return klart();
       const o = ord[i];
       skrivet = ''; lage = 'svarar';
-      const lang = o.ord.length > 12;
       el.innerHTML = `
-        <div class="ov-topp"><span>Ord ${i + 1} av ${ord.length}</span><span>✓ ${ratta}</span></div>
-        <div class="ov-prog"><i style="width:${(i / ord.length) * 100}%"></i></div>
-        <div class="fraga-text">Vilket tal blir</div>
-        <div class="stor ord${lang ? ' lang' : ''}">${o.emoji ? `<span class="emoji" aria-hidden="true">${o.emoji}</span>` : ''}${esc(o.ord)}</div>
+        <div class="ov-topp"><span>Ord ${i + 1} av ${ord.length}</span></div>
+        <p class="fraga">Vilket tal blir</p>
+        <div class="stor ord${o.ord.length > 12 ? ' lang' : ''}">${esc(o.ord)}</div>
         <div class="ov-svar" data-rutor aria-live="polite"></div>
-        <div class="aterkoppling" aria-live="polite" data-ak></div>
+        <p class="aterkoppling" aria-live="polite" data-ak></p>
         <div class="forklaring" data-fk></div>
-        <div data-knappar></div>
-        <p class="tangenttips">Tips: skriv med tangentbordet och tryck Enter.</p>`;
+        <div data-knappar></div>`;
       $('[data-knappar]', el).appendChild(knappsats(tryck));
       ritaRutor();
     }
@@ -366,13 +252,13 @@
     function ritaRutor() {
       const r = $('[data-rutor]', el);
       if (!r) return;
-      r.innerHTML = skrivet
-        ? [...skrivet].map(c => `<span class="ruta">${sifferHTML(c)}</span>`).join('') + (lage === 'svarar' ? '<span class="ruta mark"></span>' : '')
-        : '<span class="ruta mark"></span><span class="ruta"></span>';
+      r.innerHTML = [...skrivet].map(c => `<span class="ruta">${c}</span>`).join('') +
+        (lage === 'svarar' ? '<span class="ruta mark"></span>' : '') +
+        (skrivet ? '' : '<span class="ruta"></span>');
     }
 
     function tryck(t) {
-      if (lage === 'visar') { if (t === 'Enter') { i++; visa(); iSikte(el.parentElement); } return; }
+      if (lage === 'visar') { if (t === 'Enter') nasta(); return; }
       if (t === 'Backspace') skrivet = skrivet.slice(0, -1);
       else if (t === 'Enter') { if (skrivet) ratta_(); return; }
       else if (skrivet.length < 20) skrivet += t;
@@ -387,32 +273,27 @@
       ritaRutor();
       const ak = $('[data-ak]', el);
       ak.className = 'aterkoppling ' + (ratt ? 'ratt' : 'fel');
-      ak.innerHTML = ratt ? 'Rätt! 🎉' : `Inte riktigt. Rätt svar är <span style="white-space:nowrap">${sifferHTML(o.svar)}</span>`;
-      const a = L.analysera(o.ord);
-      $('[data-fk]', el).innerHTML = uppdelningHTML(a.delar) + (o.not ? `<p style="margin-top:6px">${esc(o.not)}</p>` : '');
-      const kn = $('[data-knappar]', el);
-      kn.innerHTML = `<div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-nasta>${i + 1 < ord.length ? 'Nästa ord →' : 'Se resultatet'}</button></div>`;
-      const b = $('[data-nasta]', kn);
-      b.addEventListener('click', () => { i++; visa(); iSikte(el.parentElement); });
+      ak.textContent = ratt ? 'Rätt!' : `Rätt svar är ${o.svar}`;
+      $('[data-fk]', el).innerHTML = upp(o.ord) + (o.not ? `<p>${esc(o.not)}</p>` : '');
+      const b = nastaKnapp(i + 1 < ord.length ? 'Nästa ord →' : 'Se resultatet', el);
+      b.addEventListener('click', nasta);
       b.focus({ preventScroll: true });
-      iSikte(el.parentElement);
+      iSikte(el);
     }
 
+    function nasta() { i++; visa(); iSikte(el); }
+
     function klart() {
-      statistik('ord_klart', { lista, ratt: ratta, antal: ord.length });
+      lage = 'klar';
+      statistik('ord_klart', { ratt: ratta, antal: ord.length });
       const alla = ratta === ord.length;
-      el.innerHTML = resultatHTML({
-        bild: alla ? 'pokal' : 'lampa',
-        rubrik: `${ratta} av ${ord.length}`,
-        text: alla ? 'Alla rätt! Du läser siffror som en minnesatlet.' : 'Bra jobbat! Kör igen eller prova en annan lista.',
-      }) + `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-igen>Kör igen</button>
-        <a class="knapp" href="#tal">Nästa steg →</a></div>`;
-      el.querySelector('[data-igen]').addEventListener('click', starta);
+      el.innerHTML = resultatHTML(`${ratta} av ${ord.length}`,
+        alla ? 'Alla rätt! Du läser siffror som en minnesatlet.' : 'Bra jobbat! Kör en gång till, så sitter det.', alla);
+      $('[data-igen]', el).addEventListener('click', () => { starta(); iSikte(el); });
     }
 
     tangenter.ord = k => {
-      if (!$('[data-rutor]', el)) return false;
+      if (lage === 'klar') return false;
       if (/^\d$/.test(k) || k === 'Backspace' || k === 'Enter') { tryck(k); return true; }
       return false;
     };
@@ -420,16 +301,12 @@
 
     // prova själv
     const inn = $('#prova-in'), ut = $('#prova-ut');
-    const prova = () => {
+    inn.addEventListener('input', () => {
       const v = inn.value.slice(0, 60);
-      if (!v.trim()) { ut.innerHTML = '<p class="liten" style="padding-top:22px">Till exempel ditt namn, ditt husdjur eller din favoritmat.</p>'; return; }
+      if (!v.trim()) { ut.innerHTML = ''; return; }
       const a = L.analysera(v);
-      const lh = a.siffror.length === 2 && ordFor(a.siffror);
-      ut.innerHTML = `<div class="stor">${a.siffror ? sifferHTML(a.siffror) : '<span style="color:#a39d94">–</span>'}</div>${uppdelningHTML(a.delar)}` +
-        (lh && lh.ord.toLowerCase() !== v.trim().toLowerCase() ? `<p class="liten" style="margin-top:4px">I lathunden är ${a.siffror} ${lh.emoji} ${esc(lh.ord)}.</p>` : '');
-    };
-    inn.addEventListener('input', prova);
-    prova();
+      ut.innerHTML = `<div class="stor">${a.siffror || '<span class="tom">–</span>'}</div>${uppdelningHTML(a.delar)}`;
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -437,57 +314,29 @@
   // ════════════════════════════════════════════════════════════════════
   function siffrorTillOrd() {
     const el = $('#tal-ovning');
-    const VAL = [['bok', 'Bokens tal'], ['tva', 'Tvåsiffriga'], ['tre', 'Tresiffriga']];
-    let lista = 'bok', tal = [], i = 0, ratta = 0, lage = 'svarar';
+    const tal = D.boktal;   // [tal, mitt förslag]
+    let i = 0, ratta = 0, lage = 'svarar';
 
-    const valEl = $('#tal-val');
-    valEl.innerHTML = VAL.map(([k, n]) => `<button type="button" data-lista="${k}" aria-pressed="${k === lista}">${n}</button>`).join('');
-    valEl.addEventListener('click', e => {
-      const b = e.target.closest('[data-lista]');
-      if (!b) return;
-      lista = b.dataset.lista;
-      $$('[data-lista]', valEl).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-      starta();
-    });
-
-    function starta() {
-      if (lista === 'bok') tal = D.boktal.map(([t, o]) => ({ tal: t, forslag: o }));
-      else if (lista === 'tva') tal = blanda([...Array(100).keys()]).slice(0, 10).map(n => {
-        const t = tal2(n);
-        return { tal: t, forslag: ordFor(t).ord };
-      });
-      else tal = blanda(D.tresiffriga).slice(0, 10).map(([t, o]) => ({ tal: t, forslag: o }));
-      i = 0; ratta = 0;
-      visa();
-    }
+    function starta() { i = 0; ratta = 0; visa(); }
 
     function visa() {
       if (i >= tal.length) return klart();
-      const t = tal[i].tal;
+      const [t] = tal[i];
       lage = 'svarar';
       el.innerHTML = `
-        <div class="ov-topp"><span>Tal ${i + 1} av ${tal.length}</span><span>✓ ${ratta}</span></div>
-        <div class="ov-prog"><i style="width:${(i / tal.length) * 100}%"></i></div>
-        <div class="fraga-text">Hitta på ett ord för</div>
-        <div class="stor${t.length > 5 ? ' lang' : ''}">${sifferHTML(t)}</div>
-        <div class="ljudtips dold" data-tips>${[...t].map(c => `<span class="d${c}"><b>${c}</b>${D.alfabet[+c].ljud.join('/')}</span>`).join('')}</div>
-        <form class="tal-in" data-form autocomplete="off">
+        <div class="ov-topp"><span>Tal ${i + 1} av ${tal.length}</span></div>
+        <p class="fraga">Hitta på ett ord för</p>
+        <div class="stor${t.length > 5 ? ' lang' : ''}">${t}</div>
+        <form class="rad-in" data-form autocomplete="off">
           <label class="sr" for="tal-ord">Ditt ord</label>
           <input id="tal-ord" type="text" autocapitalize="off" spellcheck="false" placeholder="Ditt ord …" maxlength="40">
           <button class="knapp" type="submit">Kolla</button>
         </form>
-        <div class="aterkoppling" aria-live="polite" data-ak></div>
+        <p class="aterkoppling" aria-live="polite" data-ak></p>
         <div class="forklaring" data-fk></div>
-        <div class="knapprad" style="justify-content:center" data-knappar>
-          <button class="knapp sekundar liten-k" type="button" data-tjuvkika>👀 Tjuvkika på ljuden</button>
-          <button class="knapp sekundar liten-k" type="button" data-hoppa>Visa ett förslag</button>
-        </div>`;
+        <div data-knappar><button class="lank" type="button" data-forslag>Visa mitt förslag</button></div>`;
       $('[data-form]', el).addEventListener('submit', e => { e.preventDefault(); kolla(); });
-      $('[data-tjuvkika]', el).addEventListener('click', e => {
-        $('[data-tips]', el).classList.remove('dold');
-        e.currentTarget.remove();
-      });
-      $('[data-hoppa]', el).addEventListener('click', () => avsluta(false, null));
+      $('[data-forslag]', el).addEventListener('click', () => avsluta(false, null));
     }
 
     function kolla() {
@@ -495,373 +344,208 @@
       const inn = $('#tal-ord');
       const ord = inn.value.trim();
       if (!ord) { inn.focus(); return; }
-      const t = tal[i].tal;
+      const [t] = tal[i];
       const a = L.analysera(ord);
-      const ak = $('[data-ak]', el);
       if (a.siffror === t) return avsluta(true, a);
+      const ak = $('[data-ak]', el);
       ak.className = 'aterkoppling fel';
-      ak.innerHTML = a.siffror
-        ? `Jag hör ${sifferHTML(a.siffror)} i »${esc(ord)}«.`
-        : `Jag hör inga konsonantljud alls i »${esc(ord)}«.`;
+      ak.textContent = a.siffror ? `Jag hör ${a.siffror} i »${ord}«.` : `Jag hör inga konsonantljud i »${ord}«.`;
       $('[data-fk]', el).innerHTML = uppdelningHTML(a.delar) +
-        `<div class="knapprad" style="justify-content:center">
-          <button class="knapp sekundar liten-k" type="button" data-igen>Försök igen</button>
-          <button class="knapp sekundar liten-k" type="button" data-andra>Jag uttalar det så att det blir ${esc(t)}</button></div>`;
-      $('[data-igen]', el).addEventListener('click', () => {
-        $('[data-fk]', el).innerHTML = ''; ak.textContent = '';
-        inn.select(); inn.focus();
-      });
+        `<p><button class="lank" type="button" data-andra>Jag uttalar det så att det blir ${t}</button></p>`;
       $('[data-andra]', el).addEventListener('click', () => avsluta(true, a));
     }
 
     function avsluta(ratt, analys) {
       lage = 'visar';
-      const { tal: t, forslag } = tal[i];
+      const forslag = tal[i][1];
       if (ratt) ratta++;
       const ak = $('[data-ak]', el);
-      ak.className = 'aterkoppling ' + (ratt ? 'ratt' : '');
-      ak.innerHTML = ratt ? 'Snyggt! 🎉' : '';
-      const fa = L.analysera(forslag.replace(/!$/, ''));
-      $('[data-fk]', el).innerHTML = (analys ? uppdelningHTML(analys.delar) : '') +
-        `<div class="bild"><b>${lista === 'bok' ? 'Mitt förslag i boken' : 'Mitt förslag'}:</b> ${esc(forslag)}<br>${uppdelningHTML(fa.delar)}</div>`;
-      const inn = $('#tal-ord');
-      inn.disabled = true;
+      ak.className = 'aterkoppling ratt';
+      ak.textContent = ratt ? 'Snyggt!' : '';
+      $('[data-fk]', el).innerHTML = analys
+        ? `${uppdelningHTML(analys.delar)}<p>Mitt förslag: <b>${esc(forslag)}</b></p>`
+        : `<p>Mitt förslag: <b>${esc(forslag)}</b></p>${upp(forslag.replace(/!$/, ''))}`;
+      $('#tal-ord').disabled = true;
       $('[data-form] button', el).disabled = true;
-      const kn = $('[data-knappar]', el);
-      kn.innerHTML = `<button class="knapp" type="button" data-nasta>${i + 1 < tal.length ? 'Nästa tal →' : 'Se resultatet'}</button>`;
-      const b = $('[data-nasta]', kn);
-      b.addEventListener('click', () => { i++; visa(); iSikte(el.parentElement); });
+      const b = nastaKnapp(i + 1 < tal.length ? 'Nästa tal →' : 'Se resultatet', el);
+      b.addEventListener('click', () => { i++; visa(); iSikte(el); });
       b.focus({ preventScroll: true });
-      iSikte(el.parentElement);
+      iSikte(el);
     }
 
     function klart() {
-      statistik('tal_klart', { lista, ratt: ratta, antal: tal.length });
-      el.innerHTML = resultatHTML({
-        bild: ratta === tal.length ? 'pokal' : 'lampa',
-        rubrik: `${ratta} av ${tal.length}`,
-        text: 'Ju fler ord du hittar på, desto snabbare går det. Proffsen har ett färdigt ord för varje tal, och det är nästa steg!',
-      }) + `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-igen>Kör igen</button>
-        <a class="knapp" href="#lathund">Nästa steg →</a></div>`;
-      el.querySelector('[data-igen]').addEventListener('click', starta);
+      statistik('tal_klart', { ratt: ratta, antal: tal.length });
+      el.innerHTML = resultatHTML(`${ratta} av ${tal.length}`,
+        'Ju fler ord du hittar på, desto snabbare går det. Proffsen har ett färdigt ord för varje tal, och det är nästa steg!',
+        ratta === tal.length);
+      $('[data-igen]', el).addEventListener('click', () => { starta(); iSikte(el); });
     }
 
     starta();
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 4. LATHUNDEN
+  // 4. LATHUNDEN: läs tio ord, öva på dem, ta nästa tiotal
   // ════════════════════════════════════════════════════════════════════
-  let niva = lagra.hamta('niva', {});   // '07' → 1 (öva mer) … 5 (sitter)
-  const kan = t => (niva[t] || 0) >= 2;
+  function lathund() {
+    const el = $('#lathund-ovning'), valEl = $('#lathund-val');
+    let tio = 0, ko = [], missar = 0, aktuell = null, lage = 'lista';
+    const talen = () => [...Array(10).keys()].map(n => `${tio}${n}`);
 
-  function ritaLathund() {
-    const rut = $('#lathund-rutnat');
-    rut.innerHTML = [...Array(100).keys()].map(n => {
-      const t = tal2(n);
-      return `<button type="button" data-tal="${t}" data-niva="${niva[t] || 0}"${egna[t] ? ' class="eget"' : ''}
-        aria-label="${t}: ${esc(ordFor(t).ord)}">${t}</button>`;
-    }).join('');
-    const antal = Object.keys(niva).filter(kan).length;
-    $('#lathund-summa').textContent = antal ? `Du kan ${antal} av 100 ord` : 'Dina 100 ord';
-    $('#lathund-lista').innerHTML = [...Array(100).keys()].map(n => {
-      const t = tal2(n), o = ordFor(t);
-      return `<div><span class="nr">${sifferHTML(t)}</span><span class="em" aria-hidden="true">${o.emoji}</span>
-        <span>${esc(o.ord)}${o.not ? ` <small>(${esc(o.not)})</small>` : ''}</span></div>`;
-    }).join('');
-  }
-
-  function visaLathundOrd(t) {
-    const o = ordFor(t);
-    oppnaDialog(`
-      <div class="stor">${sifferHTML(t)}</div>
-      ${ordHTML(o)}
-      ${uppdelningHTML(L.analysera(o.ord).delar)}
-      <hr>
-      <p class="eget-rubrik">Byt till ett eget ord</p>
-      <form class="eget-in" data-eget>
-        <label class="sr" for="eget-ord">Eget ord för ${t}</label>
-        <input id="eget-ord" type="text" maxlength="30" autocapitalize="off" spellcheck="false" value="${o.eget ? esc(o.ord) : ''}" placeholder="Ditt ord för ${t}">
-        <button class="knapp liten-k" type="submit">Spara</button>
-      </form>
-      <div class="eget-status" data-status aria-live="polite"></div>
-      ${o.eget ? `<button class="knapp sekundar liten-k" type="button" data-aterstall style="margin-top:6px">Tillbaka till bokens ord: ${esc(o.bok)}</button>` : ''}`,
-    dlg => {
-      const inn = $('#eget-ord', dlg), status = $('[data-status]', dlg);
-      const kontroll = () => {
-        const v = inn.value.trim();
-        if (!v) { status.textContent = ''; return; }
-        const s = L.tillSiffror(v);
-        status.style.color = s === t ? 'var(--ratt)' : 'var(--c0)';
-        status.innerHTML = s === t ? `✓ Låter rätt: ${sifferHTML(s)}`
-          : `Jag hör ${s ? sifferHTML(s) : 'inga konsonanter'}. Du kan spara ändå om du uttalar det annorlunda.`;
-      };
-      inn.addEventListener('input', kontroll);
-      kontroll();
-      $('[data-eget]', dlg).addEventListener('submit', e => {
-        e.preventDefault();
-        const v = inn.value.trim();
-        if (v && v !== D.lathund[+t][0]) egna[t] = v; else delete egna[t];
-        lagra.spara('egna', egna);
-        statistik('eget_ord', { tal: t });
-        ritaLathund();
-        stangDialog();
-      });
-      const at = $('[data-aterstall]', dlg);
-      if (at) at.addEventListener('click', () => {
-        delete egna[t]; lagra.spara('egna', egna); ritaLathund(); stangDialog();
-      });
+    valEl.innerHTML = [...Array(10).keys()].map(n =>
+      `<button type="button" data-tio="${n}">${n}0–${n}9</button>`).join('');
+    valEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-tio]');
+      if (b) { tio = +b.dataset.tio; lista(); }
     });
-  }
 
-  function lathundOvning() {
-    const el = $('#lathund-ovning');
-    let lek = '0', hall = 'tal', ko = [], antal = 0, missar = 0, aktuell = null, lage = 'fraga', skrivet = '', omgang = 0;
-    const lekEl = $('#lathund-lek'), hallEl = $('#lathund-hall');
-
-    function ritaVal() {
-      const svara = Object.keys(niva).filter(t => niva[t] === 1).length;
-      const lekar = [...Array(10).keys()].map(n => [String(n), `${n}0–${n}9`]);
-      lekar.push(['alla', 'Alla 100']);
-      if (svara) lekar.push(['svara', `Öva mer (${svara})`]);
-      if (lek === 'svara' && !svara) lek = 'alla';
-      lekEl.innerHTML = lekar.map(([k, n]) => `<button type="button" data-lek="${k}" aria-pressed="${k === lek}">${n}</button>`).join('');
-      hallEl.innerHTML = [['tal', 'Tal → ord'], ['ord', 'Ord → tal']]
-        .map(([k, n]) => `<button type="button" data-hall="${k}" aria-pressed="${k === hall}">${n}</button>`).join('');
+    function lista() {
+      lage = 'lista'; aktuell = null;
+      $$('[data-tio]', valEl).forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.tio === tio)));
+      el.innerHTML = `<ul class="ordlista">${talen().map(t => {
+          const [ord, not] = D.lathund[+t];
+          return `<li><span class="nr">${t}</span><span>${esc(ord)}${not ? `<small>${esc(not)}</small>` : ''}</span></li>`;
+        }).join('')}</ul>
+        <div class="knapprad"><button class="knapp" type="button" data-ova>Öva på de här ▶</button></div>`;
+      $('[data-ova]', el).addEventListener('click', ova);
     }
-    lekEl.addEventListener('click', e => { const b = e.target.closest('[data-lek]'); if (b) { lek = b.dataset.lek; ritaVal(); starta(); } });
-    hallEl.addEventListener('click', e => { const b = e.target.closest('[data-hall]'); if (b) { hall = b.dataset.hall; ritaVal(); starta(); } });
 
-    function starta() {
-      let tal;
-      if (lek === 'alla') {
-        // de minst övade först, max 20 åt gången
-        tal = blanda([...Array(100).keys()].map(tal2)).sort((a, b) => (niva[a] || 0) - (niva[b] || 0)).slice(0, 20);
-      } else if (lek === 'svara') tal = Object.keys(niva).filter(t => niva[t] === 1).slice(0, 20);
-      else tal = [...Array(10).keys()].map(n => lek + n);
-      ko = blanda(tal); antal = ko.length; missar = 0; omgang++;
+    function ova() {
+      ko = blanda(talen()); missar = 0;
       nasta();
+      iSikte(el);
     }
 
     function nasta() {
       if (!ko.length) return klart();
       aktuell = ko.shift();
-      lage = 'fraga'; skrivet = '';
-      const o = ordFor(aktuell);
-      const kvar = ko.length + 1;
+      lage = 'fraga';
       el.innerHTML = `
-        <div class="ov-topp"><span>${kvar} kvar</span><span>${missar ? `${missar} ${missar === 1 ? 'miss' : 'missar'}` : ''}</span></div>
-        <div class="ov-prog"><i style="width:${((antal - kvar) / antal) * 100}%"></i></div>
-        <div class="vandkort" data-kort>
-          ${hall === 'tal'
-            ? `<div class="stor">${sifferHTML(aktuell)}</div><div data-baksida></div>`
-            : `${ordHTML(o)}<div class="ov-svar" data-rutor>${rutorHTML('__', '')}</div>`}
-        </div>
-        <div class="aterkoppling" aria-live="polite" data-ak></div>
-        <div data-knappar></div>
-        <p class="tangenttips">${hall === 'tal' ? 'Tips: mellanslag visar ordet, pil höger = kunde, pil vänster = kunde inte.' : 'Tips: skriv talet med tangentbordet.'}</p>`;
-      const kn = $('[data-knappar]', el);
-      if (hall === 'tal') {
-        kn.innerHTML = `<div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-vand>Visa ordet</button></div>`;
-        $('[data-vand]', kn).addEventListener('click', vand);
-      } else {
-        kn.appendChild(knappsats(skriv, { klar: false }));
-      }
+        <div class="ov-topp"><span>${ko.length + 1} kvar</span></div>
+        <div class="vandkort"><div class="stor">${aktuell}</div><div data-baksida></div></div>
+        <div class="knapprad" data-knappar><button class="knapp" type="button" data-vand>Visa ordet</button></div>`;
+      $('[data-vand]', el).addEventListener('click', vand);
     }
 
     function vand() {
       if (lage !== 'fraga') return;
       lage = 'vand';
-      $('[data-baksida]', el).innerHTML = ordHTML(ordFor(aktuell));
-      const kn = $('[data-knappar]', el);
-      kn.innerHTML = `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-nej>✗ Kunde inte</button>
-        <button class="knapp" type="button" data-ja>✓ Kunde</button></div>`;
-      $('[data-ja]', kn).addEventListener('click', () => bedom(true));
-      $('[data-nej]', kn).addEventListener('click', () => bedom(false));
+      const [ord, not] = D.lathund[+aktuell];
+      $('[data-baksida]', el).innerHTML = `<div class="stor ord">${esc(ord)}</div>${not ? `<p class="liten">${esc(not)}</p>` : ''}`;
+      $('[data-knappar]', el).innerHTML = `
+        <button class="knapp sekundar" type="button" data-nej>Kunde inte</button>
+        <button class="knapp" type="button" data-ja>Kunde</button>`;
+      $('[data-ja]', el).addEventListener('click', () => bedom(true));
+      $('[data-nej]', el).addEventListener('click', () => bedom(false));
     }
 
-    function skriv(t) {
-      if (lage !== 'fraga') return;
-      if (t === 'Backspace') skrivet = skrivet.slice(0, -1);
-      else if (/^\d$/.test(t)) skrivet += t;
-      $('[data-rutor]', el).innerHTML = rutorHTML('__', skrivet);
-      if (skrivet.length === 2) {
-        lage = 'vand';
-        const ratt = skrivet === aktuell;
-        const ak = $('[data-ak]', el);
-        ak.className = 'aterkoppling ' + (ratt ? 'ratt' : 'fel');
-        ak.innerHTML = ratt ? 'Rätt!' : `Det var ${sifferHTML(aktuell)}`;
-        if (!ratt) $('[data-rutor]', el).classList.add('skaka');
-        const o = omgang, t = aktuell;
-        setTimeout(() => { if (o === omgang && t === aktuell && lage === 'vand') bedom(ratt); }, ratt ? 550 : 1500);
-      }
-    }
-
-    function bedom(ratt) {
-      lage = 'klar';
-      const t = aktuell;
-      niva[t] = ratt ? Math.min(5, Math.max(2, (niva[t] || 0) + 1)) : 1;
-      lagra.spara('niva', niva);
-      if (!ratt) { missar++; ko.splice(Math.min(ko.length, 3), 0, t); }
-      const cell = $(`#lathund-rutnat [data-tal="${t}"]`);
-      if (cell) cell.dataset.niva = niva[t];
-      const antalKan = Object.keys(niva).filter(kan).length;
-      $('#lathund-summa').textContent = `Du kan ${antalKan} av 100 ord`;
+    function bedom(kunde) {
+      if (lage !== 'vand') return;
+      // ett ord man inte kunde kommer tillbaka om några kort
+      if (!kunde) { missar++; ko.splice(Math.min(ko.length, 3), 0, aktuell); }
       nasta();
-      iSikte(el.parentElement);
+      iSikte(el);
     }
 
     function klart() {
-      statistik('lathund_klart', { lek, hall, antal, missar });
-      ritaVal();
-      const tiotal = /^\d$/.test(lek) && lek !== '9';
-      el.innerHTML = resultatHTML({
-        bild: missar ? 'lampa' : 'pokal',
-        rubrik: missar ? 'Klart!' : 'Felfritt!',
-        text: `${antal} ord${missar ? `, ${missar} ${missar === 1 ? 'miss' : 'missar'} på vägen` : ''}. Repetera i morgon så sitter de ännu bättre.`,
-      }) + `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-igen>Kör igen</button>
-        ${tiotal ? `<button class="knapp" type="button" data-nasta-lek>Nästa tiotal: ${+lek + 1}0–${+lek + 1}9 →</button>` : ''}</div>`;
-      el.querySelector('[data-igen]').addEventListener('click', starta);
-      const nl = el.querySelector('[data-nasta-lek]');
-      if (nl) nl.addEventListener('click', () => { lek = String(+lek + 1); ritaVal(); starta(); });
+      lage = 'klar'; aktuell = null;
+      statistik('lathund_klart', { tio, missar });
+      el.innerHTML = resultatHTML(missar ? 'Klart!' : 'Felfritt!',
+        `${tio}0–${tio}9${missar ? `, med ${missText(missar)} på vägen` : ''}. Repetera i morgon så sitter de ännu bättre.`, !missar);
+      if (tio < 9) {
+        $('.knapprad', el).insertAdjacentHTML('beforeend', '<button class="knapp" type="button" data-nasta-tio>Nästa tiotal →</button>');
+        $('[data-nasta-tio]', el).addEventListener('click', () => { tio++; lista(); iSikte(el); });
+      }
+      $('[data-igen]', el).addEventListener('click', ova);
+      iSikte(el);
     }
 
     tangenter.lathund = k => {
-      if (!aktuell || !$('[data-kort]', el)) return false;
-      if (hall === 'tal') {
-        if (lage === 'fraga' && (k === ' ' || k === 'Enter')) { vand(); return true; }
-        if (lage === 'vand' && (k === 'ArrowRight' || k === 'Enter')) { bedom(true); return true; }
-        if (lage === 'vand' && (k === 'ArrowLeft' || k === 'Backspace')) { bedom(false); return true; }
-        return false;
-      }
-      if (/^\d$/.test(k) || k === 'Backspace') { skriv(k); return true; }
+      if (lage === 'fraga' && (k === ' ' || k === 'Enter')) { vand(); return true; }
+      if (lage === 'vand' && (k === 'ArrowRight' || k === 'Enter')) { bedom(true); return true; }
+      if (lage === 'vand' && (k === 'ArrowLeft' || k === 'Backspace')) { bedom(false); return true; }
       return false;
     };
 
-    ritaVal();
-    starta();
+    lista();
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 5. ÅRTAL OCH SIFFERFAKTA
+  // 5. ÅRTAL
   // ════════════════════════════════════════════════════════════════════
-  const ILLU = {
-    riksdag: { b: 422, h: 220, klass: '' },
-    burj: { b: 282, h: 596, klass: ' hog' },
-  };
-  const illuHTML = namn => namn && ILLU[namn]
-    ? `<img class="fakta-bild${ILLU[namn].klass}" src="assets/siffror/${namn}.webp" alt="" width="${ILLU[namn].b}" height="${ILLU[namn].h}" loading="lazy">`
-    : '';
+  // bildförslaget med lathundens ord i fetstil
+  function bildHTML(a) {
+    const n = a.bild.toLowerCase().indexOf(a.ord.toLowerCase());
+    return n < 0 ? `${esc(a.bild)} <b>${esc(a.ord)}</b>`
+      : esc(a.bild.slice(0, n)) + `<b>${esc(a.bild.slice(n, n + a.ord.length))}</b>` + esc(a.bild.slice(n + a.ord.length));
+  }
 
   function artal() {
-    const listaEl = $('#artal-lista'), el = $('#artal-ovning');
-    let lista = 'artal';
-    const fragor = () => lista === 'artal'
-      ? D.artal.map(a => ({ fraga: a.text, under: 'Vilket år?', mask: '19__', svar: a.tal, ord: a.ord, bild: a.bild }))
-      : D.fakta.map(f => ({ fraga: f.fraga, under: '', mask: f.mask, svar: f.svar, ord: f.ord, bild: f.bild, illu: f.illu }));
+    $('#artal-lista').innerHTML = D.artal.map(a => `<li><span class="ar">${a.ar}</span>
+      <span>${esc(a.text)}<span class="bild">${bildHTML(a)}</span></span></li>`).join('');
 
-    const valEl = $('#artal-val');
-    valEl.innerHTML = [['artal', '1900-talet'], ['fakta', 'Fler siffror ur boken']]
-      .map(([k, n]) => `<button type="button" data-lista="${k}" aria-pressed="${k === lista}">${n}</button>`).join('');
-    valEl.addEventListener('click', e => {
-      const b = e.target.closest('[data-lista]');
-      if (!b) return;
-      lista = b.dataset.lista;
-      $$('[data-lista]', valEl).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-      ritaLista();
-      startsida();
-    });
+    const el = $('#artal-ovning');
+    let fr = [], i = 0, ratta = 0, skrivet = '', lage = 'av';
 
-    function ritaLista() {
-      if (lista === 'artal') {
-        listaEl.innerHTML = D.artal.map(a => {
-          const o = D.lathund[+a.tal];
-          return `<div><span class="ar"><small>19</small>${sifferHTML(a.tal)}</span>
-            <span class="h">${esc(a.text)} <b style="white-space:nowrap">${o[1]} ${esc(a.ord)}</b></span>
-            <span class="b">💡 ${esc(a.bild)}</span></div>`;
-        }).join('');
-      } else {
-        listaEl.innerHTML = D.fakta.map(f => `<div><span class="ar">${sifferHTML(fyllMask(f.mask, f.svar).replace(/:e$/, ''))}</span>
-          <span class="h">${esc(f.fraga)} <b style="white-space:nowrap">${esc(f.ord)}</b></span>
-          <span class="b">💡 ${esc(f.bild)}</span>${illuHTML(f.illu)}</div>`).join('');
-      }
-    }
+    el.innerHTML = `<h3>Förhör</h3>
+      <p>Har bilderna fastnat? Jag frågar om tio av årtalen.</p>
+      <div class="knapprad"><button class="knapp" type="button" data-start>Förhör mig ▶</button></div>`;
+    $('[data-start]', el).addEventListener('click', starta);
 
-    let fr = [], i = 0, ratta = 0, skrivet = '', lage = 'svarar';
-    function startsida() {
-      el.innerHTML = `<h3>Förhör</h3>
-        <p>Har bilderna fastnat? Jag ställer frågorna i blandad ordning.</p>
-        <div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-start>Förhör mig ▶</button></div>`;
-      el.querySelector('[data-start]').addEventListener('click', starta);
-      lage = 'av';
-    }
     function starta() {
-      fr = blanda(fragor()).slice(0, 10);
+      fr = blanda(D.artal).slice(0, 10);
       i = 0; ratta = 0;
       visa();
       iSikte(el);
     }
-    $('[data-till-forhor]').addEventListener('click', e => {
-      e.preventDefault();
-      el.scrollIntoView({ behavior: REDUCERAD ? 'auto' : 'smooth', block: 'center' });
-    });
+
     function visa() {
       if (i >= fr.length) return klart();
-      const f = fr[i];
       skrivet = ''; lage = 'svarar';
       el.innerHTML = `
-        <div class="ov-topp"><span>Fråga ${i + 1} av ${fr.length}</span><span>✓ ${ratta}</span></div>
-        <div class="ov-prog"><i style="width:${(i / fr.length) * 100}%"></i></div>
-        <p style="font-size:1.12rem;font-weight:700;margin-top:12px">${esc(f.fraga)}</p>
-        ${f.under ? `<div class="fraga-text">${f.under}</div>` : ''}
-        <div class="ov-svar" data-rutor>${rutorHTML(f.mask, '')}</div>
-        <div class="aterkoppling" aria-live="polite" data-ak></div>
+        <div class="ov-topp"><span>Fråga ${i + 1} av ${fr.length}</span></div>
+        <p class="handelse">${esc(fr[i].text)}</p>
+        <div class="ov-svar" data-rutor>${rutorHTML('19__', '')}</div>
+        <p class="aterkoppling" aria-live="polite" data-ak></p>
         <div class="forklaring" data-fk></div>
         <div data-knappar></div>`;
-      $('[data-knappar]', el).appendChild(knappsats(tryck));
+      $('[data-knappar]', el).appendChild(knappsats(tryck, { klar: false }));
     }
+
     function tryck(t) {
-      const f = fr[i];
-      if (lage === 'visar') { if (t === 'Enter') { i++; visa(); iSikte(el); } return; }
-      if (lage !== 'svarar') return;
+      if (lage === 'visar') { if (t === 'Enter') nasta(); return; }
+      if (lage !== 'svarar' || t === 'Enter') return;
       if (t === 'Backspace') skrivet = skrivet.slice(0, -1);
-      else if (t === 'Enter') { if (skrivet.length === f.svar.length) ratta_(); return; }
-      else if (skrivet.length < f.svar.length) skrivet += t;
-      $('[data-rutor]', el).innerHTML = rutorHTML(f.mask, skrivet);
-      if (skrivet.length === f.svar.length) ratta_();
+      else skrivet += t;
+      $('[data-rutor]', el).innerHTML = rutorHTML('19__', skrivet);
+      if (skrivet.length === 2) ratta_();
     }
+
     function ratta_() {
-      const f = fr[i];
+      const a = fr[i];
       lage = 'visar';
-      const ratt = skrivet === f.svar;
+      const ratt = skrivet === a.tal;
       if (ratt) ratta++;
       const ak = $('[data-ak]', el);
       ak.className = 'aterkoppling ' + (ratt ? 'ratt' : 'fel');
-      ak.innerHTML = ratt ? 'Rätt! 🎉' : `Rätt svar: ${sifferHTML(fyllMask(f.mask, f.svar))}`;
+      ak.textContent = ratt ? 'Rätt!' : `Rätt svar: ${a.ar}`;
       if (!ratt) $('[data-rutor]', el).classList.add('skaka');
-      const a = L.analysera(f.ord);
-      $('[data-fk]', el).innerHTML = `<div class="bild"><b>${esc(f.ord)}</b> ${uppdelningHTML(a.delar)}<br>💡 ${esc(f.bild)}${illuHTML(f.illu)}</div>`;
-      const kn = $('[data-knappar]', el);
-      kn.innerHTML = `<div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-nasta>${i + 1 < fr.length ? 'Nästa fråga →' : 'Se resultatet'}</button></div>`;
-      const b = $('[data-nasta]', kn);
-      b.addEventListener('click', () => { i++; visa(); iSikte(el); });
+      $('[data-fk]', el).innerHTML = `<p>${bildHTML(a)}</p>`;
+      const b = nastaKnapp(i + 1 < fr.length ? 'Nästa fråga →' : 'Se resultatet', el);
+      b.addEventListener('click', nasta);
       b.focus({ preventScroll: true });
       iSikte(el);
     }
+
+    function nasta() { i++; visa(); iSikte(el); }
+
     function klart() {
       lage = 'av';
-      statistik('artal_klart', { lista, ratt: ratta, antal: fr.length });
-      el.innerHTML = resultatHTML({
-        bild: ratta === fr.length ? 'pokal' : 'lampa',
-        rubrik: `${ratta} av ${fr.length}`,
-        text: ratta === fr.length ? 'Alla rätt! Nu kan du briljera på nästa middag.' : 'Läs igenom bilderna en gång till och kör igen!',
-      }) + `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-igen>Kör igen</button>
-        <a class="knapp" href="#pi">Nästa steg →</a></div>`;
-      el.querySelector('[data-igen]').addEventListener('click', starta);
+      statistik('artal_klart', { ratt: ratta, antal: fr.length });
+      const alla = ratta === fr.length;
+      el.innerHTML = resultatHTML(`${ratta} av ${fr.length}`,
+        alla ? 'Alla rätt! Nu kan du briljera på nästa middag.' : 'Läs igenom bilderna en gång till och kör igen!', alla);
+      $('[data-igen]', el).addEventListener('click', starta);
     }
 
     tangenter.artal = k => {
@@ -869,107 +553,69 @@
       if (/^\d$/.test(k) || k === 'Backspace' || k === 'Enter') { tryck(k); return true; }
       return false;
     };
-
-    ritaLista();
-    startsida();
   }
 
   // ════════════════════════════════════════════════════════════════════
   // 6. PI-UTMANINGEN
   // ════════════════════════════════════════════════════════════════════
+  // en ring på bokens karta över minnespalatset
+  const ringStil = n => `left:${D.palatsPos[n][0]}%;top:${D.palatsPos[n][1]}%`;
+
   function pi() {
     const P = D.pi.platser;
     const promEl = $('#pi-promenad'), forEl = $('#pi-forhor'), radEl = $('#pi-rad');
     let p = 0;
 
-    function ritaRad() {
-      radEl.innerHTML = '<span class="sf">3,</span> ' + P.map((pl, n) =>
-        pl.par.map(par => `<span class="par${n === p ? ' nu' : ''}">${sifferHTML(par)}</span>`).join(' ')).join(' ');
-    }
-
-    let byggd = false;
     function ritaPromenad() {
-      if (!byggd) {
-        promEl.innerHTML = `
-          <h3>2. Gå promenaden</h3>
-          <div class="promenad">
-            ${kartaHTML('<span class="ring" data-ring></span>')}
-            <div data-plats></div>
-          </div>
-          <div class="prickar">${P.map((_, n) => `<button type="button" data-p="${n}" aria-label="Plats ${n + 1}"></button>`).join('')}</div>
-          <div class="knapprad" style="justify-content:center" data-pknappar></div>`;
-        byggd = true;
-      }
       const pl = P[p];
-      const [namn, rum] = D.palats[p];
-      const ord = pl.par.map(ordFor);
-      const egnaHar = ord.some(o => o.eget);
+      radEl.innerHTML = '3, ' + P.map((x, n) => `<span${n === p ? ' class="nu"' : ''}>${x.par.join(' ')}</span>`).join(' ');
       $('[data-ring]', promEl).style.cssText = ringStil(p);
       $('[data-plats]', promEl).innerHTML = `
-        <div class="plats-nr">Plats ${p + 1} av ${P.length} · ${rum}</div>
-        <div class="plats-namn">${namn}</div>
-        <div class="plats-par">${pl.par.map((par, n) => `<div>
-          <span class="em" aria-hidden="true">${ord[n].emoji}</span>
-          <span class="nr">${sifferHTML(par)}</span><span class="w">${esc(ord[n].ord)}</span></div>`).join('')}</div>
-        <p class="plats-bild">${egnaHar
-          ? (ord.length === 2 ? `Hitta på en bild där ${esc(ord[0].ord)} gör något med ${esc(ord[1].ord)}.` : `Föreställ dig ${esc(ord[0].ord)} här.`)
-          : esc(pl.bild)}</p>`;
-      $$('.prickar button', promEl).forEach((knapp, n) => knapp.setAttribute('aria-current', String(n === p)));
-      $('[data-pknappar]', promEl).innerHTML = `
-        <button class="knapp sekundar" type="button" data-forra ${p === 0 ? 'disabled' : ''}>← Förra</button>
-        ${p < P.length - 1
-          ? '<button class="knapp" type="button" data-nasta>Nästa plats →</button>'
-          : '<button class="knapp" type="button" data-testa>Testa dig! ↓</button>'}`;
-      ritaRad();
+        <p class="plats-nr">Plats ${p + 1} av ${P.length}</p>
+        <p class="plats-namn">${esc(D.palats[p])}</p>
+        <p class="plats-par">${pl.par.map(par => `<span><b>${par}</b> ${esc(ordFor(par))}</span>`).join('')}</p>
+        <p class="plats-bild">${esc(pl.bild)}</p>`;
+      $('[data-forra]', promEl).disabled = p === 0;
+      $('[data-nasta]', promEl).textContent = p < P.length - 1 ? 'Nästa plats →' : 'Testa dig ↓';
     }
     promEl.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (!b) return;
-      if (b.dataset.p != null) p = +b.dataset.p;
-      else if ('forra' in b.dataset) p = Math.max(0, p - 1);
-      else if ('nasta' in b.dataset) p = Math.min(P.length - 1, p + 1);
-      else if ('testa' in b.dataset) { forEl.scrollIntoView({ behavior: REDUCERAD ? 'auto' : 'smooth', block: 'start' }); return; }
+      if ('forra' in b.dataset) p = Math.max(0, p - 1);
+      else if (p < P.length - 1) p++;
+      else { forEl.scrollIntoView({ behavior: REDUCERAD ? 'auto' : 'smooth', block: 'start' }); return; }
       ritaPromenad();
     });
 
     // förhöret
     const DEC = D.pi.decimaler;
-    let pos = 0, fel = 0, missPa = {}, start = 0, igang = false;
+    let pos = 0, fel = 0, missPa = {}, start = 0, igang = false, klocka = null;
 
     function forhorStart() {
-      igang = false;
-      const bast = lagra.hamta('pi-bast', null);
-      forEl.innerHTML = `
-        <h3>3. Testa dig</h3>
-        ${teckningHTML('kapitel', 'width:110px;height:auto;display:block;margin:6px auto 8px')}
-        <p>Blunda och gå promenaden i huvudet: från ytterdörren, in i hallen och vidare.
-          Skriv sedan alla 30 decimalerna. Tiden går från första siffran.</p>
-        ${bast ? `<p class="liten" style="margin-top:6px">Ditt rekord: ${sekText(bast.sek)}${bast.fel ? `, ${bast.fel} fel` : ', felfritt'}</p>` : ''}
-        <div class="knapprad" style="justify-content:center"><button class="knapp" type="button" data-start>Jag är redo ▶</button></div>`;
+      forEl.innerHTML = `<h3>Testa dig</h3>
+        <p>Blunda och gå promenaden i huvudet. Skriv sedan alla 30 decimalerna. Tiden går från första siffran.</p>
+        <div class="knapprad"><button class="knapp" type="button" data-start>Jag är redo ▶</button></div>`;
       $('[data-start]', forEl).addEventListener('click', forhorKor);
     }
 
     function forhorKor() {
       pos = 0; fel = 0; missPa = {}; start = 0; igang = true;
       forEl.innerHTML = `
-        <div class="ov-topp"><span data-kvar>30 kvar</span><span data-klocka>0 s</span></div>
+        <div class="ov-topp"><span data-kvar></span><span data-klocka>0 s</span></div>
         <div class="pi-forhor-tal" data-tal aria-live="polite"></div>
-        <div class="pi-tips" data-tips></div>
-        <div data-knappar></div>
-        <p class="tangenttips">Tips: skriv med tangentbordet.</p>`;
+        <p class="pi-tips" data-tips></p>
+        <div data-knappar></div>`;
       $('[data-knappar]', forEl).appendChild(knappsats(skriv, { tio: true }));
       ritaTal();
       iSikte(forEl);
     }
 
-    let klocka = null;
     function ritaTal() {
       let html = '<span class="par">3,</span>';
       for (let n = 0; n < DEC.length; n += 2) {
         html += `<span class="par${n % 4 === 0 && n ? ' ny-plats' : ''}">`;
         for (const k of [n, n + 1]) {
-          const c = DEC[k];
-          html += k < pos ? `<span class="sf d${c}${missPa[k] ? ' miss' : ''}">${c}</span>`
+          html += k < pos ? `<span${missPa[k] ? ' class="miss"' : ''}>${DEC[k]}</span>`
             : k === pos ? '<span class="nu">_</span>' : '<span class="tom">•</span>';
         }
         html += '</span>';
@@ -990,7 +636,7 @@
         pos++;
         tips.textContent = '';
         ritaTal();
-        if (pos === DEC.length) return forhorKlart();
+        if (pos === DEC.length) forhorKlart();
         return;
       }
       fel++;
@@ -998,11 +644,9 @@
       const tal = $('[data-tal]', forEl);
       tal.classList.remove('skaka'); void tal.offsetWidth; tal.classList.add('skaka');
       // tipsen blir tydligare för varje miss på samma siffra
-      const platsNr = Math.floor(pos / 4);
-      const [namn] = D.palats[platsNr];
-      const ord = P[platsNr].par.map(ordFor).map(o => `${o.emoji} ${o.ord}`).join(' och ');
-      tips.textContent = missPa[pos] === 1 ? `Tänk på plats ${platsNr + 1}: ${namn.toLowerCase()}.`
-        : missPa[pos] === 2 ? `Plats ${platsNr + 1}: ${ord}.`
+      const n = Math.floor(pos / 4);
+      tips.textContent = missPa[pos] === 1 ? `Tänk på plats ${n + 1}: ${D.palats[n].toLowerCase()}.`
+        : missPa[pos] === 2 ? `Plats ${n + 1}: ${P[n].par.map(ordFor).join(' och ')}.`
         : `Siffran är ${DEC[pos]}.`;
     }
 
@@ -1014,14 +658,9 @@
       const battre = !bast || fel < bast.fel || (fel === bast.fel && sek < bast.sek);
       if (battre) lagra.spara('pi-bast', { sek, fel });
       statistik('pi_klart', { sek, fel });
-      forEl.innerHTML = resultatHTML({
-        bild: fel ? 'lampa' : 'pokal',
-        rubrik: fel ? sekText(sek) : 'Felfritt! 🎉',
-        text: `Du kan de 30 första decimalerna av pi${fel ? `, med ${fel} fel på vägen` : ` på ${sekText(sek)}`}.
-          ${battre && bast ? 'Nytt rekord! ' : ''}Bara 13&nbsp;178 decimaler kvar, så är du ikapp mig …`,
-      }) + `<div class="knapprad" style="justify-content:center">
-        <button class="knapp sekundar" type="button" data-igen>Testa igen</button>
-        <a class="knapp" href="#dittal">Nästa steg →</a></div>`;
+      forEl.innerHTML = resultatHTML(fel ? sekText(sek) : 'Felfritt!',
+        `Du kan de 30 första decimalerna av pi${fel ? `, med ${fel} fel på vägen` : ` på ${sekText(sek)}`}.
+        ${battre && bast ? 'Nytt rekord! ' : ''}Bara 13&nbsp;178 decimaler kvar, så är du ikapp mig …`, !fel);
       $('[data-igen]', forEl).addEventListener('click', forhorKor);
       iSikte(forEl);
     }
@@ -1035,7 +674,6 @@
 
     ritaPromenad();
     forhorStart();
-    return { visad: ritaPromenad };   // egna ord kan ha ändrats sedan sist
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -1044,71 +682,53 @@
   function dittTal() {
     const inn = $('#dittal-in'), ut = $('#dittal-ut'), karta = $('#dittal-karta');
     let raknad = false;
-    function rita() {
+    inn.addEventListener('input', () => {
       const siffror = inn.value.replace(/\D/g, '');
       const s = siffror.slice(0, 60);
       $$('.ring', karta).forEach(ring => ring.parentNode.removeChild(ring));
-      if (!s) {
-        ut.innerHTML = '<p class="liten">Prova med ett telefonnummer, en portkod eller året du föddes.</p>';
-        return;
-      }
+      if (!s) { ut.innerHTML = ''; return; }
       if (!raknad) { raknad = true; statistik('dittal_anvant'); }
       const par = s.match(/\d{1,2}/g);
       const platser = [];
       for (let n = 0; n < par.length; n += 2) platser.push(par.slice(n, n + 2));
       karta.insertAdjacentHTML('beforeend', platser.map((_, n) => `<span class="ring liten" style="${ringStil(n)}"></span>`).join(''));
-      ut.innerHTML = platser.map((pp, n) => {
-        const [namn] = D.palats[n] || [`Plats ${n + 1}`];
-        const ord = pp.map(t => { const o = ordFor(t); return `<span class="nr">${sifferHTML(t)}</span> ${o.emoji} ${esc(o.ord)}`; });
-        return `<div><div class="pn">Plats ${n + 1}${D.palats[n] ? ' · ' + namn : ''}</div><div class="po">${ord.join(' &nbsp;+&nbsp; ')}</div></div>`;
-      }).join('') + (siffror.length > 60 ? '<p class="liten">Jag tog de första 60 siffrorna.</p>' : '') +
-        (platser.length ? '<p class="liten">Låt den första bilden göra något med den andra, så sitter ordningen.</p>' : '');
-    }
-    inn.addEventListener('input', rita);
-    rita();
-    return { visad: rita };
+      ut.innerHTML = platser.map((pp, n) => `<li><span class="pn">${n + 1}. ${esc(D.palats[n])}</span>
+        ${pp.map(t => `<b>${t}</b> ${esc(ordFor(t))}`).join(' &nbsp;+&nbsp; ')}</li>`).join('') +
+        (siffror.length > 60 ? '<li class="liten">Jag tog de första 60 siffrorna.</li>' : '');
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // FLIKARNA
+  // STEGEN
   // ════════════════════════════════════════════════════════════════════
   const VYER = ['alfabetet', 'ord', 'tal', 'lathund', 'artal', 'pi', 'dittal'];
-  const vidVisning = {};
-  function visaVy(id, { scrolla = true } = {}) {
+  function visaVy(id, forsta = false) {
     if (!VYER.includes(id)) id = 'alfabetet';
     const byte = id !== aktivVy;
     aktivVy = id;
     for (const v of VYER) $(`#vy-${v}`).hidden = v !== id;
-    $$('.flik').forEach(a => {
+    $$('.steg-nav a').forEach(a => {
       if (a.getAttribute('href') === '#' + id) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
-    const flik = $(`.flik[href="#${id}"]`);
-    if (flik) flik.scrollIntoView({ block: 'nearest', inline: 'center' });
-    if (vidVisning[id]) vidVisning[id]();
-    if (scrolla) {
-      const y = $('.flikar').offsetTop;
-      if (window.scrollY > y) window.scrollTo({ top: y, behavior: 'auto' });
+    if (!forsta) {
+      // börja nya steget överst
+      const y = $('.steg-nav').getBoundingClientRect().top + scrollY;
+      if (scrollY > y) scrollTo({ top: y, behavior: 'auto' });
     }
-    if (byte || !scrolla) statistik('flik', { flik: id });
+    if (byte || forsta) statistik('flik', { flik: id });
   }
 
   // ── igång ──
-  byggAlfabet();
+  alfabet();
   alfabetQuiz();
   ordTillSiffror();
   siffrorTillOrd();
-  ritaLathund();
-  $('#lathund-rutnat').addEventListener('click', e => {
-    const b = e.target.closest('[data-tal]');
-    if (b) visaLathundOrd(b.dataset.tal);
-  });
-  lathundOvning();
+  lathund();
   artal();
-  vidVisning.pi = pi().visad;
-  vidVisning.dittal = dittTal().visad;
-  vidVisning.lathund = ritaLathund;
+  pi();
+  dittTal();
 
-  window.addEventListener('hashchange', () => visaVy(location.hash.slice(1)));
-  visaVy(location.hash.slice(1) || 'alfabetet', { scrolla: false });
+  addEventListener('hashchange', () => visaVy(location.hash.slice(1)));
+  visaVy(location.hash.slice(1) || 'alfabetet', true);
 })();
