@@ -20,6 +20,10 @@ som ligger mer än MARGINAL px utanför det svenska lagret. Nevada hade
 prickar i Kalifornien och South Dakota i Nebraska och Minnesota; Michigans
 fiskfenor ute i Huronsjön är större och står kvar.
 
+Kansas händer är bara konturer i lagret (PSD:ns vita bakgrund lyser
+igenom); de genomskinliga hålen målas vita (VITA_HAL), som de svenska
+vantarna.
+
 Resultatet: psd/engelska/<filnamn>.png och psd/engelska/lagen.json med
 läget i USA.psd-pixlar (x, y, b, h) per delstat."""
 import json
@@ -56,6 +60,12 @@ LAGER = {
 }
 # lager som läggs ihop med delstaten: (lager, under eller över)
 EXTRA = {'U H/Michigan': [('U H/FISH BACK', 'under'), ('FISH FRONT', 'over')]}
+# delstater vars lager har genomskinliga hål som PSD:ns vita bakgrund fyller:
+# Kansas händer (biljetten hålls i båda kanterna) är bara konturer — i det
+# svenska lagret var vantarna vitmålade. På globen fyllde bakningen hålen
+# med grannarnas och papperets underlägg (en grå rand med svarta prickar mot
+# Colorado, och Missouri tog över Kansas nordöstra hörn)
+VITA_HAL = {'Kansas'}
 
 
 def lagerkarta(psd):
@@ -127,6 +137,23 @@ def stada(ut, pos, svlager):
     return Image.fromarray(a), bort
 
 
+def fyll_hal(ut):
+    """Genomskinliga hål i lagret (som inte når bildens kant) blir vita, som i
+    PSD:ns komposit över den vita bakgrunden — även hålets kantutjämnade
+    rand, men inte lagrets yttre frans. Returnerar (bild, antal px)."""
+    a = np.asarray(ut).astype(float) / 255
+    al = a[..., 3]
+    etik, n = ndimage.label(al < 0.5)
+    kant = set(np.unique(np.concatenate([etik[0], etik[-1], etik[:, 0], etik[:, -1]]))) - {0}
+    hal = np.isin(etik, [i for i in range(1, n + 1) if i not in kant])
+    ute = np.isin(etik, list(kant))
+    zon = ndimage.binary_dilation(hal, iterations=2) & (al < 1) & ~ndimage.binary_dilation(ute, iterations=2)
+    vit = a[..., :3] * al[..., None] + (1 - al[..., None])
+    a[..., :3][zon] = vit[zon]
+    a[..., 3][zon] = 1
+    return Image.fromarray(np.round(a * 255).astype(np.uint8)), int(zon.sum())
+
+
 def fiskmaskar(namn, delar, pos, s, box):
     """Michigans fisk sticker ut över sjöarna: masker (alfa 0-255) på samma
     rutnät som bilden. <namn>-fisk.png är det som syns av fisken (främre
@@ -172,6 +199,9 @@ def main():
         ut = ut.crop((bx0, by0, bx1, by1))
         X0, Y0 = X0 + bx0, Y0 + by0
         namn = filnamn[stat]
+        if stat in VITA_HAL:
+            ut, vita = fyll_hal(ut)
+            print(f'  {vita} px genomskinliga hål vita (som PSD:ns bakgrund)')
         ut.save(UT / f'{namn}.png', optimize=True)
         lagen[stat] = {'fil': f'{namn}.png', 'x': X0, 'y': Y0, 'b': ut.width, 'h': ut.height}
         if len(delar) > 1:
@@ -180,4 +210,5 @@ def main():
     (UT / 'lagen.json').write_text(json.dumps(lagen, ensure_ascii=False, indent=1) + '\n')
 
 
-main()
+if __name__ == '__main__':
+    main()
