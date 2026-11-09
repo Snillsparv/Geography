@@ -221,6 +221,9 @@ python3 -I tools/engelska-konst.py --blak <tmp>          # ⇒ countries/<f>-en.
 `engelska-lager.py` skalar lagren till USA.psd:s rutnät (utskurna på jämna
 3 px), plockar bort lösa prickar långt från det svenska lagret och skriver
 Michigans fiskmasker (`michigan-fisk.png`, `michigan-fisk-front.png`).
+Kansas händer är bara konturer i lagret (PSD:ns vita bakgrund lyser igenom,
+de svenska vantarna var vitmålade); hålen målas vita (`VITA_HAL`), annars
+fyllde globbakningen dem med grannarnas underlägg.
 `engelska-konst.py` gör spelbilderna, deras placering i config.en.json och
 `overlay-en.webp`: originalkartans konturer lagda på `map.webp`:s ram (den
 svenska overlay.webp sträcks fel, se skriptet) och utsuddade under
@@ -231,6 +234,58 @@ Delaware och Massachusetts först förstorade med `mjuka-kanter.py ... 3` och
 bläck runt ZONE A/B och pilarna som egna svarta banor sist i SVG:n:
 vektorisera `<tmp>/arizona-blak.png` med `VEC_MEDIAN=1
 VEC_FILTER_SPECKLE=2` och lägg dess `<path>` före `</svg>`.
+
+Globen bakas med `--lang en` i make-tiles, postprocess-usa-data.py och
+make-usa-utstickare.mjs. Utan flaggan gör verktygen exakt som förut (den
+svenska bakningen och exporten blir byte för byte desamma). Från `tools/`:
+
+```bash
+node make-fisk-geojson.mjs           # ⇒ data/usa-en-fisk.geojson (~7 s)
+until node --max-old-space-size=12288 make-tiles.mjs --dataset usa --lang en \
+        --outline 0 --save tmp-usa-en; do echo "kraschade — kör igen"; done
+node make-tiles.mjs --dataset usa --lang en --save tmp-usa-en --assemble
+                                     # ⇒ tiles/usa-en.pmtiles (~5,5 min)
+node make-tiles.mjs --dataset usa --lang en --outline 0 \
+                    --borders assets/usa-en-borders.json \
+                    --regions assets/usa-en-regions.json \
+                    --markers assets/usa-en-markers.json   # alla tre i SAMMA körning
+python3 postprocess-usa-data.py --lang en   # exakt en gång på råexporten (~6 min)
+node make-usa-utstickare.mjs --lang en      # ⇒ utstickare/{pennsylvania,michigan}-en.webp
+```
+
+Sökvägarna tolkas från reporoten, som för den svenska. Utan `--out` blir
+arkivet `tiles/<dataset>[-<lang>].pmtiles` (`--dataset usa` skrev förut
+över world.pmtiles). `--lang en` läser `config.en.json`: en delstat med
+egen bild (`file`) bakas med `<f>-en.svg` och överläggets placering, men
+varpen förankras i den SVENSKA `countries/<f>.svg` med den SVENSKA
+placeringen (samma `ankare` som globbilderna). Då blir varpnätet bit för
+bit det svenska (make-fisk-geojson.mjs kontrollerar det och skriver ut
+skillnaden, som ska vara 0) och gid:arna samma; bara klickytorna, gränserna
+och sömmarna kring de 12 delstaterna ändras. Saknas en engelsk SVG avbryts
+bakningen (annars föll delstaten tyst bort och alla senare gid:ar flyttades).
+
+⚠️ Varje ändring av en svensk bild eller placering i `config.json` kräver
+att BÅDA språken bakas om (och make-fisk-geojson.mjs körs igen): de svenska
+bilderna är den engelska varpens ankare, och varpen är gemensam för hela
+regionen, så även en delstat som inte är omritad flyttar grannarna. Samma
+sak när världskartan bakats om (`w_summa`): exportera båda språken igen
+före efterbearbetningen. Bumpa `usa-en.pmtiles?v=` i glob-spel.js vid
+varje engelsk bakning, och `V` för json-filerna och utstickarbilderna.
+
+Michigans fisk simmar ut över Michigan- och Huronsjön och in i Kanadas
+halva. Den visas som Michigans utstickare, som Pennsylvanias penna (dekor
+i sjöarna går inte: sjölagret ligger ovanpå konsten). make-fisk-geojson.mjs
+spårar `psd/engelska/michigan-fisk.png` (snittad med SVG:ns alfa, krympt
+1 PSD-px) och lägger konturen på jorden genom Michigans varpnät (`make-tiles
+--varpnat`). make-tiles `--lang en` fredar konsten innanför polygonen från
+snäpp-passets klipp och kantätning (`FREDAD_KONST_EN`; `fredad()` tar en
+polygon eller en ruta), postprocess-skriptet gör polygonen till utstickaren
+i maskläge (ingen pennsvepning och ingen `sjo`-del, som annars släckte den
+blå fisken) och make-usa-utstickare.mjs klipper ut den ur usa-en.pmtiles,
+med en tunn innerkontur längs kanten (`MASK_KONTUR`): där vanten täckte
+fisken i teckningen (under hakan, vid stjärtfästet) slutade bilden annars i
+ett snitt utan bläck ute i sjön. Fisken är dekor: ett klick på den ute i
+sjön räknas som hav.
 
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).

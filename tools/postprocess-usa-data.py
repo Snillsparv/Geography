@@ -80,7 +80,13 @@ redan efterbearbetad hoppar skriptet över den. Havsmasken bär en
 fingeravtryckssumma av världens USA-yta och grannländerna runt den; har
 världskartan bakats om sedan dess avbryts skriptet i stället för att
 lämna ett täcke klippt mot den gamla ytan.
+
+--lang en gör samma sak för den engelska kartan (12 omritade delstater):
+läser och skriver assets/usa-en-{regions,borders,markers}.json och
+tools/data/usa-en-utstickare.json, mäter bilderna i config.en.json lagd
+ovanpå config.json (som spelet), och Michigans fisk blir en utstickare.
 """
+import argparse
 import hashlib
 import json
 import math
@@ -98,6 +104,13 @@ from shapely.prepared import prep
 from shapely.validation import make_valid
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# --lang en: den engelska kartans filer (usa-en-*), bredvid de svenska
+SPRAK = argparse.ArgumentParser(description='Efterbearbetning av delstatsdatan.')
+SPRAK.add_argument('--lang', choices=['en'], default=None,
+                   help='språkversion (bara en): läser och skriver usa-<lang>-*-filerna')
+LANG = SPRAK.parse_args().lang
+USA = 'usa-' + LANG if LANG else 'usa'
 
 # remsornas och havsmaskens gid (delstaterna ligger på 1001–1050,
 # världen under 1000)
@@ -197,7 +210,13 @@ SMALA_OAR = {'usa/hawaii'}
 # samma ruta): biten utanför världens USA-yta blir en egen bild som spelet
 # lägger ovanpå grannens gröna när delstaten avslöjas
 UTSTICKARE = {'usa/pennsylvania': (-80.66, 41.9, -80.06, 44.4)}
-UTSTICKARE_FIL = 'tools/data/usa-utstickare.json'
+UTSTICKARE_FIL = f'tools/data/{USA}-utstickare.json'
+# utstickare som redan ÄR en kontur (maskläge): ingen pennsvepning, och
+# ingen sjödel — make-usa-utstickare släcker där allt som varken är varmt
+# eller mörkt (pennans regel), och då försvann den blå fisken. Bara på
+# engelska: Michigans fisk, samma polygon som make-tiles FREDAD_KONST_EN
+# (tools/make-fisk-geojson.mjs)
+UTSTICKARE_MASK = {'usa/michigan': 'tools/data/usa-en-fisk.geojson'} if LANG == 'en' else {}
 # pennans fot (dess bredd vid stranden) fortsätter så här långt rakt ner i
 # delstaten (grader, mer än ytterkantens bredd): där ritas ingen ytterkant
 # och bilden täcker kustlinjen, så pennan går obruten ner i skrinet.
@@ -328,8 +347,12 @@ def dukyta(key):
     """Delstatsbildens målade yta i pixlar på USA-kartans duk."""
     from PIL import Image
     konf = las('assets/usa/config.json')
+    # språkversionens bilder och placeringar (per delstat via filename, som
+    # spelet och make-tiles --lang)
+    overlagg = {c['filename']: c for c in las(f'assets/usa/config.{LANG}.json')['countries']} if LANG else {}
     for c in konf['countries']:
         if 'usa/' + c['filename'] == key:
+            c = {**c, **overlagg.get(c['filename'], {})}
             # globens egen bild (glob) om delstaten har en, som bakningen
             c = c.get('glob') or c
             bild = Image.open(os.path.join(REPO, 'assets/usa', c['file']))
@@ -503,9 +526,9 @@ def rensa_inre_linjer(linjelista, tacken, sjoar):
 
 
 def main():
-    usa_reg = las('assets/usa-regions.json')
-    usa_bor = las('assets/usa-borders.json')
-    usa_mark = las('assets/usa-markers.json')
+    usa_reg = las(f'assets/{USA}-regions.json')
+    usa_bor = las(f'assets/{USA}-borders.json')
+    usa_mark = las(f'assets/{USA}-markers.json')
     varld_reg = las('assets/art-regions.json')
     varld_bor = las('assets/art-borders.json')
     ne = las('tools/data/ne_50m_countries.geojson')
@@ -545,9 +568,9 @@ def main():
               '--dataset usa först för att göra om dem)')
     else:
         bearbeta_delstater(usa_reg, usa_bor, usa_mark, W, US, Wus, grannar, summa, sjoar)
-        spara('assets/usa-regions.json', usa_reg)
-        spara('assets/usa-borders.json', usa_bor)
-        spara('assets/usa-markers.json', usa_mark)
+        spara(f'assets/{USA}-regions.json', usa_reg)
+        spara(f'assets/{USA}-borders.json', usa_bor)
+        spara(f'assets/{USA}-markers.json', usa_mark)
     bryt_ut_usakant(varld_bor, W)
     print('klart')
 
@@ -718,7 +741,13 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, Wv, US, Wus, grannar, summa, 
         if duk:
             skala[f['id']] = math.sqrt(ytarea(S) / duk)
         ruta = UTSTICKARE.get(f['properties']['key'])
-        if ruta:
+        mask_fil = UTSTICKARE_MASK.get(f['properties']['key'])
+        if mask_fil:
+            # fisken: konturen som den är (den är redan spårad tätt i fiskens
+            # bläck, och make-tiles fredade konsten innanför den)
+            utstick[f['id']] = giltig(unary_union([giltig(shape(x['geometry']))
+                                                    for x in las(mask_fil)['features']]))
+        elif ruta:
             # pennan: konsten utanför världens USA-yta i rutan, utan smala
             # strimlor längs stranden (öppning), och fotens bredd vid
             # stranden förlängd ner i delstaten i pennans egen lutning (rakt
@@ -963,13 +992,20 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, Wv, US, Wus, grannar, summa, 
           f'utanför delstaternas täcke')
 
     # ── 4c: utstickare (Pennsylvanias penna) till make-usa-utstickare.mjs ──
+    def utstickaregenskaper(gid, g):
+        if nyckel[gid]['key'] in UTSTICKARE_MASK:
+            # maskläge (fisken): ingen sjödel, bilden klipps bara till
+            # konturen och får en innerkontur (make-usa-utstickare.mjs)
+            return {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn'], 'mask': 1}
+        return {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn'],
+                # delen ute i sjön: där ska bara pennan synas, inte
+                # delstatens gröna konst bredvid den (svepet följer
+                # inte pennans sidor exakt)
+                'sjo': multipolygon(ytor(g.intersection(sjoar)), SPLITTER)}
+
     spara(UTSTICKARE_FIL, {'type': 'FeatureCollection', 'features': [
         {'type': 'Feature', 'id': gid,
-         'properties': {'gid': gid, 'key': nyckel[gid]['key'], 'namn': nyckel[gid]['namn'],
-                        # delen ute i sjön: där ska bara pennan synas, inte
-                        # delstatens gröna konst bredvid den (svepet följer
-                        # inte pennans sidor exakt)
-                        'sjo': multipolygon(ytor(g.intersection(sjoar)), SPLITTER)},
+         'properties': utstickaregenskaper(gid, g),
          'geometry': multipolygon(ytor(g), SPLITTER)}
         for gid, g in utstick.items()]})
     for gid, g in utstick.items():

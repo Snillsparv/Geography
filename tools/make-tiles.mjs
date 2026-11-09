@@ -32,7 +32,7 @@
 //
 // Usage:  node tools/make-tiles.mjs [--maxzoom 7] [--geo 1] [--outline 2.5]
 //         [--out tiles/world.pmtiles] [--save DIR] [--assemble]
-//         [--window z:x0:y0[:x1:y1]]
+//         [--window z:x0:y0[:x1:y1]] [--dataset usa [--lang en]]
 // ──────────────────────────────────────────────────────────────────────────
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -53,7 +53,20 @@ const arg = (name, dflt) => {
   return i >= 0 ? argv[i + 1] : dflt;
 };
 const MAXZOOM = +arg('maxzoom', 7);
-const OUT = path.resolve(repo, arg('out', 'tiles/world.pmtiles'));
+// --dataset usa: se nedan (delstaterna i stället för världen)
+const DATASET = arg('dataset', 'world');
+// --lang en: språkversionens konst (bara engelska finns). Delstater vars
+// överlägg assets/<slug>/config.<lang>.json har en egen bild (file) bakas
+// med den bilden, men varpen förankras i den svenska bilden och den svenska
+// placeringen (se matchRegions) — geometrin blir exakt den svenska
+const LANG = arg('lang', null);
+if (LANG !== null && LANG !== 'en') throw new Error(`okänt --lang "${LANG}" (bara en)`);
+// utan --out: tiles/world.pmtiles, tiles/usa.pmtiles, tiles/usa-en.pmtiles
+// (förut alltid world.pmtiles, så --dataset usa utan --out skrev över världen)
+const OUT = path.resolve(repo, arg('out', `tiles/${DATASET}${LANG ? '-' + LANG : ''}.pmtiles`));
+// --varpnat FIL: skriv regionernas varpnät (dukpx → enhetsmercator) som
+// JSON och avsluta — för tools/make-fisk-geojson.mjs. Inga tiles byggs.
+const VARPNAT = arg('varpnat', null);
 // Geographic pinning strength. Default 1: every country at its true projected
 // bbox. Mixed levels concentrate all adjustment at the boundary between
 // levels (the "curtain" zones below Russia/USA, then around Uzbekistan/Indien
@@ -116,7 +129,7 @@ const GRID_STEP = 80;               // region-canvas px between shared warp-grid
 // data/us_states.geojson (Natural Earth admin-1, samma linjeverk som
 // ländernas 50m-data så delstaterna passar exakt i USA:s kontur) och
 // exporterade feature-id:n får GID_BASE så de aldrig krockar med ländernas.
-const DATASET = arg('dataset', 'world');
+// (DATASET läses tidigt, eftersom --out:s standardnamn bygger på den.)
 const GID_BASE = DATASET === 'usa' ? 1000 : 0;
 
 const REGIONS = DATASET === 'usa'
@@ -330,17 +343,46 @@ function matchRegions() {
   let gid = GID_BASE;
   for (const slug of REGIONS) {
     const cfg = JSON.parse(readFileSync(path.join(repo, 'assets', slug, 'config.json'), 'utf8'));
+    // --lang: språköverlägget, per delstat via filename (samma sammanslagning
+    // som spelet gör). Den svenska configen styr fortfarande ordningen och
+    // därmed gid:arna, så klickytorna får samma id på båda språken
+    let overlagg = null;
+    if (LANG) {
+      const p = path.join(repo, 'assets', slug, `config.${LANG}.json`);
+      if (!existsSync(p)) throw new Error(`--lang ${LANG}: saknar assets/${slug}/config.${LANG}.json`);
+      overlagg = new Map();
+      for (const e of JSON.parse(readFileSync(p, 'utf8')).countries || []) overlagg.set(e.filename, e);
+    }
     const countries = [];
     for (const c of cfg.countries) {
       const base = c.filename;
       // glob: en egen bild bara för globen (ritad om mot statens riktiga
       // gräns, med egen placering på duken) — platta kartan behåller sin
       // bild, som följer regionkartans egna konturlinjer
-      const g = c.glob || null;
+      let g = c.glob || null;
+      const ov = overlagg && overlagg.get(base);
+      if (ov && (ov.file || ov.glob)) {
+        // språkversionens egen bild (engelskans 12 omritade delstater): bakas
+        // som globbild med överläggets placering, och förankras nedan i den
+        // SVENSKA bilden med den SVENSKA (osammanslagna) placeringen. Då blir
+        // varpnätet bit för bit det svenska (provat), medan den svenska
+        // bilden med överläggets placering hade flyttat pinnarna
+        if (ov.glob) g = ov.glob;
+        else if (g) throw new Error(`${slug}/${base}: svensk glob-bild och ${LANG}-bild utan egen glob — vilken ska globen visa?`);
+        else {
+          const m = { ...c, ...ov };
+          g = { file: m.file, left: m.left, top: m.top, width: m.width, height: m.height };
+        }
+      }
       const svgPath = path.join(repo, 'assets', slug,
         g ? g.file.replace(/\.[^.]+$/, '.svg') : path.join('countries', base + '.svg'));
       const bild = path.join(repo, 'assets', slug, g ? g.file : path.join('countries', base + '.webp'));
-      if (!existsSync(svgPath)) continue;
+      if (!existsSync(svgPath)) {
+        // med --lang är en saknad bild ett fel: delstaten föll annars tyst
+        // bort och alla senare gid:ar förskjöts
+        if (LANG) throw new Error(`--lang ${LANG}: saknar ${path.relative(repo, svgPath)}`);
+        continue;
+      }
       // varpen förankras ändå i den VANLIGA bildens massa: globbilden är
       // ritad mot mallen, som räknades med den varpen — förankrades varpen
       // i den nya bildens massa skulle hela staten glida bort från linjen
@@ -359,7 +401,8 @@ function matchRegions() {
       // anchors against the FULL geometry instead of the largest polygon.
       const anchor = lock ? f.geometry : anchorGeometry(f.geometry);
       countries.push({
-        base, svgPath, bild, ankare, lock, key: `${slug}/${base}`, gid: ++gid, name: c.name,
+        base, svgPath, bild, ankare, lock, key: `${slug}/${base}`, gid: ++gid,
+        name: (ov && ov.name) || c.name,
         left: (g || c).left, top: (g || c).top, width: (g || c).width, height: (g || c).height,
         centroid: geoCentroid(anchor),
         anchor, fullGeom: f.geometry,
@@ -1552,6 +1595,28 @@ const FREDAD_KONST = [
   // är bara pennans kolumn (resten av Eriestranden klipps och äts som vanligt)
   { key: 'usa/pennsylvania', box: [-80.66, 41.9, -80.06, 44.4] },
 ];
+// bara på engelska (--lang en): Michigans fisk simmar ut över Michigan- och
+// Huronsjön, med stjärten och fenan in i Kanadas halva. Den fredas med sin
+// egen kontur (polygon i lng/lat, tools/make-fisk-geojson.mjs) och inte med
+// en ruta: en ruta runt hela fisken fredade också vantens strand, som då
+// varken klipptes eller åts (dubbla strandlinjer). Konturen är spårad tätt
+// (alfa ≥ 128, krympt) eftersom steg 3 i usaSnapPass, som gör den
+// halvgenomskinliga fransen opak, inte frågar fredad(): fransen blir
+// underläggsfärg strax utanför polygonen, och bilden klipps vid polygonen
+const FREDAD_KONST_EN = [
+  { key: 'usa/michigan', fil: 'tools/data/usa-en-fisk.geojson' },
+];
+function laggTillFredadPolygoner() {
+  if (LANG !== 'en' || DATASET !== 'usa') return;
+  for (const fk of FREDAD_KONST_EN) {
+    const p = path.join(repo, fk.fil);
+    if (!existsSync(p)) throw new Error(`--lang en: saknar ${fk.fil} (kör node tools/make-fisk-geojson.mjs)`);
+    const fc = JSON.parse(readFileSync(p, 'utf8'));
+    const geom = fc.type === 'FeatureCollection' ? fc.features[0].geometry : fc.geometry || fc;
+    FREDAD_KONST.push({ key: fk.key, bitar: snapPieces(geom, -100, null) });
+    console.log(`Fredad konst: ${fk.key} med polygon ur ${fk.fil}.`);
+  }
+}
 function snapPieces(geometry, cLng, filt) {
   const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
   const ut = [];
@@ -2166,6 +2231,14 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
   for (const fk of FREDAD_KONST) {
     const d = (sheetDraws || []).find(x => x.key === fk.key);
     if (!d) continue;
+    if (fk.bitar) {
+      // polygon (Michigans fisk): pixelmitten i polygonen, rastrerad en
+      // gång per ruta som de andra maskerna (samma 1/16-px-snäppning, så
+      // samma världspixel fredas i rutans inre och i grannens gutter)
+      const mask = snapMask(fk.bitar, world, tx, ty);
+      if (mask) fredade.push({ gid: d.gid, mask });
+      continue;
+    }
     const ox = tx * TILE - G, oy = ty * TILE - G;
     fredade.push({ gid: d.gid,
       x0: mercX(fk.box[0]) * world - ox, x1: mercX(fk.box[2]) * world - ox,
@@ -2175,7 +2248,8 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
     const o = ownerBuf[i];
     if (!o) return false;
     const x = i % TG + 0.5, y = ((i / TG) | 0) + 0.5;
-    return fredade.some(f => f.gid === o && x >= f.x0 && x <= f.x1 && y >= f.y0 && y <= f.y1);
+    return fredade.some(f => f.gid === o && (f.mask ? f.mask[i] === 1
+      : x >= f.x0 && x <= f.x1 && y >= f.y0 && y <= f.y1));
   };
   // 1) klipp: målat utanför världens synliga USA-yta, nära fyllmålet
   //    (Hawaii ligger utanför räckhåll, öarnas zoner hoppas över)
@@ -3171,6 +3245,22 @@ async function main() {
   const nMatched = regions.reduce((s, r) => s + r.countries.length, 0);
   console.log(`Matched ${nMatched} countries in ${regions.length} regions.`);
   await buildWarps(regions);
+  if (VARPNAT) {
+    // varpnäten (dukpx → enhetsmercator) för verktyg som lägger dukpunkter
+    // på jorden med exakt bakningens varp (make-fisk-geojson.mjs)
+    const ut = regions.map(r => ({
+      slug: r.slug, countries: r.countries.map(c => ({
+        key: c.key, gid: c.gid, left: c.left, top: c.top, width: c.width, height: c.height })),
+      grid: { x0: r.grid.x0, y0: r.grid.y0, step: r.grid.step, nx: r.grid.nx, ny: r.grid.ny,
+              u: Array.from(r.grid.u) },
+    }));
+    const p = path.resolve(repo, VARPNAT);
+    mkdirSync(path.dirname(p), { recursive: true });
+    writeFileSync(p, JSON.stringify(ut));
+    console.log(`Skrev varpnäten till ${p}.`);
+    return;
+  }
+  if (DATASET === 'usa') laggTillFredadPolygoner();
   if (DATASET === 'usa') byggUsaSnap();
   if (GUIDES) {
     if (DATASET !== 'usa') throw new Error('--guides kräver --dataset usa');

@@ -10,9 +10,13 @@
 // ut ur arkivets största zoomnivå. Bilden hamnar i assets/usa/utstickare/
 // och hörnen (lng/lat, medsols från nordväst) i assets/usa-utstickare.json.
 //
-//   node make-usa-utstickare.mjs [--tiles tiles/usa.pmtiles]
+//   node make-usa-utstickare.mjs [--tiles tiles/usa.pmtiles] [--lang en]
 //
 // Körs efter make-tiles --dataset usa och postprocess-usa-data.py.
+// --lang en: den engelska kartan — läser tools/data/usa-en-utstickare.json
+// (och som standard tiles/usa-en.pmtiles), skriver utstickare/<stat>-en.webp
+// och assets/usa-en-utstickare.json. Där har Michigans fisk ingen sjödel
+// och klipps bara till sin kontur, med en tunn innerkontur (maskläget).
 import { closeSync, mkdirSync, openSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,10 +30,17 @@ const arg = (name, dflt) => {
   const i = argv.indexOf('--' + name);
   return i >= 0 ? argv[i + 1] : dflt;
 };
-const TILES = path.resolve(repo, arg('tiles', 'tiles/usa.pmtiles'));
+const LANG = arg('lang', null);
+if (LANG !== null && LANG !== 'en') throw new Error(`okänt --lang "${LANG}" (bara en)`);
+const USA = LANG ? 'usa-' + LANG : 'usa';          // filnamnens prefix
+const TILES = path.resolve(repo, arg('tiles', `tiles/${USA}.pmtiles`));
 const TILE = 512;                      // make-tiles rutstorlek
 const KANT = 2;                        // px marginal runt fotavtrycket
 const MORK = 60;                       // ljusare än så (största kanalen) är inte kontur
+// maskläget (properties.mask, Michigans fisk): innerkonturens bredd i px på
+// arkivets största zoomnivå (fiskens tunnaste konturer är ~3 px där, de
+// flesta 5–8)
+const MASK_KONTUR = 4;
 
 class FilKalla {
   constructor(p) { this.p = p; this.fd = openSync(p, 'r'); }
@@ -51,7 +62,7 @@ const ilng = x => (x / world - 0.5) * 360;
 const ilat = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / world))) * 180 / Math.PI;
 const r5 = v => Math.round(v * 1e5) / 1e5;
 
-const fc = JSON.parse(readFileSync(path.join(repo, 'tools/data/usa-utstickare.json'), 'utf8'));
+const fc = JSON.parse(readFileSync(path.join(repo, `tools/data/${USA}-utstickare.json`), 'utf8'));
 const ut = [];
 mkdirSync(path.join(repo, 'assets/usa/utstickare'), { recursive: true });
 for (const f of fc.features) {
@@ -92,6 +103,43 @@ for (const f of fc.features) {
   ctx.globalCompositeOperation = 'destination-in';
   ctx.drawImage(m, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
+  // maskläget (Michigans fisk): fotavtrycket är fiskens egen kontur, men där
+  // vanten täckte fisken i teckningen (under hakan, vid stjärtfästet) slutar
+  // bilden i ett snitt utan bläck — ute i sjön, där vanten är bortmålad,
+  // såg det ut som ett hugg i fisken. En tunn innerkontur i teckningens
+  // svarta längs hela kanten sluter fisken; där fiskens egen kontur går
+  // syns den inte (svart på svart, samma kantutjämning)
+  if (f.properties.mask) {
+    const d = ctx.getImageData(0, 0, W, H).data;
+    const mork = [[], [], []];
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 255 && Math.max(d[i], d[i + 1], d[i + 2]) <= MORK) {
+        mork[0].push(d[i]); mork[1].push(d[i + 1]); mork[2].push(d[i + 2]);
+      }
+    }
+    const median = v => v.sort((a, b) => a - b)[v.length >> 1] || 0;
+    const svart = `rgb(${median(mork[0])}, ${median(mork[1])}, ${median(mork[2])})`;
+    const k = createCanvas(W, H);
+    const kc = k.getContext('2d');
+    kc.strokeStyle = svart;
+    kc.lineWidth = 2 * MASK_KONTUR;
+    kc.lineJoin = 'round';
+    kc.beginPath();
+    for (const poly of polys) {
+      for (const ring of poly) {
+        ring.forEach(([lng, lat], i) => {
+          const x = mx(lng) - x0, y = my(lat) - y0;
+          if (i) kc.lineTo(x, y); else kc.moveTo(x, y);
+        });
+        kc.closePath();
+      }
+    }
+    kc.stroke();
+    kc.globalCompositeOperation = 'destination-in';
+    kc.drawImage(m, 0, 0);
+    ctx.drawImage(k, 0, 0);
+    console.log(`  innerkontur ${MASK_KONTUR} px i ${svart}`);
+  }
   // ute i sjön (properties.sjo) ska bara pennan synas: fotavtrycket är
   // pennans tvärsnitt svept över sjön och följer inte sidorna exakt, så
   // delstatens gröna konst bredvid pennan släcks där: allt som varken är
@@ -155,7 +203,7 @@ for (const f of fc.features) {
     console.log(`  ${slackta} gröna eller grå pixlar ute i sjön släckta, ${utanfor} utanför pennans sidolinjer`);
   }
   const fil = f.properties.key.split('/')[1];
-  const rel = `assets/usa/utstickare/${fil}.webp`;
+  const rel = `assets/usa/utstickare/${fil}${LANG ? '-' + LANG : ''}.webp`;
   writeFileSync(path.join(repo, rel), await c.encode('webp', 90));
   ut.push({
     gid: f.properties.gid, key: f.properties.key, bild: rel,
@@ -166,5 +214,5 @@ for (const f of fc.features) {
   console.log(`${rel}: ${W}×${H} px (z${Z}) för ${f.properties.namn}`);
 }
 closeSync(kalla.fd);
-writeFileSync(path.join(repo, 'assets/usa-utstickare.json'), JSON.stringify(ut));
-console.log(`Skrev assets/usa-utstickare.json: ${ut.length} bilder.`);
+writeFileSync(path.join(repo, `assets/${USA}-utstickare.json`), JSON.stringify(ut));
+console.log(`Skrev assets/${USA}-utstickare.json: ${ut.length} bilder.`);
