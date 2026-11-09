@@ -127,6 +127,26 @@ def stada(ut, pos, svlager):
     return Image.fromarray(a), bort
 
 
+def fiskmaskar(namn, delar, pos, s, box):
+    """Michigans fisk sticker ut över sjöarna: masker (alfa 0-255) på samma
+    rutnät som bilden. <namn>-fisk.png är det som syns av fisken (främre
+    halvan plus den bakre där vanten inte täcker den), <namn>-fisk-front.png
+    bara främre halvan (den som ligger över strandlinjen i originalkartan).
+    delar = [bakre, vanten, främre] i ritordning."""
+    def alfa(i):
+        ensam = [(im if j == i else Image.new('RGBA', im.size, (0, 0, 0, 0)), p)
+                 for j, (im, p) in enumerate(delar)]
+        im, p = ihop(ensam)
+        assert p == pos
+        ut, _ = till_usa_psd(im, pos, s)
+        return np.asarray(ut.crop(box))[..., 3].astype(float) / 255
+    bak, vante, fram = alfa(0), alfa(1), alfa(2)
+    fisk = np.maximum(fram, bak * (1 - vante))
+    for suffix, m in (('fisk', fisk), ('fisk-front', fram)):
+        Image.fromarray(np.round(m * 255).astype(np.uint8), 'L').save(UT / f'{namn}-{suffix}.png', optimize=True)
+    print(f'  {namn}-fisk.png, {namn}-fisk-front.png')
+
+
 def main():
     psd = PSDImage.open(sys.argv[1])
     s = SV_BREDD / psd.width
@@ -154,6 +174,8 @@ def main():
         namn = filnamn[stat]
         ut.save(UT / f'{namn}.png', optimize=True)
         lagen[stat] = {'fil': f'{namn}.png', 'x': X0, 'y': Y0, 'b': ut.width, 'h': ut.height}
+        if len(delar) > 1:
+            fiskmaskar(namn, delar, pos, s, (bx0, by0, bx1, by1))
         print(f'{stat}: {ut.width}×{ut.height} vid {X0}, {Y0}' + (f', {bort} px lösa prickar bort' if bort else ''))
     (UT / 'lagen.json').write_text(json.dumps(lagen, ensure_ascii=False, indent=1) + '\n')
 

@@ -205,6 +205,33 @@ glob-spel.js och glob.html efteråt, och `USA_TILE_URL`-versionen när
 usa.pmtiles bakats om (arkivet hämtas bara i skivor, så `TILE_CACHE` i
 sw.js behöver inte bytas för det).
 
+### Engelska USA-kartan (allusstates)
+
+Jonas engelska PSD har 12 omritade delstater (Nevada, Kansas, North och
+South Dakota, Arizona, Pennsylvania, Delaware, Massachusetts, Michigan med
+fisk, Minnesota med läsk, Arkansas med såg, Mississippi); de andra 38 är
+samma som de svenska. Spelet lägger `assets/usa/config.en.json` ovanpå
+`config.json` (per delstat via `filename`), så den har bara det som skiljer.
+
+```bash
+python3 -I tools/engelska-lager.py "<engelska PSD:n>"   # ⇒ psd/engelska/*.png, lagen.json
+python3 -I tools/engelska-konst.py --blak <tmp>          # ⇒ countries/<f>-en.webp, overlay-en.webp, config.en.json
+```
+
+`engelska-lager.py` skalar lagren till USA.psd:s rutnät (utskurna på jämna
+3 px), plockar bort lösa prickar långt från det svenska lagret och skriver
+Michigans fiskmasker (`michigan-fisk.png`, `michigan-fisk-front.png`).
+`engelska-konst.py` gör spelbilderna, deras placering i config.en.json och
+`overlay-en.webp`: originalkartans konturer lagda på `map.webp`:s ram (den
+svenska overlay.webp sträcks fel, se skriptet) och utsuddade under
+fiskhuvudet och -stjärten. SVG:erna (`countries/<f>-en.svg`) vektoriseras
+ur `psd/engelska/*.png` med `node tools/vectorize.mjs <mapp> --force`;
+Delaware och Massachusetts först förstorade med `mjuka-kanter.py ... 3` och
+`VEC_MEDIAN=1` (tänderna och detaljerna försvann annars). Arizona får sitt
+bläck runt ZONE A/B och pilarna som egna svarta banor sist i SVG:n:
+vektorisera `<tmp>/arizona-blak.png` med `VEC_MEDIAN=1
+VEC_FILTER_SPECKLE=2` och lägg dess `<path>` före `</svg>`.
+
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
 
