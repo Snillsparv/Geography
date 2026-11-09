@@ -210,11 +210,12 @@ const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
 // Den engelska sidan har 12 omritade delstater och därmed eget arkiv och
-// egna klickytor/gränser (usa-en-*). Tills den engelska bakningen finns
-// pekar den på de svenska filerna.
+// egna klickytor/gränser/utstickare (usa-en-*, make-tiles --lang en), med
+// samma geometri och gid:ar som de svenska. Bumpa usa-en-versionen när
+// usa-en.pmtiles bakas om (tiles/** cachas i ett år).
 const USA_FILER = {
   sv: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
-  en: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
+  en: { data: 'usa-en', tiles: 'tiles/usa-en.pmtiles?v=1' },
 }[SPRAK.lang];
 const USA_TILE_URL = dataUrl(USA_FILER.tiles);
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
