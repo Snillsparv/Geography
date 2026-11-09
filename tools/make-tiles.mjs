@@ -904,6 +904,31 @@ async function buildWarps(regions) {
   }
 }
 
+// v-roten för en pixel i en varpcell: P(u,v) = A + uE + vF + uvG löst ger
+// qa·v² + qb·v + qc = 0. Nästan affina celler har qa nära noll, och då tar
+// (−qb ± √disk)/(2qa) differensen av två nästan lika stora tal och tappar
+// nästan alla siffror: v hoppade i trappsteg och konsten blev blockig i z7
+// (Alaskas slips och krage, där |qa| låg strax över 1e-9). När disk > 0 ger
+// den stabila formen q = −½(qb + sign(qb)·√disk) samma två rötter, q/qa och
+// qc/q, utan förlusten — prövade i samma ordning som förut (+√ först). En
+// pixel inne i cellen får disk < 0 bara i vikta/degenererade celler: då
+// används närmsta reella lösning (parabelns topp −qb/2qa, som förut) i
+// stället för att pixeln tappas (nålhål). En pixel utanför en kraftigt
+// förvriden cell kan då passera u/v-kontrollen och få konst från en annan
+// punkt i cellen (så var det förut också); varpnätets nästan affina celler
+// ger aldrig disk ≤ 0 (0 av 318 miljoner anrop i Alaskas z7). NaN = ingen
+// lösning.
+function bilinjarV(qa, qb, qc) {
+  if (Math.abs(qa) < 1e-9) return Math.abs(qb) < 1e-12 ? NaN : -qc / qb;
+  const disk = qb * qb - 4 * qa * qc;
+  if (disk <= 0) return -qb / (2 * qa);
+  const sq = Math.sqrt(disk);
+  const q = -0.5 * (qb + (qb >= 0 ? sq : -sq));   // |q| ≥ √disk/2 > 0
+  const plus = qb >= 0 ? qc / q : q / qa;
+  const minus = qb >= 0 ? q / qa : qc / q;
+  return plus < -1e-4 || plus > 1.0001 ? minus : plus;
+}
+
 // Premultiply straight-alpha RGBA in place (bilinear sampling and manual
 // source-over compositing must run in premultiplied space, or transparent
 // black pixels bleed dark fringes into the edges).
@@ -1435,17 +1460,8 @@ async function markDecorZones(d, world, tx, ty) {
           const hx = px + 0.5 - Ax, hy = py + 0.5 - Ay;
           const qb = hx * Gy - hy * Gx + Fy * Ex - Fx * Ey;
           const qc = hx * Ey - hy * Ex;
-          let v;
-          if (Math.abs(qa) < 1e-9) {
-            if (Math.abs(qb) < 1e-12) continue;
-            v = -qc / qb;
-          } else {
-            const disc = Math.max(0, qb * qb - 4 * qa * qc);
-            const sq = Math.sqrt(disc);
-            v = (-qb + sq) / (2 * qa);
-            if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * qa);
-          }
-          if (v < -1e-4 || v > 1.0001) continue;
+          const v = bilinjarV(qa, qb, qc);
+          if (!(v >= -1e-4 && v <= 1.0001)) continue;
           const den1 = Ex + v * Gx, den2 = Ey + v * Gy;
           const u = Math.abs(den1) > Math.abs(den2) ? (hx - v * Fx) / den1 : (hy - v * Fy) / den2;
           if (u < -1e-4 || u > 1.0001) continue;
@@ -2251,16 +2267,8 @@ async function usaSnapPass(world, tx, ty, sheetDraws) {
       const hx = px + 0.5 - c.Ax, hy = py + 0.5 - c.Ay;
       const qb = hx * c.Gy - hy * c.Gx + c.Fy * c.Ex - c.Fx * c.Ey;
       const qc = hx * c.Ey - hy * c.Ex;
-      let v;
-      if (Math.abs(c.qa) < 1e-9) {
-        if (Math.abs(qb) < 1e-12) continue;
-        v = -qc / qb;
-      } else {
-        const sq = Math.sqrt(Math.max(0, qb * qb - 4 * c.qa * qc));
-        v = (-qb + sq) / (2 * c.qa);
-        if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * c.qa);
-      }
-      if (v < -1e-4 || v > 1.0001) continue;
+      const v = bilinjarV(c.qa, qb, qc);
+      if (!(v >= -1e-4 && v <= 1.0001)) continue;
       const den1 = c.Ex + v * c.Gx, den2 = c.Ey + v * c.Gy;
       const u = Math.abs(den1) > Math.abs(den2) ? (hx - v * c.Fx) / den1 : (hy - v * c.Fy) / den2;
       if (u < -1e-4 || u > 1.0001) continue;
@@ -3056,19 +3064,8 @@ async function renderSheetPx(d, world, tx, ty, lockedByKey, decorAny) {
           const hx = px + 0.5 - Ax, hy = py + 0.5 - Ay;
           const qb = hx * Gy - hy * Gx + Fy * Ex - Fx * Ey;
           const qc = hx * Ey - hy * Ex;
-          let v;
-          if (Math.abs(qa) < 1e-9) {
-            if (Math.abs(qb) < 1e-12) continue;
-            v = -qc / qb;
-          } else {
-            // disc < 0 only happens in folded/degenerate cells; clamp to the
-            // nearest real solution instead of dropping the pixel (pinholes)
-            const disc = Math.max(0, qb * qb - 4 * qa * qc);
-            const sq = Math.sqrt(disc);
-            v = (-qb + sq) / (2 * qa);
-            if (v < -1e-4 || v > 1.0001) v = (-qb - sq) / (2 * qa);
-          }
-          if (v < -1e-4 || v > 1.0001) continue;
+          const v = bilinjarV(qa, qb, qc);
+          if (!(v >= -1e-4 && v <= 1.0001)) continue;
           const den1 = Ex + v * Gx, den2 = Ey + v * Gy;
           const u = Math.abs(den1) > Math.abs(den2) ? (hx - v * Fx) / den1 : (hy - v * Fy) / den2;
           if (u < -1e-4 || u > 1.0001) continue;

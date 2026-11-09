@@ -121,13 +121,20 @@ Hawaii har Jonas omritning mot ömallen (`NN-hawaii-oarna.png`): hajen kvar
 som havsdekor men öarna (och huvudet = Big Island) följer de riktiga öarna,
 källan i `psd/omritade/hawaii-glob.png` (läge i USA.psd: x 1491, y 3285;
 utskuren så att hörnet hamnar på hela dukpixlar).
+Alaska har Jonas omritning mot mallen
+(`psd/delstatsmallar/01-alaska-avvikelse-170px.png`), källan i
+`psd/omritade/alaska-glob.png` (läge i USA.psd: x 111, y 2793).
 SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
 kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
-En hårdkantad teckning utan kantutjämning (Hawaii) tappar ögon och tänder i
-vektoriseringen i PSD-upplösning och får trappsteg om den bara förstoras.
+En hårdkantad teckning (Hawaii, Alaska) tappar ögon, tänder och askprickar
+i vektoriseringen i PSD-upplösning och får trappsteg om den bara förstoras.
 Den förstoras därför först tre gånger med mjuka kanter men utan
-mellanfärger (`python3 tools/mjuka-kanter.py in.png ut.png 3`) och
-vektoriseras med `VEC_MEDIAN=1`.
+mellanfärger och vektoriseras med `VEC_MEDIAN=1`:
+`python3 tools/mjuka-kanter.py in.png ut.png 3` för Hawaii och
+`... 3 --sudda 0.5` för Alaska, där teckningens enkla kantutjämning annars
+blev en grå kontur runt allt svart i stor zoom. Skriptet gör också
+halvgenomskinliga pixlar inne i teckningen opaka; som hål i SVG:n fylldes
+de med ljusgrå och vita fläckar i bakningen (se skriptets kommentar).
 Vektoriseringen tappar ibland detaljer; då lagas SVG:n direkt (Arizona:
 konturerna runt Z, Z och O spårade ur USA.psd och lagda överst; Colorado:
 det gröna strecket enfärgat ända ut, som de andra strecken).

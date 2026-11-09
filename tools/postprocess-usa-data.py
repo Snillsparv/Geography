@@ -35,7 +35,7 @@ Här görs det på samma sätt som världskartan:
    grannstats riktiga mark (us_states.geojson) går till grannen.
 2. DEKOR. Konsten ska hålla sig innanför konturen även när delstaten är
    avslöjad, så konst ute i havet (North Carolinas fartstreck, Alaskas
-   svans, Floridas bläckkant) hamnar under havsmasken (steg 3). Bara
+   rök och askprickar, Floridas bläckkant) hamnar under havsmasken (steg 3). Bara
    Hawaii, vars konst medvetet är mycket större än öarna (VISAD_DEKOR),
    får egna features med dekor: 1 (samma id → samma feature-state) som
    spelet målar i havsfärg medan delstaten är täckt och visar när den
@@ -169,7 +169,7 @@ LINJE_PROV = (0.004, 0.012, 0.02)
 MIKROHAL = 1e-4
 # delstater vars havskonst SKA synas när delstaten avslöjas: Hawaiis konst
 # (hajen) är mycket större än öarna. All annan konst utanför världens
-# USA-yta (North Carolinas fartstreck, Alaskas svans, Floridas bläckkant)
+# USA-yta (North Carolinas fartstreck, Alaskas rök, Floridas bläckkant)
 # ligger alltid under havsmasken — bilden håller sig innanför konturen.
 # Tas Hawaii bort härifrån klipps hajen till öarna (provat 2026-11-08 med
 # den gamla bilden: då syns bara grå öar, huvudet och tänderna hamnar i

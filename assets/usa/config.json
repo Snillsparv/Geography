@@ -223,6 +223,13 @@
       "width": 905,
       "height": 703,
       "filename": "alaska",
+      "glob": {
+        "file": "countries/alaska-glob.webp",
+        "left": 74,
+        "top": 1862,
+        "width": 834,
+        "height": 702
+      },
       "desc": "Alaska är USA:s största delstat till ytan men en av de minst befolkade. Delstaten köptes från Ryssland 1867 och är hem för Nordamerikas högsta berg, Denali (6 190 meter). Alaska har midnattssol på sommaren, norrsken på vintern och en otrolig vildmark med björnar, valar och glaciärer.",
       "imageAssociation": "Maffiabossen AL Capone som fimpar ASKA i en askkopp"
     },
