@@ -71,7 +71,9 @@ let HS_BAS = '';               // grundnyckel; bildquizet får egen rekordlista
 let bildlage = false;          // bildquiz: konsten synlig, hittade länder blir gröna
 let aktivSlug = '';            // aktuell region (slug eller 'world')
 let aktivRegionNamn = '';
-function uppdateraHsKey() { HS_KEY = (bildlage ? 'bild-' : '') + HS_BAS; }
+// SPRAK.hsPrefix: den engelska sidan har egna topplistor ('en-', och
+// 'test-en-' på förhandsvisningar); tomt på svenska
+function uppdateraHsKey() { HS_KEY = SPRAK.hsPrefix + (bildlage ? 'bild-' : '') + HS_BAS; }
 let ASSET_BASE = '';
 let currentMode = 'explore';
 let isWorldTest = false;
@@ -186,7 +188,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '90';
+const V = '91';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -207,7 +209,14 @@ async function fetchJson(path) {
 const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // USA:s delstater: eget litet arkiv (≈5 MB) som bara strömmas när man går
 // in i delstatsregionen — världskartan och världstestet påverkas inte alls
-const USA_TILE_URL = dataUrl('tiles/usa.pmtiles?v=10');
+// Den engelska sidan har 12 omritade delstater och därmed eget arkiv och
+// egna klickytor/gränser (usa-en-*). Tills den engelska bakningen finns
+// pekar den på de svenska filerna.
+const USA_FILER = {
+  sv: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
+  en: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
+}[SPRAK.lang];
+const USA_TILE_URL = dataUrl(USA_FILER.tiles);
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
 // världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
 // i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)
@@ -239,7 +248,8 @@ function pmSource() {
 // har arkivet gratis i service workerns cache och förladdar direkt.
 let forladdningStartad = false;
 function startaForladdning() {
-  if (forladdningStartad) return;
+  // en sida som bara har en region (engelska USA) strömmar världens rutor
+  if (forladdningStartad || SPRAK.startRegion) return;
   forladdningStartad = true;
   const ansl = navigator.connection || {};
   const sparsam = !!ansl.saveData || /(^|-)2g$/.test(ansl.effectiveType || '');
@@ -356,10 +366,10 @@ function laddaUsa() {
   // göra delstatsregionen obrukbar för resten av sessionen
   const forsok = (async () => {
     const [reg, mark, grans, utst] = await Promise.all([
-      fetchJson('assets/usa-regions.json?v=' + V),
-      fetchJson('assets/usa-markers.json?v=' + V),
-      fetchJson('assets/usa-borders.json?v=' + V),
-      fetchJson('assets/usa-utstickare.json?v=' + V).catch(() => []),
+      fetchJson(`assets/${USA_FILER.data}-regions.json?v=` + V),
+      fetchJson(`assets/${USA_FILER.data}-markers.json?v=` + V),
+      fetchJson(`assets/${USA_FILER.data}-borders.json?v=` + V),
+      fetchJson(`assets/${USA_FILER.data}-utstickare.json?v=` + V).catch(() => []),
     ]);
     usaInreKant = new Map();
     for (const f of reg.features) {
@@ -708,9 +718,28 @@ if (ljudKnapp) ljudKnapp.addEventListener('click', () => {
 visaLjudlage();
 
 const configCache = {};
+// Andra språk: config.<lang>.json läggs ovanpå regionens svenska config.
+// Överst name/overlay, per land (via filename) namn, texter och för de
+// omritade delstaterna egen bild (file) och placering. namnSv behåller det
+// svenska namnet: delarnas länderlistor och flaggorna slås upp på det.
+function slaIhopConfig(raw, ov) {
+  const ut = { ...raw };
+  for (const k of ['name', 'overlay']) if (ov[k] != null) ut[k] = ov[k];
+  const per = new Map((ov.countries || []).map(c => [c.filename, c]));
+  ut.countries = raw.countries.map(c => {
+    const filename = c.filename || c.file.replace('countries/', '').replace('.webp', '');
+    return { ...c, ...(per.get(filename) || {}), filename, namnSv: c.name };
+  });
+  return ut;
+}
 async function loadRegionConfig(slug) {
   if (configCache[slug]) return configCache[slug];
-  const raw = await fetchJson(`assets/${slug}/config.json?v=` + V);
+  let raw = await fetchJson(`assets/${slug}/config.json?v=` + V);
+  // översättningen måste komma med: ett nätfel kastas (och cachas inte),
+  // annars fick resten av besöket den svenska configen
+  if (SPRAK.lang !== 'sv' && SPRAK.tillat(slug)) {
+    raw = slaIhopConfig(raw, await fetchJson(`assets/${slug}/config.${SPRAK.lang}.json?v=` + V));
+  }
   configCache[slug] = raw;
   return raw;
 }
@@ -722,9 +751,12 @@ function buildCountries(slug, raw) {
     const filename = c.filename || c.file.replace('countries/', '').replace('.webp', '');
     const f = featureByFilename.get(filename);
     if (!f) { console.warn('ingen klickyta:', slug, filename); continue; }
+    const namnSv = c.namnSv || c.name;
     out.push({
-      name: c.name, filename, slug, gid: f.id,
+      name: c.name, namnSv, flaggNamn: namnSv, filename, slug, gid: f.id,
       desc: c.desc || '', assoc: c.imageAssociation || '',
+      // andra språk: bilden ur configen (omritade delstater har egen fil)
+      bild: SPRAK.lang === 'sv' ? null : `assets/${slug}/${c.file}?v=` + V,
     });
   }
   return out;
@@ -757,7 +789,7 @@ function initMap() {
           // en zoomnivå djupare rutor för samma vy — konsten blir skarp
           // redan utzoomat i stället för suddig fram till nästa nivå
           tileSize: 256,
-          attribution: 'Illustrationer © Jonas · Gränser: Natural Earth',
+          attribution: SPRAK.t('Illustrationer © Jonas · Gränser: Natural Earth'),
         },
         borders: { type: 'geojson', data: dataUrl('assets/art-borders.json?v=' + V) },
         jorden: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: {
@@ -1055,7 +1087,8 @@ function handleMapClick(gid, ev) {
   if (c) seterraClick(c);
   else {
     const f = regionsGj.features.find(f2 => f2.id === gid);
-    if (f) seterraClick({ name: f.properties.namn, filename: null, gid, desc: '', assoc: '', frammande: true });
+    if (f) seterraClick({ name: SPRAK.landnamn(f.properties.key, f.properties.namn), flaggNamn: f.properties.namn,
+                      filename: null, gid, desc: '', assoc: '', frammande: true });
   }
 }
 
@@ -1647,16 +1680,19 @@ async function initOrig() {
     origShapes[key] = { file: `assets/${slug}/${sh.file}`, left: sh.left, top: sh.top,
       width: sh.width, height: sh.height, hitOnly: !!sh.hitOnly, data: null, canvas: null };
   }
-  const list = raw.countries.map(c => ({
-    name: c.name,
-    filename: c.filename || c.file.replace('countries/', '').replace('.webp', ''),
-    left: c.left, top: c.top, width: c.width, height: c.height,
-  }));
+  const list = raw.countries.map(c => {
+    const filename = c.filename || c.file.replace('countries/', '').replace('.webp', '');
+    return {
+      name: c.name, filename,
+      bild: SPRAK.lang === 'sv' ? `assets/${slug}/countries/${filename}.webp` : `assets/${slug}/${c.file}?v=` + V,
+      left: c.left, top: c.top, width: c.width, height: c.height,
+    };
+  });
   origSorted = [...list].sort((a, b) => a.width * a.height - b.width * b.height);
   for (const c of list) {
     const img = document.createElement('img');
     img.className = 'country-overlay';
-    img.src = `assets/${slug}/countries/${c.filename}.webp`;
+    img.src = c.bild;
     img.draggable = false;
     origWrapper.appendChild(img);
     origOverlayEls[c.filename] = img;
@@ -1682,7 +1718,7 @@ async function initOrig() {
   ov.style.display = 'none';
   ov.onload = () => { ov.style.display = ''; origPosition(); };
   ov.onerror = () => ov.remove();
-  ov.src = `assets/${slug}/overlay.webp`;
+  ov.src = `assets/${slug}/${raw.overlay || 'overlay.webp'}` + (SPRAK.lang === 'sv' ? '' : '?v=' + V);
   origWrapper.appendChild(ov);
 
   // träffdata: alfakanalen i varje landbild (och specialform). Stora länder
@@ -1698,7 +1734,7 @@ async function initOrig() {
   const hitScale = (w, h) => (w * h > 1000000 ? 2 : 1);
   await Promise.all([
     ...list.map(async c => {
-      const i = await loadImg(`assets/${slug}/countries/${c.filename}.webp`);
+      const i = await loadImg(c.bild);
       if (!i) return;
       const s = hitScale(c.width, c.height);
       const w = Math.max(1, Math.round(c.width / s)), h = Math.max(1, Math.round(c.height / s));
@@ -1891,7 +1927,7 @@ function origApplyState(gid, t) {
       el.dataset.svar = String(nivaa);
     }
   } else if (el.dataset.svar) {
-    el.src = `assets/${origSlug}/countries/${a.filename}.webp`;
+    el.src = a.bild;
     delete el.dataset.svar;
   }
   const glow = !t.fel && !!t.tackt && (!!t.hover || !!t.tips);
@@ -2075,7 +2111,7 @@ async function startRegion(slug, flyg, delId) {
   COUNTRIES = buildCountries(slug, raw);
   if (del) {
     const vill = new Set(del.lander);
-    COUNTRIES = COUNTRIES.filter(c => vill.has(c.name));
+    COUNTRIES = COUNTRIES.filter(c => vill.has(c.namnSv));
   }
   aktivByGid = new Map(COUNTRIES.map(c => [c.gid, c]));
   aktivByFile = new Map(COUNTRIES.map(c => [c.filename, c]));
@@ -2091,8 +2127,8 @@ async function startRegion(slug, flyg, delId) {
   origRaw = raw;
   document.getElementById('view-orig').style.display = '';
 
-  document.title = `${aktivRegionNamn} – Jonas geografi`;
-  document.querySelector('header h1').textContent = aktivRegionNamn + ' 🌍';
+  document.title = `${aktivRegionNamn} – ${SPRAK.varumarke}`;
+  document.querySelector('header h1').textContent = aktivRegionNamn + ' ' + SPRAK.ikon;
   visaSpelVideo(slug);   // världsdelens film nås via play-knappen i headern
   // tränar man en del hoppar filmen till just den delens avsnitt
   const vk = document.getElementById('spel-video');
@@ -2233,7 +2269,7 @@ async function startWorld(count, fastaGids) {
 // Utforska-läget
 // ══════════════════════
 function countryImgSrc(c) {
-  return `assets/${c.slug}/countries/${c.filename}.webp`;
+  return c.bild || `assets/${c.slug}/countries/${c.filename}.webp`;
 }
 // Förladda de spelbara ländernas bilder så infokortet och quiz-feedbacken
 // visar landbilden DIREKT i stället för efter en nedladdningssekund.
@@ -2278,7 +2314,7 @@ infoToggle.addEventListener('click', () => {
 });
 function showInfoCard(c) {
   activeCountry = c.gid;
-  infoName.textContent = (flagga(c.name) + ' ' + c.name).trim();
+  infoName.textContent = (flagga(c.flaggNamn || c.name) + ' ' + c.name).trim();
   infoShape.src = countryImgSrc(c);
   const infoAssoc = document.getElementById('info-assoc');
   infoAssoc.textContent = c.assoc || '';
@@ -2297,7 +2333,7 @@ function exploreClick(c, e) {
     clearTimeout(exploreTooltipTimer);
     // minnesregeln direkt vid pekaren — och längre tid när det finns
     // en regel att hinna läsa
-    cursorLabel.innerHTML = `<div class="tt-namn">${flagga(c.name)} ${escHtml(c.name)}</div>` +
+    cursorLabel.innerHTML = `<div class="tt-namn">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
       (c.assoc ? `<div class="tt-assoc">${escHtml(c.assoc)}</div>` : '');
     cursorLabel.classList.add('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
@@ -2430,7 +2466,7 @@ function seterraClick(c) {
       revealCountry(c.gid);
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     // konfetti bara vid var femte rätta svar i rad — lagom festligt
     seterraSvit++;
     if (seterraSvit % 5 === 0) burstConfetti();
@@ -2444,7 +2480,7 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.name)} ${escHtml(c.name)}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
@@ -2780,7 +2816,7 @@ async function saveHighscore(name, score, time, wrong, odelad) {
 function fmtTid(t) {
   const tt = Math.round(t * 10);
   const m = Math.floor(tt / 600), s = Math.floor((tt % 600) / 10), d = tt % 10;
-  return `${m}:${s.toString().padStart(2, '0')}` + (d ? `,${d}` : '');
+  return `${m}:${s.toString().padStart(2, '0')}` + (d ? SPRAK.decimal + d : '');
 }
 // ── Namnvakt: topplistorna är en publik yta i ett barnspel ──
 // En besökare la in en slaktfilmssajts adress som "namn" på 13 listor
@@ -3079,7 +3115,7 @@ document.getElementById('seterra-diplom')?.addEventListener('click', () => {
   document.getElementById('diplom-detalj').textContent =
     `alla ${seterraTotal} länder · 100 % rätt · tid ${seterraTimeEl.textContent}`;
   document.getElementById('diplom-datum').textContent =
-    new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' });
+    new Date().toLocaleDateString(SPRAK.datum, { year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('diplom-modal').style.display = 'flex';
   spela('fanfar');
 });
@@ -3193,8 +3229,9 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
 if (firebaseDB && !/^(127\.|localhost)/.test(location.hostname)
     && !location.hostname.includes('--pr')) {
   const dag = new Date().toISOString().slice(0, 10);
-  firebaseDB.ref('besok/' + dag).transaction(c => (c || 0) + 1).catch(() => {});
-  firebaseDB.ref('besok/totalt').transaction(c => (c || 0) + 1).catch(() => {});
+  // den engelska sidan räknas för sig (besok/en-<dag>, besok/en-totalt)
+  firebaseDB.ref('besok/' + SPRAK.besokPrefix + dag).transaction(c => (c || 0) + 1).catch(() => {});
+  firebaseDB.ref('besok/' + SPRAK.besokPrefix + 'totalt').transaction(c => (c || 0) + 1).catch(() => {});
 }
 
 // ── Jonas high-five ──
@@ -3637,7 +3674,9 @@ document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a =>
 });
 window.addEventListener('popstate', () => {
   const r = new URLSearchParams(location.search).get('region');
-  if (!r) tillbakaTillStart();     // bakåt till starten: sömlöst, utan omladdning
+  // bakåt till starten: sömlöst, utan omladdning (en sida utan startsida
+  // laddar om och hamnar i sin region)
+  if (!r) { if (SPRAK.startRegion) location.reload(); else tillbakaTillStart(); }
   else location.reload();          // bakåt/framåt mellan regioner: enklast så
 });
 
@@ -3991,7 +4030,7 @@ const SPEL_TOUR = [
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
     bild: 'assets/jonas/stark.webp', plats: underKnappen,
     text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!' },
-  { el: () => document.getElementById('back-btn'),
+  { el: () => document.getElementById('back-btn'), om: () => !SPRAK.startRegion,
     bild: 'assets/jonas/upp.webp', spegel: true, plats: underKnappen,
     text: 'Pilen tar dig tillbaka till jordgloben när du vill välja något annat.' },
   { stor: true, bild: 'assets/jonas/masken.webp', knapp: 'Nu kör vi!',
@@ -4116,6 +4155,9 @@ function visaTourSteg() {
 }
 
 function startaTour(lista, nyckel, vidSlut) {
+  // steg med om() visas bara när villkoret gäller (tillbakapilen finns inte
+  // på en sida utan startsida)
+  lista = lista.filter(s => !s.om || s.om());
   aktivTour = lista; tourNyckel = nyckel; tourSlut = vidSlut; tourSteg = 0;
   lista.forEach(s => { if (s.bild) new Image().src = s.bild; });   // värm cachen
   introOverlay.style.display = '';
@@ -4296,7 +4338,7 @@ document.getElementById('feedback-form').addEventListener('submit', async e => {
         namn: document.getElementById('feedback-namn').value.trim() || '(inget namn)',
         epost: document.getElementById('feedback-epost').value.trim() || '(ingen e-post)',
         meddelande: medd,
-        _subject: 'Feedback från Jonas geografi',
+        _subject: 'Feedback från ' + SPRAK.varumarke,
         _template: 'table',
       }),
     });
@@ -4334,8 +4376,10 @@ function showGame() {
 // litet API för tester och felsökning — INTE i produktion: med klick()
 // och target i konsolen kunde vem som helst skripta ett perfekt quiz
 // på sekunder och toppa listorna med omöjliga tider
+// (den engelska sidans riktiga adress öppnar det inte ens med ?debug: ny,
+// publik topplista)
 if (/^(127\.|localhost)/.test(location.hostname) ||
-    new URLSearchParams(location.search).has('debug')) {
+    (new URLSearchParams(location.search).has('debug') && (SPRAK.lang === 'sv' || SPRAK.dev))) {
   window.spel = {
     get map() { return map; },
     get countries() { return COUNTRIES; },
@@ -4453,8 +4497,8 @@ async function forberedUtmaning(id) {
     catch (e) { /* nätfel → samma felruta som saknad utmaning */ }
   }
   const modal = document.getElementById('utmaning-anta-modal');
-  if (!data || !RESA_NAMN[data.slug]) {
-    startLage();
+  if (!data || !RESA_NAMN[data.slug] || !SPRAK.tillat(data.slug)) {
+    if (SPRAK.startRegion) await startRegion(SPRAK.startRegion); else startLage();
     document.getElementById('utm-anta-rubrik').textContent = 'Hoppsan!';
     document.getElementById('utm-anta-text').textContent =
       'Utmaningen kunde inte hittas — länken kan vara trasig eller nätet nere.';
@@ -4607,8 +4651,11 @@ if ('serviceWorker' in navigator) {
 
 (async () => {
   const params = new URLSearchParams(window.location.search);
-  const region = params.get('region');
+  let region = params.get('region');
   const utmaningId = params.get('utmaning');
+  // en sida med bara en region (engelska USA) har ingen startsida: den går
+  // direkt in i regionen, och andra regioner finns inte där
+  if (SPRAK.startRegion && !utmaningId && (!region || !SPRAK.tillat(region))) region = SPRAK.startRegion;
 
   if (region || utmaningId) showGame(); else visaStartSkal();
   const loadTxt = document.getElementById('spel-load-txt');

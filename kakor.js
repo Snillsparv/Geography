@@ -13,6 +13,8 @@
 // Spelet rapporterar händelser via window.kakSpara?.(namn, egenskaper) —
 // funktionen finns alltid, men skickar bara när PostHog är igång.
 (() => {
+  // språkprofilen (sprak.js); sidor utan den (lärarsidan) är svenska
+  const S = window.SPRAK || { id: 'jonasgeografi', lang: 'sv', startRegion: null };
   const TOKEN = 'phc_ADbD7ENhThE54GinNPoTv5XAWDkTSUPu2MmWkyAHJo4x';
   const VAL_NYCKEL = 'kakval';           // 'ja' | 'nej'
   const LOKAL = /^(127\.|localhost)/.test(location.hostname)
@@ -43,6 +45,8 @@
       disable_session_recording: val() !== 'ja',
       session_recording: { maskAllInputs: true },
     });
+    // vilken webbplats händelsen kom från (svenska / engelska allusstates)
+    posthog.register({ sajt: S.id, sprak: S.lang });
   }
 
   // ── samtyckesväxeln ──
@@ -279,9 +283,10 @@
   };
   const params = new URLSearchParams(location.search);
   // undersidor (lärarsidan m.fl.) har ingen rundtur att vänta på
-  const spelsida = location.pathname === '/' || /glob\.html$/.test(location.pathname);
+  const spelsida = location.pathname === '/' || /(glob|allusstates)\.html$/.test(location.pathname);
+  // en sida utan startsida (engelska USA) börjar direkt i spelvyn
   const vantarPa = !spelsida ? null
-    : params.get('region') ? 'speltur-klar'
+    : (params.get('region') || (S.startRegion && !params.get('utmaning'))) ? 'speltur-klar'
     : params.get('utmaning') ? null : 'rundtur-klar';
   const turKlar = () => {
     if (!vantarPa) return true;

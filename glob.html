@@ -10,7 +10,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=90">
+  <link rel="stylesheet" href="style.css?v=91">
+  <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
+  <script src="sprak.js?v=91"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -1023,14 +1025,16 @@
   </div>
 </div>
 
+<!-- markupens texter på sidans språk (gör ingenting på svenska) -->
+<script>SPRAK.oversattDom()</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=90"></script>
-<script src="glob-spel.js?v=90"></script>
+<script src="kakor.js?v=91"></script>
+<script src="glob-spel.js?v=91"></script>
 
 </body>
 </html>

@@ -1,0 +1,205 @@
+{
+  "name": "USA",
+  "countries": [
+    {
+      "filename": "kalifornien",
+      "name": "California"
+    },
+    {
+      "filename": "nevada",
+      "name": "Nevada"
+    },
+    {
+      "filename": "oregon",
+      "name": "Oregon"
+    },
+    {
+      "filename": "washington",
+      "name": "Washington"
+    },
+    {
+      "filename": "idaho",
+      "name": "Idaho"
+    },
+    {
+      "filename": "montana",
+      "name": "Montana"
+    },
+    {
+      "filename": "wyoming",
+      "name": "Wyoming"
+    },
+    {
+      "filename": "utah",
+      "name": "Utah"
+    },
+    {
+      "filename": "colorado",
+      "name": "Colorado"
+    },
+    {
+      "filename": "oklahoma",
+      "name": "Oklahoma"
+    },
+    {
+      "filename": "kansas",
+      "name": "Kansas"
+    },
+    {
+      "filename": "nebraska",
+      "name": "Nebraska"
+    },
+    {
+      "filename": "south_dakota",
+      "name": "South Dakota"
+    },
+    {
+      "filename": "north_dakota",
+      "name": "North Dakota"
+    },
+    {
+      "filename": "louisiana",
+      "name": "Louisiana"
+    },
+    {
+      "filename": "mississippi",
+      "name": "Mississippi"
+    },
+    {
+      "filename": "alabama",
+      "name": "Alabama"
+    },
+    {
+      "filename": "georgia",
+      "name": "Georgia"
+    },
+    {
+      "filename": "florida",
+      "name": "Florida"
+    },
+    {
+      "filename": "alaska",
+      "name": "Alaska"
+    },
+    {
+      "filename": "hawaii",
+      "name": "Hawaii"
+    },
+    {
+      "filename": "arizona",
+      "name": "Arizona"
+    },
+    {
+      "filename": "new_mexico",
+      "name": "New Mexico"
+    },
+    {
+      "filename": "texas",
+      "name": "Texas"
+    },
+    {
+      "filename": "maine",
+      "name": "Maine"
+    },
+    {
+      "filename": "new_hampshire",
+      "name": "New Hampshire"
+    },
+    {
+      "filename": "vermont",
+      "name": "Vermont"
+    },
+    {
+      "filename": "massachusetts",
+      "name": "Massachusetts"
+    },
+    {
+      "filename": "rhode_island",
+      "name": "Rhode Island"
+    },
+    {
+      "filename": "connecticut",
+      "name": "Connecticut"
+    },
+    {
+      "filename": "new_york",
+      "name": "New York"
+    },
+    {
+      "filename": "pennsylvania",
+      "name": "Pennsylvania"
+    },
+    {
+      "filename": "new_jersey",
+      "name": "New Jersey"
+    },
+    {
+      "filename": "delaware",
+      "name": "Delaware"
+    },
+    {
+      "filename": "maryland",
+      "name": "Maryland"
+    },
+    {
+      "filename": "south_carolina",
+      "name": "South Carolina"
+    },
+    {
+      "filename": "north_carolina",
+      "name": "North Carolina"
+    },
+    {
+      "filename": "virginia",
+      "name": "Virginia"
+    },
+    {
+      "filename": "west_virginia",
+      "name": "West Virginia"
+    },
+    {
+      "filename": "ohio",
+      "name": "Ohio"
+    },
+    {
+      "filename": "kentucky",
+      "name": "Kentucky"
+    },
+    {
+      "filename": "tennessee",
+      "name": "Tennessee"
+    },
+    {
+      "filename": "indiana",
+      "name": "Indiana"
+    },
+    {
+      "filename": "illinois",
+      "name": "Illinois"
+    },
+    {
+      "filename": "michigan",
+      "name": "Michigan"
+    },
+    {
+      "filename": "wisconsin",
+      "name": "Wisconsin"
+    },
+    {
+      "filename": "minnesota",
+      "name": "Minnesota"
+    },
+    {
+      "filename": "iowa",
+      "name": "Iowa"
+    },
+    {
+      "filename": "missouri",
+      "name": "Missouri"
+    },
+    {
+      "filename": "arkansas",
+      "name": "Arkansas"
+    }
+  ]
+}
