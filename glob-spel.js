@@ -1927,7 +1927,8 @@ function origApplyState(gid, t) {
       el.dataset.svar = String(nivaa);
     }
   } else if (el.dataset.svar) {
-    el.src = a.bild;
+    // a är det spelbara landet (bild bara satt på andra språk)
+    el.src = a.bild || `assets/${origSlug}/countries/${a.filename}.webp`;
     delete el.dataset.svar;
   }
   const glow = !t.fel && !!t.tackt && (!!t.hover || !!t.tips);

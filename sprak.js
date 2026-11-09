@@ -30,7 +30,9 @@
   // och githack-förhandslänkar
   const dev = /^(127\.|localhost$|\[::1\]$)/.test(h) || /--/.test(h) || /\.githack\.com$/.test(h);
   const fast = rot.dataset.sajt;   // satt i den genererade engelska startsidan
-  let id = fast || (/^allusstates(--|-com--|\.)|(^|\.)allusstates\.com$/.test(h) ? 'allusstates' : 'jonasgeografi');
+  // allusstates.com, och Firebase-sajten allusstates (eller allusstates-com):
+  // <id>.web.app, <id>.firebaseapp.com och kanalerna <id>--<kanal>-<hash>.web.app
+  let id = fast || (/^allusstates(-com)?(--|\.)|(^|\.)allusstates\.com$/.test(h) ? 'allusstates' : 'jonasgeografi');
   if (dev && !fast) {
     const q = new URLSearchParams(location.search).get('lang');
     const val = q === 'en' ? 'allusstates' : q === 'sv' ? 'jonasgeografi' : null;

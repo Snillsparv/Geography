@@ -78,8 +78,12 @@ const normUrl = u => {
 async function oppna(sokvag, ls = BAS_LS) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
   const page = await ctx.newPage();
-  const fel = [], urls = new Set();
+  const fel = [], urls = new Set(), trasiga = new Set();
   page.on('pageerror', e => fel.push(String(e.message || e)));
+  page.on('response', r => {
+    const u = r.url();
+    if (u.startsWith(BAS) && r.status() >= 400 && !/\/sprak(-\w+)?\.js/.test(u)) trasiga.add(r.status() + ' ' + normUrl(u));
+  });
   await ctx.route('**/*', rt => {
     const u = rt.request().url();
     if (!u.startsWith(BAS)) return rt.abort();
@@ -91,19 +95,21 @@ async function oppna(sokvag, ls = BAS_LS) {
   await page.goto(BAS + sokvag, { waitUntil: 'domcontentloaded' });
   // startsidans glob snurrar (map.loaded() blir aldrig sant) — stilen räcker
   await page.waitForFunction("typeof map !== 'undefined' && map && map.isStyleLoaded()", null, { timeout: 60000 });
-  return { ctx, page, fel, urls };
+  return { ctx, page, fel, urls, trasiga };
 }
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 const text = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return e ? e.innerText : null; }, sel);
 
 async function region(slug) {
-  const { ctx, page, fel, urls } = await oppna('/glob.html?region=' + slug);
+  const { ctx, page, fel, urls, trasiga } = await oppna('/glob.html?region=' + slug);
   await page.waitForFunction(s => typeof aktivSlug !== 'undefined' && aktivSlug === s && COUNTRIES.length > 0, slug, { timeout: 60000 });
   await vanta(1500);
   const ut = {};
   ut.lang = await page.evaluate(() => document.documentElement.lang);
   ut.titel = await page.title();
   ut.hsKey = await page.evaluate(() => HS_KEY);
+  // tidsformatet (tiondelarnas skiljetecken) — tiderna i texterna normaliseras bort
+  ut.fmtTid = await page.evaluate(() => [fmtTid(12.3), fmtTid(75), fmtTid(600.9)]);
   ut.antal = await page.evaluate(() => COUNTRIES.length);
   ut.namn = await page.evaluate(() => COUNTRIES.map(c => c.name));
   ut.sida = norm(await page.evaluate(() => document.body.innerText));
@@ -119,9 +125,27 @@ async function region(slug) {
   }
   await page.evaluate(() => { infoToggle.click(); });
   ut.infoUtfalld = norm(await text(page, '.info-panel'));
-  // bildquiz: nyckeln byts
+  // originalkartan (dold i menyn men nåbar): bildquiz med tre rätta svar
+  // (svarssilhuetter), sen tillbaka till utforska — bilderna ska komma tillbaka
+  await page.evaluate(() => setView('orig'));
+  await page.waitForFunction(() => Object.keys(origOverlayEls).length > 0, null, { timeout: 30000 });
+  await vanta(2500);
   await page.evaluate(() => switchMode('bildquiz'));
   ut.hsKeyBild = await page.evaluate(() => HS_KEY);
+  for (let i = 0; i < 3; i++) {
+    await page.waitForFunction(() => !!seterraTarget && !seterraLocked, null, { timeout: 20000 });
+    await page.evaluate(() => handleMapClick(seterraTarget.gid, null));
+    await vanta(400);
+  }
+  ut.origSvar = await page.evaluate(() => Object.entries(origOverlayEls)
+    .filter(([, e]) => e.dataset.svar).map(([k, e]) => k + ' ' + e.dataset.svar).sort());
+  await page.evaluate(() => switchMode('explore'));
+  await vanta(800);
+  ut.origBilder = await page.evaluate(() => Object.entries(origOverlayEls)
+    .map(([k, e]) => k + ' ' + e.getAttribute('src') + (e.classList.contains('visible') ? ' synlig' : '')).sort());
+  ut.origOverlay = await page.evaluate(() => { const o = document.getElementById('orig-overlay'); return o ? o.getAttribute('src') : null; });
+  await page.evaluate(() => setView('glob'));
+  await vanta(800);
   // klassiskt quiz: ett fel, ett klick utanför regionen, sen alla rätt
   await page.evaluate(() => switchMode('seterra'));
   await page.waitForFunction(() => !!seterraTarget, null, { timeout: 20000 });
@@ -152,7 +176,33 @@ async function region(slug) {
   await vanta(1500);
   ut.ratt = norm(await page.evaluate(() => seterraFeedback.innerText));
   ut.klar = norm(await page.evaluate(() => document.body.innerText));
+  // en runda till utan fel: diplomet (datumets siffror bort)
+  await page.evaluate(() => { const b = document.getElementById('modal-skip'); if (b && b.offsetParent) b.click(); });
+  await vanta(500);
+  await page.evaluate(() => document.getElementById('seterra-restart').click());
+  await page.waitForFunction(() => !!seterraTarget, null, { timeout: 20000 });
+  for (let varv = 0; varv < 400; varv++) {
+    const klar = await page.evaluate(() => {
+      if (seterraDone.classList.contains('active')) return true;
+      if (seterraTarget && !seterraLocked) handleMapClick(seterraTarget.gid, null);
+      return false;
+    });
+    if (klar) break;
+    await vanta(60);
+  }
+  await vanta(1500);
+  await page.evaluate(() => { const b = document.getElementById('modal-skip'); if (b && b.offsetParent) b.click(); });
+  await vanta(300);
+  ut.perfekt = norm(await page.evaluate(() => document.querySelector('#seterra-done') ? document.querySelector('#seterra-done').innerText : seterraDone.innerText));
+  ut.diplom = norm(await page.evaluate(() => {
+    const b = document.getElementById('seterra-diplom');
+    if (!b || b.style.display === 'none') return '(inget diplom)';
+    b.click();
+    const d = document.getElementById('diplom-datum');
+    return document.getElementById('diplom-modal').innerText.replace(d.textContent, d.textContent.replace(/\d+/g, 'N'));
+  }));
   ut.fel = fel.filter(e => !/firebase/i.test(e));
+  ut.trasiga = [...trasiga].sort();
   ut.urls = [...urls].sort();
   await ctx.close();
   return ut;
@@ -160,7 +210,9 @@ async function region(slug) {
 
 async function startsida() {
   const { ctx, page, fel, urls } = await oppna('/glob.html');
-  await vanta(2000);
+  // laddskärmen (med sina roterande tips) ska vara borta
+  await page.waitForFunction(() => { const s = document.getElementById('ladd-skarm'); return !s || s.style.display === 'none'; }, null, { timeout: 60000 });
+  await vanta(1000);
   const ut = {
     lang: await page.evaluate(() => document.documentElement.lang),
     titel: await page.title(),
@@ -234,7 +286,7 @@ if (JAMFOR) {
       const A = new Set(a), B = new Set(b);
       skillnader.push(p + ': bara före ' + JSON.stringify(a.filter(x => !B.has(x))) +
         ', bara efter ' + JSON.stringify(b.filter(x => !A.has(x))));
-    } else skillnader.push(p + ':\n  före:  ' + JSON.stringify(a).slice(0, 600) + '\n  efter: ' + JSON.stringify(b).slice(0, 600));
+    } else skillnader.push(p + ':\n  före:  ' + String(JSON.stringify(a)).slice(0, 600) + '\n  efter: ' + String(JSON.stringify(b)).slice(0, 600));
   };
   jmf(fore, ut, '');
   if (skillnader.length) { console.log('SKILLNAD\n' + skillnader.join('\n')); process.exit(1); }
