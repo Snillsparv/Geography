@@ -234,6 +234,13 @@
       "width": 501,
       "height": 309,
       "filename": "hawaii",
+      "glob": {
+        "file": "countries/hawaii-glob.webp",
+        "left": 994,
+        "top": 2190,
+        "width": 416,
+        "height": 240
+      },
       "desc": "Hawaii är en ögrupp mitt i Stilla havet och USA:s enda delstat som helt består av öar. Delstaten är känd för sina vulkaner, tropiska stränder och unika kultur med influenser från Polynesien. Hawaii blev USA:s 50:e och senaste delstat 1959.",
       "imageAssociation": "En HAJ i Stilla havet"
     },

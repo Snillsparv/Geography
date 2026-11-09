@@ -117,8 +117,17 @@ ligger i `psd/omritade/new_york-glob.png` (läge i USA.psd: x 4675, y 728).
 New Mexico har också en: USA.psd-lagret med flaggans gröna fält förlängt
 40 dukpixlar (60 PSD-px) nedåt förbi den riktiga gränsen (bootheel), gjord med
 `tools/new-mexico-glob.py` (`psd/omritade/new_mexico-glob.png`).
+Hawaii har Jonas omritning mot ömallen (`NN-hawaii-oarna.png`): hajen kvar
+som havsdekor men öarna (och huvudet = Big Island) följer de riktiga öarna,
+källan i `psd/omritade/hawaii-glob.png` (läge i USA.psd: x 1491, y 3285;
+utskuren så att hörnet hamnar på hela dukpixlar).
 SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
 kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
+En hårdkantad teckning utan kantutjämning (Hawaii) tappar ögon och tänder i
+vektoriseringen i PSD-upplösning och får trappsteg om den bara förstoras.
+Den förstoras därför först tre gånger med mjuka kanter men utan
+mellanfärger (`python3 tools/mjuka-kanter.py in.png ut.png 3`) och
+vektoriseras med `VEC_MEDIAN=1`.
 Vektoriseringen tappar ibland detaljer; då lagas SVG:n direkt (Arizona:
 konturerna runt Z, Z och O spårade ur USA.psd och lagda överst; Colorado:
 det gröna strecket enfärgat ända ut, som de andra strecken).

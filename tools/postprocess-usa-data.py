@@ -171,8 +171,10 @@ MIKROHAL = 1e-4
 # (hajen) är mycket större än öarna. All annan konst utanför världens
 # USA-yta (North Carolinas fartstreck, Alaskas svans, Floridas bläckkant)
 # ligger alltid under havsmasken — bilden håller sig innanför konturen.
-# Tas Hawaii bort härifrån klipps hajen till öarna (provat 2026-11-08: då
-# syns bara grå öar, huvudet och tänderna hamnar i havet)
+# Tas Hawaii bort härifrån klipps hajen till öarna (provat 2026-11-08 med
+# den gamla bilden: då syns bara grå öar, huvudet och tänderna hamnar i
+# havet). Jonas omritade globbild (v89) har öarna och huvudet (Big Island)
+# på de riktiga öarna, men hajkroppen mellan dem är fortfarande havsdekor
 VISAD_DEKOR = {'usa/hawaii'}
 # den jämntjocka ytterkanten runt en avslöjad delstat (kant: 1) är lika
 # bred som teckningens egen konturlinje: KANT_PX pixlar på USA-kartans duk
@@ -854,7 +856,7 @@ def bearbeta_delstater(usa_reg, usa_bor, usa_mark, Wv, US, Wus, grannar, summa, 
                 'geometry': mask_geom})
     usa_reg['features'] = nya
     # markörens omfång (som avgör när delstaten får en klickprick) mättes
-    # på konsten. För Hawaii är konsten mest hav — 7,7 kvadratgrader kring
+    # på konsten. För Hawaii är konsten mest hav — 5,3 kvadratgrader kring
     # 1,4 av öar — och havsdekoren går inte att klicka på medan delstaten
     # är täckt, så omfånget och tjockleken (smal) mäts på täcket i stället:
     # då får öarna sin prick i översiktsvyerna som Kuba
