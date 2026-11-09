@@ -15,6 +15,8 @@
   button { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--txt); cursor: pointer; font-size: .82rem; }
   button.on { background: #2980b9; border-color: #5bbfff; color: #fff; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .row.preset { align-items: center; }
+  .row.preset span { font-size: .8rem; color: var(--dim); }
 
   /* address search with suggestions */
   #search { position: relative; display: flex; gap: 6px; margin-bottom: 10px; }
@@ -110,6 +112,7 @@
     <button id="bSat" class="on">Satellit</button><button id="bStreet">Karta</button>
     <button id="bPluto">Pluto</button><button id="bFit">Visa allt</button>
   </div>
+  <div class="row preset"><span>Färdig runda:</span><button id="bSthlm" type="button">Stockholm C</button></div>
   <div id="status"></div>
   <ol id="list"></ol>
   <div class="row" style="margin-top:12px">
@@ -139,6 +142,23 @@ const KEY = 'planeter-v1';
 let state = { sun: null, planets: {}, notes: {}, pluto: false };
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+// Ready-made walks: the sun at a known spot, and each planet on its circle in
+// the direction of a well-known place that the circle passes through. The four
+// inner planets are left for placing on site. Open with planeter.html?runda=stockholm
+const ROUTES = {
+  stockholm: {
+    name: 'Stockholmsrundan', sun: [18.0585, 59.3302], sunNote: 'Stockholm C, huvudentrén mot Vasagatan',
+    places: {
+      jupiter: [[18.0550, 59.3275], 'Stadshuset, där Nobelfesten hålls i Blå hallen'],
+      saturnus: [[18.0675, 59.3275], 'Riksdagshuset (Konserthuset vid Hötorget ligger i kanten av cirkeln)'],
+      uranus: [[18.0781, 59.3286], 'Nationalmuseum'],
+      neptunus: [[18.09111, 59.32778], 'Vasamuseet. 1 852 m är precis en sjömil!'],
+      pluto: [[18.09667, 59.32333], 'Gröna Lund, i bortre delen av parken'],
+    },
+  },
+};
+const wantRoute = (k => ROUTES[k] ? k : null)(new URLSearchParams(location.search).get('runda'));
 const esc = s => String(s).replace(/[<&>"]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // --- icons: each planet is drawn as the object the book uses for its size ---
@@ -245,7 +265,8 @@ maplibregl.addProtocol('esri', async (params, ctrl) => {
 // --- map ---
 const SAT = { type: 'raster', tileSize: 256, maxzoom: 20, attribution: 'Bilder © Esri, Maxar, Earthstar Geographics', tiles: ['esri://{z}/{x}/{y}'] };
 const OSM = { type: 'raster', tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'] };
-const map = new maplibregl.Map({ container: 'map', center: state.sun || [13.845, 58.39], zoom: state.sun ? 14 : 12, maxZoom: 21,
+const start = wantRoute && state.route !== wantRoute ? ROUTES[wantRoute].sun : state.sun;
+const map = new maplibregl.Map({ container: 'map', center: start || [13.845, 58.39], zoom: start ? 14 : 12, maxZoom: 21,
   style: { version: 8, sources: { sat: SAT, osm: OSM }, layers: [
     { id: 'osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
     { id: 'sat', type: 'raster', source: 'sat' } ] } });
@@ -367,8 +388,26 @@ map.on('load', () => {
   map.addLayer({ id: 'rings', type: 'line', source: 'rings', paint: { 'line-color': ['get', 'color'],
     'line-width': ['case', ['==', ['get', 'active'], 1], 4, 2], 'line-opacity': ['case', ['==', ['get', 'active'], 1], 1, .7],
     'line-dasharray': [3, 2] } });
-  if (state.sun) { placeSun(state.sun); active = nextTodo(); drawRings(); render(); }
+  const swap = wantRoute && state.route !== wantRoute;
+  if (swap && (!state.sun || confirm(`Vill du öppna ${ROUTES[wantRoute].name}? Den ersätter din nuvarande utplacering.`))) loadRoute(wantRoute);
+  else if (state.sun) {
+    placeSun(state.sun); active = nextTodo(); drawRings(); render();
+    if (wantRoute) showRing(bodies().slice(-1)[0], true);
+  }
 });
+function loadRoute(key) {
+  const r = ROUTES[key];
+  clearMarkers(); clearAddr();
+  state = { sun: r.sun, planets: {}, notes: { sun: r.sunNote }, pluto: true, route: key };
+  for (const [id, [at, note]] of Object.entries(r.places)) { state.planets[id] = bearing(r.sun, at); state.notes[id] = note; }
+  $('bPluto').classList.add('on');
+  placeSun(state.sun); active = nextTodo(); drawRings(); render();
+  showRing(byId('pluto'), true);
+}
+function clearMarkers() {
+  Object.values(markers).forEach(m => m.remove()); for (const k in markers) delete markers[k];
+  sunMarker && sunMarker.remove(); sunMarker = null; hovering = false; hideTip();
+}
 
 // --- panel ---
 const $ = id => document.getElementById(id), list = $('list'), status = $('status'), next = $('next');
@@ -470,8 +509,11 @@ $('bPluto').onclick = () => { state.pluto = !state.pluto; $('bPluto').classList.
   save(); render(); };
 $('bFit').onclick = () => { if (state.sun) showRing(bodies().slice(-1)[0], true); };
 $('bReset').onclick = () => { if (!confirm('Ta bort solen och alla planeter?')) return;
-  Object.values(markers).forEach(m => m.remove()); for (const k in markers) delete markers[k];
-  sunMarker && sunMarker.remove(); sunMarker = null; hovering = false; hideTip(); state = { sun: null, planets: {}, notes: {}, pluto: state.pluto }; active = null; save(); drawRings(); render(); };
+  clearMarkers(); state = { sun: null, planets: {}, notes: {}, pluto: state.pluto }; active = null; save(); drawRings(); render(); };
+$('bSthlm').onclick = () => {
+  if (state.sun && !confirm('Vill du öppna Stockholmsrundan? Den ersätter din nuvarande utplacering.')) return;
+  loadRoute('stockholm');
+};
 $('bKml').onclick = () => {
   if (!state.sun) return;
   const pm = (name, desc, [lo, la]) => `<Placemark><name>${esc(name)}</name><description>${esc(desc)}</description><Point><coordinates>${lo},${la},0</coordinates></Point></Placemark>`;
