@@ -148,10 +148,10 @@ window.SIFFROR = {
     { fraga: 'Vilket år förbjöds slaveriet i USA?', mask: '1___', svar: '865', ord: 'fjäll', bild: 'Människor står högt uppe på ett fjäll och andas in friheten.' },
     { fraga: 'Vilken president i ordningen var Barack Obama?', mask: '__:e', svar: '44', ord: 'rör', bild: 'Barack Obama sticker upp ur ett rör.' },
     { fraga: 'Hur många stjärnor har EU-flaggan?', mask: '__', svar: '12', ord: 'ton', bild: 'En vikt på ett ton landar mitt i stjärncirkeln.' },
-    { fraga: 'Hur många ledamöter har Sveriges riksdag?', mask: '___', svar: '349', ord: 'Marabou', bild: 'Politikerna delar på en gigantisk Marabouchokladkaka.' },
+    { fraga: 'Hur många ledamöter har Sveriges riksdag?', mask: '___', svar: '349', ord: 'Marabou', bild: 'Politikerna delar på en gigantisk Marabouchokladkaka.', illu: 'riksdag' },
     { fraga: 'Vad är Usain Bolts världsrekord på 100 meter?', mask: '_,__ s', svar: '958', ord: 'bollhav', bild: 'Usain Bolt rusar genom ett svallande bollhav.' },
     { fraga: 'Hur många meter är en sjömil?', mask: '____ m', svar: '1852', ord: 'tvålen', bild: 'Gå och kasta tvålen i sjön!' },
-    { fraga: 'Hur hög är Burj Khalifa i Dubai?', mask: '___ m', svar: '828', ord: 'fanfar', bild: 'En fanfar ljuder från toppen. Fanfar blir 8284, men du vet att höjden har tre siffror.' },
+    { fraga: 'Hur hög är Burj Khalifa i Dubai?', mask: '___ m', svar: '828', ord: 'fanfar', bild: 'En fanfar ljuder från toppen. Fanfar blir 8284, men du vet att höjden har tre siffror.', illu: 'burj' },
     { fraga: 'Vilket datum är det pi-dagen?', mask: '__/_', svar: '143', ord: 'trumma', bild: 'Banka ceremoniellt på din största trumma.' },
     { fraga: 'När har Henrik namnsdag?', mask: '__/_', svar: '191', ord: 'tapet', bild: 'Henrik Dorsin tapetserar om ditt vardagsrum.' },
   ],
@@ -163,6 +163,12 @@ window.SIFFROR = {
     ['På köksbordet', 'Köket'], ['I diskhon', 'Köket'], ['I tvättkorgen', 'Tvättstugan'],
     ['I tvättmaskinen', 'Tvättstugan'], ['På strykbrädan', 'Tvättstugan'], ['På väg upp för trappan', 'Trappan'],
     ['I soffan', 'Vardagsrummet'], ['I tv-apparaten', 'Vardagsrummet'], ['I bokhyllan', 'Vardagsrummet'],
+  ],
+  // var platserna ligger på bokens karta (assets/siffror/palats.webp), i procent
+  palatsPos: [
+    [41.3, 97.9], [38.1, 83.4], [11.0, 76.6], [7.8, 50.1], [19.8, 58.8],
+    [35.8, 67.5], [74.9, 67.9], [93.7, 64.3], [93.2, 41.8], [78.9, 33.8],
+    [65.7, 32.6], [43.1, 34.2], [31.8, 18.6], [7.8, 16.4], [21.7, 5.1],
   ],
 
   // pi: de 30 första decimalerna, två par per plats. Första bilden gör

@@ -1,7 +1,7 @@
 // Kontrollerar sifferssidans data mot ljudomvandlaren: varje ord i lathunden,
 // övningarna, förslagen och pi-promenaden ska bli rätt tal.
 // Kör:  node test/siffror.mjs
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 
 const rot = new URL('..', import.meta.url);
@@ -44,6 +44,9 @@ kolla('pi-paren = decimalerna', pipar, D.pi.decimaler);
 kolla('pi: 30 decimaler', String(D.pi.decimaler.length), '30');
 kolla('pi stämmer med Math.PI', D.pi.decimaler.slice(0, 15), String(Math.PI).slice(2, 17));
 kolla('palatset räcker till pi', String(D.palats.length >= D.pi.platser.length), 'true');
+kolla('varje plats finns på kartan', String(D.palatsPos.length), String(D.palats.length));
+kolla('kartans platser ligger på bilden', String(D.palatsPos.every(([x, y]) => x >= 0 && x <= 100 && y >= 0 && y <= 100)), 'true');
+for (const f of D.fakta) if (f.illu) kolla(`teckning ${f.illu} finns`, String(existsSync(new URL(`assets/siffror/${f.illu}.webp`, rot))), 'true');
 
 // några uttalsregler för sig
 const regler = {
