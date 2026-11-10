@@ -78,3 +78,6 @@ tilecache/
 
 # mellanlager när tiles bakas om (packas till tiles/world.pmtiles)
 tiles-build/
+
+# den engelska startsidan genereras ur glob.html (tools/make-sajt-html.mjs, körs i CI)
+/allusstates.html

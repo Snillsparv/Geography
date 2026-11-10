@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "geography-fa6a4"
+  },
+  "targets": {
+    "geography-fa6a4": {
+      "hosting": {
+        "sv": [
+          "geography-fa6a4"
+        ],
+        "en": [
+          "allusstates"
+        ]
+      }
+    }
   }
 }

@@ -287,6 +287,35 @@ fisken i teckningen (under hakan, vid stjärtfästet) slutade bilden annars i
 ett snitt utan bläck ute i sjön. Fisken är dekor: ett klick på den ute i
 sjön räknas som hav.
 
+### Den engelska sajten på Firebase (allusstates)
+
+Samma repo och samma Firebase-projekt (geography-fa6a4), två Hosting-sajter:
+målet `sv` är sajten `geography-fa6a4` (den svenska) och målet `en` sajten
+`allusstates` (allusstates.com), se `.firebaserc` och `firebase.json`.
+
+- **Startsidan** `allusstates.html` genereras ur `glob.html` av
+  `node tools/make-sajt-html.mjs` (`--check` ger felkod 1 om den är
+  inaktuell). Bara huvudet byts, blocket mellan `<!-- huvud:start -->` och
+  `<!-- huvud:slut -->`, mot `tools/sajter/allusstates-head.html` (engelsk
+  titel, beskrivning och og-taggar med delningsbilden `assets/usa/dela-en.jpg`,
+  `manifest.en.webmanifest`). `<html>` får `data-sajt="allusstates"`, så
+  sprak.js väljer den engelska sajten oavsett värdnamn, och `sprak-en.js`
+  laddas efter sprak.js. Filen är inte incheckad; båda arbetsflödena kör
+  skriptet före deploy.
+- **Målet `en`** serverar `/` som allusstates.html, skickar `/glob.html` till
+  `/` (301), laddar inte upp de svenska sidorna (glob.html, lärarsidan,
+  klassisk.html med flera) och sätter `X-Robots-Tag: noindex` på allt fram
+  till lanseringen.
+- **Inget publiceras före december:** `firebase-hosting-merge.yml` har
+  `target: sv`, så en merge till main publicerar bara den svenska sajten.
+  Förhandsvisningarna (`firebase-hosting-pull-request.yml`) har inget mål och
+  får en adress per sajt: `geography-fa6a4--pr…` (svenska, `?lang=en` för
+  engelska) och `allusstates--pr…` (engelska direkt).
+- **Lansering:** ta bort `target: sv` ur merge-arbetsflödet och
+  noindex-blocket ur målet `en` i firebase.json.
+- Testa lokalt: `firebase emulators:start --only hosting` serverar `sv` och
+  `en` på var sin port (emulatorn bryr sig inte om `ignore`).
+
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
 

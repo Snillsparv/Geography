@@ -11,9 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # den engelska startsidan (allusstates.html) byggs ur glob.html
+      - run: node tools/make-sajt-html.mjs
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEOGRAPHY_FA6A4 }}
           channelId: live
+          # bara den svenska sajten tills den engelska lanseras i december
+          target: sv
           projectId: geography-fa6a4
