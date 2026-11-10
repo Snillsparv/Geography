@@ -10,16 +10,17 @@
   <meta property="og:description" content="Lär dig sifferalfabetet och kom ihåg vilka siffror som helst, med Jonas von Essen.">
   <meta property="og:url" content="https://www.jonasgeografi.se/siffror.html">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=3">
+  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=4">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#ee742c">
+  <meta name="theme-color" content="#0d0b0a">
   <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
   <link rel="preload" href="assets/siffror/league-gothic.woff2" as="font" type="font/woff2" crossorigin>
   <style>
-    /* Formen kommer från boken Så får du ett superminne: en vit sida på det
-       orange försättsbladet, smala versala rubriker och Jonas egna teckningar.
+    /* Formen kommer från boken Så får du ett superminne: smala versala
+       rubriker och Jonas egna teckningar på en vit sida, som ligger som ett
+       papper på en mörk botten full av lysande siffror.
        Varje steg har samma upplägg: teckning, rubrik, kort text, övning.
        League Gothic står in för bokens Kapra. */
     @font-face {
@@ -32,20 +33,18 @@
       --brod: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       --svart: #1a1a1a; --text2: #3d3a36; --text3: #716c65; --ljus: #a39d94;
       --prick: #8f8a83; --yta: #f5f2ed;
-      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c;
+      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c; --natt: #0d0b0a;
       --ratt: #11865a; --fel: #cc2936;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
-    body {
-      font-family: var(--brod); color: var(--svart); line-height: 1.55; min-height: 100vh;
-      background: var(--o2) linear-gradient(90deg, var(--o1), var(--o2) 50%, var(--o3));
-    }
-    /* försättsbladets klotter */
-    body::before {
-      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-      background: url('assets/siffror/klotter.svg') 0 0 / 540px auto repeat; opacity: .35;
-    }
+    body { font-family: var(--brod); color: var(--svart); line-height: 1.55; min-height: 100vh; background: var(--natt); }
+    /* bakgrunden: siffrorna ritas av siffror-bakgrund.js, de starkaste i ett
+       eget lager som lyser upp och dämpas långsamt */
+    #bakgrund, #glod { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; pointer-events: none; }
+    #bakgrund { z-index: -2; }
+    #glod { z-index: -1; animation: glod 4.5s ease-in-out infinite alternate; }
+    @keyframes glod { from { opacity: .35; } to { opacity: 1; } }
     button { font: inherit; color: inherit; cursor: pointer; }
     a { color: inherit; }
     img { max-width: 100%; height: auto; }
@@ -54,16 +53,20 @@
     .liten { font-size: .86rem; color: var(--text3); }
 
     /* ── omslaget ── */
-    .hero { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 26px 16px 24px; }
-    .hero-bild { width: 92px; flex: none; }
+    .hero {
+      display: flex; align-items: center; justify-content: center; gap: 14px; padding: 28px 16px 26px; color: #fff;
+      background: radial-gradient(closest-side, rgba(13, 11, 10, .9), rgba(13, 11, 10, 0));
+    }
+    .hero-bild { width: 92px; flex: none; filter: invert(1) drop-shadow(0 0 6px rgba(255, 120, 40, .7)); }
     h1 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase;
       font-size: clamp(3rem, 15vw, 5.4rem); line-height: .88; letter-spacing: .005em;
+      text-shadow: 0 0 18px rgba(255, 110, 30, .75), 0 0 3px rgba(255, 200, 150, .6);
     }
-    .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; margin-top: 8px; }
+    .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; margin-top: 8px; color: #ffc48f; }
 
     /* ── boksidan ── */
-    .sida { background: #fff; max-width: 720px; margin: 0 auto; }
+    .sida { background: #fff; max-width: 720px; margin: 0 10px 28px; border-radius: 3px; box-shadow: 0 12px 40px rgba(0, 0, 0, .8), 0 0 60px rgba(255, 110, 30, .12); }
     .steg-nav { display: flex; justify-content: center; gap: 7px; padding: 18px 16px 0; }
     .steg-nav a {
       width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--svart);
@@ -264,18 +267,22 @@
     }
     @media (min-width: 760px) {
       .hero { padding: 40px 16px 34px; }
-      .sida { margin-bottom: 56px; box-shadow: 0 14px 44px rgba(90, 30, 0, .35); }
+      .sida { margin: 0 auto 56px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     }
     @media print {
       body { background: #fff; }
-      body::before, .steg-nav, .nasta-steg, .knapprad { display: none !important; }
+      #bakgrund, #glod, .hero, .steg-nav, .nasta-steg, .knapprad { display: none !important; }
+      .sida { box-shadow: none; }
     }
   </style>
 </head>
 <body>
+
+<canvas id="bakgrund" aria-hidden="true"></canvas>
+<canvas id="glod" aria-hidden="true"></canvas>
 
 <header class="hero">
   <img class="hero-bild" src="assets/siffror/kapitel.svg" alt="" width="555" height="588">
@@ -417,6 +424,7 @@
 <script src="siffror-ljud.js?v=1"></script>
 <script src="siffror-data.js?v=3"></script>
 <script src="siffror.js?v=3"></script>
+<script src="siffror-bakgrund.js?v=1"></script>
 <script src="kakor.js?v=76"></script>
 </body>
 </html>
