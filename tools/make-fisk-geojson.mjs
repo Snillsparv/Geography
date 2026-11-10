@@ -6,10 +6,10 @@
 // fisken visas ovanpå sjöarna och Kanadas halva när Michigan är avslöjad.
 //
 // Konturen spåras (marching squares, alfa 128) ur den synliga fisken
-// (psd/engelska/michigan-fisk.png: framdelen plus bakdelen där vanten inte
-// täcker den), snittad med den bakade SVG:ns egen alfa så att polygonen
-// aldrig når utanför det som faktiskt ritas (vektoriseringen rundar
-// fenspetsarna), och krympt KRYMP PSD-px. Bakningens steg 3 gör nämligen
+// (psd/engelska/michigan-fisk.png från tools/fisk-glob.py: framdelen plus
+// bakdelen utom där vanten ligger på nedre halvön), snittad med den bakade
+// SVG:ns egen alfa så att polygonen aldrig når utanför det som faktiskt
+// ritas (vektoriseringen rundar fenspetsarna), och krympt KRYMP PSD-px. Bakningens steg 3 gör nämligen
 // den halvgenomskinliga fransen till opak underläggsfärg utan att fråga
 // fredad(), och den fransen får inte hamna innanför polygonen — då fick
 // fisken en röd rand ute i sjön. Hål i fisken fylls (inne i fisken ska
@@ -18,9 +18,9 @@
 //
 //   node tools/make-fisk-geojson.mjs [--krymp 1]
 //
-// Körs om när fiskmasken, Michigans engelska bild eller placering, eller
-// varpen (svenska ankarbilder och placeringar) ändras — och då bakas
-// usa-en om. Tar några sekunder.
+// Körs om (efter python3 -I tools/fisk-glob.py) när Michigans engelska
+// bild eller placering, eller varpen (svenska ankarbilder och placeringar)
+// ändras — och då bakas usa-en om. Tar några sekunder.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';

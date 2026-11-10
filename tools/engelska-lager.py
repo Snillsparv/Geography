@@ -155,23 +155,26 @@ def fyll_hal(ut):
 
 
 def fiskmaskar(namn, delar, pos, s, box):
-    """Michigans fisk sticker ut över sjöarna: masker (alfa 0-255) på samma
-    rutnät som bilden. <namn>-fisk.png är det som syns av fisken (främre
-    halvan plus den bakre där vanten inte täcker den), <namn>-fisk-front.png
-    bara främre halvan (den som ligger över strandlinjen i originalkartan).
-    delar = [bakre, vanten, främre] i ritordning."""
-    def alfa(i):
+    """Michigans fisk sticker ut över sjöarna. Lagren var för sig på samma
+    rutnät som bilden: <namn>-delar/bak.png, vante.png och fram.png (RGBA),
+    som fisk-glob.py lägger ihop till globens bild (fiskens bakre halva
+    ovanpå vanten utanför nedre halvön) och det som syns av fisken.
+    <namn>-fisk-front.png är främre halvans alfa (den som ligger över
+    strandlinjen i originalkartan, engelska-konst.py suddar linjerna under
+    den). delar = [bakre, vanten, främre] i ritordning."""
+    mapp = UT / f'{namn}-delar'
+    mapp.mkdir(exist_ok=True)
+    for i, del_namn in enumerate(('bak', 'vante', 'fram')):
         ensam = [(im if j == i else Image.new('RGBA', im.size, (0, 0, 0, 0)), p)
                  for j, (im, p) in enumerate(delar)]
         im, p = ihop(ensam)
         assert p == pos
         ut, _ = till_usa_psd(im, pos, s)
-        return np.asarray(ut.crop(box))[..., 3].astype(float) / 255
-    bak, vante, fram = alfa(0), alfa(1), alfa(2)
-    fisk = np.maximum(fram, bak * (1 - vante))
-    for suffix, m in (('fisk', fisk), ('fisk-front', fram)):
-        Image.fromarray(np.round(m * 255).astype(np.uint8), 'L').save(UT / f'{namn}-{suffix}.png', optimize=True)
-    print(f'  {namn}-fisk.png, {namn}-fisk-front.png')
+        ut = ut.crop(box)
+        ut.save(mapp / f'{del_namn}.png', optimize=True)
+        if del_namn == 'fram':
+            ut.getchannel('A').save(UT / f'{namn}-fisk-front.png', optimize=True)
+    print(f'  {namn}-delar/{{bak,vante,fram}}.png, {namn}-fisk-front.png')
 
 
 def main():

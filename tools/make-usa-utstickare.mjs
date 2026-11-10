@@ -104,9 +104,8 @@ for (const f of fc.features) {
   ctx.drawImage(m, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
   // maskläget (Michigans fisk): fotavtrycket är fiskens egen kontur, men där
-  // vanten täckte fisken i teckningen (under hakan, vid stjärtfästet) slutar
-  // bilden i ett snitt utan bläck — ute i sjön, där vanten är bortmålad,
-  // såg det ut som ett hugg i fisken. En tunn innerkontur i teckningens
+  // fisken går in under vanten (vid nedre halvöns strand, tools/fisk-glob.py)
+  // slutar bilden i ett snitt utan bläck. En tunn innerkontur i teckningens
   // svarta längs hela kanten sluter fisken; där fiskens egen kontur går
   // syns den inte (svart på svart, samma kantutjämning)
   if (f.properties.mask) {

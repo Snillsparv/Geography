@@ -220,7 +220,9 @@ python3 -I tools/engelska-konst.py --blak <tmp>          # ⇒ countries/<f>-en.
 
 `engelska-lager.py` skalar lagren till USA.psd:s rutnät (utskurna på jämna
 3 px), plockar bort lösa prickar långt från det svenska lagret och skriver
-Michigans fiskmasker (`michigan-fisk.png`, `michigan-fisk-front.png`).
+Michigans tre lager var för sig (`michigan-delar/{bak,vante,fram}.png`:
+fiskens bakre halva, vanten, fiskens främre halva) och främre halvans alfa
+(`michigan-fisk-front.png`).
 Kansas händer är bara konturer i lagret (PSD:ns vita bakgrund lyser igenom,
 de svenska vantarna var vitmålade); hålen målas vita (`VITA_HAL`), annars
 fyllde globbakningen dem med grannarnas underlägg.
@@ -228,7 +230,8 @@ fyllde globbakningen dem med grannarnas underlägg.
 `overlay-en.webp`: originalkartans konturer lagda på `map.webp`:s ram (den
 svenska overlay.webp sträcks fel, se skriptet) och utsuddade under
 fiskhuvudet och -stjärten. SVG:erna (`countries/<f>-en.svg`) vektoriseras
-ur `psd/engelska/*.png` med `node tools/vectorize.mjs <mapp> --force`;
+ur `psd/engelska/*.png` med `node tools/vectorize.mjs <mapp> --force`,
+utom Michigans, som `python3 -I tools/fisk-glob.py` gör (se fisken nedan);
 Delaware och Massachusetts först förstorade med `mjuka-kanter.py ... 3` och
 `VEC_MEDIAN=1` (tänderna och detaljerna försvann annars). Arizona får sitt
 bläck runt ZONE A/B och pilarna som egna svarta banor sist i SVG:n:
@@ -240,7 +243,9 @@ make-usa-utstickare.mjs. Utan flaggan gör verktygen exakt som förut (den
 svenska bakningen och exporten blir byte för byte desamma). Från `tools/`:
 
 ```bash
+python3 -I fisk-glob.py              # ⇒ countries/michigan-en.svg, psd/engelska/michigan-{glob,fisk}.png
 node make-fisk-geojson.mjs           # ⇒ data/usa-en-fisk.geojson (~7 s)
+rm -r ../tmp-usa-en                  # --save återupptar: gamla rutor står annars kvar
 until node --max-old-space-size=12288 make-tiles.mjs --dataset usa --lang en \
         --outline 0 --save tmp-usa-en; do echo "kraschade — kör igen"; done
 node make-tiles.mjs --dataset usa --lang en --save tmp-usa-en --assemble
@@ -274,7 +279,19 @@ varje engelsk bakning, och `V` för json-filerna och utstickarbilderna.
 
 Michigans fisk simmar ut över Michigan- och Huronsjön och in i Kanadas
 halva. Den visas som Michigans utstickare, som Pennsylvanias penna (dekor
-i sjöarna går inte: sjölagret ligger ovanpå konsten). make-fisk-geojson.mjs
+i sjöarna går inte: sjölagret ligger ovanpå konsten). I teckningen simmar
+fisken genom vanten (bakre halvan under vanten), men vanten är större än
+nedre halvön, så ute i sjön åt sjön upp fisken under hakan och vid
+stjärten. Jonas: fisken ska synas även där den inte är en del av
+landskapet. `fisk-glob.py` lägger därför globens bild (`michigan-glob.png`,
+vektoriserad till `countries/michigan-en.svg`) med fiskens bakre halva
+ovanpå vanten överallt utom på nedre halvön (Michigans största yta i
+`assets/usa-en-regions.json` genom varpnätet, krympt 2 PSD-px så att
+fisken täcker kustbandet), och skriver det som syns av fisken till
+`michigan-fisk.png`. Mark som teckningen inte når, och där närmaste färg
+är fiskens (övre halvön väster om huvudet), får vantens röda
+under teckningen: bakningen fyllde den annars med en platt ljusblå fläck. Spelbilden och kortet (`michigan-en.webp`) är
+teckningen som den är. make-fisk-geojson.mjs
 spårar `psd/engelska/michigan-fisk.png` (snittad med SVG:ns alfa, krympt
 1 PSD-px) och lägger konturen på jorden genom Michigans varpnät (`make-tiles
 --varpnat`). make-tiles `--lang en` fredar konsten innanför polygonen från
@@ -282,9 +299,9 @@ snäpp-passets klipp och kantätning (`FREDAD_KONST_EN`; `fredad()` tar en
 polygon eller en ruta), postprocess-skriptet gör polygonen till utstickaren
 i maskläge (ingen pennsvepning och ingen `sjo`-del, som annars släckte den
 blå fisken) och make-usa-utstickare.mjs klipper ut den ur usa-en.pmtiles,
-med en tunn innerkontur längs kanten (`MASK_KONTUR`): där vanten täckte
-fisken i teckningen (under hakan, vid stjärtfästet) slutade bilden annars i
-ett snitt utan bläck ute i sjön. Fisken är dekor: ett klick på den ute i
+med en tunn innerkontur längs kanten (`MASK_KONTUR`): där fisken går in
+under vanten vid nedre halvöns strand slutar bilden annars i ett snitt utan
+bläck. Fisken är dekor: ett klick på den ute i
 sjön räknas som hav.
 
 ### Den engelska sajten på Firebase (allusstates)

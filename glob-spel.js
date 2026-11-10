@@ -188,7 +188,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '93';
+const V = '94';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -215,7 +215,7 @@ const TILE_URL = dataUrl('tiles/world.pmtiles?v=3');
 // usa-en.pmtiles bakas om (tiles/** cachas i ett år).
 const USA_FILER = {
   sv: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
-  en: { data: 'usa-en', tiles: 'tiles/usa-en.pmtiles?v=1' },
+  en: { data: 'usa-en', tiles: 'tiles/usa-en.pmtiles?v=2' },
 }[SPRAK.lang];
 const USA_TILE_URL = dataUrl(USA_FILER.tiles);
 const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
