@@ -3,7 +3,9 @@
   "countries": [
     {
       "filename": "kalifornien",
-      "name": "California"
+      "name": "California",
+      "desc": "California is the most populous state in the US and stretches along the Pacific coast. The state is famous for Hollywood, Silicon Valley, and spectacular national parks like Yosemite. Much of California has a warm Mediterranean climate, and the state grows a large share of America's fruits and vegetables.",
+      "imageAssociation": "A big beach along the Pacific Ocean, because CALIFORNIA is known for its beaches and sun"
     },
     {
       "filename": "nevada",
@@ -12,39 +14,57 @@
       "left": 344,
       "top": 750,
       "width": 472,
-      "height": 734
+      "height": 734,
+      "desc": "Nevada is in the western US and is best known for Las Vegas, the \"Entertainment Capital of the World.\" Much of the state is desert, and it is the driest state in the whole country. Nevada's name comes from Spanish and means \"snow-covered,\" after the Sierra Nevada mountains.",
+      "imageAssociation": "A NEW Darth VADER mask staring toward the California beach (NEW VADER)"
     },
     {
       "filename": "oregon",
-      "name": "Oregon"
+      "name": "Oregon",
+      "desc": "Oregon is in the northwestern US and is known for its green forests, dramatic coastline, and the volcano Mount Hood. The state has a strong environmental culture, and Portland is famous for its bike culture and food trucks. Oregon is one of the few states with no sales tax.",
+      "imageAssociation": "A whale craving OREGANO so much that it jumps onto land to get some"
     },
     {
       "filename": "washington",
-      "name": "Washington"
+      "name": "Washington",
+      "desc": "Washington sits in the far northwest corner of the contiguous US and is home to tech giants like Microsoft and Amazon. The state is known for its rainy winters, evergreen forests, and iconic Mount Rainier. Seattle, the state's largest city, is also famous for its coffee culture and the Space Needle.",
+      "imageAssociation": "Ida's husband, who has to WASH A TON of clothes"
     },
     {
       "filename": "idaho",
-      "name": "Idaho"
+      "name": "Idaho",
+      "desc": "Idaho is in the northwestern US and is called \"The Gem State\" because of its rich mineral deposits. The state is best known for its potatoes and grows about a third of all potatoes in the US. Idaho also has stunning mountain scenery and popular ski resorts like Sun Valley.",
+      "imageAssociation": "An old lady named IDA doing the dishes. Ida is always HOME (IDA HOME)"
     },
     {
       "filename": "montana",
-      "name": "Montana"
+      "name": "Montana",
+      "desc": "Montana is a large state in the northwestern US, known for its vast prairies and the majestic Rocky Mountains. Glacier National Park, with its glaciers and crystal-clear lakes, is one of the state's biggest attractions. Montana is nicknamed \"Big Sky Country\" for its enormous, wide-open skies.",
+      "imageAssociation": "Ida's friend Anna, a face carved out of a mountain: MOUNT ANNA"
     },
     {
       "filename": "wyoming",
-      "name": "Wyoming"
+      "name": "Wyoming",
+      "desc": "Wyoming is the least populous state in the US and home to Yellowstone, the world's first national park. The state has dramatic landscapes with geysers, hot springs, and wildlife like bison and grizzly bears. In 1869, Wyoming became the first US territory to give women the right to vote.",
+      "imageAssociation": "In a vase store you wonder, \"WHY look at vases?\" Then you spot this Chinese Ming vase: \"OH, MING!\""
     },
     {
       "filename": "utah",
-      "name": "Utah"
+      "name": "Utah",
+      "desc": "Utah is in the western US and is known for its spectacular red rock formations and five national parks. Salt Lake City, the state capital, hosted the 2002 Winter Olympics and lies near the famous Great Salt Lake. Utah is also the center of The Church of Jesus Christ of Latter-day Saints.",
+      "imageAssociation": "A vase with a broken corner. You were told not to touch it, but YOU TOUCH it anyway"
     },
     {
       "filename": "colorado",
-      "name": "Colorado"
+      "name": "Colorado",
+      "desc": "The Rocky Mountains run through Colorado, which has more than 50 peaks over 14,000 feet (about 4,300 m). The state is a paradise for skiers, with world-famous resorts like Aspen and Vail. Denver, the capital, is called the \"Mile High City\" because its official elevation is exactly one mile (5,280 feet) above sea level.",
+      "imageAssociation": "A cheap but very COLORful vase"
     },
     {
       "filename": "oklahoma",
-      "name": "Oklahoma"
+      "name": "Oklahoma",
+      "desc": "Oklahoma is in the south-central US and is known as a center of Native American culture. The state lies in \"Tornado Alley\" and is often hit by powerful tornadoes. Oklahoma also has a rich oil history and became the 46th state in 1907.",
+      "imageAssociation": "The duck's legs and feet, in sandals made of oak and llama skin from the brand OAK LLAMA"
     },
     {
       "filename": "kansas",
@@ -53,11 +73,15 @@
       "left": 1592,
       "top": 1124,
       "width": 544,
-      "height": 306
+      "height": 306,
+      "desc": "Kansas lies in the middle of the US and is one of the country's flattest states. It is called \"The Sunflower State,\" and its endless fields of grain make it one of America's top wheat producers. Kansas is also famous as Dorothy's home in \"The Wizard of Oz,\" where a tornado carries her away to the Land of Oz.",
+      "imageAssociation": "The duck is holding a CANVAS with abstract art"
     },
     {
       "filename": "nebraska",
-      "name": "Nebraska"
+      "name": "Nebraska",
+      "desc": "Nebraska is in the central US and is known for its vast plains and farming. The state is one of the largest producers of beef and corn in the US. Chimney Rock, a famous rock formation, was an important landmark for pioneers on the Oregon Trail.",
+      "imageAssociation": "The duck's tense face. Why is he wearing a coat on his head? NEVER ASK A duck such a question!"
     },
     {
       "filename": "south_dakota",
@@ -66,7 +90,9 @@
       "left": 1488,
       "top": 568,
       "width": 522,
-      "height": 336
+      "height": 336,
+      "desc": "South Dakota is famous for Mount Rushmore, where the faces of four presidents are carved into the mountain. The state also has Badlands National Park, with its dramatic, eroded rock formations. The Crazy Horse Memorial, a huge mountain carving still under construction, honors Native American history.",
+      "imageAssociation": "The southern part of the coat on the duck's head: SOUTH THE COAT"
     },
     {
       "filename": "north_dakota",
@@ -75,11 +101,15 @@
       "left": 1504,
       "top": 292,
       "width": 492,
-      "height": 308
+      "height": 308,
+      "desc": "North Dakota is in the north-central US and has cold winters with temperatures far below zero. Thanks to the Bakken Formation, the state has become a major oil producer, and it is also one of the largest wheat producers in the US. Theodore Roosevelt National Park shows off beautiful badlands scenery.",
+      "imageAssociation": "The northern part of the coat on the duck's head: NORTH THE COAT"
     },
     {
       "filename": "louisiana",
-      "name": "Louisiana"
+      "name": "Louisiana",
+      "desc": "Louisiana is in the southern US and is known for its unique Creole and Cajun culture. New Orleans, the state's most famous city, is the birthplace of jazz and home to the famous Mardi Gras festival. Louisiana's swamps and bayous are home to alligators and a wealth of other wildlife.",
+      "imageAssociation": "The chef's bare foot. He likes keeping his toes LOOSE"
     },
     {
       "filename": "mississippi",
@@ -88,27 +118,39 @@
       "left": 2372,
       "top": 1574,
       "width": 266,
-      "height": 450
+      "height": 450,
+      "desc": "Mississippi is in the southeastern US and is named after the mighty Mississippi River, which forms most of the state's western border. The Mississippi Delta region is known as \"The Birthplace of the Blues.\" Mississippi has a hot, humid subtropical climate.",
+      "imageAssociation": "Marge Simpson, also known as MRS. SIMPSON"
     },
     {
       "filename": "alabama",
-      "name": "Alabama"
+      "name": "Alabama",
+      "desc": "Alabama is in the southeastern US and played a central role in the American civil rights movement. Montgomery, the state capital, is where Rosa Parks refused to give up her bus seat in 1955. Alabama is also home to NASA's Marshall Space Flight Center in Huntsville, where the Saturn V rocket was developed.",
+      "imageAssociation": "A Simpsons version of former Vice President AL Gore, calling OBAMA"
     },
     {
       "filename": "georgia",
-      "name": "Georgia"
+      "name": "Georgia",
+      "desc": "Georgia is in the southeastern US, and its capital, Atlanta, is one of the biggest and most important cities in the South. The state is known as \"The Peach State\" for its peaches and is the birthplace of Martin Luther King Jr. Coca-Cola was invented in Atlanta in 1886.",
+      "imageAssociation": "An old British king on his throne: King GEORGE"
     },
     {
       "filename": "florida",
-      "name": "Florida"
+      "name": "Florida",
+      "desc": "Florida lies mostly on a peninsula in the southeastern US and is known for its warm, subtropical climate and its beaches. The state is home to Walt Disney World, Kennedy Space Center, and Everglades National Park with its unique wetlands. Florida is called \"The Sunshine State\" and is one of the most visited states in the US.",
+      "imageAssociation": "A crocodile on the FLOOR"
     },
     {
       "filename": "alaska",
-      "name": "Alaska"
+      "name": "Alaska",
+      "desc": "Alaska is the largest US state by area but one of the least populated. The US bought it from Russia in 1867, and it is home to North America's highest mountain, Denali, also called Mount McKinley (20,310 feet / 6,190 m). Alaska has the midnight sun in summer, northern lights in winter, and incredible wilderness with bears, whales, and glaciers.",
+      "imageAssociation": "Mafia boss AL Capone, who wants to ASK A question about an offer you can't refuse (AL ASK A)"
     },
     {
       "filename": "hawaii",
-      "name": "Hawaii"
+      "name": "Hawaii",
+      "desc": "Hawaii is a chain of islands in the middle of the Pacific Ocean and the only US state made up entirely of islands. The state is known for its volcanoes, tropical beaches, and unique culture with Polynesian influences. Hawaii became the 50th and most recent US state in 1959.",
+      "imageAssociation": "A shark in the Pacific Ocean who says \"HOWDY!\" when you see him"
     },
     {
       "filename": "arizona",
@@ -117,27 +159,39 @@
       "left": 592,
       "top": 1294,
       "width": 502,
-      "height": 586
+      "height": 586,
+      "desc": "Arizona is in the southwestern US and is best known for the Grand Canyon, one of the world's most spectacular natural wonders. Much of the state is desert, including the Sonoran Desert with its iconic saguaro cactus. Arizona is also home to many Native American tribes, including the Navajo Nation, the largest reservation in the US.",
+      "imageAssociation": "A rhino heading for his favorite zone, California, which is zone A for him. When he gets there: \"Congratulations, you ARE IN ZONE A!\""
     },
     {
       "filename": "new_mexico",
-      "name": "New Mexico"
+      "name": "New Mexico",
+      "desc": "New Mexico is in the southwestern US and is called the \"Land of Enchantment\" for its magical landscapes. The state has a unique mix of Native American, Spanish, and Mexican culture. Santa Fe, the state capital, is the oldest state capital in the US and is known for its adobe architecture.",
+      "imageAssociation": "The tax collector from Texas holds a new version of Mexico's flag. He will use the taxes to create a NEW MEXICO"
     },
     {
       "filename": "texas",
-      "name": "Texas"
+      "name": "Texas",
+      "desc": "Texas is the second-largest state in the US and is known for its cowboys, ranches, and oil rigs. Texas was an independent republic before it joined the US in 1845, and it has a proud identity of its own. Texas has everything from deserts to beaches, and big cities like Houston, Dallas, and Austin.",
+      "imageAssociation": "A man going around collecting TAXES from the American people"
     },
     {
       "filename": "maine",
-      "name": "Maine"
+      "name": "Maine",
+      "desc": "Maine is the northeasternmost state in the US and is known for its dramatic rocky coastline and its lobster. Acadia National Park is one of the most visited national parks on the East Coast. Maine is called \"The Pine Tree State\" and has vast forests covering almost 90% of the state.",
+      "imageAssociation": "A man greeting us as we reach the US: the MAIN gatekeeper"
     },
     {
       "filename": "new_hampshire",
-      "name": "New Hampshire"
+      "name": "New Hampshire",
+      "desc": "New Hampshire is in New England in the northeastern US and is known for its mountains and fall colors. The state has no general sales tax and no personal income tax, which is rare among the states. Mount Washington is famous for a 231 mph wind gust in 1934, for decades the fastest ever recorded.",
+      "imageAssociation": "A freshly washed pig called HAM, with a NEW SHINE (NEW HAM-SHINE)"
     },
     {
       "filename": "vermont",
-      "name": "Vermont"
+      "name": "Vermont",
+      "desc": "Vermont is in New England and is the largest producer of maple syrup in the US. The state is known for its Green Mountains, picturesque villages, and spectacular fall colors. Vermont's 1777 constitution was the first in America to outlaw adult slavery.",
+      "imageAssociation": "A V made out of a MOUNTain (V MOUNT)"
     },
     {
       "filename": "massachusetts",
@@ -146,19 +200,27 @@
       "left": 3532,
       "top": 650,
       "width": 274,
-      "height": 138
+      "height": 138,
+      "desc": "Massachusetts is in New England and is one of the most historic states in the US. Boston, the state capital, was a center of the American Revolution, and the Boston area is home to famous universities like Harvard and MIT. The first battles of the Revolution were fought here, at Lexington and Concord in 1775.",
+      "imageAssociation": "False teeth doing MASSIVE CHEW SETS, chewing again and again"
     },
     {
       "filename": "rhode_island",
-      "name": "Rhode Island"
+      "name": "Rhode Island",
+      "desc": "Rhode Island is the smallest US state by area but has a rich history. It was founded in 1636 by Roger Williams as a refuge for religious freedom. Despite its small size, Rhode Island has a long coastline, and the city of Newport is famous for its grand Gilded Age mansions.",
+      "imageAssociation": "A ROAD cut off by a cutter, so it becomes a ROAD ISLAND"
     },
     {
       "filename": "connecticut",
-      "name": "Connecticut"
+      "name": "Connecticut",
+      "desc": "Connecticut is in New England and is one of the oldest and wealthiest states in the US. The state is known for its charming coastal towns and is home to Yale University in New Haven. Connecticut is called \"The Constitution State\" because its Fundamental Orders of 1639 are often called America's first written constitution.",
+      "imageAssociation": "A cutter cuts the connection to the road: a CONNECTION CUT"
     },
     {
       "filename": "new_york",
-      "name": "New York"
+      "name": "New York",
+      "desc": "New York is one of the best-known states in the US, home to New York City with the Statue of Liberty and Times Square. But the state is much more than the big city, with Niagara Falls in the west and the beautiful Adirondack Mountains in the north. New York is called \"The Empire State\" and has long been a center of immigration and culture.",
+      "imageAssociation": "Someone looking at a model of NEW YORK City with all its skyscrapers"
     },
     {
       "filename": "pennsylvania",
@@ -167,11 +229,15 @@
       "left": 3060,
       "top": 694,
       "width": 440,
-      "height": 384
+      "height": 384,
+      "desc": "Pennsylvania is in the northeastern US and was one of the original 13 colonies. Philadelphia was once the nation's capital, and it is where the Declaration of Independence and the Constitution were signed. The state is also known for its Amish communities and Pittsburgh, the Steel City.",
+      "imageAssociation": "A PENCIL box with a pencil sticking out of the top"
     },
     {
       "filename": "new_jersey",
-      "name": "New Jersey"
+      "name": "New Jersey",
+      "desc": "New Jersey is the most densely populated state in the US and lies between New York City and Philadelphia. The state is known for its long Atlantic coastline and popular beach towns like Atlantic City. New Jersey is called \"The Garden State\" and is a top-10 producer of blueberries, cranberries, and tomatoes.",
+      "imageAssociation": "JERRY from Tom and Jerry wearing a NEW JERSEY"
     },
     {
       "filename": "delaware",
@@ -180,47 +246,69 @@
       "left": 3436,
       "top": 1002,
       "width": 78,
-      "height": 128
+      "height": 128,
+      "desc": "Delaware is the second-smallest state in the US and is called \"The First State\" because it was the first to ratify the Constitution, in 1787. The state is known for its business-friendly laws, and about two-thirds of Fortune 500 companies are incorporated here. Delaware also has lovely beaches on the Atlantic coast.",
+      "imageAssociation": "A vacuum cleaner connected to a DELL computer. Thanks to AI it becomes AWARE (DELL AWARE)"
     },
     {
       "filename": "maryland",
-      "name": "Maryland"
+      "name": "Maryland",
+      "desc": "Maryland is on Chesapeake Bay on the East Coast and is known for its blue crabs. The state borders Washington, D.C., on three sides, and many people who work in the capital live in Maryland. Baltimore, the state's largest city, is a lively port and home to the famous Johns Hopkins University.",
+      "imageAssociation": "The Virgin MARY's veil"
     },
     {
       "filename": "south_carolina",
-      "name": "South Carolina"
+      "name": "South Carolina",
+      "desc": "South Carolina is in the southeastern US and was one of the original 13 colonies. Charleston is one of the oldest and most charming cities in the US, known for its historic architecture and Lowcountry cooking. South Carolina has beautiful Atlantic beaches and was the first state to secede from the Union before the Civil War.",
+      "imageAssociation": "A girl named CAROLINA going paragliding. She is the southern part, below her glider"
     },
     {
       "filename": "north_carolina",
-      "name": "North Carolina"
+      "name": "North Carolina",
+      "desc": "North Carolina stretches from the Atlantic coast to the Appalachian Mountains in the west. This is where the Wright brothers made their first powered flight, near Kitty Hawk in 1903. The state is also known for Research Triangle Park, one of the largest research parks in the world, and the beautiful Blue Ridge Mountains.",
+      "imageAssociation": "The paraglider of a girl named CAROLINA: the northern part, up above her"
     },
     {
       "filename": "virginia",
-      "name": "Virginia"
+      "name": "Virginia",
+      "desc": "Virginia is one of the most historic states in the US and the birthplace of eight American presidents. Jamestown, Virginia, founded in 1607, was the first permanent English settlement in America. The state has everything from Atlantic beaches to the Blue Ridge Mountains and is home to the Pentagon and CIA headquarters.",
+      "imageAssociation": "The VIRGIN Mary, mother of Jesus"
     },
     {
       "filename": "west_virginia",
-      "name": "West Virginia"
+      "name": "West Virginia",
+      "desc": "West Virginia broke away from Virginia during the Civil War and became a state of its own in 1863. The state lies entirely within the Appalachian Mountains and is called \"The Mountain State\" for its rugged landscapes. West Virginia is known for its coal mines, whitewater rafting, and the famous New River Gorge Bridge.",
+      "imageAssociation": "Pikachu wearing a VEST, held by the VIRGIN Mary (VEST VIRGINIA)"
     },
     {
       "filename": "ohio",
-      "name": "Ohio"
+      "name": "Ohio",
+      "desc": "Ohio is in the Midwest and is called \"The Buckeye State\" after the native buckeye tree. Ohio has given the US eight presidents and is known as the birthplace of aviation, because the Wright brothers came from here. Ohio has big cities like Columbus, Cleveland, and Cincinnati.",
+      "imageAssociation": "A hand waving at you and saying \"OH, HI!\""
     },
     {
       "filename": "kentucky",
-      "name": "Kentucky"
+      "name": "Kentucky",
+      "desc": "Kentucky is in the southeastern US and is best known for the Kentucky Derby, America's most famous horse race. The state is also the birthplace of bourbon whiskey and home to Mammoth Cave, the longest cave system in the world. Colonel Sanders created the recipe for Kentucky Fried Chicken (KFC) here.",
+      "imageAssociation": "Chicken from KENTUCKY Fried Chicken"
     },
     {
       "filename": "tennessee",
-      "name": "Tennessee"
+      "name": "Tennessee",
+      "desc": "Tennessee is the musical heart of the US: Nashville is the capital of country music, and Memphis is the home of the blues and rock 'n' roll. Elvis Presley lived at Graceland in Memphis, now the most visited home in the US after the White House. Great Smoky Mountains National Park is the most visited national park in the US.",
+      "imageAssociation": "A fry basket with the same pattern as a TENNIS net"
     },
     {
       "filename": "indiana",
-      "name": "Indiana"
+      "name": "Indiana",
+      "desc": "Indiana is in the Midwest and is called \"The Hoosier State.\" The state is best known for the Indianapolis 500, one of the world's most prestigious car races, first held in 1911. Indiana also has a strong basketball tradition and lots of farming, especially corn and soybeans.",
+      "imageAssociation": "A bag of curry mix that makes fried chicken taste more INDIAN"
     },
     {
       "filename": "illinois",
-      "name": "Illinois"
+      "name": "Illinois",
+      "desc": "Illinois is in the Midwest and is home to Chicago, the nation's third-largest city, famous for its skyscrapers and deep-dish pizza. Abraham Lincoln lived in Springfield, the state capital, before he became president. Illinois is an important farming region with huge fields of corn and soybeans.",
+      "imageAssociation": "A guy without earplugs who gets ILL from all the NOISE in the kitchen"
     },
     {
       "filename": "michigan",
@@ -229,11 +317,15 @@
       "left": 2370,
       "top": 364,
       "width": 598,
-      "height": 582
+      "height": 582,
+      "desc": "Michigan is made up of two peninsulas surrounded by the Great Lakes and has the longest freshwater coastline in the US. Detroit, the state's largest city, is known as the capital of the auto industry and the home of Motown music. Michigan also has beautiful wilderness, with forests, sand dunes, and more than 11,000 inland lakes.",
+      "imageAssociation": "Two mittens. The water used to be too cold, but with mittens you can FISH AGAIN in the Great Lakes"
     },
     {
       "filename": "wisconsin",
-      "name": "Wisconsin"
+      "name": "Wisconsin",
+      "desc": "Wisconsin is in the Midwest and is called \"America's Dairyland\" for its huge dairy industry. The state is the largest cheese producer in the US, and its people proudly call themselves \"Cheeseheads.\" Wisconsin is also known for its thousands of lakes, Milwaukee's brewing history, and the famous Green Bay Packers.",
+      "imageAssociation": "A toaster that WE put SCONES IN (WE SCONES IN)"
     },
     {
       "filename": "minnesota",
@@ -242,15 +334,21 @@
       "left": 1882,
       "top": 256,
       "width": 632,
-      "height": 568
+      "height": 568,
+      "desc": "Minnesota is called the \"Land of 10,000 Lakes\" but actually has more than 11,000 lakes. The state is in the northern Midwest and has extremely cold winters, with temperatures that can drop to minus 40 degrees. Minneapolis and St. Paul form the \"Twin Cities,\" and Minnesota has strong Scandinavian roots.",
+      "imageAssociation": "The chef's hat, where he keeps a MINI SODA for later"
     },
     {
       "filename": "iowa",
-      "name": "Iowa"
+      "name": "Iowa",
+      "desc": "Iowa lies in the heart of the Midwest and is one of the country's most important farming states. The state grows more corn and soybeans than almost any other state. Iowa is also famous for the Iowa caucuses, which have traditionally kicked off the race for the presidential nomination.",
+      "imageAssociation": "The chef's head. He uses Jupiter's moon IO as an earplug, so he can't hear you and just says \"WHAT?\" (IO WHAT)"
     },
     {
       "filename": "missouri",
-      "name": "Missouri"
+      "name": "Missouri",
+      "desc": "Missouri is in the central US, where the Mississippi and Missouri rivers meet. The Gateway Arch in St. Louis, 630 feet (192 m) tall, symbolizes the state's role as the \"Gateway to the West\" for pioneers. Missouri is also known for Kansas City barbecue and has a rich jazz and blues history.",
+      "imageAssociation": "The chef's old, worn shirt. He doesn't earn much and lives in MISERY"
     },
     {
       "filename": "arkansas",
@@ -259,7 +357,9 @@
       "left": 2122,
       "top": 1446,
       "width": 378,
-      "height": 348
+      "height": 348,
+      "desc": "Arkansas is in the southern US and is called \"The Natural State\" for its beautiful forests, mountains, and hot springs. Hot Springs National Park was one of the first protected natural areas in the US. The state is also known as the home of President Bill Clinton and of the retail giant Walmart.",
+      "imageAssociation": "The chef's pants, with a curved ARCING SAW sticking out of the pocket"
     }
   ],
   "overlay": "overlay-en.webp"
