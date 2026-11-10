@@ -188,7 +188,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '91';
+const V = '92';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2065,7 +2065,7 @@ async function setView(vy) {
   } else if (vy === 'orig' && !origInit && !origLoading) {
     origLoading = true;
     load.style.display = '';
-    document.getElementById('spel-load-txt').textContent = 'Laddar originalkartan …';
+    document.getElementById('spel-load-txt').textContent = SPRAK.t('Laddar originalkartan …');
     try {
       await initOrig();
     } catch (e) {
@@ -2290,25 +2290,28 @@ const infoToggle = document.getElementById('info-toggle');
 const infoExtra = document.getElementById('info-extra');
 let infoUtfalld = false;
 // delstatsregionen pratar om delstater, inte länder — samma texter, rätt ord
-const ordLandet = () => aktivSlug === 'usa' ? 'delstaten' : 'landet';
-const ordLander = () => aktivSlug === 'usa' ? 'delstater' : 'länder';
-const ordEttLand = () => aktivSlug === 'usa' ? 'en delstat' : 'ett land';
+// (på engelska: the state / states / a state — via SPRAK.t)
+const ordLandet = () => aktivSlug === 'usa' ? SPRAK.t('delstaten') : SPRAK.t('landet');
+const ordLander = () => aktivSlug === 'usa' ? SPRAK.t('delstater') : SPRAK.t('länder');
+const ordEttLand = () => aktivSlug === 'usa' ? SPRAK.t('en delstat') : SPRAK.t('ett land');
 function uppdateraOrdval() {
   visaInfoUtfalld();
   const p = document.querySelector('#info-default p');
-  if (p) p.innerHTML = `Klicka på ${ordEttLand()} på globen<br>för att se dess form och<br>läsa om det!`;
+  if (p) p.innerHTML = SPRAK.t('Klicka på {ett} på globen<br>för att se dess form och<br>läsa om det!', { ett: ordEttLand() });
   const uo = document.getElementById('utforsk-ord');
   if (uo) uo.textContent = ordLander();
   const so = document.getElementById('stang-ord');
   if (so) so.textContent = ordLandet();
   const ho = document.getElementById('hitta-ord');
-  if (ho) ho.textContent = aktivSlug === 'usa' ? 'Hitta denna delstat:' : 'Hitta detta land:';
-  if (currentMode === 'explore') headerHint.textContent = 'Klicka på ' + ordEttLand();
+  if (ho) ho.textContent = aktivSlug === 'usa' ? SPRAK.t('Hitta denna delstat:') : SPRAK.t('Hitta detta land:');
+  if (currentMode === 'explore') headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
 }
 function visaInfoUtfalld() {
   infoExtra.style.display = infoUtfalld ? '' : 'none';
   infoToggle.classList.toggle('open', infoUtfalld);
-  infoToggle.textContent = (infoUtfalld ? 'Dölj' : 'Visa') + ' info om ' + ordLandet();
+  infoToggle.textContent = infoUtfalld
+    ? SPRAK.t('Dölj info om {landet}', { landet: ordLandet() })
+    : SPRAK.t('Visa info om {landet}', { landet: ordLandet() });
 }
 infoToggle.addEventListener('click', () => {
   infoUtfalld = infoExtra.style.display === 'none';
@@ -2373,7 +2376,7 @@ function startSeterra() {
     // Utan spärren startade ett 0-landsquiz som gav 100 % på 0 sekunder —
     // vänta i stället: startRegion kör igång quizet när länderna finns.
     seterraVantarPaData = true;
-    document.getElementById('seterra-target-name').textContent = 'Laddar …';
+    document.getElementById('seterra-target-name').textContent = SPRAK.t('Laddar …');
     return;
   }
   seterraVantarPaData = false;
@@ -2468,7 +2471,7 @@ function seterraClick(c) {
       revealCountry(c.gid);
     }
     seterraFeedback.className = 'seterra-feedback correct-fb';
-    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">RÄTT!</div><div class="fb-title">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
+    seterraFeedback.innerHTML = `<div class="fb-banner correct-banner">${SPRAK.t('RÄTT!')}</div><div class="fb-title">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     // konfetti bara vid var femte rätta svar i rad — lagom festligt
     seterraSvit++;
     if (seterraSvit % 5 === 0) burstConfetti();
@@ -2482,7 +2485,7 @@ function seterraClick(c) {
     seterraMissedCountries.add(seterraTarget.gid);
     flashWrong(c.gid);
     seterraFeedback.className = 'seterra-feedback wrong-fb';
-    seterraFeedback.innerHTML = `<div class="fb-title">Det var ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+    seterraFeedback.innerHTML = `<div class="fb-title">${SPRAK.t('Det var {namn}', { namn: flagga(c.flaggNamn || c.name) + ' ' + escHtml(c.name) })}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) blinkHint(seterraTarget.gid);
     seterraLocked = true;
@@ -2528,11 +2531,12 @@ function endSeterra() {
   seterraDone.classList.add('active');
   document.getElementById('seterra-final-score').textContent = score + '%';
   document.getElementById('seterra-final-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} ${ordLander()}<br>${seterraWrong} felklick<br>Tid: ${fmtTid(seterraTidExakt)}`;
+    SPRAK.t('{c} av {t} {lander}<br>{w} felklick<br>Tid: {tid}', { c: seterraCorrect,
+      t: seterraTotal, lander: ordLander(), w: seterraWrong, tid: fmtTid(seterraTidExakt) });
   const retryBtn = document.getElementById('seterra-retry');
   if (seterraMissedCountries.size > 0) {
     retryBtn.style.display = '';
-    retryBtn.textContent = `Öva på felaktiga (${seterraMissedCountries.size} st)`;
+    retryBtn.textContent = SPRAK.t('Öva på felaktiga ({n} st)', { n: seterraMissedCountries.size });
   } else {
     retryBtn.style.display = 'none';
   }
@@ -2836,18 +2840,47 @@ const NAMN_URL_RX = new RegExp(
 // kort och träffsäker ordlista — URL-mönstret och visningstvätten tar resten
 const NAMN_STOPP = ['watchdominion', 'knull', 'fitta', 'hora', 'porr', 'porn',
   'nazi', 'hitler', 'neger', 'nigga', 'n1gga', 'nigger', 'knark'];
+// Den engelska sidan har en egen engelsk lista ovanpå (bara där — svenskan
+// använder NAMN_STOPP precis som förut). På engelska prövas långa ord ett
+// ord i taget (annars fastnar "Matt Watson" på twat och "Russ Lutz" på
+// slut), efter att rader av enstaka bokstäver slagits ihop ("f u c k").
+// Korta ord bara som HELA ord, annars fastnar "ass" i Cassandra, svenska
+// "hora" i Horace och "nazi" i Nazir. Fraser som skrivs ihop prövas på hela
+// namnet utan mellanrum.
+const NAMN_STOPP_EN = SPRAK.lang === 'en';
+const NAMN_STOPP_FRAS = ['watchdominion', 'heilhitler', 'siegheil', 'killyourself'];
+const NAMN_STOPP_DEL = !NAMN_STOPP_EN ? NAMN_STOPP : NAMN_STOPP
+  .filter(o => !['hora', 'nazi', 'porr', 'watchdominion'].includes(o)).concat([
+  'fuck', 'fvck', 'phuck', 'motherf', 'bitch', 'biatch', 'whore', 'slut', 'faggot', 'retard',
+  'asshole', 'arsehole', 'dumbass', 'jackass', 'asshat', 'bullshit', 'dipshit', 'shithead',
+  'dickhead', 'bastard', 'dildo', 'jizz', 'twat', 'blowjob', 'handjob', 'hentai',
+  'nigg', 'kkk', 'neonazi']);
+const NAMN_STOPP_ORD = !NAMN_STOPP_EN ? null : new RegExp('(^|[^a-z])(' + [
+  'hora', 'nazi', 'nazis', 'porr', 'horny',
+  'ass', 'arse', 'fag', 'fags', 'cock', 'cocks', 'dick', 'dicks', 'tit', 'tits', 'titty',
+  'boob', 'boobs', 'cum', 'sex', 'sexy', 'anal', 'anus', 'rape', 'raped', 'rapist', 'nude',
+  'nudes', 'naked', 'piss', 'shit', 'shitty', 'crap', 'damn', 'cunt', 'pussy', 'wank', 'wanker',
+  'boner', 'penis', 'vagina', 'spic', 'chink', 'kike', 'coon', 'kys', 'hoe', 'hoes', 'stfu',
+  'wtf', 'milf', 'thot'].join('|') + ')(?![a-z])');
 function olampligtNamn(n) {
-  const norm = String(n || '').toLowerCase()
+  const lower = String(n || '').toLowerCase();
+  const norm = lower
     .replace(/\s*[([]?\s*(punkt|dot)\s*[)\]]?\s*/g, '.')   // "punkt com"-tricket
     .replace(/\s+/g, '');
-  return NAMN_URL_RX.test(norm) || NAMN_STOPP.some(o => norm.includes(o));
+  if (NAMN_URL_RX.test(norm)) return true;
+  if (!NAMN_STOPP_EN) return NAMN_STOPP_DEL.some(o => norm.includes(o));
+  const ordvis = lower.replace(/\b(\w)\s+(?=\w\b)/g, '$1');
+  return NAMN_STOPP_FRAS.some(o => norm.includes(o))
+    || ordvis.split(/[^a-z0-9]+/).some(w => NAMN_STOPP_DEL.some(o => w.includes(o)))
+    || NAMN_STOPP_ORD.test(lower);
 }
 const visningsNamn = n => olampligtNamn(n) ? '•••' : n;
 
 function hsTabellHtml(list, highlightEntry, rubrik) {
-  let html = `<h3>${rubrik || 'Topp 30'}</h3>` +
-    '<div class="hs-sortinfo">Bäst poäng vinner — vid lika poäng snabbast tid</div>' +
-    '<table class="hs-table"><thead><tr><th>#</th><th>Namn</th><th>Poäng</th><th>Tid</th></tr></thead><tbody>';
+  let html = `<h3>${rubrik || SPRAK.t('Topp 30')}</h3>` +
+    `<div class="hs-sortinfo">${SPRAK.t('Bäst poäng vinner — vid lika poäng snabbast tid')}</div>` +
+    `<table class="hs-table"><thead><tr><th>#</th><th>${SPRAK.t('Namn')}</th><th>${SPRAK.t('Poäng')}</th>` +
+    `<th>${SPRAK.t('Tid')}</th></tr></thead><tbody>`;
   list.forEach((e, i) => {
     const isCurrent = highlightEntry && e.date === highlightEntry.date && e.name === highlightEntry.name;
     html += `<tr class="${isCurrent ? 'hs-current' : ''}"><td>${i + 1}</td><td>${escHtml(visningsNamn(e.name))}</td><td>${e.score}%</td><td>${fmtTid(e.time)}</td></tr>`;
@@ -2857,7 +2890,7 @@ function hsTabellHtml(list, highlightEntry, rubrik) {
 
 async function renderHighscores(highlightEntry) {
   const container = document.getElementById('highscore-list');
-  container.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
+  container.innerHTML = `<div class="hs-empty">${SPRAK.t('Laddar topplista...')}</div>`;
   const list = await getHighscores();
   // gick rundan sämre än ens eget rekord står den inte på delade listan —
   // markera raden som ÄR en själv i stället för ingen alls
@@ -2872,19 +2905,21 @@ async function renderHighscores(highlightEntry) {
     // rekordjagande spelare: "min tid kommer inte upp på leaderboarden")
     const plats = senasteHelaListan.findIndex(e => e.date === highlightEntry.date);
     if (plats >= 30) {
-      notis = `<div class="hs-plats">Din runda: ${highlightEntry.score} % på ` +
-        `${fmtTid(highlightEntry.time)} — plats ${plats + 1} av ${senasteHelaListan.length}. ` +
-        'Här visas topp 30.</div>';
+      notis = '<div class="hs-plats">' +
+        SPRAK.t('Din runda: {p} % på {tid} — plats {n} av {total}. Här visas topp 30.', {
+          p: highlightEntry.score, tid: fmtTid(highlightEntry.time),
+          n: plats + 1, total: senasteHelaListan.length }) + '</div>';
     }
   } else if (highlightEntry === null && seterraTotal && seterraTidExakt
              && seterraTidExakt < rimligMinTid()) {
     // saveHighscore avvisade rundan (under fuskgolvet) — förklara hellre
     // än att svälja den tyst
-    notis = `<div class="hs-plats">⚡ Blixtsnabbt! Tider under ${fmtTid(rimligMinTid())} ` +
-      'kan topplistan tyvärr inte skilja från fusk, så rundan räknas inte här.</div>';
+    notis = '<div class="hs-plats">⚡ ' + SPRAK.t('Blixtsnabbt! Tider under {tid} ' +
+      'kan topplistan tyvärr inte skilja från fusk, så rundan räknas inte här.',
+      { tid: fmtTid(rimligMinTid()) }) + '</div>';
   }
   container.innerHTML = (list.length === 0
-    ? '<div class="hs-empty">Inga sparade resultat ännu.</div>'
+    ? `<div class="hs-empty">${SPRAK.t('Inga sparade resultat ännu.')}</div>`
     : hsTabellHtml(list, markera)) + notis;
 }
 
@@ -2894,28 +2929,30 @@ async function visaTopplista(flik) {
   document.getElementById('hs-flik-alla').classList.toggle('aktiv', flik === 'alla');
   document.getElementById('hs-flik-mina').classList.toggle('aktiv', flik === 'mina');
   document.getElementById('topplista-region').textContent =
-    aktivRegionNamn + (bildlage ? ' — Bildquiz' : ' — Klassiskt Quiz');
+    bildlage ? SPRAK.t('{region} — Bildquiz', { region: aktivRegionNamn })
+             : SPRAK.t('{region} — Klassiskt Quiz', { region: aktivRegionNamn });
   const inneh = document.getElementById('topplista-innehall');
   topplistaModal.style.display = 'flex';
-  inneh.innerHTML = '<div class="hs-empty">Laddar topplista...</div>';
+  inneh.innerHTML = `<div class="hs-empty">${SPRAK.t('Laddar topplista...')}</div>`;
   const list = flik === 'alla' ? await getHighscores() : getLocalHighscores();
   let html = list.length === 0
-    ? `<div class="hs-empty">${flik === 'alla' ? 'Inga sparade resultat ännu.'
-        : 'Inga resultat på den här enheten ännu — kör ett quiz!'}</div>`
-    : hsTabellHtml(list, null, flik === 'alla' ? 'Topp 30 — alla spelare' : 'Dina resultat på den här enheten');
+    ? `<div class="hs-empty">${flik === 'alla' ? SPRAK.t('Inga sparade resultat ännu.')
+        : SPRAK.t('Inga resultat på den här enheten ännu — kör ett quiz!')}</div>`
+    : hsTabellHtml(list, null, flik === 'alla' ? SPRAK.t('Topp 30 — alla spelare')
+        : SPRAK.t('Dina resultat på den här enheten'));
   // flyttkoden bor under egna resultaten — det är därifrån man vill ta med
   // sig dem, och dit man vill läsa in dem på nya stället
   if (flik === 'mina') html += `
     <div class="flytt-ruta">
-      <div class="flytt-rubrik">Byter du enhet — eller har gamla resultat i Safari
-        som inte syns i appen? Flyttkoden tar med dem hit.</div>
+      <div class="flytt-rubrik">${SPRAK.t('Byter du enhet — eller har gamla resultat i Safari\n' +
+        '        som inte syns i appen? Flyttkoden tar med dem hit.')}</div>
       <div class="flytt-knappar">
-        <button id="flytt-export" type="button">&#128228; Kopiera flyttkod</button>
-        <button id="flytt-import" type="button">&#128229; Klistra in flyttkod</button>
+        <button id="flytt-export" type="button">&#128228; ${SPRAK.t('Kopiera flyttkod')}</button>
+        <button id="flytt-import" type="button">&#128229; ${SPRAK.t('Klistra in flyttkod')}</button>
       </div>
       <div id="flytt-form" style="display:none">
-        <textarea id="flytt-kod" rows="3" placeholder="Klistra in flyttkoden här"></textarea>
-        <button id="flytt-las-in" type="button">L&auml;s in</button>
+        <textarea id="flytt-kod" rows="3" placeholder="${SPRAK.t('Klistra in flyttkoden här')}"></textarea>
+        <button id="flytt-las-in" type="button">${SPRAK.t('Läs in')}</button>
       </div>
       <div id="flytt-status"></div>
     </div>`;
@@ -2943,12 +2980,12 @@ function skapaFlyttkod() {
 }
 function lasInFlyttkod(kod) {
   kod = (kod || '').trim();
-  if (!kod.startsWith('JG1.')) return { fel: 'Det där ser inte ut som en flyttkod.' };
+  if (!kod.startsWith('JG1.')) return { fel: SPRAK.t('Det där ser inte ut som en flyttkod.') };
   let paket;
   try { paket = JSON.parse(decodeURIComponent(escape(atob(kod.slice(4))))); }
-  catch { return { fel: 'Koden gick inte att läsa — kom hela med?' }; }
+  catch { return { fel: SPRAK.t('Koden gick inte att läsa — kom hela med?') }; }
   if (!paket || typeof paket.listor !== 'object' || !paket.listor) {
-    return { fel: 'Koden gick inte att läsa — kom hela med?' };
+    return { fel: SPRAK.t('Koden gick inte att läsa — kom hela med?') };
   }
   let nya = 0;
   for (const [k, lista] of Object.entries(paket.listor)) {
@@ -2982,7 +3019,7 @@ document.getElementById('topplista-innehall').addEventListener('click', async e 
     const status = document.getElementById('flytt-status');
     try {
       await navigator.clipboard.writeText(kod);
-      status.textContent = 'Kopierad! Klistra in den under Mina resultat på nya stället.';
+      status.textContent = SPRAK.t('Kopierad! Klistra in den under Mina resultat på nya stället.');
     } catch {
       // utan klippbordsrättighet (t.ex. äldre webbläsare): visa koden så
       // att den går att markera och kopiera för hand
@@ -2990,7 +3027,7 @@ document.getElementById('topplista-innehall').addEventListener('click', async e 
       form.style.display = '';
       const ruta = document.getElementById('flytt-kod');
       ruta.value = kod; ruta.select();
-      status.textContent = 'Markera och kopiera koden ovan.';
+      status.textContent = SPRAK.t('Markera och kopiera koden ovan.');
     }
   } else if (id === 'flytt-import') {
     const form = document.getElementById('flytt-form');
@@ -3002,7 +3039,8 @@ document.getElementById('topplista-innehall').addEventListener('click', async e 
     migreradeListor.clear();   // inflyttat namn kan låsa upp gamla listor
     await visaTopplista('mina');
     document.getElementById('flytt-status').textContent =
-      svar.nya ? `${svar.nya} resultat inlästa! 🎉` : 'Inget nytt att läsa in — allt fanns redan här.';
+      svar.nya ? SPRAK.t('{n} resultat inlästa! 🎉', { n: svar.nya })
+        : SPRAK.t('Inget nytt att läsa in — allt fanns redan här.');
   }
 });
 document.getElementById('topplista-knapp').addEventListener('click', () => visaTopplista('alla'));
@@ -3025,7 +3063,8 @@ const modalNameInput = document.getElementById('modal-name');
 function showNameModal(score, m, s) {
   document.getElementById('modal-score').textContent = score + '%';
   document.getElementById('modal-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} ${ordLander()} &bull; ${seterraWrong} fel &bull; ${fmtTid(seterraTidExakt)}`;
+    SPRAK.t('{c} av {t} {lander} &bull; {w} fel &bull; {tid}', { c: seterraCorrect,
+      t: seterraTotal, lander: ordLander(), w: seterraWrong, tid: fmtTid(seterraTidExakt) });
   // namnet man sparat med förut fylls i — att trycka Spara ska räcka
   modalNameInput.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   nameModalOverlay.classList.add('active');
@@ -3042,7 +3081,7 @@ function showNameModal(score, m, s) {
 let autoSparadLofte = null;
 function autoSparaRundan(score) {
   const namn = localStorage.getItem(UTM_NAMN_KEY);
-  autoSparadLofte = saveHighscore(namn || 'Anonym', score,
+  autoSparadLofte = saveHighscore(namn || SPRAK.t('Anonym'), score,
                                   seterraTidExakt, seterraWrong, true);
 }
 async function sparaMedNamn(name) {
@@ -3083,7 +3122,7 @@ function closeNameModal() { nameModalOverlay.classList.remove('active'); }
 // vänligt nej: webbadresser och fula ord blir inga topplistenamn
 function namnNekad(falt) {
   falt.value = '';
-  falt.placeholder = 'Välj ett annat namn 🙂';
+  falt.placeholder = SPRAK.t('Välj ett annat namn 🙂');
   falt.classList.add('namn-nej');
   setTimeout(() => falt.classList.remove('namn-nej'), 1200);
   falt.focus();
@@ -3113,9 +3152,11 @@ document.getElementById('seterra-diplom')?.addEventListener('click', () => {
   const namnEl = document.getElementById('diplom-namn');
   const sparat = localStorage.getItem(UTM_NAMN_KEY);
   if (namnEl && sparat) namnEl.textContent = sparat;
-  document.getElementById('diplom-region').textContent = aktivRegionNamn || 'världen';
+  document.getElementById('diplom-region').textContent = aktivRegionNamn || SPRAK.t('världen');
+  // (svenskan säger "länder" även i delstatsregionen — den engelska texten
+  // gäller bara USA: "all 50 states")
   document.getElementById('diplom-detalj').textContent =
-    `alla ${seterraTotal} länder · 100 % rätt · tid ${seterraTimeEl.textContent}`;
+    SPRAK.t('alla {n} länder · 100 % rätt · tid {tid}', { n: seterraTotal, tid: seterraTimeEl.textContent });
   document.getElementById('diplom-datum').textContent =
     new Date().toLocaleDateString(SPRAK.datum, { year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('diplom-modal').style.display = 'flex';
@@ -3168,7 +3209,7 @@ function switchMode(mode, force) {
     hideExploreTooltip();
     clearInterval(seterraTimerInterval);
     seterraTarget = null;
-    headerHint.textContent = 'Klicka på ' + ordEttLand();
+    headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
     resetOverlays();
     utforskade.clear();   // nytt pass genom världsdelen
     activeCountry = null;
@@ -3183,8 +3224,9 @@ function switchMode(mode, force) {
     // annars gömma quizets markörtext mitt i rundan när timern slår till
     hideExploreTooltip();
     headerHint.textContent = bildlage
-      ? `Bilderna hjälper dig — klicka på rätt ${aktivSlug === 'usa' ? 'delstat' : 'land'}!`
-      : `Klicka där du tror ${ordLandet()} är!`;
+      ? SPRAK.t('Bilderna hjälper dig — klicka på rätt {delstat}!',
+          { delstat: aktivSlug === 'usa' ? SPRAK.t('delstat') : SPRAK.t('land') })
+      : SPRAK.t('Klicka där du tror {landet} är!', { landet: ordLandet() });
     startSeterra();
   }
 }
@@ -3362,7 +3404,8 @@ function burstConfetti() {
 function showCelebration(m, s) {
   const overlay = document.getElementById('celebration-overlay');
   document.getElementById('celebration-detail').innerHTML =
-    `${seterraCorrect} av ${seterraTotal} ${ordLander()} &bull; 0 fel &bull; ${fmtTid(seterraTidExakt)}`;
+    SPRAK.t('{c} av {t} {lander} &bull; {w} fel &bull; {tid}', { c: seterraCorrect,
+      t: seterraTotal, lander: ordLander(), w: 0, tid: fmtTid(seterraTidExakt) });
   overlay.classList.add('active');
   const stopConfetti = startConfetti(document.getElementById('confetti-canvas'));
   const celebMusic = new Audio('CELEBRATION.mp3');
@@ -3743,7 +3786,7 @@ const RESA_ORDNING = ['sydamerika', 'nordamerika', 'europa', 'afrika', 'asien', 
 const SEGER_VIDEO = '';
 const RESA_NAMN = { europa: 'Europa', sydamerika: 'Sydamerika', nordamerika: 'Nordamerika',
   afrika: 'Afrika', asien: 'Asien', oceanien: 'Oceanien', vastindien: 'Västindien',
-  world: 'Hela världen 🌍', usa: 'USA:s delstater 🇺🇸' };   // usa: bara visningsnamn
+  world: 'Hela världen 🌍', usa: SPRAK.t('USA:s delstater') + ' 🇺🇸' };   // usa: bara visningsnamn
                                     // (utmaningar m.m.) — INTE med i resan
 function resaState() {
   let resa;
@@ -4016,27 +4059,27 @@ function underKnappen(r, jw) {
            bottom: Math.max(0, window.innerHeight - r.bottom - jh - 12) };
 }
 const SPEL_TOUR = [
-  { stor: true, bild: 'assets/jonas/hej.webp', knapp: 'Ja, visa mig!',
-    text: 'Nu är vi inne! Ska jag snabbt förklara hur lägena funkar?' },
+  { stor: true, bild: 'assets/jonas/hej.webp', knapp: SPRAK.t('Ja, visa mig!'),
+    text: SPRAK.t('Nu är vi inne! Ska jag snabbt förklara hur lägena funkar?') },
   { el: () => document.querySelector('.mode-btn[data-mode="explore"]'),
     bild: 'assets/jonas/upp.webp', plats: underKnappen,
-    text: 'Vi börjar alltid i Utforska: klicka runt på länderna och kolla in bilderna och mina minnesknep!' },
+    text: SPRAK.t('Vi börjar alltid i Utforska: klicka runt på länderna och kolla in bilderna och mina minnesknep!') },
   { el: () => document.querySelector('.info-panel'),
     bild: 'assets/jonas/kul.webp',
     plats: (r, jw) => ({ left: r.left - jw - 16, bottom: 0,
       bubbLeft: Math.max(16, r.left - jw - 452), svans: 'hoger' }),
-    text: 'Klicka på ett land, så dyker det upp här! Du får se vad landet föreställer och ett minnesknep som kopplar bilden till landets namn.' },
+    text: SPRAK.t('Klicka på ett land, så dyker det upp här! Du får se vad landet föreställer och ett minnesknep som kopplar bilden till landets namn.') },
   { el: () => document.querySelector('.mode-btn[data-mode="bildquiz"]'),
     bild: 'assets/jonas/pekar.webp', plats: underKnappen,
-    text: 'Bildquiz är perfekt att börja träna med — jag frågar efter länderna medan bilderna fortfarande syns.' },
+    text: SPRAK.t('Bildquiz är perfekt att börja träna med — jag frågar efter länderna medan bilderna fortfarande syns.') },
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
     bild: 'assets/jonas/stark.webp', plats: underKnappen,
-    text: 'Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!' },
+    text: SPRAK.t('Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!') },
   { el: () => document.getElementById('back-btn'), om: () => !SPRAK.startRegion,
     bild: 'assets/jonas/upp.webp', spegel: true, plats: underKnappen,
-    text: 'Pilen tar dig tillbaka till jordgloben när du vill välja något annat.' },
-  { stor: true, bild: 'assets/jonas/masken.webp', knapp: 'Nu kör vi!',
-    text: 'Kör hårt!' },
+    text: SPRAK.t('Pilen tar dig tillbaka till jordgloben när du vill välja något annat.') },
+  { stor: true, bild: 'assets/jonas/masken.webp', knapp: SPRAK.t('Nu kör vi!'),
+    text: SPRAK.t('Kör hårt!') },
 ];
 
 let aktivTour = TOUR;
@@ -4090,7 +4133,7 @@ function visaTourSteg() {
   introBubbla.style.maxWidth = '';
   if (s.bild) introJonas.src = s.bild;
   introText.textContent = s.text;
-  introNasta.textContent = s.knapp || 'Nästa';
+  introNasta.textContent = s.knapp || SPRAK.t('Nästa');
   if (s.el) {
     const mal = s.el();
     visaHal(mal);
@@ -4408,8 +4451,9 @@ const utmUrl = id => location.origin + location.pathname + '?utmaning=' + id;
 const utmTid = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 const utmRegionNamn = slug => RESA_NAMN[slug] || slug;
 const utmDelText = (namn, d, id) =>
-  `${visningsNamn(namn)} utmanar dig i Jonas geografi! ${utmRegionNamn(d.slug)}: ` +
-  `${d.score} % på ${utmTid(d.time)} — kan du slå det? ${utmUrl(id)}`;
+  SPRAK.t('{namn} utmanar dig i {sajt}! {region}: {p} % på {tid} — kan du slå det? {url}', {
+    namn: visningsNamn(namn), sajt: SPRAK.varumarke, region: utmRegionNamn(d.slug),
+    p: d.score, tid: utmTid(d.time), url: utmUrl(id) });
 
 const utmanaBtn = document.getElementById('utmana-btn');
 const utmSkapaModal = document.getElementById('utmaning-skapa-modal');
@@ -4429,7 +4473,8 @@ utmanaBtn.addEventListener('click', () => {
   document.getElementById('utm-skapa-klar').style.display = 'none';
   document.getElementById('utm-skapa-status').textContent = '';
   document.getElementById('utm-skapa-detalj').textContent =
-    `${utmRegionNamn(aktivSlug)} — du fick ${utmanaBtn.dataset.score} % på ${utmTid(seterraElapsed)}`;
+    SPRAK.t('{region} — du fick {p} % på {tid}', { region: utmRegionNamn(aktivSlug),
+      p: utmanaBtn.dataset.score, tid: utmTid(seterraElapsed) });
   const namn = document.getElementById('utm-skapa-namn');
   namn.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   utmSkapaModal.style.display = 'flex';
@@ -4449,7 +4494,7 @@ document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
   const namn = namnEl.value.trim();
   if (!namn) { namnEl.focus(); return; }
   if (olampligtNamn(namn)) {
-    document.getElementById('utm-skapa-status').textContent = 'Välj ett annat namn 🙂';
+    document.getElementById('utm-skapa-status').textContent = SPRAK.t('Välj ett annat namn 🙂');
     namnNekad(namnEl);
     return;
   }
@@ -4461,7 +4506,7 @@ document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
   };
   if (isWorldTest) post.lander = COUNTRIES.map(c => c.gid).join(',');
   const status = document.getElementById('utm-skapa-status');
-  status.textContent = 'Skapar länken …';
+  status.textContent = SPRAK.t('Skapar länken …');
   try {
     const ref = await firebaseDB.ref('utmaningar').push(post);
     window.kakSpara?.('utmaning_skapad', { region: post.slug, antal: post.antal });
@@ -4475,7 +4520,7 @@ document.getElementById('utm-skapa-btn').addEventListener('click', async () => {
       kopieraUtmLank();
     };
   } catch (e) {
-    status.textContent = 'Kunde inte skapa länken — kolla nätet och prova igen.';
+    status.textContent = SPRAK.t('Kunde inte skapa länken — kolla nätet och prova igen.');
   }
 });
 function kopieraUtmLank() {
@@ -4484,8 +4529,8 @@ function kopieraUtmLank() {
   (navigator.clipboard ? navigator.clipboard.writeText(inp.value)
                        : Promise.reject()).catch(() => document.execCommand('copy'));
   const k = document.getElementById('utm-kopiera');
-  k.textContent = 'Kopierad!';
-  setTimeout(() => { k.textContent = 'Kopiera länken'; }, 1600);
+  k.textContent = SPRAK.t('Kopierad!');
+  setTimeout(() => { k.textContent = SPRAK.t('Kopiera länken'); }, 1600);
 }
 document.getElementById('utm-kopiera').addEventListener('click', kopieraUtmLank);
 
@@ -4501,9 +4546,9 @@ async function forberedUtmaning(id) {
   const modal = document.getElementById('utmaning-anta-modal');
   if (!data || !RESA_NAMN[data.slug] || !SPRAK.tillat(data.slug)) {
     if (SPRAK.startRegion) await startRegion(SPRAK.startRegion); else startLage();
-    document.getElementById('utm-anta-rubrik').textContent = 'Hoppsan!';
+    document.getElementById('utm-anta-rubrik').textContent = SPRAK.t('Hoppsan!');
     document.getElementById('utm-anta-text').textContent =
-      'Utmaningen kunde inte hittas — länken kan vara trasig eller nätet nere.';
+      SPRAK.t('Utmaningen kunde inte hittas — länken kan vara trasig eller nätet nere.');
     document.getElementById('utm-anta-form').style.display = 'none';
     document.getElementById('utm-anta-felknappar').style.display = '';
     modal.style.display = 'flex';
@@ -4521,11 +4566,12 @@ async function forberedUtmaning(id) {
   } else {
     await startRegion(data.slug);
   }
-  document.getElementById('utm-anta-rubrik').textContent = '⚔️ Utmaning!';
+  document.getElementById('utm-anta-rubrik').textContent = SPRAK.t('⚔️ Utmaning!');
   document.getElementById('utm-anta-text').innerHTML =
-    `<b>${escHtml(visningsNamn(data.namn))}</b> utmanar dig på <b>${escHtml(utmRegionNamn(data.slug))}</b>` +
-    (data.slug === 'world' ? ` med <b>${data.antal} länder</b>` : '') +
-    `!<br>Resultatet att slå: <b>${data.score} %</b> på <b>${utmTid(data.time)}</b>.`;
+    SPRAK.t('<b>{namn}</b> utmanar dig på <b>{region}</b>{med}!<br>Resultatet att slå: <b>{p} %</b> på <b>{tid}</b>.', {
+      namn: escHtml(visningsNamn(data.namn)), region: escHtml(utmRegionNamn(data.slug)),
+      med: data.slug === 'world' ? SPRAK.t(' med <b>{n} länder</b>', { n: data.antal }) : '',
+      p: data.score, tid: utmTid(data.time) });
   const namn = document.getElementById('utm-anta-namn');
   namn.value = localStorage.getItem(UTM_NAMN_KEY) || '';
   document.getElementById('utm-anta-form').style.display = '';
@@ -4553,7 +4599,7 @@ document.getElementById('utm-anta-stang').addEventListener('click', utmAntaNej);
 
 async function sparaUtmaningsResultat(score) {
   const u = aktivUtmaning;
-  const entry = { name: u.namn || 'Jag', score, time: seterraElapsed,
+  const entry = { name: u.namn || SPRAK.t('Jag'), score, time: seterraElapsed,
                   wrong: seterraWrong, date: Date.now() };
   // samma fuskspärr som topplistorna: under 5 sekunder sparas aldrig
   if (firebaseDB && seterraTotal && entry.time >= 5) {
@@ -4566,7 +4612,7 @@ async function sparaUtmaningsResultat(score) {
 async function visaDuellLista(egen) {
   const u = aktivUtmaning;
   const el = document.getElementById('highscore-list');
-  el.innerHTML = '<div class="hs-empty">Hämtar duellen …</div>';
+  el.innerHTML = `<div class="hs-empty">${SPRAK.t('Hämtar duellen …')}</div>`;
   const alla = [{ name: u.data.namn + ' 👑', score: u.data.score,
                   time: u.data.time, date: u.data.date }];
   if (firebaseDB) {
@@ -4581,7 +4627,7 @@ async function visaDuellLista(egen) {
     if (!f || e.score > f.score || (e.score === f.score && e.time < f.time)) basta.set(e.name, e);
   }
   const lista = [...basta.values()].sort((a, b) => b.score - a.score || a.time - b.time);
-  el.innerHTML = hsTabellHtml(lista, egen, '⚔️ Duellen hittills');
+  el.innerHTML = hsTabellHtml(lista, egen, SPRAK.t('⚔️ Duellen hittills'));
 }
 document.getElementById('utm-vidare-btn').addEventListener('click', async () => {
   const u = aktivUtmaning;
@@ -4592,8 +4638,8 @@ document.getElementById('utm-vidare-btn').addEventListener('click', async () => 
   }
   try { await navigator.clipboard.writeText(utmUrl(u.id)); } catch (e) {}
   const b = document.getElementById('utm-vidare-btn');
-  b.textContent = 'Länken kopierad! 📋';
-  setTimeout(() => { b.textContent = 'Skicka utmaningen vidare 📨'; }, 1800);
+  b.textContent = SPRAK.t('Länken kopierad! 📋');
+  setTimeout(() => { b.textContent = SPRAK.t('Skicka utmaningen vidare 📨'); }, 1800);
 });
 
 // ══════════════════════
@@ -4663,7 +4709,7 @@ if ('serviceWorker' in navigator) {
   const loadTxt = document.getElementById('spel-load-txt');
   if (region || utmaningId) {
     document.getElementById('spel-load').style.display = '';   // dold i markupen numera
-    loadTxt.textContent = 'Startar …';
+    loadTxt.textContent = SPRAK.t('Startar …');
   }
   // Bara klickytorna behövs innan spelet drar igång — kartrutorna strömmar
   // på begäran (regionens rutor är en handfull). Hela arkivet förladdas
@@ -4679,8 +4725,8 @@ if ('serviceWorker' in navigator) {
     } catch { return false; }
   })();
   const visaWebglBesked = () => {
-    const txt = 'Din webbläsare klarar tyvärr inte 3D-globen 😢 Prova att ' +
-      'uppdatera webbläsaren, stänga av batterisparläge eller byta enhet.';
+    const txt = SPRAK.t('Din webbläsare klarar tyvärr inte 3D-globen 😢 Prova att ' +
+      'uppdatera webbläsaren, stänga av batterisparläge eller byta enhet.');
     clearInterval(laddTipsTimer);
     const info = document.getElementById('ladd-info');
     if (info) info.textContent = txt;
@@ -4709,7 +4755,8 @@ if ('serviceWorker' in navigator) {
   } catch (e) {
     // fastna ALDRIG tyst på "Startar …" — visa vad som gick fel
     if (/webgl/i.test(String(e && e.message))) { visaWebglBesked(); return; }
-    loadTxt.textContent = 'Kunde inte ladda kartdata — prova att ladda om sidan. [' + ((e && e.message) || e) + ']';
+    loadTxt.textContent = SPRAK.t('Kunde inte ladda kartdata — prova att ladda om sidan. [{fel}]',
+      { fel: (e && e.message) || e });
     throw e;
   }
   document.getElementById('spel-load').style.display = 'none';

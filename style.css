@@ -1770,6 +1770,8 @@
 
 /* Engelska sidan (allusstates): bara USA och ingen startsida — ingen
    tillbakapil, och startsidans feedbackknapp ska inte blinka förbi innan
-   spelet startat */
+   spelet startat. Väggkartan känner inte delstaterna (göms i usa-regionen)
+   och ska inte gå att klicka på under "Starting…" heller. */
 html[data-sajt="allusstates"] #back-btn,
-html[data-sajt="allusstates"] #feedback-knapp { display: none !important; }
+html[data-sajt="allusstates"] #feedback-knapp,
+html[data-sajt="allusstates"] #view-platt { display: none !important; }

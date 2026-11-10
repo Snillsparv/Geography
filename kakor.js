@@ -14,7 +14,8 @@
 // funktionen finns alltid, men skickar bara när PostHog är igång.
 (() => {
   // språkprofilen (sprak.js); sidor utan den (lärarsidan) är svenska
-  const S = window.SPRAK || { id: 'jonasgeografi', lang: 'sv', startRegion: null };
+  const S = window.SPRAK || { id: 'jonasgeografi', lang: 'sv', startRegion: null, t: s => s };
+  const t = s => S.t(s);   // kakrutans texter på sidans språk (svenska = oförändrat)
   const TOKEN = 'phc_ADbD7ENhThE54GinNPoTv5XAWDkTSUPu2MmWkyAHJo4x';
   const VAL_NYCKEL = 'kakval';           // 'ja' | 'nej'
   const LOKAL = /^(127\.|localhost)/.test(location.hostname)
@@ -140,7 +141,7 @@
   const ruta = document.createElement('div');
   ruta.id = 'kakruta';
   ruta.setAttribute('role', 'dialog');
-  ruta.setAttribute('aria-label', 'Fråga om kakor');
+  ruta.setAttribute('aria-label', t('Fråga om kakor'));
   ruta.innerHTML = `
   <div class="kak-jonas" aria-hidden="true">
     <img class="kak-kropp" src="assets/jonas/kak-kropp.webp${q}" alt="">
@@ -186,12 +187,12 @@
     <div class="kak-smulor" aria-hidden="true"></div>
   </div>
   <div class="kak-kort">
-    <h3 id="kak-rubrik">Får jag bjuda på en kaka? 🍪</h3>
-    <p id="kak-brod">Kakor hjälper mig se hur spelet används så att jag kan
-      göra det ännu bättre. Säger du nej tack spelar du helt anonymt!</p>
+    <h3 id="kak-rubrik">${t('Får jag bjuda på en kaka? 🍪')}</h3>
+    <p id="kak-brod">${t('Kakor hjälper mig se hur spelet används så att jag kan\n' +
+      '      göra det ännu bättre. Säger du nej tack spelar du helt anonymt!')}</p>
     <div class="kak-knappar">
-      <button id="kak-ja">Ja, det är lugnt!</button>
-      <button id="kak-nej">Nej tack</button>
+      <button id="kak-ja">${t('Ja, det är lugnt!')}</button>
+      <button id="kak-nej">${t('Nej tack')}</button>
     </div>
   </div>`;
 
@@ -233,8 +234,8 @@
           if (stangd) return;
           arm.classList.remove('bett', 'framme');
           if (bett >= 4) {                     // kakan är slut
-            brod.textContent = 'Mm … nu åt jag tyvärr upp hela kakan. Men frågan kvarstår!';
-            jaKnapp.textContent = 'Ja — och bjud på en ny kaka 🍪';
+            brod.textContent = t('Mm … nu åt jag tyvärr upp hela kakan. Men frågan kvarstår!');
+            jaKnapp.textContent = t('Ja — och bjud på en ny kaka 🍪');
           } else {
             ruta.classList.add('vaken');
             planera();
