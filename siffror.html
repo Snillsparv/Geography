@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bli ett siffergeni! Lär dig sifferalfabetet | Jonas von Essen</title>
+  <meta name="description" content="Lär dig sifferalfabetet och kom ihåg vilka siffror som helst: årtal, telefonnummer och 30 decimaler av pi. Gratis övningar av Jonas von Essen, tvåfaldig världsmästare i minne.">
+  <link rel="canonical" href="https://www.jonasgeografi.se/siffror.html">
+  <meta property="og:title" content="Bli ett siffergeni!">
+  <meta property="og:description" content="Lär dig sifferalfabetet och kom ihåg vilka siffror som helst, med Jonas von Essen.">
+  <meta property="og:url" content="https://www.jonasgeografi.se/siffror.html">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=5">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#000000">
+  <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
+  <link rel="preload" href="assets/siffror/league-gothic.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    /* Formen kommer från boken Så får du ett superminne: smala versala
+       rubriker på en vit sida, som ligger som ett papper på en svart botten
+       med lysande siffror. Varje steg har samma upplägg: rubrik, kort text,
+       övning. League Gothic står in för bokens Kapra. */
+    @font-face {
+      font-family: 'League Gothic';
+      src: url('assets/siffror/league-gothic.woff2') format('woff2');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    :root {
+      --rubrik: 'League Gothic', 'Arial Narrow', Impact, sans-serif;
+      --brod: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      --svart: #1a1a1a; --text2: #3d3a36; --text3: #716c65; --ljus: #a39d94;
+      --prick: #8f8a83; --yta: #f5f2ed;
+      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c; --natt: #000;
+      --ratt: #11865a; --fel: #cc2936;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: var(--brod); color: var(--svart); line-height: 1.55; min-height: 100vh; background: var(--natt); }
+    /* bakgrunden: siffror-bakgrund.js ritar de lysande siffrorna i två lager,
+       som lyser upp och dämpas om vartannat */
+    #bakgrund, #glod {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1; pointer-events: none;
+      animation: glod 4.5s ease-in-out infinite alternate;
+    }
+    #glod { animation-delay: -4.5s; }
+    @keyframes glod { from { opacity: .35; } to { opacity: 1; } }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    a { color: inherit; }
+    img { max-width: 100%; height: auto; }
+    ul { list-style: none; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .liten { font-size: .86rem; color: var(--text3); }
+
+    /* ── omslaget ── */
+    .hero {
+      padding: 30px 16px 28px; color: #fff; text-align: center;
+      background: radial-gradient(closest-side, #000 65%, rgba(0, 0, 0, 0));   /* inga siffror bakom rubriken */
+    }
+    h1 {
+      font-family: var(--rubrik); font-weight: 400; text-transform: uppercase;
+      font-size: clamp(3rem, 15vw, 5.4rem); line-height: .88; letter-spacing: .005em;
+      text-shadow: 0 0 18px rgba(255, 110, 30, .75), 0 0 3px rgba(255, 200, 150, .6);
+    }
+    .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; margin-top: 8px; color: #ffc48f; }
+
+    /* ── boksidan ── */
+    .sida { background: #fff; max-width: 720px; margin: 0 10px 28px; border-radius: 3px; box-shadow: 0 0 60px rgba(255, 110, 30, .12); }
+    .steg-nav { display: flex; justify-content: center; gap: 7px; padding: 18px 16px 0; }
+    .steg-nav a {
+      width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--svart);
+      display: grid; place-items: center; text-decoration: none;
+      font-family: var(--rubrik); font-size: 1.25rem; line-height: 1; padding-top: 2px;
+    }
+    .steg-nav a:hover { background: var(--yta); }
+    .steg-nav a[aria-current="page"] { background: var(--svart); color: #fff; }
+
+    main { max-width: 620px; margin: 0 auto; padding: 0 20px 36px; }
+    .vy { animation: in .25s ease-out; }
+    @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+    h2 {
+      font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; text-align: center;
+      font-size: clamp(2.5rem, 11vw, 3.2rem); line-height: .95; letter-spacing: .005em; margin: 30px 0 14px;
+    }
+    h3 {
+      font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .03em;
+      font-size: 1.55rem; line-height: 1.05; margin: 28px 0 8px;
+    }
+    .ovning h3 { margin-top: 0; }
+    main p + p { margin-top: 10px; }
+
+    .knapp {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 2px solid var(--svart); border-radius: 6px; padding: 9px 18px 6px;
+      font-family: var(--rubrik); font-weight: 400; font-size: 1.32rem; letter-spacing: .04em;
+      text-transform: uppercase; line-height: 1.1; text-decoration: none;
+      background: var(--svart); color: #fff; box-shadow: 3px 3px 0 var(--o2);
+      transition: transform .08s, box-shadow .08s;
+    }
+    .knapp:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--o2); }
+    .knapp:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--o2); }
+    .knapp.sekundar { background: #fff; color: var(--svart); box-shadow: 3px 3px 0 #d6cfc4; }
+    .knapp:disabled { opacity: .35; cursor: default; transform: none; }
+    .lank { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text2); font-size: .92rem; padding: 6px 2px; }
+    .knapp:focus-visible, .lank:focus-visible, .steg-nav a:focus-visible, .val button:focus-visible,
+    .knappsats button:focus-visible, .ljudval button:focus-visible { outline: 3px solid var(--o2); outline-offset: 2px; }
+    .knapprad { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+    .nasta-steg { display: flex; justify-content: flex-end; margin-top: 30px; }
+
+    /* övningarna ligger i prickade rutor, som i boken */
+    .ovning { border: 1.5px dotted var(--prick); padding: 20px 16px; margin-top: 24px; text-align: center; }
+
+    /* ── alfabetet ── */
+    .exempel { display: flex; justify-content: center; align-items: flex-start; gap: 12px; margin: 18px 0 6px; }
+    .exempel .upp b { font-size: 1.8rem; }
+    .exempel .upp i { font-size: 1.6rem; }
+    .exempel .blir { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1.2; color: var(--siffra); }
+    .alfabet { margin-top: 18px; border-top: 1.5px dotted var(--prick); }
+    .alfabet li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); break-inside: avoid; }
+    .alfabet .s { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1; color: var(--siffra); }
+    .alfabet b { display: block; font-size: 1.05rem; }
+    .regel { display: block; font-size: .92rem; color: var(--text2); line-height: 1.45; }
+    .regler li { position: relative; padding-left: 16px; }
+    .regler li::before { content: "·"; position: absolute; left: 2px; top: -.1em; font-weight: 900; font-size: 1.3em; }
+    .regler li + li { margin-top: 6px; }
+
+    /* ── övningarna ── */
+    .ov-topp { display: flex; justify-content: space-between; font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .05em; font-size: 1.05rem; color: var(--text3); }
+    .fraga { color: var(--text3); font-weight: 700; font-size: .95rem; margin-top: 8px; }
+    .handelse { font-size: 1.12rem; font-weight: 700; margin-top: 12px; }
+    .stor {
+      font-family: var(--rubrik); font-size: clamp(3.3rem, 17vw, 5rem); line-height: 1; letter-spacing: .02em;
+      margin: 4px 0 2px; word-break: break-word;
+    }
+    .stor.ord { font-family: var(--brod); font-weight: 800; font-size: clamp(2rem, 9vw, 2.8rem); letter-spacing: -.01em; line-height: 1.15; }
+    .stor.lang { font-size: clamp(1.3rem, 5.8vw, 2rem); }
+    .tom { color: var(--ljus); }
+    .ov-svar { min-height: 58px; margin: 8px auto 4px; display: flex; justify-content: center; align-items: flex-end; gap: 3px; flex-wrap: wrap; }
+    .ruta {
+      min-width: 34px; height: 54px; border-bottom: 3px solid #dcd6cd; font-family: var(--rubrik); font-size: 2.7rem;
+      line-height: 1; display: inline-flex; align-items: flex-end; justify-content: center; padding: 0 3px 2px;
+    }
+    .ruta.fast { border-bottom-color: transparent; color: var(--text3); min-width: 0; }
+    .ruta.mark { border-bottom-color: var(--o2); }
+    .skaka { animation: skaka .35s; }
+    @keyframes skaka { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+    .aterkoppling { min-height: 24px; font-weight: 700; margin-top: 6px; }
+    .aterkoppling.ratt { color: var(--ratt); }
+    .aterkoppling.fel { color: var(--fel); }
+    .forklaring { color: var(--text2); font-size: .95rem; }
+    .forklaring p { margin-top: 6px; }
+    .resultat .stor { font-size: clamp(2.4rem, 11vw, 3.4rem); text-transform: uppercase; }
+
+    .knappsats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 330px; margin: 12px auto 4px; }
+    .knappsats button {
+      height: 56px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff;
+      font-family: var(--rubrik); font-size: 2rem; line-height: 1; box-shadow: 0 3px 0 var(--svart);
+      touch-action: manipulation; transition: transform .06s, box-shadow .06s;
+    }
+    .knappsats button:active { transform: translateY(3px); box-shadow: 0 0 0 var(--svart); }
+    .knappsats .klar { background: var(--svart); color: #fff; font-family: var(--brod); font-size: 1.5rem; }
+    .knappsats .radera { font-family: var(--brod); font-size: 1.3rem; color: var(--text3); }
+    .knappsats.tio { grid-template-columns: repeat(5, 1fr); max-width: 380px; }
+    .knappsats.tio button { height: 52px; }
+    .ljudval { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; max-width: 360px; margin: 12px auto 4px; }
+    .ljudval button {
+      height: 50px; border: 1.5px solid var(--svart); border-radius: 8px; background: #fff;
+      font-family: var(--rubrik); font-size: 1.45rem; letter-spacing: .05em; box-shadow: 0 3px 0 var(--svart);
+    }
+    .ljudval button.ratt { background: #d6f5e6; color: var(--ratt); border-color: var(--ratt); box-shadow: 0 3px 0 var(--ratt); }
+    .ljudval button.fel { background: #fde0e2; color: var(--fel); border-color: var(--fel); box-shadow: 0 3px 0 var(--fel); }
+
+    /* ett ord bokstav för bokstav, med siffran under varje konsonantljud */
+    .upp { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; margin-top: 8px; }
+    .upp > span { display: inline-flex; flex-direction: column; align-items: center; min-width: 13px; }
+    .upp b { font-size: 1.3rem; line-height: 1.3; padding: 0 2px; font-weight: 400; color: var(--ljus); }
+    .upp .ljud b { font-weight: 800; color: var(--svart); }
+    .upp i { font-style: normal; font-family: var(--rubrik); font-size: 1.3rem; line-height: 1.1; min-height: 1.2em; color: var(--siffra); }
+    .upp .mellan { width: 10px; }
+
+    input[type="text"] {
+      width: 100%; font: inherit; font-size: 1.15rem; font-weight: 700; padding: 10px 13px;
+      border: 1.5px solid var(--svart); border-radius: 6px; color: var(--svart); background: #fff;
+    }
+    input[type="text"]:focus { outline: none; box-shadow: 0 0 0 3px #f59f4b88; }
+    .rad-in { display: flex; gap: 8px; margin-top: 12px; }
+    .rad-in .knapp { flex: none; }
+    .prova-ut { text-align: center; margin-top: 6px; }
+
+    /* ── lathunden ── */
+    .val { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
+    .val button {
+      border: 1.5px solid var(--svart); background: #fff; border-radius: 999px; padding: 4px 0 2px;
+      font-family: var(--rubrik); font-size: 1.1rem; letter-spacing: .03em; line-height: 1.2;
+    }
+    .val button[aria-pressed="true"] { background: var(--svart); color: #fff; }
+    .ordlista { columns: 2; column-gap: 20px; text-align: left; max-width: 400px; margin: 0 auto; }
+    .ordlista li { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; break-inside: avoid; }
+    .ordlista .nr, .dina-platser b, .plats-par b { font-family: var(--rubrik); font-weight: 400; font-size: 1.3rem; color: var(--siffra); letter-spacing: .03em; }
+    .ordlista .nr { min-width: 22px; }
+    .ordlista small { display: block; font-size: .8rem; line-height: 1.2; color: var(--text3); }
+    .vandkort { min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
+
+    /* ── årtalen ── */
+    .artal-lista { margin-top: 18px; border-top: 1.5px dotted var(--prick); }
+    .artal-lista li { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); }
+    .artal-lista .ar { font-family: var(--rubrik); font-size: 1.8rem; line-height: 1.05; }
+    .artal-lista .bild { display: block; font-size: .92rem; font-style: italic; color: var(--text3); }
+    .artal-lista .bild b { font-style: normal; color: var(--svart); }
+
+    /* ── pi ── */
+    .pi-rad { font-family: var(--rubrik); font-size: clamp(1.5rem, 6.4vw, 2rem); line-height: 1.5; letter-spacing: .04em; word-spacing: .15em; text-align: center; margin-top: 16px; }
+    .pi-rad .nu { background: #fde3cf; border-radius: 4px; padding: 0 4px; }
+    .karta { position: relative; width: 100%; max-width: 200px; margin: 0 auto; }
+    .karta img { display: block; width: 100%; }
+    .karta .ring {
+      position: absolute; width: 12%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%);
+      border: 3px solid var(--svart); box-shadow: 0 0 0 3px #fff, inset 0 0 0 2px #fff;
+      transition: left .35s ease, top .35s ease; animation: puls 1.6s ease-in-out infinite;
+    }
+    .karta .ring.liten { width: 9%; border-color: var(--o3); animation: none; transition: none; }
+    @keyframes puls { 50% { transform: translate(-50%, -50%) scale(1.18); } }
+    .promenad { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 14px; text-align: left; }
+    .promenad .karta { max-width: none; }
+    .plats-nr { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .06em; font-size: 1.05rem; color: var(--text3); }
+    .plats-namn { font-family: var(--rubrik); text-transform: uppercase; letter-spacing: .02em; font-size: clamp(1.5rem, 6.5vw, 2rem); line-height: 1; margin-top: 0 !important; }
+    .plats-par { display: flex; flex-wrap: wrap; gap: 4px 16px; font-weight: 700; font-size: 1.1rem; }
+    .plats-bild { font-style: italic; }
+    .pi-forhor-tal {
+      font-family: var(--rubrik); font-size: clamp(1.7rem, 7.6vw, 2.3rem); letter-spacing: .04em; line-height: 1.45; min-height: 3.2em;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 0 .4em; margin-top: 8px;
+    }
+    .pi-forhor-tal .par { white-space: nowrap; }
+    .pi-forhor-tal .ny-plats { margin-left: .35em; }
+    .pi-forhor-tal .tom { color: #cfc8bd; }
+    .pi-forhor-tal .nu { color: var(--o3); }
+    .pi-forhor-tal .miss { text-decoration: underline wavy var(--fel); text-underline-offset: 5px; }
+    .pi-tips { min-height: 1.4em; font-size: .9rem; color: var(--text3); font-weight: 700; }
+
+    /* ── ditt tal ── */
+    .dina-platser { margin-top: 14px; }
+    .dina-platser li { padding: 7px 0; border-bottom: 1.5px dotted var(--prick); font-weight: 700; }
+    .dina-platser .pn { display: block; font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .05em; font-size: 1rem; color: var(--text3); }
+    .dittal-karta { margin-top: 18px; }
+
+    footer { max-width: 620px; margin: 0 auto; padding: 20px 20px 28px; text-align: center; font-size: .86rem; color: var(--text3); border-top: 1.5px dotted var(--prick); }
+    footer p + p { margin-top: 4px; }
+
+    @media (max-width: 360px) {
+      .hero-under { font-size: .98rem; letter-spacing: .05em; }
+      .val button { font-size: .98rem; }
+    }
+    @media (min-width: 600px) {
+      .steg-nav a { width: 38px; height: 38px; font-size: 1.35rem; }
+      .ovning { padding: 24px 26px; }
+      .alfabet { columns: 2; column-gap: 28px; border-top: none; }
+      .alfabet li:first-child, .alfabet li:nth-child(6) { border-top: 1.5px dotted var(--prick); }
+      .promenad { grid-template-columns: 200px 1fr; gap: 22px; }
+    }
+    @media (min-width: 760px) {
+      .hero { padding: 44px 16px 38px; }
+      .sida { margin: 0 auto 56px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    @media print {
+      body { background: #fff; }
+      #bakgrund, #glod, .hero, .steg-nav, .nasta-steg, .knapprad { display: none !important; }
+      .sida { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bakgrund" aria-hidden="true"></canvas>
+<canvas id="glod" aria-hidden="true"></canvas>
+
+<header class="hero">
+  <h1>Bli ett siffergeni!</h1>
+  <p class="hero-under">Sifferalfabetet i sju steg</p>
+</header>
+
+<div class="sida">
+
+<nav class="steg-nav" aria-label="Steg">
+  <a href="#alfabetet" title="Sifferalfabetet"><span class="sr">Steg </span>1<span class="sr">: Sifferalfabetet</span></a>
+  <a href="#ord" title="Ord till siffror"><span class="sr">Steg </span>2<span class="sr">: Ord till siffror</span></a>
+  <a href="#tal" title="Siffror till ord"><span class="sr">Steg </span>3<span class="sr">: Siffror till ord</span></a>
+  <a href="#lathund" title="Lathunden"><span class="sr">Steg </span>4<span class="sr">: Lathunden</span></a>
+  <a href="#artal" title="Årtal"><span class="sr">Steg </span>5<span class="sr">: Årtal</span></a>
+  <a href="#pi" title="Pi-utmaningen"><span class="sr">Steg </span>6<span class="sr">: Pi-utmaningen</span></a>
+  <a href="#dittal" title="Ditt eget tal"><span class="sr">Steg </span>7<span class="sr">: Ditt eget tal</span></a>
+</nav>
+
+<main>
+
+  <!-- 1. ALFABETET -->
+  <section class="vy" id="vy-alfabetet" aria-labelledby="h-alfabetet">
+    <h2 id="h-alfabetet">Sifferalfabetet</h2>
+    <p>Siffror är svåra att se framför sig, men ord är lätta. Med sifferalfabetet får varje siffra
+      ett konsonantljud. Stoppa in vilka vokaler du vill, så blir talet ett ord.
+      Det är samma system som jag använde när jag rabblade 13&nbsp;208 decimaler av pi.</p>
+    <div class="exempel" id="exempel"></div>
+    <ul class="alfabet" id="alfabet"></ul>
+    <h3>Tre regler</h3>
+    <ul class="regler">
+      <li><b>Vokaler och H är fria.</b> Stoppa in dem var du vill.</li>
+      <li><b>Ljuden räknas, inte bokstäverna.</b> Nalle har två L men bara ett L-ljud, och g:et i geting låter som J.</li>
+      <li><b>Ljud som bildas på samma ställe i munnen hör ihop.</b> Säg P och B efter varandra. Visst ligger de nära?</li>
+    </ul>
+    <div class="ovning" id="alfa-quiz"></div>
+    <div class="nasta-steg"><a class="knapp" href="#ord">Nästa: Ord till siffror →</a></div>
+  </section>
+
+  <!-- 2. ORD → SIFFROR -->
+  <section class="vy" id="vy-ord" aria-labelledby="h-ord" hidden>
+    <h2 id="h-ord">Ord till siffror</h2>
+    <p>Översätt orden till siffror. Bara konsonantljuden räknas, så ord med många vokaler blir korta tal.</p>
+    <div class="ovning" id="ord-ovning"></div>
+    <h3>Prova själv</h3>
+    <label class="sr" for="prova-in">Ett ord att göra om till siffror</label>
+    <input id="prova-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Skriv till exempel ditt namn …">
+    <div class="prova-ut" id="prova-ut" aria-live="polite"></div>
+    <div class="nasta-steg"><a class="knapp" href="#tal">Nästa: Siffror till ord →</a></div>
+  </section>
+
+  <!-- 3. SIFFROR → ORD -->
+  <section class="vy" id="vy-tal" aria-labelledby="h-tal" hidden>
+    <h2 id="h-tal">Siffror till ord</h2>
+    <p>Nu åt andra hållet: hitta på ett ord för talet. Det finns inget enda rätt svar.</p>
+    <div class="ovning" id="tal-ovning"></div>
+    <div class="nasta-steg"><a class="knapp" href="#lathund">Nästa: Lathunden →</a></div>
+  </section>
+
+  <!-- 4. LATHUNDEN -->
+  <section class="vy" id="vy-lathund" aria-labelledby="h-lathund" hidden>
+    <h2 id="h-lathund">Lathunden 00–99</h2>
+    <p>Den som tävlar har ett färdigt ord för varje tal från 00 till 99, så att bilderna kommer av sig själva.
+      Här är mina. Lär in dem tio i taget.</p>
+    <div class="ovning">
+      <div class="val" id="lathund-val" role="group" aria-label="Välj tiotal"></div>
+      <div id="lathund-ovning"></div>
+    </div>
+    <div class="nasta-steg"><a class="knapp" href="#artal">Nästa: Årtal →</a></div>
+  </section>
+
+  <!-- 5. ÅRTAL -->
+  <section class="vy" id="vy-artal" aria-labelledby="h-artal" hidden>
+    <h2 id="h-artal">Årtal</h2>
+    <p>Vet du vilket århundrade något hände räcker det med de två sista siffrorna.
+      Läs bilderna, sedan förhör jag dig.</p>
+    <ul class="artal-lista" id="artal-lista"></ul>
+    <div class="ovning" id="artal-ovning"></div>
+    <div class="nasta-steg"><a class="knapp" href="#pi">Nästa: Pi →</a></div>
+  </section>
+
+  <!-- 6. PI -->
+  <section class="vy" id="vy-pi" aria-labelledby="h-pi" hidden>
+    <h2 id="h-pi">Pi-utmaningen</h2>
+    <p>Med lathunden och ett minnespalats lär du dig de 30 första decimalerna av pi på några minuter.
+      Varje par blir ett ord, och två ord i taget får en plats i mitt hus från bokens andra kapitel.
+      Låt den första bilden göra något med den andra, så vet du vilken som kommer först.</p>
+    <p class="pi-rad" id="pi-rad"></p>
+    <div class="ovning" id="pi-promenad">
+      <h3>Gå promenaden</h3>
+      <div class="promenad">
+        <div class="karta">
+          <img src="assets/siffror/palats.webp" alt="Mitt minnespalats från boken: ett hus med 15 numrerade platser" width="383" height="471">
+          <span class="ring" data-ring></span>
+        </div>
+        <div data-plats></div>
+      </div>
+      <div class="knapprad">
+        <button class="knapp sekundar" type="button" data-forra>← Förra</button>
+        <button class="knapp" type="button" data-nasta>Nästa plats →</button>
+      </div>
+    </div>
+    <div class="ovning" id="pi-forhor"></div>
+    <div class="nasta-steg"><a class="knapp" href="#dittal">Nästa: Ditt eget tal →</a></div>
+  </section>
+
+  <!-- 7. DITT TAL -->
+  <section class="vy ph-no-capture" id="vy-dittal" aria-labelledby="h-dittal" hidden>
+    <h2 id="h-dittal">Ditt eget tal</h2>
+    <p>Telefonnummer, portkoder, födelsedagar: alla tal går att göra om till bilder.
+      Skriv ett tal så lägger jag orden i mitt minnespalats. Talet stannar i din webbläsare.</p>
+    <label class="sr" for="dittal-in">Ditt tal</label>
+    <input id="dittal-in" type="text" inputmode="numeric" autocomplete="off" placeholder="Till exempel 0701234567" style="margin-top:16px">
+    <ul class="dina-platser" id="dittal-ut" aria-live="polite"></ul>
+    <div class="karta dittal-karta" id="dittal-karta">
+      <img src="assets/siffror/palats.webp" alt="Mitt minnespalats från boken: ett hus med 15 numrerade platser" width="383" height="471" loading="lazy">
+    </div>
+    <div class="nasta-steg"><a class="knapp" href="#alfabetet">Till början ↺</a></div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Allt bygger på kapitlet »Bli ett siffergeni!« i min bok <i>Så får du ett superminne</i>.</p>
+  <p><a href="https://www.jonasvonessen.se">Jonas von Essen</a> · <a href="/">Jonas geografi</a></p>
+</footer>
+
+</div>
+
+<script src="siffror-ljud.js?v=1"></script>
+<script src="siffror-data.js?v=3"></script>
+<script src="siffror.js?v=4"></script>
+<script src="siffror-bakgrund.js?v=2"></script>
+<script src="kakor.js?v=76"></script>
+</body>
+</html>
