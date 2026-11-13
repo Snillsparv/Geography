@@ -87,9 +87,8 @@
     return html;
   }
 
-  // resultatet efter en övning: bokens pokal när allt satt
-  const resultatHTML = (rubrik, text, perfekt) => `<div class="resultat">
-    ${perfekt ? '<img src="assets/siffror/pokal.svg" alt="" width="427" height="495">' : ''}
+  // resultatet efter en övning
+  const resultatHTML = (rubrik, text) => `<div class="resultat">
     <div class="stor">${rubrik}</div><p>${text}</p></div>
     <div class="knapprad"><button class="knapp sekundar" type="button" data-igen>Kör igen</button></div>`;
 
@@ -217,7 +216,7 @@
       statistik('alfabet_klart', { sek: tid, missar });
       el.innerHTML = resultatHTML(sekText(tid),
         (missar ? `${missText(missar)} på vägen.` : 'Inte en enda miss!') +
-        (bast ? (rekord ? ' Nytt rekord!' : ` Ditt rekord är ${sekText(bast)}.`) : ''), !missar);
+        (bast ? (rekord ? ' Nytt rekord!' : ` Ditt rekord är ${sekText(bast)}.`) : ''));
       $('[data-igen]', el).addEventListener('click', starta);
       iSikte(el);
     }
@@ -288,7 +287,7 @@
       statistik('ord_klart', { ratt: ratta, antal: ord.length });
       const alla = ratta === ord.length;
       el.innerHTML = resultatHTML(`${ratta} av ${ord.length}`,
-        alla ? 'Alla rätt! Du läser siffror som en minnesatlet.' : 'Bra jobbat! Kör en gång till, så sitter det.', alla);
+        alla ? 'Alla rätt! Du läser siffror som en minnesatlet.' : 'Bra jobbat! Kör en gång till, så sitter det.');
       $('[data-igen]', el).addEventListener('click', () => { starta(); iSikte(el); });
     }
 
@@ -376,8 +375,7 @@
     function klart() {
       statistik('tal_klart', { ratt: ratta, antal: tal.length });
       el.innerHTML = resultatHTML(`${ratta} av ${tal.length}`,
-        'Ju fler ord du hittar på, desto snabbare går det. Proffsen har ett färdigt ord för varje tal, och det är nästa steg!',
-        ratta === tal.length);
+        'Ju fler ord du hittar på, desto snabbare går det. Proffsen har ett färdigt ord för varje tal, och det är nästa steg!');
       $('[data-igen]', el).addEventListener('click', () => { starta(); iSikte(el); });
     }
 
@@ -451,7 +449,7 @@
       lage = 'klar'; aktuell = null;
       statistik('lathund_klart', { tio, missar });
       el.innerHTML = resultatHTML(missar ? 'Klart!' : 'Felfritt!',
-        `${tio}0–${tio}9${missar ? `, med ${missText(missar)} på vägen` : ''}. Repetera i morgon så sitter de ännu bättre.`, !missar);
+        `${tio}0–${tio}9${missar ? `, med ${missText(missar)} på vägen` : ''}. Repetera i morgon så sitter de ännu bättre.`);
       if (tio < 9) {
         $('.knapprad', el).insertAdjacentHTML('beforeend', '<button class="knapp" type="button" data-nasta-tio>Nästa tiotal →</button>');
         $('[data-nasta-tio]', el).addEventListener('click', () => { tio++; lista(); iSikte(el); });
@@ -544,7 +542,7 @@
       statistik('artal_klart', { ratt: ratta, antal: fr.length });
       const alla = ratta === fr.length;
       el.innerHTML = resultatHTML(`${ratta} av ${fr.length}`,
-        alla ? 'Alla rätt! Nu kan du briljera på nästa middag.' : 'Läs igenom bilderna en gång till och kör igen!', alla);
+        alla ? 'Alla rätt! Nu kan du briljera på nästa middag.' : 'Läs igenom bilderna en gång till och kör igen!');
       $('[data-igen]', el).addEventListener('click', starta);
     }
 
@@ -660,7 +658,7 @@
       statistik('pi_klart', { sek, fel });
       forEl.innerHTML = resultatHTML(fel ? sekText(sek) : 'Felfritt!',
         `Du kan de 30 första decimalerna av pi${fel ? `, med ${fel} fel på vägen` : ` på ${sekText(sek)}`}.
-        ${battre && bast ? 'Nytt rekord! ' : ''}Bara 13&nbsp;178 decimaler kvar, så är du ikapp mig …`, !fel);
+        ${battre && bast ? 'Nytt rekord! ' : ''}Bara 13&nbsp;178 decimaler kvar, så är du ikapp mig …`);
       $('[data-igen]', forEl).addEventListener('click', forhorKor);
       iSikte(forEl);
     }

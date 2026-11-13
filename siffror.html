@@ -10,19 +10,18 @@
   <meta property="og:description" content="Lär dig sifferalfabetet och kom ihåg vilka siffror som helst, med Jonas von Essen.">
   <meta property="og:url" content="https://www.jonasgeografi.se/siffror.html">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=4">
+  <meta property="og:image" content="https://www.jonasgeografi.se/assets/siffror/dela.jpg?v=5">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#0d0b0a">
+  <meta name="theme-color" content="#000000">
   <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
   <link rel="preload" href="assets/siffror/league-gothic.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     /* Formen kommer från boken Så får du ett superminne: smala versala
-       rubriker och Jonas egna teckningar på en vit sida, som ligger som ett
-       papper på en mörk botten full av lysande siffror.
-       Varje steg har samma upplägg: teckning, rubrik, kort text, övning.
-       League Gothic står in för bokens Kapra. */
+       rubriker på en vit sida, som ligger som ett papper på en svart botten
+       med lysande siffror. Varje steg har samma upplägg: rubrik, kort text,
+       övning. League Gothic står in för bokens Kapra. */
     @font-face {
       font-family: 'League Gothic';
       src: url('assets/siffror/league-gothic.woff2') format('woff2');
@@ -33,17 +32,19 @@
       --brod: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       --svart: #1a1a1a; --text2: #3d3a36; --text3: #716c65; --ljus: #a39d94;
       --prick: #8f8a83; --yta: #f5f2ed;
-      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c; --natt: #0d0b0a;
+      --o1: #f59f4b; --o2: #ee742c; --o3: #e74211; --siffra: #c2410c; --natt: #000;
       --ratt: #11865a; --fel: #cc2936;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
     body { font-family: var(--brod); color: var(--svart); line-height: 1.55; min-height: 100vh; background: var(--natt); }
-    /* bakgrunden: siffrorna ritas av siffror-bakgrund.js, de starkaste i ett
-       eget lager som lyser upp och dämpas långsamt */
-    #bakgrund, #glod { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; pointer-events: none; }
-    #bakgrund { z-index: -2; }
-    #glod { z-index: -1; animation: glod 4.5s ease-in-out infinite alternate; }
+    /* bakgrunden: siffror-bakgrund.js ritar de lysande siffrorna i två lager,
+       som lyser upp och dämpas om vartannat */
+    #bakgrund, #glod {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1; pointer-events: none;
+      animation: glod 4.5s ease-in-out infinite alternate;
+    }
+    #glod { animation-delay: -4.5s; }
     @keyframes glod { from { opacity: .35; } to { opacity: 1; } }
     button { font: inherit; color: inherit; cursor: pointer; }
     a { color: inherit; }
@@ -54,10 +55,9 @@
 
     /* ── omslaget ── */
     .hero {
-      display: flex; align-items: center; justify-content: center; gap: 14px; padding: 28px 16px 26px; color: #fff;
-      background: radial-gradient(closest-side, rgba(13, 11, 10, .9), rgba(13, 11, 10, 0));
+      padding: 30px 16px 28px; color: #fff; text-align: center;
+      background: radial-gradient(closest-side, #000 65%, rgba(0, 0, 0, 0));   /* inga siffror bakom rubriken */
     }
-    .hero-bild { width: 92px; flex: none; filter: invert(1) drop-shadow(0 0 6px rgba(255, 120, 40, .7)); }
     h1 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase;
       font-size: clamp(3rem, 15vw, 5.4rem); line-height: .88; letter-spacing: .005em;
@@ -66,7 +66,7 @@
     .hero-under { font-family: var(--rubrik); text-transform: uppercase; font-size: 1.12rem; letter-spacing: .07em; line-height: 1.2; margin-top: 8px; color: #ffc48f; }
 
     /* ── boksidan ── */
-    .sida { background: #fff; max-width: 720px; margin: 0 10px 28px; border-radius: 3px; box-shadow: 0 12px 40px rgba(0, 0, 0, .8), 0 0 60px rgba(255, 110, 30, .12); }
+    .sida { background: #fff; max-width: 720px; margin: 0 10px 28px; border-radius: 3px; box-shadow: 0 0 60px rgba(255, 110, 30, .12); }
     .steg-nav { display: flex; justify-content: center; gap: 7px; padding: 18px 16px 0; }
     .steg-nav a {
       width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--svart);
@@ -79,11 +79,9 @@
     main { max-width: 620px; margin: 0 auto; padding: 0 20px 36px; }
     .vy { animation: in .25s ease-out; }
     @keyframes in { from { opacity: 0; transform: translateY(6px); } }
-    .vy-bild { display: block; width: auto; height: 64px; margin: 28px auto 8px; }
-    .vy-bild.lag { height: 44px; margin-top: 40px; }
     h2 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; text-align: center;
-      font-size: clamp(2.5rem, 11vw, 3.2rem); line-height: .95; letter-spacing: .005em; margin-bottom: 14px;
+      font-size: clamp(2.5rem, 11vw, 3.2rem); line-height: .95; letter-spacing: .005em; margin: 30px 0 14px;
     }
     h3 {
       font-family: var(--rubrik); font-weight: 400; text-transform: uppercase; letter-spacing: .03em;
@@ -152,7 +150,6 @@
     .aterkoppling.fel { color: var(--fel); }
     .forklaring { color: var(--text2); font-size: .95rem; }
     .forklaring p { margin-top: 6px; }
-    .resultat img { width: 96px; display: block; margin: 4px auto 8px; }
     .resultat .stor { font-size: clamp(2.4rem, 11vw, 3.4rem); text-transform: uppercase; }
 
     .knappsats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 330px; margin: 12px auto 4px; }
@@ -251,22 +248,18 @@
     footer p + p { margin-top: 4px; }
 
     @media (max-width: 360px) {
-      .hero-bild { width: 74px; }
       .hero-under { font-size: .98rem; letter-spacing: .05em; }
       .val button { font-size: .98rem; }
     }
     @media (min-width: 600px) {
-      .hero-bild { width: 140px; }
       .steg-nav a { width: 38px; height: 38px; font-size: 1.35rem; }
-      .vy-bild { height: 76px; }
-      .vy-bild.lag { height: 52px; }
       .ovning { padding: 24px 26px; }
       .alfabet { columns: 2; column-gap: 28px; border-top: none; }
       .alfabet li:first-child, .alfabet li:nth-child(6) { border-top: 1.5px dotted var(--prick); }
       .promenad { grid-template-columns: 200px 1fr; gap: 22px; }
     }
     @media (min-width: 760px) {
-      .hero { padding: 40px 16px 34px; }
+      .hero { padding: 44px 16px 38px; }
       .sida { margin: 0 auto 56px; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -285,11 +278,8 @@
 <canvas id="glod" aria-hidden="true"></canvas>
 
 <header class="hero">
-  <img class="hero-bild" src="assets/siffror/kapitel.svg" alt="" width="555" height="588">
-  <div>
-    <h1>Bli ett siffergeni!</h1>
-    <p class="hero-under">Sifferalfabetet i sju steg</p>
-  </div>
+  <h1>Bli ett siffergeni!</h1>
+  <p class="hero-under">Sifferalfabetet i sju steg</p>
 </header>
 
 <div class="sida">
@@ -308,7 +298,6 @@
 
   <!-- 1. ALFABETET -->
   <section class="vy" id="vy-alfabetet" aria-labelledby="h-alfabetet">
-    <img class="vy-bild" src="assets/siffror/abc.svg" alt="" width="316" height="224">
     <h2 id="h-alfabetet">Sifferalfabetet</h2>
     <p>Siffror är svåra att se framför sig, men ord är lätta. Med sifferalfabetet får varje siffra
       ett konsonantljud. Stoppa in vilka vokaler du vill, så blir talet ett ord.
@@ -327,7 +316,6 @@
 
   <!-- 2. ORD → SIFFROR -->
   <section class="vy" id="vy-ord" aria-labelledby="h-ord" hidden>
-    <img class="vy-bild lag" src="assets/siffror/binar.svg" alt="" width="877" height="173">
     <h2 id="h-ord">Ord till siffror</h2>
     <p>Översätt orden till siffror. Bara konsonantljuden räknas, så ord med många vokaler blir korta tal.</p>
     <div class="ovning" id="ord-ovning"></div>
@@ -340,7 +328,6 @@
 
   <!-- 3. SIFFROR → ORD -->
   <section class="vy" id="vy-tal" aria-labelledby="h-tal" hidden>
-    <img class="vy-bild" src="assets/siffror/lampa.svg" alt="" width="432" height="482">
     <h2 id="h-tal">Siffror till ord</h2>
     <p>Nu åt andra hållet: hitta på ett ord för talet. Det finns inget enda rätt svar.</p>
     <div class="ovning" id="tal-ovning"></div>
@@ -349,7 +336,6 @@
 
   <!-- 4. LATHUNDEN -->
   <section class="vy" id="vy-lathund" aria-labelledby="h-lathund" hidden>
-    <img class="vy-bild" src="assets/siffror/hjarna.svg" alt="" width="383" height="286">
     <h2 id="h-lathund">Lathunden 00–99</h2>
     <p>Den som tävlar har ett färdigt ord för varje tal från 00 till 99, så att bilderna kommer av sig själva.
       Här är mina. Lär in dem tio i taget.</p>
@@ -362,7 +348,6 @@
 
   <!-- 5. ÅRTAL -->
   <section class="vy" id="vy-artal" aria-labelledby="h-artal" hidden>
-    <img class="vy-bild" src="assets/siffror/raket.svg" alt="" width="373" height="174">
     <h2 id="h-artal">Årtal</h2>
     <p>Vet du vilket århundrade något hände räcker det med de två sista siffrorna.
       Läs bilderna, sedan förhör jag dig.</p>
@@ -373,7 +358,6 @@
 
   <!-- 6. PI -->
   <section class="vy" id="vy-pi" aria-labelledby="h-pi" hidden>
-    <img class="vy-bild" src="assets/siffror/pi.svg" alt="" width="768" height="328">
     <h2 id="h-pi">Pi-utmaningen</h2>
     <p>Med lathunden och ett minnespalats lär du dig de 30 första decimalerna av pi på några minuter.
       Varje par blir ett ord, och två ord i taget får en plats i mitt hus från bokens andra kapitel.
@@ -399,7 +383,6 @@
 
   <!-- 7. DITT TAL -->
   <section class="vy ph-no-capture" id="vy-dittal" aria-labelledby="h-dittal" hidden>
-    <img class="vy-bild" src="assets/siffror/utrop.svg" alt="" width="189" height="166">
     <h2 id="h-dittal">Ditt eget tal</h2>
     <p>Telefonnummer, portkoder, födelsedagar: alla tal går att göra om till bilder.
       Skriv ett tal så lägger jag orden i mitt minnespalats. Talet stannar i din webbläsare.</p>
@@ -423,8 +406,8 @@
 
 <script src="siffror-ljud.js?v=1"></script>
 <script src="siffror-data.js?v=3"></script>
-<script src="siffror.js?v=3"></script>
-<script src="siffror-bakgrund.js?v=1"></script>
+<script src="siffror.js?v=4"></script>
+<script src="siffror-bakgrund.js?v=2"></script>
 <script src="kakor.js?v=76"></script>
 </body>
 </html>

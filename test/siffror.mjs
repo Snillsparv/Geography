@@ -40,7 +40,7 @@ kolla('pi stämmer med Math.PI', D.pi.decimaler.slice(0, 15), String(Math.PI).sl
 kolla('palatset räcker till pi', String(D.palats.length >= D.pi.platser.length), 'true');
 kolla('varje plats finns på kartan', String(D.palatsPos.length), String(D.palats.length));
 kolla('kartans platser ligger på bilden', String(D.palatsPos.every(([x, y]) => x >= 0 && x <= 100 && y >= 0 && y <= 100)), 'true');
-// teckningarna som sidan använder
+// bilderna och typsnittet som sidan använder
 const html = readFileSync(new URL('siffror.html', rot), 'utf8') + readFileSync(new URL('siffror.js', rot), 'utf8');
 for (const [, fil] of html.matchAll(/assets\/siffror\/([\w-]+\.(?:svg|webp|woff2))/g)) {
   kolla(`${fil} finns`, String(existsSync(new URL(`assets/siffror/${fil}`, rot))), 'true');
