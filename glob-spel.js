@@ -111,6 +111,8 @@ function escHtml(s) {
   d.textContent = s;
   return d.innerHTML;
 }
+// minnesreglerna i huvudstader.json markerar kursiv *så här*
+const minnesHtml = s => escHtml(s || '').replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
 // ══════════════════════════════════════════════════
 // Landtillstånd: gid → {gron, tackt, hover, fel, tips}
@@ -133,6 +135,7 @@ function setLand(gid, patch) {
     if (gid >= USA_GID && usaInreKant.size) visaInreKant(gid);
   }
   flatDirty();
+  huvudstadDirty();
   origApplyState(gid, t);
 }
 function landState(gid) { return tillstand.get(gid) || {}; }
@@ -188,7 +191,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '94';
+const V = '95';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -354,6 +357,58 @@ async function loadMarkers() {
                    badge: f.properties.badge ? 1 : 0, tackradie: f.properties.tackradie,
                    spridd: f.properties.spridd ? 1 : 0, _vis: null }));
   } catch (e) { console.warn('kunde inte läsa art-markers.json', e); }
+}
+
+// ── Huvudstäderna (bara svenska sajten) ──
+// assets/huvudstader.json: svenskt landnamn → huvudstad, plats och Jonas
+// minnesregel ur kursen "Skaffa ett superminne!". Visas på landets kort och
+// som en prick med namn när landet är avtäckt i utforska-läget. Saknas
+// filen syns bara ingen huvudstad — spelet fungerar som förut.
+const HUVUDSTAD = new Map();    // svenskt landnamn → {huvudstad, association, not, lat, lon}
+const huvudstadGj = { type: 'FeatureCollection', features: [] };
+let huvudstadPts = [];          // {gid, lng, lat, namn} för väggkartan
+async function loadHuvudstader() {
+  if (SPRAK.lang !== 'sv') return;
+  try {
+    const d = await fetchJson('assets/huvudstader.json?v=' + V);
+    // landets gid ur markörerna (samma namn som regionernas namn)
+    const gidAv = new Map(markersGj.features.filter(f => f.geometry.type === 'Point')
+      .map(f => [f.properties.namn, f.id]));
+    for (const h of d.huvudstader) {
+      HUVUDSTAD.set(h.land, h);
+      const gid = gidAv.get(h.land);
+      if (gid === undefined) continue;
+      huvudstadGj.features.push({ type: 'Feature', id: gid, properties: { gid, namn: h.huvudstad },
+        geometry: { type: 'Point', coordinates: [h.lon, h.lat] } });
+      huvudstadPts.push({ gid, lng: h.lon, lat: h.lat, namn: h.huvudstad });
+    }
+  } catch (e) { console.warn('kunde inte läsa huvudstader.json', e); }
+}
+function huvudstadFor(c) {
+  if (!c || c.gid >= USA_GID) return null;
+  return HUVUDSTAD.get(c.namnSv || c.flaggNamn) || null;
+}
+// Huvudstädernas prickar och namn syns bara på avtäckta länder i
+// utforska-läget (i quizen skulle namnen skymma länder man letar efter).
+// Filtret byts högst en gång per bildruta: ett dolt namn med opacitet 0
+// skulle annars ändå ta plats och knuffa bort grannarnas namn.
+function synligaHuvudstader() {
+  if (currentMode !== 'explore' || document.body.classList.contains('startlage')) return [];
+  return [...revealed].filter(g => g < USA_GID && aktivByGid.has(g));
+}
+let hsDirtyFlag = false;
+function huvudstadDirty() {
+  if (!huvudstadGj.features.length) return;
+  flatDirty();
+  if (hsDirtyFlag || !map) return;
+  hsDirtyFlag = true;
+  requestAnimationFrame(() => {
+    hsDirtyFlag = false;
+    if (!map.getLayer('huvudstad-prick')) return;
+    const f = ['in', ['get', 'gid'], ['literal', synligaHuvudstader()]];
+    map.setFilter('huvudstad-prick', f);
+    map.setFilter('huvudstad-namn', f);
+  });
 }
 
 // ── USA:s delstater: laddas först när regionen öppnas ──
@@ -798,6 +853,7 @@ function initMap() {
                                           [180, -89.9], [-180, -89.9]]] } } },
         regioner: { type: 'geojson', data: regionsGj },
         markorer: { type: 'geojson', data: markersGj },
+        huvudstader: { type: 'geojson', data: huvudstadGj },
       },
       layers: [
         // rymden bakom sfären; själva havet är en VEKTORSFÄR som syns
@@ -916,6 +972,36 @@ function initMap() {
                         ['>=', ['coalesce', ['feature-state', 'svar'], 0], 1]]],
               0, 0.9] },
           layout: { 'line-join': 'round', 'line-cap': 'round' } },
+        // huvudstäderna: svart prick med papperskant (de klickbara
+        // småländerna är tvärtom, papper med svart kant) och namnet intill.
+        // Filtret sätts av huvudstadDirty(); från början syns ingen. Under
+        // prickarna: ett täckt grannland (Vatikanstaten mitt i Rom) ska inte
+        // få en huvudstad mitt i sin klickcirkel. USA-lagren klonas ovanpå
+        // allt i laddaUsa, i samma ordning som förut.
+        { id: 'huvudstad-prick', type: 'circle', source: 'huvudstader',
+          filter: ['in', ['get', 'gid'], ['literal', []]],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 1.4, 2.2, 3, 3, 6, 4.5, 9.5, 6],
+            'circle-color': '#0a0a0a',
+            'circle-stroke-color': TACK,
+            'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 1.4, 1, 6, 1.8],
+          } },
+        { id: 'huvudstad-namn', type: 'symbol', source: 'huvudstader', minzoom: 2,
+          filter: ['in', ['get', 'gid'], ['literal', []]],
+          layout: {
+            'text-field': ['get', 'namn'],
+            'text-font': ['Segoe UI Semibold'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 12, 5, 14, 8, 17],
+            'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+            'text-radial-offset': 0.55,
+            'text-max-width': 9,
+            'text-padding': 1,
+          },
+          paint: {
+            'text-color': '#0a0a0a',
+            'text-halo-color': TACK,
+            'text-halo-width': 1.8,
+          } },
         // klickbar cirkel på täckta småländer. ABSOLUT storlek på kartan
         // (zoomar med geografin, ingen minsta skärmstorlek) och helt opak —
         // ritas ovanpå gränslinjerna så att inget land skymtar igenom.
@@ -1075,6 +1161,7 @@ function initMap() {
         map.setFeatureState({ source: 'borders', id: gid }, t);
       } catch (e) { /* källa saknas ännu — hämtas när den laddat */ }
     }
+    huvudstadDirty();
   });
 }
 
@@ -1458,6 +1545,8 @@ function composeFlat() {
     }
     flatCtx.stroke();
   }
+  // huvudstäderna under klickcirklarna, som på globen
+  ritaHuvudstaderFlat();
   // klickbara cirklar på täckta småländer — absolut storlek på kartan
   // (zoomar med geografin), ritas EFTER gränslinjerna så inget syns igenom
   const pxPerDeg = flatScale() * 0.8487 * Math.PI / 180;
@@ -1474,6 +1563,51 @@ function composeFlat() {
     flatCtx.lineWidth = m.spridd ? 2.5 : 1.5;
     flatCtx.strokeStyle = '#0a0a0a';
     flatCtx.stroke();
+  }
+}
+// huvudstäderna på väggkartan: samma prick och namn som på globen, under
+// de täckta småländernas cirklar. Namn som skulle krocka med ett redan
+// ritat hoppas över (globen gör likadant)
+function ritaHuvudstaderFlat() {
+  if (!huvudstadPts.length) return;
+  const syns = new Set(synligaHuvudstader());
+  if (!syns.size) return;
+  const r = Math.min(5, 2 + flat.k * 0.5);
+  const storlek = Math.round(Math.min(15, 10 + flat.k));
+  flatCtx.font = `${storlek}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+  flatCtx.textBaseline = 'middle';
+  flatCtx.lineJoin = 'round';
+  const pts = [];
+  for (const h of huvudstadPts) {
+    if (!syns.has(h.gid)) continue;
+    const [x, y] = projPt(h.lng, h.lat);
+    if (x < -200 || x > flat.W + 200 || y < -20 || y > flat.H + 20) continue;
+    pts.push({ x, y, namn: h.namn });
+    flatCtx.beginPath();
+    flatCtx.arc(x, y, r, 0, Math.PI * 2);
+    flatCtx.fillStyle = '#0a0a0a';
+    flatCtx.fill();
+    flatCtx.lineWidth = 1.5;
+    flatCtx.strokeStyle = TACK;
+    flatCtx.stroke();
+  }
+  if (flat.k < 1.5) return;                // hela världen: bara prickarna
+  // namnen ovanpå alla prickar; prickarna räknas som upptagna
+  const tagna = pts.map(q => [q.x - r, q.y - r, q.x + r, q.y + r]);
+  for (const { x, y, namn } of pts) {
+    const w = flatCtx.measureText(namn).width;
+    // höger om pricken, annars vänster
+    for (const tx of [x + r + 3, x - r - 3 - w]) {
+      const ruta = [tx - 2, y - storlek / 2 - 2, tx + w + 2, y + storlek / 2 + 2];
+      if (tagna.some(q => ruta[0] < q[2] && ruta[2] > q[0] && ruta[1] < q[3] && ruta[3] > q[1])) continue;
+      tagna.push(ruta);
+      flatCtx.lineWidth = 3;
+      flatCtx.strokeStyle = TACK;
+      flatCtx.strokeText(namn, tx, y);
+      flatCtx.fillStyle = '#0a0a0a';
+      flatCtx.fillText(namn, tx, y);
+      break;
+    }
   }
 }
 
@@ -2324,10 +2458,25 @@ function showInfoCard(c) {
   const infoAssoc = document.getElementById('info-assoc');
   infoAssoc.textContent = c.assoc || '';
   infoAssoc.style.display = c.assoc ? '' : 'none';   // minnesregeln syns alltid
+  visaHuvudstad(huvudstadFor(c));
   infoDesc.innerHTML = escHtml(c.desc);
   visaInfoUtfalld();
   infoDefault.style.display = 'none';
   infoCard.classList.add('active');
+}
+// huvudstaden och dess minnesregel på landets kort (svenska sajten)
+function visaHuvudstad(hs) {
+  const ruta = document.getElementById('info-hs');
+  if (!ruta) return;
+  ruta.style.display = hs ? '' : 'none';
+  if (!hs) return;
+  document.getElementById('info-hs-namn').textContent = hs.huvudstad;
+  const regel = document.getElementById('info-hs-regel');
+  regel.innerHTML = minnesHtml(hs.association);
+  regel.style.display = hs.association ? '' : 'none';
+  const not = document.getElementById('info-hs-not');
+  not.textContent = hs.not || '';
+  not.style.display = hs.not ? '' : 'none';
 }
 function exploreClick(c, e) {
   if (revealed.has(c.gid)) coverCountry(c.gid);
@@ -3229,6 +3378,7 @@ function switchMode(mode, force) {
       : SPRAK.t('Klicka där du tror {landet} är!', { landet: ordLandet() });
     startSeterra();
   }
+  huvudstadDirty();
 }
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => switchMode(btn.dataset.mode));
@@ -3560,6 +3710,7 @@ function startPadding() {
 
 function startLage(flyg) {
   document.body.classList.add('startlage');
+  huvudstadDirty();
   document.querySelector('header').style.display = 'none';
   const sel = document.getElementById('region-selector');
   clearTimeout(selGomTimer);   // en väntande döljning från utflygningen får inte släcka oss
@@ -3649,6 +3800,7 @@ function lamnaStart() {
   clearTimeout(selGomTimer);
   selGomTimer = setTimeout(() => { sel.style.display = 'none'; }, 450);
   document.body.classList.remove('startlage');
+  huvudstadDirty();
   document.body.classList.add('flyger');          // panelerna tonar in när kameran är framme
   document.querySelector('header').style.display = '';
   document.getElementById('back-btn').style.display = '';   // dold i grundmarkupen
@@ -4404,6 +4556,7 @@ document.getElementById('feedback-form').addEventListener('submit', async e => {
 
 function showGame() {
   document.body.classList.remove('startlage');   // markupens default är startläge
+  huvudstadDirty();
   fallIhopRattigheter();
   document.querySelector('header').style.display = '';
   document.getElementById('region-selector').style.display = 'none';
@@ -4735,7 +4888,7 @@ if ('serviceWorker' in navigator) {
   };
   if (!webglStods) { visaWebglBesked(); return; }
   try {
-    await Promise.all([loadRegions(), loadMarkers()]);
+    await Promise.all([loadRegions(), loadMarkers().then(loadHuvudstader)]);
     if (region || utmaningId) {
       startaForladdning();               // direktlänk in i spelet = engagerad
     } else {

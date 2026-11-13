@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=94">
+  <link rel="stylesheet" href="style.css?v=95">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=94"></script>
+  <script src="sprak.js?v=95"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -394,6 +394,25 @@
       box-shadow: 0 0 16px rgba(255, 220, 50, .12); border-radius: 10px; }
     #info-card .assoc-box::before, .seterra-feedback .assoc-box::before {
       content: '💡 '; }
+    /* ── Huvudstaden (svenska sajten): egen ruta under landets minnesregel,
+       i en svalare färg så att man ser vilken regel som hör till vad ── */
+    #info-card .hs-box { margin-bottom: 8px; padding: 8px 12px; border-radius: 10px;
+      background: rgba(120, 220, 190, .08); border: 1.5px solid rgba(120, 220, 190, .45); }
+    #info-card .hs-rubrik { font-size: .85rem; color: #9fd8c6; }
+    #info-card .hs-rubrik strong { font-size: 1.12rem; font-weight: 800; color: #d2fff0; }
+    #info-card .hs-regel { margin-top: 4px; font-size: .98rem; line-height: 1.4; font-weight: 700;
+      color: #e2f8f0; }
+    #info-card .hs-regel::before { content: '💡 '; }
+    #info-card .hs-not { margin-top: 4px; font-size: .78rem; font-style: italic; color: #8fb3c9; }
+    /* Mobilen: bottenpanelen är låg, så rubriken och regeln flyter ihop
+       i ett stycke och fotnoten göms. Längre regler skrollar i panelen. */
+    @media (max-width: 900px) {
+      #info-card .hs-box { margin-bottom: 6px; padding: 5px 9px; line-height: 1.35; }
+      #info-card .hs-rubrik { display: inline; font-size: .78rem; }
+      #info-card .hs-rubrik strong { font-size: .95rem; }
+      #info-card .hs-regel { display: inline; margin: 0 0 0 4px; font-size: .84rem; }
+      #info-card .hs-not { display: none !important; }
+    }
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
     @media (max-width: 900px) {
       #info-card .assoc-box { font-size: .98rem; padding: 8px 10px; }
@@ -859,6 +878,11 @@
         </div>
         <div class="info-side">
           <div class="assoc-box" id="info-assoc" style="display:none"></div>
+          <div class="hs-box" id="info-hs" style="display:none">
+            <div class="hs-rubrik">🏛️ Huvudstad: <strong id="info-hs-namn"></strong></div>
+            <div class="hs-regel" id="info-hs-regel"></div>
+            <div class="hs-not" id="info-hs-not"></div>
+          </div>
           <button class="info-toggle" id="info-toggle" type="button" data-t>Visa info om landet</button>
           <div class="info-extra" id="info-extra" style="display:none">
             <div class="description" id="info-desc"></div>
@@ -1035,8 +1059,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=94"></script>
-<script src="glob-spel.js?v=94"></script>
+<script src="kakor.js?v=95"></script>
+<script src="glob-spel.js?v=95"></script>
 
 </body>
 </html>
