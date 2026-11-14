@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=96">
+  <link rel="stylesheet" href="style.css?v=97">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=96"></script>
+  <script src="sprak.js?v=97"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -412,6 +412,13 @@
     .seterra-hint.hs-ledtrad { background: rgba(120, 220, 190, .1);
       border-color: rgba(120, 220, 190, .45); color: #e2f8f0; }
     .seterra-hint.hs-ledtrad::before { content: '💡 '; }
+    /* Bildquiz + Huvudstäder: "Visa landbilder" bredvid ledtrådsknappen,
+       i kartans blå ton (ledtråden är gul) */
+    .hint-knappar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .hint-btn.bild-btn { border-color: rgba(91, 191, 255, .45); background: rgba(91, 191, 255, .1);
+      color: #8fd3ff; }
+    .hint-btn.bild-btn:hover { background: rgba(91, 191, 255, .2); border-color: rgba(91, 191, 255, .7); }
+    .hint-btn.bild-btn.pa { background: rgba(91, 191, 255, .28); border-color: #5bbfff; color: #e3f4ff; }
     /* Mobilen: bottenpanelen är låg, så rubriken och regeln flyter ihop
        i ett stycke och fotnoten göms. Längre regler skrollar i panelen. */
     @media (max-width: 900px) {
@@ -958,10 +965,15 @@
         </div>
 
         <div class="seterra-hint-row">
-          <button class="hint-btn" id="seterra-hint-btn" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
-            <span data-t>Visa ledtr&aring;d</span>
-          </button>
+          <div class="hint-knappar">
+            <button class="hint-btn" id="seterra-hint-btn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+              <span data-t>Visa ledtr&aring;d</span>
+            </button>
+            <!-- Bildquiz + Huvudstäder: landbilderna av/på. Bara svenska sajten,
+               så ingen data-t (glob-spel.js visar och byter texten) -->
+            <button class="hint-btn bild-btn" id="stad-bilder-btn" type="button" style="display:none">🖼️ <span>Visa landbilder</span></button>
+          </div>
           <div class="seterra-hint" id="seterra-hint" style="display:none"></div>
         </div>
 
@@ -1110,8 +1122,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=96"></script>
-<script src="glob-spel.js?v=96"></script>
+<script src="kakor.js?v=97"></script>
+<script src="glob-spel.js?v=97"></script>
 
 </body>
 </html>
