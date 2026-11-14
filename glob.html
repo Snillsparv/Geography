@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=95">
+  <link rel="stylesheet" href="style.css?v=96">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=95"></script>
+  <script src="sprak.js?v=96"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -395,23 +395,58 @@
     #info-card .assoc-box::before, .seterra-feedback .assoc-box::before {
       content: '💡 '; }
     /* ── Huvudstaden (svenska sajten): egen ruta under landets minnesregel,
-       i en svalare färg så att man ser vilken regel som hör till vad ── */
-    #info-card .hs-box { margin-bottom: 8px; padding: 8px 12px; border-radius: 10px;
+       i en svalare färg så att man ser vilken regel som hör till vad. Samma
+       ruta i quizets feedback, och quizets ledtråd i huvudstadsläget ── */
+    #info-card .hs-box, .seterra-feedback .hs-box { margin-bottom: 8px; padding: 8px 12px;
+      border-radius: 10px; text-align: left;
       background: rgba(120, 220, 190, .08); border: 1.5px solid rgba(120, 220, 190, .45); }
-    #info-card .hs-rubrik { font-size: .85rem; color: #9fd8c6; }
-    #info-card .hs-rubrik strong { font-size: 1.12rem; font-weight: 800; color: #d2fff0; }
-    #info-card .hs-regel { margin-top: 4px; font-size: .98rem; line-height: 1.4; font-weight: 700;
-      color: #e2f8f0; }
-    #info-card .hs-regel::before { content: '💡 '; }
-    #info-card .hs-not { margin-top: 4px; font-size: .78rem; font-style: italic; color: #8fb3c9; }
+    #info-card .hs-rubrik, .seterra-feedback .hs-rubrik { font-size: .85rem; color: #9fd8c6; }
+    #info-card .hs-rubrik strong, .seterra-feedback .hs-rubrik strong { font-size: 1.12rem;
+      font-weight: 800; color: #d2fff0; }
+    #info-card .hs-regel, .seterra-feedback .hs-regel { margin-top: 4px; font-size: .98rem;
+      line-height: 1.4; font-weight: 700; color: #e2f8f0; }
+    .seterra-feedback .hs-regel:first-child { margin-top: 0; }
+    #info-card .hs-regel::before, .seterra-feedback .hs-regel::before { content: '💡 '; }
+    #info-card .hs-not, .seterra-feedback .hs-not { margin-top: 4px; font-size: .78rem;
+      font-style: italic; color: #8fb3c9; }
+    .seterra-hint.hs-ledtrad { background: rgba(120, 220, 190, .1);
+      border-color: rgba(120, 220, 190, .45); color: #e2f8f0; }
+    .seterra-hint.hs-ledtrad::before { content: '💡 '; }
     /* Mobilen: bottenpanelen är låg, så rubriken och regeln flyter ihop
        i ett stycke och fotnoten göms. Längre regler skrollar i panelen. */
     @media (max-width: 900px) {
-      #info-card .hs-box { margin-bottom: 6px; padding: 5px 9px; line-height: 1.35; }
-      #info-card .hs-rubrik { display: inline; font-size: .78rem; }
-      #info-card .hs-rubrik strong { font-size: .95rem; }
-      #info-card .hs-regel { display: inline; margin: 0 0 0 4px; font-size: .84rem; }
-      #info-card .hs-not { display: none !important; }
+      #info-card .hs-box, .seterra-feedback .hs-box { margin-bottom: 6px; padding: 5px 9px;
+        line-height: 1.35; }
+      #info-card .hs-rubrik, .seterra-feedback .hs-rubrik { display: inline; font-size: .78rem; }
+      #info-card .hs-rubrik strong, .seterra-feedback .hs-rubrik strong { font-size: .95rem; }
+      #info-card .hs-regel, .seterra-feedback .hs-regel { display: inline; margin: 0 0 0 4px;
+        font-size: .84rem; }
+      .seterra-feedback .hs-regel:first-child { margin-left: 0; }
+      #info-card .hs-not, .seterra-feedback .hs-not { display: none !important; }
+    }
+    /* ── Länder/Huvudstäder-växeln (svenska sajten): i quizpanelens
+       rubrikrad, så den bara syns i quizlägena och inte kostar en egen rad
+       i mobilens bottenpanel. Huvudstädernas gröna ton knyter ihop dem. ── */
+    #seterra-ui .info-header { display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; }
+    #seterra-ui .info-header h2 { min-width: 0; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .fraga-val { display: flex; flex: none; padding: 2px; border-radius: 999px;
+      background: rgba(0, 0, 0, .28); border: 1px solid rgba(120, 220, 190, .3); }
+    .fraga-btn { padding: 5px 12px; border: none; border-radius: 999px; cursor: pointer;
+      background: transparent; color: #7ea6c4; font: inherit; font-size: .78rem;
+      font-weight: 700; line-height: 1.2; white-space: nowrap;
+      transition: background .15s, color .15s; }
+    .fraga-btn:hover:not(.active) { background: rgba(255, 255, 255, .06); color: #cfe3f4; }
+    .fraga-btn.active { background: rgba(120, 220, 190, .2); color: #d2fff0; }
+    .fraga-btn:focus-visible { outline: 2px solid #9fd8c6; outline-offset: 1px; }
+    @media (max-width: 900px) {
+      #seterra-ui .info-header { gap: 8px; }
+      .fraga-val { padding: 1px; }
+      .fraga-btn { padding: 4px 10px; font-size: .74rem; }
+    }
+    @media (max-width: 400px) {
+      .fraga-btn { padding: 4px 8px; font-size: .7rem; }
     }
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
     @media (max-width: 900px) {
@@ -434,6 +469,12 @@
     /* ── Medaljer på startknapparna — klickbara: visar rekordet ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
       filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    /* huvudstadsquizets medalj: bredvid landquizets (övre högra hörnet har
+       ofta filmknappen), med en liten pelarbyggnad */
+    .start-knappar .medalj-huvudstad { position: absolute; top: -12px; left: 16px;
+      font-size: 1.1rem; filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    .start-knappar .medalj-huvudstad::after { content: '🏛️'; position: absolute;
+      left: 62%; bottom: -5px; font-size: .62rem; }
     #medalj-info { position: fixed; z-index: 400; transform: translate(-50%, -100%);
       background: #10233a; border: 1px solid rgba(255,220,50,.5); border-radius: 10px;
       padding: 8px 14px; color: #ffdc32; font-weight: 800; font-size: .9rem;
@@ -879,7 +920,7 @@
         <div class="info-side">
           <div class="assoc-box" id="info-assoc" style="display:none"></div>
           <div class="hs-box" id="info-hs" style="display:none">
-            <div class="hs-rubrik">🏛️ Huvudstad: <strong id="info-hs-namn"></strong></div>
+            <div class="hs-rubrik">🏛️ <span id="info-hs-ord">Huvudstad</span>: <strong id="info-hs-namn"></strong></div>
             <div class="hs-regel" id="info-hs-regel"></div>
             <div class="hs-not" id="info-hs-not"></div>
           </div>
@@ -897,7 +938,17 @@
 
     <!-- SETERRA MODE -->
     <div id="seterra-ui" style="display:none;">
-      <div class="info-header"><h2 data-t>Klassiskt Quiz</h2></div>
+      <div class="info-header">
+        <h2 data-t>Klassiskt Quiz</h2>
+        <!-- Länder/Huvudstäder: bara svenska sajten och regioner där alla
+             länder har huvudstad (glob-spel.js visar den). Inte .mode-btn:
+             lägesknapparnas lyssnare binder varje .mode-btn. Ingen data-t:
+             texten syns aldrig på engelska. -->
+        <div class="fraga-val" id="fraga-val" role="group" aria-label="Fråga efter" style="display:none">
+          <button type="button" class="fraga-btn active" data-fraga="land" aria-pressed="true">Länder</button>
+          <button type="button" class="fraga-btn" data-fraga="huvudstad" aria-pressed="false">Huvudstäder</button>
+        </div>
+      </div>
 
       <div class="seterra-panel active" id="seterra-game">
         <button class="topplista-knapp" id="topplista-knapp" data-t>&#127942; Topplista</button>
@@ -1059,8 +1110,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=95"></script>
-<script src="glob-spel.js?v=95"></script>
+<script src="kakor.js?v=96"></script>
+<script src="glob-spel.js?v=96"></script>
 
 </body>
 </html>

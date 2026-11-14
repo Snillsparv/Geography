@@ -340,6 +340,85 @@ try {
   ok('golvet speglar servern (Sydamerika 10 s)', false, String(e).slice(0, 140));
 }
 
+// ── v96: Länder/Huvudstäder i quizen (bara svenska sajten) ──
+// Huvudstadsrundorna har egna topplistor (prefixet huvudstad-, samma
+// tidsgolv), egna medaljer, ingen passtämpel och ingen utmaning
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const hp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await hp.addInitScript(INIT_LS);
+  await hp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await hp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && HUVUDSTAD.size > 0",
+    null, { timeout: 30000 });
+  const r = await hp.evaluate(`(() => {
+    switchMode('seterra', true);
+    const vaxel = document.getElementById('fraga-val');
+    const landForst = vaxel.style.display !== 'none' && !huvudstadslage
+      && HS_KEY === 'glob-sydamerika-highscores';
+    document.querySelector('#fraga-val [data-fraga="huvudstad"]').click();
+    const hs = HUVUDSTAD.get(seterraTarget.namnSv);
+    const fraga = document.getElementById('seterra-target-name').textContent;
+    seterraHintBtn.click();
+    const ledtrad = document.getElementById('seterra-hint');
+    const em = !!ledtrad.querySelector('em') && ledtrad.classList.contains('hs-ledtrad');
+    seterraClick(seterraTarget);
+    const fb = seterraFeedback.innerHTML;
+    return { landForst, lage: huvudstadslage, key: HS_KEY, sparat: localStorage.getItem('quiz-fraga'),
+      fragaOk: !!hs && fraga === hs.huvudstad, em, golv: rimligMinTid(),
+      fb: /är huvudst(ad|äder) i/.test(fb) && fb.includes('hs-box') && !fb.includes('fb-desc') };
+  })()`);
+  ok('huvudstadsväxeln syns och byter läge', r.landForst && r.lage && r.sparat === 'huvudstad', JSON.stringify(r).slice(0, 160));
+  ok('huvudstäder: egen topplista, samma golv',
+    r.key === 'huvudstad-glob-sydamerika-highscores' && r.golv === 10, r.key);
+  ok('huvudstäder: frågar efter huvudstaden', r.fragaOk);
+  ok('huvudstäder: ledtråden är huvudstadens regel (kursiv)', r.em);
+  ok('huvudstäder: feedback "X är huvudstad i Y"', r.fb);
+  // simulerad 100 %-runda
+  const slut = await hp.evaluate(`(() => {
+    startSeterra();
+    seterraStartTime = Date.now() - 30000;
+    seterraCorrect = seterraTotal; seterraWrong = 0;
+    endSeterra();
+    return { medalj: localStorage.getItem('medalj-huvudstad-sydamerika'),
+      land: localStorage.getItem('medalj-sydamerika'), resa: localStorage.getItem('varldsresa'),
+      utmana: document.getElementById('utmana-btn').style.display,
+      diplom: document.getElementById('seterra-diplom').style.display,
+      text: document.getElementById('seterra-final-detail').textContent };
+  })()`);
+  ok('huvudstäder: egen medalj, ingen stämpel eller utmaning',
+    slut.medalj === '100' && slut.land === null && slut.resa === null && slut.utmana === 'none'
+    && slut.diplom !== 'none' && /13 av 13 huvudstäder/.test(slut.text) && /Passtämpeln/.test(slut.text),
+    JSON.stringify(slut).slice(0, 200));
+  // tillbaka till Länder: som förut
+  const tillbaka = await hp.evaluate(`(() => {
+    document.querySelector('#fraga-val [data-fraga="land"]').click();
+    return { key: HS_KEY, lage: huvudstadslage, sparat: localStorage.getItem('quiz-fraga'),
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name,
+      hitta: document.getElementById('hitta-ord').textContent };
+  })()`);
+  ok('huvudstäder: tillbaka till Länder', tillbaka.key === 'glob-sydamerika-highscores' && !tillbaka.lage
+    && tillbaka.sparat === 'land' && tillbaka.fraga && tillbaka.hitta === 'Hitta detta land:', JSON.stringify(tillbaka));
+  await hp.close();
+  // USA: ingen växel och inga huvudstadslistor, även med Huvudstäder valt
+  const up = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await up.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','huvudstad')");
+  await up.goto(BASE + '/glob.html?region=usa', { waitUntil: 'domcontentloaded' });
+  await up.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('usa') && COUNTRIES.length >= 50",
+    null, { timeout: 60000 });
+  const usa = await up.evaluate(`(() => {
+    switchMode('seterra', true);
+    return { vis: document.getElementById('fraga-val').style.display, lage: huvudstadslage, key: HS_KEY,
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name };
+  })()`);
+  ok('usa: ingen huvudstadsväxel', usa.vis === 'none' && !usa.lage && usa.key === 'glob-usa-highscores' && usa.fraga,
+    JSON.stringify(usa));
+  await up.close();
+} catch (e) {
+  ok('huvudstadsväxeln syns och byter läge', false, String(e).slice(0, 140));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
