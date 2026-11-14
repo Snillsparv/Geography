@@ -91,6 +91,248 @@ python3 tools/dekor-fran-farg.py     # kräver tiles-build/ från bakningen
 python3 tools/postprocess-art-data.py
 ```
 
+USA:s delstater (`--dataset usa`) har ett eget efterbearbetningssteg som
+körs efter delstatsexporten och efter `postprocess-art-data.py`, eftersom
+det läser världens målade USA-yta (`nordamerika/usa` i art-regions.json):
+
+```bash
+node make-tiles.mjs --dataset usa --outline 0 --out tiles/usa.pmtiles
+node make-tiles.mjs --dataset usa --outline 0 --borders assets/usa-borders.json \
+                    --regions assets/usa-regions.json \
+                    --markers assets/usa-markers.json
+python3 postprocess-usa-data.py   # OBS: alltid efteråt! (~6 min)
+node make-usa-utstickare.mjs      # pennan ur arkivet, efter båda ovan
+```
+
+En delstat kan ha en egen bild bara för globen: `glob` i
+`assets/usa/config.json` (fil + placering på duken) pekar på
+`countries/<stat>-glob.webp`, och bakningen läser `<stat>-glob.svg` bredvid.
+Platta kartan (klassiska spelet och Originalkartan) behåller den vanliga
+bilden, eftersom regionkartans konturlinjer (overlay.webp) följer den.
+Varpen förankras fortfarande i den vanliga bildens massa: globbilden ritas
+mot mallen (`--guides`), som räknades med just den varpen, och med ankare i
+den nya bildens massa gled staten ~10 PSD-px bort från linjen. New
+York har en sådan: Jonas omritning mot mallen, källan i full PSD-upplösning
+ligger i `psd/omritade/new_york-glob.png` (läge i USA.psd: x 4675, y 728).
+New Mexico har också en: USA.psd-lagret med flaggans gröna fält förlängt
+40 dukpixlar (60 PSD-px) nedåt förbi den riktiga gränsen (bootheel), gjord med
+`tools/new-mexico-glob.py` (`psd/omritade/new_mexico-glob.png`).
+Hawaii har Jonas omritning mot ömallen (`NN-hawaii-oarna.png`): hajen kvar
+som havsdekor men öarna (och huvudet = Big Island) följer de riktiga öarna,
+källan i `psd/omritade/hawaii-glob.png` (läge i USA.psd: x 1491, y 3285;
+utskuren så att hörnet hamnar på hela dukpixlar).
+Alaska har Jonas omritning mot mallen
+(`psd/delstatsmallar/01-alaska-avvikelse-170px.png`), källan i
+`psd/omritade/alaska-glob.png` (läge i USA.psd: x 111, y 2793).
+SVG:n görs med `node tools/vectorize.mjs <mapp med PNG:n> --force` och
+kopieras in; webp:en är PNG:n nerskalad 2/3 (4000/6000), kvalitet 85.
+En hårdkantad teckning (Hawaii, Alaska) tappar ögon, tänder och askprickar
+i vektoriseringen i PSD-upplösning och får trappsteg om den bara förstoras.
+Den förstoras därför först tre gånger med mjuka kanter men utan
+mellanfärger och vektoriseras med `VEC_MEDIAN=1`:
+`python3 tools/mjuka-kanter.py in.png ut.png 3` för Hawaii och
+`... 3 --sudda 0.5` för Alaska, där teckningens enkla kantutjämning annars
+blev en grå kontur runt allt svart i stor zoom. Skriptet gör också
+halvgenomskinliga pixlar inne i teckningen opaka; som hål i SVG:n fylldes
+de med ljusgrå och vita fläckar i bakningen (se skriptets kommentar).
+Vektoriseringen tappar ibland detaljer; då lagas SVG:n direkt (Arizona:
+konturerna runt Z, Z och O spårade ur USA.psd och lagda överst; Colorado:
+det gröna strecket enfärgat ända ut, som de andra strecken).
+
+Där teckningen inte når fram till statens riktiga kant fyller bakningen
+(`usaSnapPass` i make-tiles) med delstatens underlägg: bilden med
+närmaste färg utdragen och den yttre konturen bortrensad. Underlägget ritas
+1024 px brett oavsett delstatens storlek, så rensningsdjupet räknas i
+dukpixlar (`SNAP_RIM_DUK`, minst `SNAP_RIMDJUP` steg); bortom 16 steg går
+det bara genom svart bläck, så mörka fyllfärger (Rhode Islands grå) står
+kvar. Små ljusa fält (under `SNAP_MIN_FLACK` dukpx², som Maines
+dregeldroppar) färgar inte utfyllnaden, utom när en delstat bara har små
+ljusa fält. Underlägget hämtas på pixelns dukposition genom varpnätet (förut
+bbox-linjärt, vilket gav fel färger: Kaliforniens solstolsrött vid kusten,
+grönt i New Mexicos flaggstång). Fyllnaden når högst ~1,25° från
+teckningen (underläggets läckor in i Mexiko ska inte fyllas) utom i
+Alaska (`FRI_FYLL`), där teckningen inte täcker Sewardhalvön.
+
+Delstaternas täcke klipps till världens USA-yta inom det verkliga USA,
+utan de stora sjöarna (`tools/data/stora_sjoarna.geojson`, samma fil som
+`--guides` drar bort ur mallarna). Världskartan har sjöarna som land, med
+USA och Kanada som möts mitt i sjön, men delstaterna slutar vid den
+riktiga stranden som på den platta kartan. Sjöarna blir en egen feature
+(`sjo: 1`, gid 1997) som spelet målar i havsfärg ovanpå Kanadas gröna
+(klick och hover där räknas som hav), och Kanadas stränder får linje.
+Bitar som klippet skiljer från resten av delstaten och som ligger på en
+grannstats riktiga mark (`tools/data/us_states.geojson`) går till
+grannen. Bitar som ingen delstat når (Kodiak, Aleuterna) går till närmaste
+delstat; sömhål mellan delstater delas längs delstatslinjen där den går
+genom hålet, annars går hålet till delstaten på samma sida om linjen.
+Konst målad i havet (North Carolinas fartstreck, Alaskas svans i Berings
+hav) döljs alltid under havsmasken — bilden ska hålla sig innanför
+konturen; bara Hawaii (konsten är större än öarna, `VISAD_DEKOR`) har
+dekor-features med samma id som delstaten. Hawaiis mall
+(`psd/delstatsmallar/36-hawaii-oarna.png`, ritad av `--guides` efter
+kantstaternas) är de riktiga öarna i `tools/data/us_states.geojson` (utan
+Midway) inversvarpade genom Hawaiis varpnät till USA.psd-pixlar. Konst som medvetet sticker ut över grannlandet
+(Pennsylvanias penna) fredas från bakningens klipp (`FREDAD_KONST` i
+make-tiles, `UTSTICKARE` i postprocess-skriptet) och blir en egen bild
+(assets/usa/utstickare/, assets/usa-utstickare.json) som spelet lägger
+ovanpå grannens gröna när delstaten är avslöjad; ute i sjön släcker
+make-usa-utstickare.mjs delstatens gröna konst bredvid pennan
+(`properties.sjo`), så bara pennan syns över vattnet. Avslöjade delstater får
+en jämntjock svart kant runt om, lika bred på jordytan som teckningens
+konturlinje (`KANT_PX` dukpixlar på USA-kartan gånger delstatens skala,
+så Alaska — ritad i mindre skala — får bredare kant): `kant: 1` (samma
+id som delstaten) har hela bredden mot havet och grannländerna och halva
+bredden mot varje grannstat, och `kant: 2` (egna id från `INRE_KANT_ID`,
+`gid` + `granne`) är andra halvan mot en grannstat, som spelet tänder när
+grannens bild inte syns. Kanten blir då lika tjock oavsett i vilken
+ordning delstaterna avslöjas. Öar och avskurna uddar i de stora sjöarna
+(Isle Royale, Keweenaws spets) får smalare kant (`SMAL_KANT` gånger den
+största inskrivna cirkelns radie), annars blev de helt svarta. Världens USA-yta i Mexiko och
+de smala glipor där världens USA-yta och grannländerna inte möts blir en
+grön remsa (gid 1999), och en havsmask (gid 1998, utom de stora sjöarna som
+sjölagret målar) döljer konstrester runt
+kusten. usa-borders.json får en yttre kontur (`yttre: 1`) ur samma
+geometri som täcket, och världens linjer längs USA-kanten i
+art-borders.json flyttas till en egen feature (`usakant: 1`) som spelet
+släcker i delstatsregionen. ⚠️ Delstatsdelen görs bara på rå
+make-tiles-data: är usa-regions.json redan efterbearbetad hoppar skriptet
+över den. Har världskartan bakats om sedan dess avbryter skriptet (havs-
+masken bär en summa av världens USA-yta och grannländerna runt den) — kör
+då `--dataset usa`-exporten igen först. Skriptet skriver också om
+usa-markers.json: Hawaiis omfång mäts på öarna i stället för på havs-
+konsten, så öarna får en klickprick i översiktsvyerna. Bumpa `V` i
+glob-spel.js och glob.html efteråt, och `USA_TILE_URL`-versionen när
+usa.pmtiles bakats om (arkivet hämtas bara i skivor, så `TILE_CACHE` i
+sw.js behöver inte bytas för det).
+
+### Engelska USA-kartan (allusstates)
+
+Jonas engelska PSD har 12 omritade delstater (Nevada, Kansas, North och
+South Dakota, Arizona, Pennsylvania, Delaware, Massachusetts, Michigan med
+fisk, Minnesota med läsk, Arkansas med såg, Mississippi); de andra 38 är
+samma som de svenska. Spelet lägger `assets/usa/config.en.json` ovanpå
+`config.json` (per delstat via `filename`), så den har bara det som skiljer.
+
+```bash
+python3 -I tools/engelska-lager.py "<engelska PSD:n>"   # ⇒ psd/engelska/*.png, lagen.json
+python3 -I tools/engelska-konst.py --blak <tmp>          # ⇒ countries/<f>-en.webp, overlay-en.webp, config.en.json
+```
+
+`engelska-lager.py` skalar lagren till USA.psd:s rutnät (utskurna på jämna
+3 px), plockar bort lösa prickar långt från det svenska lagret och skriver
+Michigans tre lager var för sig (`michigan-delar/{bak,vante,fram}.png`:
+fiskens bakre halva, vanten, fiskens främre halva) och främre halvans alfa
+(`michigan-fisk-front.png`).
+Kansas händer är bara konturer i lagret (PSD:ns vita bakgrund lyser igenom,
+de svenska vantarna var vitmålade); hålen målas vita (`VITA_HAL`), annars
+fyllde globbakningen dem med grannarnas underlägg.
+`engelska-konst.py` gör spelbilderna, deras placering i config.en.json och
+`overlay-en.webp`: originalkartans konturer lagda på `map.webp`:s ram (den
+svenska overlay.webp sträcks fel, se skriptet) och utsuddade under
+fiskhuvudet och -stjärten. SVG:erna (`countries/<f>-en.svg`) vektoriseras
+ur `psd/engelska/*.png` med `node tools/vectorize.mjs <mapp> --force`,
+utom Michigans, som `python3 -I tools/fisk-glob.py` gör (se fisken nedan);
+Delaware och Massachusetts först förstorade med `mjuka-kanter.py ... 3` och
+`VEC_MEDIAN=1` (tänderna och detaljerna försvann annars). Arizona får sitt
+bläck runt ZONE A/B och pilarna som egna svarta banor sist i SVG:n:
+vektorisera `<tmp>/arizona-blak.png` med `VEC_MEDIAN=1
+VEC_FILTER_SPECKLE=2` och lägg dess `<path>` före `</svg>`.
+
+Globen bakas med `--lang en` i make-tiles, postprocess-usa-data.py och
+make-usa-utstickare.mjs. Utan flaggan gör verktygen exakt som förut (den
+svenska bakningen och exporten blir byte för byte desamma). Från `tools/`:
+
+```bash
+python3 -I fisk-glob.py              # ⇒ countries/michigan-en.svg, psd/engelska/michigan-{glob,fisk}.png
+node make-fisk-geojson.mjs           # ⇒ data/usa-en-fisk.geojson (~7 s)
+rm -r ../tmp-usa-en                  # --save återupptar: gamla rutor står annars kvar
+until node --max-old-space-size=12288 make-tiles.mjs --dataset usa --lang en \
+        --outline 0 --save tmp-usa-en; do echo "kraschade — kör igen"; done
+node make-tiles.mjs --dataset usa --lang en --save tmp-usa-en --assemble
+                                     # ⇒ tiles/usa-en.pmtiles (~5,5 min)
+node make-tiles.mjs --dataset usa --lang en --outline 0 \
+                    --borders assets/usa-en-borders.json \
+                    --regions assets/usa-en-regions.json \
+                    --markers assets/usa-en-markers.json   # alla tre i SAMMA körning
+python3 postprocess-usa-data.py --lang en   # exakt en gång på råexporten (~6 min)
+node make-usa-utstickare.mjs --lang en      # ⇒ utstickare/{pennsylvania,michigan}-en.webp
+```
+
+Sökvägarna tolkas från reporoten, som för den svenska. Utan `--out` blir
+arkivet `tiles/<dataset>[-<lang>].pmtiles` (`--dataset usa` skrev förut
+över world.pmtiles). `--lang en` läser `config.en.json`: en delstat med
+egen bild (`file`) bakas med `<f>-en.svg` och överläggets placering, men
+varpen förankras i den SVENSKA `countries/<f>.svg` med den SVENSKA
+placeringen (samma `ankare` som globbilderna). Då blir varpnätet bit för
+bit det svenska (make-fisk-geojson.mjs kontrollerar det och skriver ut
+skillnaden, som ska vara 0) och gid:arna samma; bara klickytorna, gränserna
+och sömmarna kring de 12 delstaterna ändras. Saknas en engelsk SVG avbryts
+bakningen (annars föll delstaten tyst bort och alla senare gid:ar flyttades).
+
+⚠️ Varje ändring av en svensk bild eller placering i `config.json` kräver
+att BÅDA språken bakas om (och make-fisk-geojson.mjs körs igen): de svenska
+bilderna är den engelska varpens ankare, och varpen är gemensam för hela
+regionen, så även en delstat som inte är omritad flyttar grannarna. Samma
+sak när världskartan bakats om (`w_summa`): exportera båda språken igen
+före efterbearbetningen. Bumpa `usa-en.pmtiles?v=` i glob-spel.js vid
+varje engelsk bakning, och `V` för json-filerna och utstickarbilderna.
+
+Michigans fisk simmar ut över Michigan- och Huronsjön och in i Kanadas
+halva. Den visas som Michigans utstickare, som Pennsylvanias penna (dekor
+i sjöarna går inte: sjölagret ligger ovanpå konsten). I teckningen simmar
+fisken genom vanten (bakre halvan under vanten), men vanten är större än
+nedre halvön, så ute i sjön åt sjön upp fisken under hakan och vid
+stjärten. Jonas: fisken ska synas även där den inte är en del av
+landskapet. `fisk-glob.py` lägger därför globens bild (`michigan-glob.png`,
+vektoriserad till `countries/michigan-en.svg`) med fiskens bakre halva
+ovanpå vanten överallt utom på nedre halvön (Michigans största yta i
+`assets/usa-en-regions.json` genom varpnätet, krympt 2 PSD-px så att
+fisken täcker kustbandet), och skriver det som syns av fisken till
+`michigan-fisk.png`. Mark som teckningen inte når, och där närmaste färg
+är fiskens (övre halvön väster om huvudet), får vantens röda
+under teckningen: bakningen fyllde den annars med en platt ljusblå fläck. Spelbilden och kortet (`michigan-en.webp`) är
+teckningen som den är. make-fisk-geojson.mjs
+spårar `psd/engelska/michigan-fisk.png` (snittad med SVG:ns alfa, krympt
+1 PSD-px) och lägger konturen på jorden genom Michigans varpnät (`make-tiles
+--varpnat`). make-tiles `--lang en` fredar konsten innanför polygonen från
+snäpp-passets klipp och kantätning (`FREDAD_KONST_EN`; `fredad()` tar en
+polygon eller en ruta), postprocess-skriptet gör polygonen till utstickaren
+i maskläge (ingen pennsvepning och ingen `sjo`-del, som annars släckte den
+blå fisken) och make-usa-utstickare.mjs klipper ut den ur usa-en.pmtiles,
+med en tunn innerkontur längs kanten (`MASK_KONTUR`): där fisken går in
+under vanten vid nedre halvöns strand slutar bilden annars i ett snitt utan
+bläck. Fisken är dekor: ett klick på den ute i
+sjön räknas som hav.
+
+### Den engelska sajten på Firebase (allusstates)
+
+Samma repo och samma Firebase-projekt (geography-fa6a4), två Hosting-sajter:
+målet `sv` är sajten `geography-fa6a4` (den svenska) och målet `en` sajten
+`allusstates` (allusstates.com), se `.firebaserc` och `firebase.json`.
+
+- **Startsidan** `allusstates.html` genereras ur `glob.html` av
+  `node tools/make-sajt-html.mjs` (`--check` ger felkod 1 om den är
+  inaktuell). Bara huvudet byts, blocket mellan `<!-- huvud:start -->` och
+  `<!-- huvud:slut -->`, mot `tools/sajter/allusstates-head.html` (engelsk
+  titel, beskrivning och og-taggar med delningsbilden `assets/usa/dela-en.jpg`,
+  `manifest.en.webmanifest`). `<html>` får `data-sajt="allusstates"`, så
+  sprak.js väljer den engelska sajten oavsett värdnamn, och `sprak-en.js`
+  laddas efter sprak.js. Filen är inte incheckad; båda arbetsflödena kör
+  skriptet före deploy.
+- **Målet `en`** serverar `/` som allusstates.html, skickar `/glob.html` till
+  `/` (301), laddar inte upp de svenska sidorna (glob.html, lärarsidan,
+  klassisk.html med flera) och sätter `X-Robots-Tag: noindex` på allt fram
+  till lanseringen.
+- **Inget publiceras före december:** `firebase-hosting-merge.yml` har
+  `target: sv`, så en merge till main publicerar bara den svenska sajten.
+  Förhandsvisningarna (`firebase-hosting-pull-request.yml`) har inget mål och
+  får en adress per sajt: `geography-fa6a4--pr…` (svenska, `?lang=en` för
+  engelska) och `allusstates--pr…` (engelska direkt).
+- **Lansering:** ta bort `target: sv` ur merge-arbetsflödet och
+  noindex-blocket ur målet `en` i firebase.json.
+- Testa lokalt: `firebase emulators:start --only hosting` serverar `sv` och
+  `en` på var sin port (emulatorn bryr sig inte om `ignore`).
+
 Debugging: `--window z:x0:y0[:x1:y1]` renders only that tile range
 (combine with `--save DIR` and inspect the webp files directly).
 
@@ -169,3 +411,16 @@ node tools/vectorize.mjs assets --force     # rebuild everything
 > **Tip:** for maximum fidelity, run the pipeline on your original
 > high-resolution scans rather than the downscaled webp in the repo, then
 > drop the resulting SVGs in place.
+
+## Förberedd data: Sveriges landskap och huvudstäder
+
+- `data/svenska_landskap.geojson` — alla 25 landskap (CC0, från
+  [perliedman/svenska-landskap](https://github.com/perliedman/svenska-landskap))
+  plus Vänern och Vättern (Natural Earth 10m lakes, public domain).
+  `name`/`filename` matchar `assets/sverige/config.json`, `typ` är
+  `landskap` eller `sjo`. Tänkt som geometrikälla för en kommande
+  `--dataset sverige`, på samma sätt som `us_states.geojson` för USA.
+- `../assets/huvudstader.json` — huvudstaden för vart och ett av spelets 202
+  länder (svenska namn, koordinater ur Natural Earth populated places).
+  `association` är tom och fylls i med Jonas minnesregler; `not` förklarar
+  länder med flera eller omstridda huvudstäder.

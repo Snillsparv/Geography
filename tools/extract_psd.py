@@ -305,7 +305,7 @@ def extract_psd(psd_path, output_dir):
                 if key not in config.get("specialShapes", {}):
                     config.setdefault("specialShapes", {})[key] = shape
 
-            # Preserve per-country fields (desc, imageAssociation, filename)
+            # Preserve per-country fields (desc, imageAssociation, filename, glob)
             old_countries = {}
             for c in existing.get("countries", []):
                 old_key = safe_filename(c.get("name", ""))
@@ -315,7 +315,7 @@ def extract_psd(psd_path, output_dir):
                 key = safe_filename(c["name"])
                 if key in old_countries:
                     old = old_countries[key]
-                    for field in ("desc", "imageAssociation", "filename"):
+                    for field in ("desc", "imageAssociation", "filename", "glob"):
                         if field in old and field not in c:
                             c[field] = old[field]
 

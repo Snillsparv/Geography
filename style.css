@@ -1767,3 +1767,13 @@
         font-size: 0.9rem;
       }
     }
+
+/* Engelska sidan (allusstates): bara USA och ingen startsida — ingen
+   tillbakapil, och startsidans feedbackknapp ska inte blinka förbi innan
+   spelet startat. Väggkartan känner inte delstaterna (göms i usa-regionen)
+   och ska inte gå att klicka på under "Starting…" heller. Lärarsidan
+   finns inte på den engelska sajten. */
+html[data-sajt="allusstates"] #back-btn,
+html[data-sajt="allusstates"] #feedback-knapp,
+html[data-sajt="allusstates"] #view-platt,
+html[data-sajt="allusstates"] .larare-lank { display: none !important; }

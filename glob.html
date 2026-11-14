@@ -3,14 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- huvud:start (allusstates.html får tools/sajter/allusstates-head.html här) -->
   <link rel="manifest" href="manifest.webmanifest?v=58">
 <meta name="theme-color" content="#02060d">
 <link rel="apple-touch-icon" href="assets/design/ikon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
-<title>Jonas geografi – jordglob</title>
-  <link rel="stylesheet" href="style.css?v=77">
+<title data-t>Jonas geografi – jordglob</title>
+  <!-- huvud:slut -->
+  <link rel="stylesheet" href="style.css?v=97">
+  <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
+  <script src="sprak.js?v=97"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -390,6 +394,67 @@
       box-shadow: 0 0 16px rgba(255, 220, 50, .12); border-radius: 10px; }
     #info-card .assoc-box::before, .seterra-feedback .assoc-box::before {
       content: '💡 '; }
+    /* ── Huvudstaden (svenska sajten): egen ruta under landets minnesregel,
+       i en svalare färg så att man ser vilken regel som hör till vad. Samma
+       ruta i quizets feedback, och quizets ledtråd i huvudstadsläget ── */
+    #info-card .hs-box, .seterra-feedback .hs-box { margin-bottom: 8px; padding: 8px 12px;
+      border-radius: 10px; text-align: left;
+      background: rgba(120, 220, 190, .08); border: 1.5px solid rgba(120, 220, 190, .45); }
+    #info-card .hs-rubrik, .seterra-feedback .hs-rubrik { font-size: .85rem; color: #9fd8c6; }
+    #info-card .hs-rubrik strong, .seterra-feedback .hs-rubrik strong { font-size: 1.12rem;
+      font-weight: 800; color: #d2fff0; }
+    #info-card .hs-regel, .seterra-feedback .hs-regel { margin-top: 4px; font-size: .98rem;
+      line-height: 1.4; font-weight: 700; color: #e2f8f0; }
+    .seterra-feedback .hs-regel:first-child { margin-top: 0; }
+    #info-card .hs-regel::before, .seterra-feedback .hs-regel::before { content: '💡 '; }
+    #info-card .hs-not, .seterra-feedback .hs-not { margin-top: 4px; font-size: .78rem;
+      font-style: italic; color: #8fb3c9; }
+    .seterra-hint.hs-ledtrad { background: rgba(120, 220, 190, .1);
+      border-color: rgba(120, 220, 190, .45); color: #e2f8f0; }
+    .seterra-hint.hs-ledtrad::before { content: '💡 '; }
+    /* Bildquiz + Huvudstäder: "Visa landbilder" bredvid ledtrådsknappen,
+       i kartans blå ton (ledtråden är gul) */
+    .hint-knappar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .hint-btn.bild-btn { border-color: rgba(91, 191, 255, .45); background: rgba(91, 191, 255, .1);
+      color: #8fd3ff; }
+    .hint-btn.bild-btn:hover { background: rgba(91, 191, 255, .2); border-color: rgba(91, 191, 255, .7); }
+    .hint-btn.bild-btn.pa { background: rgba(91, 191, 255, .28); border-color: #5bbfff; color: #e3f4ff; }
+    /* Mobilen: bottenpanelen är låg, så rubriken och regeln flyter ihop
+       i ett stycke och fotnoten göms. Längre regler skrollar i panelen. */
+    @media (max-width: 900px) {
+      #info-card .hs-box, .seterra-feedback .hs-box { margin-bottom: 6px; padding: 5px 9px;
+        line-height: 1.35; }
+      #info-card .hs-rubrik, .seterra-feedback .hs-rubrik { display: inline; font-size: .78rem; }
+      #info-card .hs-rubrik strong, .seterra-feedback .hs-rubrik strong { font-size: .95rem; }
+      #info-card .hs-regel, .seterra-feedback .hs-regel { display: inline; margin: 0 0 0 4px;
+        font-size: .84rem; }
+      .seterra-feedback .hs-regel:first-child { margin-left: 0; }
+      #info-card .hs-not, .seterra-feedback .hs-not { display: none !important; }
+    }
+    /* ── Länder/Huvudstäder-växeln (svenska sajten): i quizpanelens
+       rubrikrad, så den bara syns i quizlägena och inte kostar en egen rad
+       i mobilens bottenpanel. Huvudstädernas gröna ton knyter ihop dem. ── */
+    #seterra-ui .info-header { display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; }
+    #seterra-ui .info-header h2 { min-width: 0; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .fraga-val { display: flex; flex: none; padding: 2px; border-radius: 999px;
+      background: rgba(0, 0, 0, .28); border: 1px solid rgba(120, 220, 190, .3); }
+    .fraga-btn { padding: 5px 12px; border: none; border-radius: 999px; cursor: pointer;
+      background: transparent; color: #7ea6c4; font: inherit; font-size: .78rem;
+      font-weight: 700; line-height: 1.2; white-space: nowrap;
+      transition: background .15s, color .15s; }
+    .fraga-btn:hover:not(.active) { background: rgba(255, 255, 255, .06); color: #cfe3f4; }
+    .fraga-btn.active { background: rgba(120, 220, 190, .2); color: #d2fff0; }
+    .fraga-btn:focus-visible { outline: 2px solid #9fd8c6; outline-offset: 1px; }
+    @media (max-width: 900px) {
+      #seterra-ui .info-header { gap: 8px; }
+      .fraga-val { padding: 1px; }
+      .fraga-btn { padding: 4px 10px; font-size: .74rem; }
+    }
+    @media (max-width: 400px) {
+      .fraga-btn { padding: 4px 8px; font-size: .7rem; }
+    }
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
     @media (max-width: 900px) {
       #info-card .assoc-box { font-size: .98rem; padding: 8px 10px; }
@@ -411,6 +476,12 @@
     /* ── Medaljer på startknapparna — klickbara: visar rekordet ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
       filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    /* huvudstadsquizets medalj: bredvid landquizets (övre högra hörnet har
+       ofta filmknappen), med en liten pelarbyggnad */
+    .start-knappar .medalj-huvudstad { position: absolute; top: -12px; left: 16px;
+      font-size: 1.1rem; filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    .start-knappar .medalj-huvudstad::after { content: '🏛️'; position: absolute;
+      left: 62%; bottom: -5px; font-size: .62rem; }
     #medalj-info { position: fixed; z-index: 400; transform: translate(-50%, -100%);
       background: #10233a; border: 1px solid rgba(255,220,50,.5); border-radius: 10px;
       padding: 8px 14px; color: #ffdc32; font-weight: 800; font-size: .9rem;
@@ -551,16 +622,16 @@
 <body class="startlage">
 
 <header style="display:none">
-  <button class="back-btn" id="back-btn" title="Tillbaka" style="display:none">&larr;</button>
-  <h1>Jonas geografi</h1>
+  <button class="back-btn" id="back-btn" title="Tillbaka" data-t-title style="display:none">&larr;</button>
+  <h1 data-t>Jonas geografi</h1>
   <button id="spel-video" style="display:none" title="Se videon om v&auml;rldsdelens l&auml;nder">&#9654;</button>
   <button id="spel-delar" style="display:none" title="V&auml;lj del av v&auml;rldsdelen">&#129513;</button>
   <div class="mode-toggle">
-    <button class="mode-btn active" data-mode="explore">Utforska</button>
-    <button class="mode-btn" data-mode="bildquiz" title="Quiz med bilderna synliga &mdash; tr&auml;na p&aring; att koppla bild till land">Bildquiz</button>
-    <button class="mode-btn" data-mode="seterra">Klassiskt Quiz</button>
+    <button class="mode-btn active" data-mode="explore" data-t>Utforska</button>
+    <button class="mode-btn" data-mode="bildquiz" data-t data-t-title title="Quiz med bilderna synliga &mdash; tr&auml;na p&aring; att koppla bild till land">Bildquiz</button>
+    <button class="mode-btn" data-mode="seterra" data-t>Klassiskt Quiz</button>
   </div>
-  <span class="header-hint" id="header-hint">Klicka p&aring; ett land</span>
+  <span class="header-hint" id="header-hint" data-t>Klicka p&aring; ett land</span>
 </header>
 
 <div id="rymd-lager"></div>
@@ -621,16 +692,16 @@
   <div id="intro-bubbla">
     <p id="intro-text"></p>
     <div class="intro-knappar">
-      <button id="intro-nasta">Visa mig runt!</button>
-      <button id="intro-hoppa">Hoppa &ouml;ver</button>
+      <button id="intro-nasta" data-t>Visa mig runt!</button>
+      <button id="intro-hoppa" data-t>Hoppa &ouml;ver</button>
     </div>
   </div>
 </div>
 
-<button id="ljud-knapp" title="Ljud av/p&aring;">&#128266;</button>
+<button id="ljud-knapp" title="Ljud av/p&aring;" data-t-title>&#128266;</button>
 <button id="feedback-knapp" title="Tyck till!">&#128140;</button>
 <button id="installera-knapp" title="Installera appen" style="display:none">&#128241; Installera appen</button>
-<button id="spel-hjalp" title="Visa genomg&aring;ngen igen">?</button>
+<button id="spel-hjalp" title="Visa genomg&aring;ngen igen" data-t-title>?</button>
 
 <!-- Installera appen: riktig dialog d&auml;r det g&aring;r, annars steg-f&ouml;r-steg -->
 <div id="installera-modal" class="utm-modal" style="display:none">
@@ -659,15 +730,15 @@
 <!-- Topplistan: global + personlig (den h&auml;r enheten) -->
 <div id="topplista-modal" style="display:none">
   <div class="resa-pass">
-    <button class="modal-kryss" id="topplista-kryss" title="St&auml;ng">&#10005;</button>
-    <h2>&#127942; Topplista</h2>
+    <button class="modal-kryss" id="topplista-kryss" title="St&auml;ng" data-t-title>&#10005;</button>
+    <h2 data-t>&#127942; Topplista</h2>
     <p class="resa-info" id="topplista-region"></p>
     <div class="hs-flikar">
-      <button id="hs-flik-alla" class="aktiv">&#127757; Alla</button>
-      <button id="hs-flik-mina">&#127968; Mina</button>
+      <button id="hs-flik-alla" class="aktiv" data-t>&#127757; Alla</button>
+      <button id="hs-flik-mina" data-t>&#127968; Mina</button>
     </div>
     <div id="topplista-innehall"></div>
-    <button id="topplista-stang">St&auml;ng</button>
+    <button id="topplista-stang" data-t>St&auml;ng</button>
   </div>
 </div>
 
@@ -696,27 +767,27 @@
 <!-- Utmaningar: skapa en l&auml;nk och utmana kompisar p&aring; exakt samma quiz -->
 <div id="utmaning-skapa-modal" class="utm-modal" style="display:none">
   <div class="feedback-kort">
-    <h2>&#9876;&#65039; Utmana en kompis!</h2>
+    <h2 data-t>&#9876;&#65039; Utmana en kompis!</h2>
     <p class="utm-detalj" id="utm-skapa-detalj"></p>
     <div id="utm-skapa-form">
-      <p>Du f&aring;r en l&auml;nk att skicka till en kompis &mdash; eller hela klassen!
+      <p data-t-html>Du f&aring;r en l&auml;nk att skicka till en kompis &mdash; eller hela klassen!
         Alla som &ouml;ppnar l&auml;nken f&aring;r <b>exakt samma quiz</b> och hamnar i
         samma duellista.</p>
-      <label for="utm-skapa-namn">Ditt namn i duellen</label>
+      <label for="utm-skapa-namn" data-t>Ditt namn i duellen</label>
       <input id="utm-skapa-namn" type="text" maxlength="30">
       <div class="feedback-knappar">
-        <button id="utm-skapa-btn" type="button">Skapa l&auml;nken!</button>
-        <button id="utm-skapa-avbryt" type="button">Avbryt</button>
+        <button id="utm-skapa-btn" type="button" data-t>Skapa l&auml;nken!</button>
+        <button id="utm-skapa-avbryt" type="button" data-t>Avbryt</button>
       </div>
       <div id="utm-skapa-status"></div>
     </div>
     <div id="utm-skapa-klar" style="display:none">
-      <p>Klart! Skicka l&auml;nken till dem du vill utmana:</p>
+      <p data-t>Klart! Skicka l&auml;nken till dem du vill utmana:</p>
       <input id="utm-lank" type="text" readonly>
       <div class="feedback-knappar">
-        <button id="utm-dela" type="button">Dela &#128232;</button>
-        <button id="utm-kopiera" type="button">Kopiera l&auml;nken</button>
-        <button id="utm-skapa-stang" type="button">St&auml;ng</button>
+        <button id="utm-dela" type="button" data-t>Dela &#128232;</button>
+        <button id="utm-kopiera" type="button" data-t>Kopiera l&auml;nken</button>
+        <button id="utm-skapa-stang" type="button" data-t>St&auml;ng</button>
       </div>
     </div>
   </div>
@@ -727,15 +798,15 @@
     <h2 id="utm-anta-rubrik"></h2>
     <p id="utm-anta-text"></p>
     <div id="utm-anta-form">
-      <label for="utm-anta-namn">Vad heter du?</label>
+      <label for="utm-anta-namn" data-t>Vad heter du?</label>
       <input id="utm-anta-namn" type="text" maxlength="30">
       <div class="feedback-knappar">
-        <button id="utm-anta-btn" type="button">Anta utmaningen! &#128293;</button>
-        <button id="utm-anta-nej" type="button">Inte nu</button>
+        <button id="utm-anta-btn" type="button" data-t>Anta utmaningen! &#128293;</button>
+        <button id="utm-anta-nej" type="button" data-t>Inte nu</button>
       </div>
     </div>
     <div class="feedback-knappar" id="utm-anta-felknappar" style="display:none">
-      <button id="utm-anta-stang" type="button">Till startsidan</button>
+      <button id="utm-anta-stang" type="button" data-t>Till startsidan</button>
     </div>
   </div>
 </div>
@@ -777,10 +848,10 @@
 <div id="diplom-modal" style="display:none">
   <div class="diplom">
     <div class="diplom-ram">
-      <h1>DIPLOM</h1>
-      <p class="diplom-till">tilldelas</p>
-      <p class="diplom-namn" id="diplom-namn" contenteditable="true" spellcheck="false">Skriv ditt namn h&auml;r</p>
-      <p class="diplom-text">f&ouml;r att ha klarat <strong id="diplom-region"></strong></p>
+      <h1 data-t>DIPLOM</h1>
+      <p class="diplom-till" data-t>tilldelas</p>
+      <p class="diplom-namn" id="diplom-namn" contenteditable="true" spellcheck="false" data-t>Skriv ditt namn h&auml;r</p>
+      <p class="diplom-text"><span data-t>f&ouml;r att ha klarat</span> <strong id="diplom-region"></strong></p>
       <p class="diplom-detalj" id="diplom-detalj"></p>
       <div class="diplom-fot">
         <div class="diplom-jonas"><img src="Jonas_1.webp" alt="Jonas">
@@ -789,8 +860,8 @@
       </div>
     </div>
     <div class="diplom-knappar">
-      <button id="diplom-skriv">Skriv ut &#128424;</button>
-      <button id="diplom-stang">St&auml;ng</button>
+      <button id="diplom-skriv" data-t>Skriv ut &#128424;</button>
+      <button id="diplom-stang" data-t>St&auml;ng</button>
     </div>
   </div>
 </div>
@@ -811,29 +882,29 @@
     <div id="flat-wrap"><canvas id="flat-canvas"></canvas></div>
     <div id="orig-wrap">
       <div class="map-wrapper" id="orig-wrapper">
-        <img class="base-map" id="orig-base" alt="Karta" draggable="false">
+        <img class="base-map" id="orig-base" alt="Karta" data-t-alt draggable="false">
       </div>
     </div>
-    <div id="spel-load" style="display:none"><span id="spel-load-txt">Laddar jordgloben &hellip;</span>
+    <div id="spel-load" style="display:none"><span id="spel-load-txt" data-t>Laddar jordgloben &hellip;</span>
       <div class="track"><div class="fill" id="spel-load-bar"></div></div></div>
     <div class="view-toggle">
-      <button id="view-glob" class="active">Glob &#127757;</button>
-      <button id="view-platt">V&auml;ggkarta</button>
-      <button id="view-orig">Original</button>
+      <button id="view-glob" class="active" data-t>Glob &#127757;</button>
+      <button id="view-platt" data-t>V&auml;ggkarta</button>
+      <button id="view-orig" data-t>Original</button>
     </div>
     <div class="zoom-controls">
-      <button class="zoom-btn" id="zoom-in" title="Zooma in">+</button>
+      <button class="zoom-btn" id="zoom-in" title="Zooma in" data-t-title>+</button>
       <div class="zoom-level" id="zoom-level">100%</div>
-      <button class="zoom-btn" id="zoom-out" title="Zooma ut">&minus;</button>
+      <button class="zoom-btn" id="zoom-out" title="Zooma ut" data-t-title>&minus;</button>
     </div>
     <div class="explore-toggle-buttons" id="explore-toggle-buttons">
-      <button class="explore-toggle-btn" id="show-all-btn" title="Visa alla l&auml;nder">
+      <button class="explore-toggle-btn" id="show-all-btn" title="Visa alla l&auml;nder" data-t-title>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
-      <button class="explore-toggle-btn" id="hide-all-btn" title="D&ouml;lj alla l&auml;nder">
+      <button class="explore-toggle-btn" id="hide-all-btn" title="D&ouml;lj alla l&auml;nder" data-t-title>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
-      <button class="explore-toggle-btn" id="blink-kvar-btn" title="Blinka l&auml;nderna du inte hittat &auml;n">&#10024;</button>
+      <button class="explore-toggle-btn" id="blink-kvar-btn" title="Blinka l&auml;nderna du inte hittat &auml;n" data-t-title>&#10024;</button>
     </div>
   </div>
 
@@ -841,11 +912,11 @@
     <div class="info-panel-content">
     <!-- EXPLORE MODE -->
     <div id="explore-ui">
-      <div class="info-header"><h2>Landinformation</h2></div>
+      <div class="info-header"><h2 data-t>Landinformation</h2></div>
 
       <div class="info-default" id="info-default">
         <div class="arrow-icon">&larr;</div>
-        <p>Klicka p&aring; ett land p&aring; globen<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
+        <p data-t-html>Klicka p&aring; ett land p&aring; globen<br>f&ouml;r att se dess form och<br>l&auml;sa om det!</p>
       </div>
 
       <div class="info-card" id="info-card">
@@ -855,52 +926,72 @@
         </div>
         <div class="info-side">
           <div class="assoc-box" id="info-assoc" style="display:none"></div>
-          <button class="info-toggle" id="info-toggle" type="button">Visa info om landet</button>
+          <div class="hs-box" id="info-hs" style="display:none">
+            <div class="hs-rubrik">🏛️ <span id="info-hs-ord">Huvudstad</span>: <strong id="info-hs-namn"></strong></div>
+            <div class="hs-regel" id="info-hs-regel"></div>
+            <div class="hs-not" id="info-hs-not"></div>
+          </div>
+          <button class="info-toggle" id="info-toggle" type="button" data-t>Visa info om landet</button>
           <div class="info-extra" id="info-extra" style="display:none">
             <div class="description" id="info-desc"></div>
           </div>
           <div class="counter">
-            Utforskade: <strong id="explored-count">0</strong> / <strong data-total>13</strong> <span id="utforsk-ord">l&auml;nder</span>
+            <span data-t>Utforskade:</span> <strong id="explored-count">0</strong> / <strong data-total>13</strong> <span id="utforsk-ord" data-t>l&auml;nder</span>
           </div>
         </div>
-        <div class="close-hint">Klicka p&aring; <span id="stang-ord">landet</span> igen f&ouml;r att d&ouml;lja</div>
+        <div class="close-hint"><span data-t>Klicka p&aring;</span> <span id="stang-ord" data-t>landet</span> <span data-t>igen f&ouml;r att d&ouml;lja</span></div>
       </div>
     </div>
 
     <!-- SETERRA MODE -->
     <div id="seterra-ui" style="display:none;">
-      <div class="info-header"><h2>Klassiskt Quiz</h2></div>
+      <div class="info-header">
+        <h2 data-t>Klassiskt Quiz</h2>
+        <!-- Länder/Huvudstäder: bara svenska sajten och regioner där alla
+             länder har huvudstad (glob-spel.js visar den). Inte .mode-btn:
+             lägesknapparnas lyssnare binder varje .mode-btn. Ingen data-t:
+             texten syns aldrig på engelska. -->
+        <div class="fraga-val" id="fraga-val" role="group" aria-label="Fråga efter" style="display:none">
+          <button type="button" class="fraga-btn active" data-fraga="land" aria-pressed="true">Länder</button>
+          <button type="button" class="fraga-btn" data-fraga="huvudstad" aria-pressed="false">Huvudstäder</button>
+        </div>
+      </div>
 
       <div class="seterra-panel active" id="seterra-game">
-        <button class="topplista-knapp" id="topplista-knapp">&#127942; Topplista</button>
+        <button class="topplista-knapp" id="topplista-knapp" data-t>&#127942; Topplista</button>
         <div class="seterra-target">
-          <div class="label" id="hitta-ord">Hitta detta land:</div>
+          <div class="label" id="hitta-ord" data-t>Hitta detta land:</div>
           <div class="target-name" id="seterra-target-name">---</div>
         </div>
 
         <div class="seterra-hint-row">
-          <button class="hint-btn" id="seterra-hint-btn" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
-            <span>Visa ledtr&aring;d</span>
-          </button>
+          <div class="hint-knappar">
+            <button class="hint-btn" id="seterra-hint-btn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+              <span data-t>Visa ledtr&aring;d</span>
+            </button>
+            <!-- Bildquiz + Huvudstäder: landbilderna av/på. Bara svenska sajten,
+               så ingen data-t (glob-spel.js visar och byter texten) -->
+            <button class="hint-btn bild-btn" id="stad-bilder-btn" type="button" style="display:none">🖼️ <span>Visa landbilder</span></button>
+          </div>
           <div class="seterra-hint" id="seterra-hint" style="display:none"></div>
         </div>
 
         <div class="seterra-stats">
           <div class="stat-box">
-            <div class="stat-label">Po&auml;ng</div>
+            <div class="stat-label" data-t>Po&auml;ng</div>
             <div class="stat-value score" id="seterra-score">100%</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Tid</div>
+            <div class="stat-label" data-t>Tid</div>
             <div class="stat-value time" id="seterra-time">0:00</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">R&auml;tt</div>
+            <div class="stat-label" data-t>R&auml;tt</div>
             <div class="stat-value correct" id="seterra-correct">0</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Fel</div>
+            <div class="stat-label" data-t>Fel</div>
             <div class="stat-value wrong" id="seterra-wrong">0</div>
           </div>
         </div>
@@ -914,7 +1005,7 @@
       </div>
 
       <div class="seterra-done" id="seterra-done">
-        <h2>Klart!</h2>
+        <h2 data-t>Klart!</h2>
         <div class="big-score" id="seterra-final-score"></div>
         <div class="done-detail" id="seterra-final-detail"></div>
 
@@ -922,23 +1013,23 @@
         <button class="restart-btn ova-del" id="ova-del-btn" style="display:none">&#129513; Många fel? Öva på en mindre del i taget!</button>
 
         <div class="hs-form" id="hs-form">
-          <input type="text" id="hs-name" placeholder="Ditt namn" maxlength="20">
-          <button id="hs-save">Spara</button>
+          <input type="text" id="hs-name" placeholder="Ditt namn" data-t-placeholder maxlength="20">
+          <button id="hs-save" data-t>Spara</button>
         </div>
-        <div class="hs-saved-msg" id="hs-saved-msg">Sparat!</div>
+        <div class="hs-saved-msg" id="hs-saved-msg" data-t>Sparat!</div>
 
         <!-- utmaningsknappen låg längst ner UNDER topp 30-listan — ingen
              hittade den (0 skapade utmaningar på fem dygns mätning) -->
-        <button class="restart-btn utmana-lyft" id="utmana-btn" style="display:none">&#9876;&#65039; Utmana en kompis!</button>
+        <button class="restart-btn utmana-lyft" id="utmana-btn" style="display:none" data-t>&#9876;&#65039; Utmana en kompis!</button>
 
         <div class="highscore-list" id="highscore-list"></div>
-        <button class="topplista-knapp" id="topplista-knapp-klar">&#127968; Se mina resultat</button>
+        <button class="topplista-knapp" id="topplista-knapp-klar" data-t>&#127968; Se mina resultat</button>
 
-        <button class="restart-btn" id="seterra-diplom" style="display:none">Visa ditt diplom &#127891;</button>
-        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none">Öva på felaktiga</button>
-        <button class="restart-btn" id="seterra-vidare" style="display:none">Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
-        <button class="restart-btn" id="utm-vidare-btn" style="display:none">Skicka utmaningen vidare &#128232;</button>
-        <button class="restart-btn" id="seterra-restart">Spela igen</button>
+        <button class="restart-btn" id="seterra-diplom" style="display:none" data-t>Visa ditt diplom &#127891;</button>
+        <button class="restart-btn retry-btn" id="seterra-retry" style="display:none" data-t>Öva på felaktiga</button>
+        <button class="restart-btn" id="seterra-vidare" style="display:none" data-t>Nu utan bilder &mdash; Klassiskt Quiz! &#127942;</button>
+        <button class="restart-btn" id="utm-vidare-btn" style="display:none" data-t>Skicka utmaningen vidare &#128232;</button>
+        <button class="restart-btn" id="seterra-restart" data-t>Spela igen</button>
       </div>
     </div>
     </div>
@@ -998,13 +1089,13 @@
   <canvas id="confetti-canvas"></canvas>
   <div class="celebration-content">
     <div class="medal">&#127942;</div>
-    <h2>PERFEKT!</h2>
+    <h2 data-t>PERFEKT!</h2>
     <p class="celebration-score">100%</p>
     <p class="celebration-detail" id="celebration-detail"></p>
     <div class="celebration-jonas">
       <img id="celebration-jonas-img" src="Jonas_1.webp" alt="Jonas" draggable="false">
     </div>
-    <button class="restart-btn" id="celebration-close">Forts&auml;tt</button>
+    <button class="restart-btn" id="celebration-close" data-t>Forts&auml;tt</button>
   </div>
 </div>
 
@@ -1012,25 +1103,27 @@
 
 <div class="name-modal-overlay" id="name-modal-overlay">
   <div class="name-modal">
-    <h3>Snyggt spelat!</h3>
+    <h3 data-t>Snyggt spelat!</h3>
     <div class="modal-score" id="modal-score"></div>
     <div class="modal-detail" id="modal-detail"></div>
     <div class="modal-input-row">
-      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20">
-      <button id="modal-save">Spara</button>
+      <input type="text" id="modal-name" placeholder="Skriv ditt namn..." maxlength="20" data-t-placeholder>
+      <button id="modal-save" data-t>Spara</button>
     </div>
-    <button class="modal-skip" id="modal-skip">Hoppa &ouml;ver</button>
+    <button class="modal-skip" id="modal-skip" data-t>Hoppa &ouml;ver</button>
   </div>
 </div>
 
+<!-- markupens texter på sidans språk (gör ingenting på svenska) -->
+<script>SPRAK.oversattDom()</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=77"></script>
-<script src="glob-spel.js?v=77"></script>
+<script src="kakor.js?v=97"></script>
+<script src="glob-spel.js?v=97"></script>
 
 </body>
 </html>

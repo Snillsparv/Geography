@@ -1,0 +1,26 @@
+{
+  "name": "All US States",
+  "short_name": "All US States",
+  "description": "Learn all 50 US states with memory techniques on a hand-drawn map",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#02060d",
+  "theme_color": "#02060d",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "assets/design/ikon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/design/ikon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/",
+  "scope": "/"
+}

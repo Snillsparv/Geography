@@ -340,6 +340,217 @@ try {
   ok('golvet speglar servern (Sydamerika 10 s)', false, String(e).slice(0, 140));
 }
 
+// ── v96: Länder/Huvudstäder i quizen (bara svenska sajten) ──
+// Huvudstadsrundorna har egna topplistor (prefixet huvudstad-, samma
+// tidsgolv), egna medaljer, ingen passtämpel och ingen utmaning
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const hp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await hp.addInitScript(INIT_LS);
+  await hp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await hp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && HUVUDSTAD.size > 0",
+    null, { timeout: 30000 });
+  const r = await hp.evaluate(`(() => {
+    switchMode('seterra', true);
+    const vaxel = document.getElementById('fraga-val');
+    const landForst = vaxel.style.display !== 'none' && !huvudstadslage
+      && HS_KEY === 'glob-sydamerika-highscores';
+    document.querySelector('#fraga-val [data-fraga="huvudstad"]').click();
+    const hs = HUVUDSTAD.get(seterraTarget.namnSv);
+    const fraga = document.getElementById('seterra-target-name').textContent;
+    seterraHintBtn.click();
+    const ledtrad = document.getElementById('seterra-hint');
+    const em = !!ledtrad.querySelector('em') && ledtrad.classList.contains('hs-ledtrad');
+    seterraClick(seterraTarget);
+    const fb = seterraFeedback.innerHTML;
+    return { landForst, lage: huvudstadslage, key: HS_KEY, sparat: localStorage.getItem('quiz-fraga'),
+      fragaOk: !!hs && fraga === hs.huvudstad, em, golv: rimligMinTid(),
+      fb: /är huvudst(ad|äder) i/.test(fb) && fb.includes('hs-box') && !fb.includes('fb-desc') };
+  })()`);
+  ok('huvudstadsväxeln syns och byter läge', r.landForst && r.lage && r.sparat === 'huvudstad', JSON.stringify(r).slice(0, 160));
+  ok('huvudstäder: egen topplista, samma golv',
+    r.key === 'huvudstad-glob-sydamerika-highscores' && r.golv === 10, r.key);
+  ok('huvudstäder: frågar efter huvudstaden', r.fragaOk);
+  ok('huvudstäder: ledtråden är huvudstadens regel (kursiv)', r.em);
+  ok('huvudstäder: feedback "X är huvudstad i Y"', r.fb);
+  // simulerad 100 %-runda
+  const slut = await hp.evaluate(`(() => {
+    startSeterra();
+    seterraStartTime = Date.now() - 30000;
+    seterraCorrect = seterraTotal; seterraWrong = 0;
+    endSeterra();
+    return { medalj: localStorage.getItem('medalj-huvudstad-sydamerika'),
+      land: localStorage.getItem('medalj-sydamerika'), resa: localStorage.getItem('varldsresa'),
+      utmana: document.getElementById('utmana-btn').style.display,
+      diplom: document.getElementById('seterra-diplom').style.display,
+      text: document.getElementById('seterra-final-detail').textContent };
+  })()`);
+  ok('huvudstäder: egen medalj, ingen stämpel eller utmaning',
+    slut.medalj === '100' && slut.land === null && slut.resa === null && slut.utmana === 'none'
+    && slut.diplom !== 'none' && /13 av 13 huvudstäder/.test(slut.text) && /Passtämpeln/.test(slut.text),
+    JSON.stringify(slut).slice(0, 200));
+  // tillbaka till Länder: som förut
+  const tillbaka = await hp.evaluate(`(() => {
+    document.querySelector('#fraga-val [data-fraga="land"]').click();
+    return { key: HS_KEY, lage: huvudstadslage, sparat: localStorage.getItem('quiz-fraga'),
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name,
+      hitta: document.getElementById('hitta-ord').textContent };
+  })()`);
+  ok('huvudstäder: tillbaka till Länder', tillbaka.key === 'glob-sydamerika-highscores' && !tillbaka.lage
+    && tillbaka.sparat === 'land' && tillbaka.fraga && tillbaka.hitta === 'Hitta detta land:', JSON.stringify(tillbaka));
+  await hp.close();
+  // USA: ingen växel och inga huvudstadslistor, även med Huvudstäder valt
+  const up = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await up.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','huvudstad')");
+  await up.goto(BASE + '/glob.html?region=usa', { waitUntil: 'domcontentloaded' });
+  await up.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('usa') && COUNTRIES.length >= 50",
+    null, { timeout: 60000 });
+  const usa = await up.evaluate(`(() => {
+    switchMode('seterra', true);
+    return { vis: document.getElementById('fraga-val').style.display, lage: huvudstadslage, key: HS_KEY,
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name };
+  })()`);
+  ok('usa: ingen huvudstadsväxel', usa.vis === 'none' && !usa.lage && usa.key === 'glob-usa-highscores' && usa.fraga,
+    JSON.stringify(usa));
+  await up.close();
+} catch (e) {
+  ok('huvudstadsväxeln syns och byter läge', false, String(e).slice(0, 140));
+}
+
+// ── v97: Bildquiz + Huvudstäder som på Seterra (klicka på staden) ──
+// Vita cirklar där huvudstäderna ligger, landbilderna avslagna från start
+// (knapp för att slå på dem), riktiga musklick på globen avgör svaret
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','huvudstad')";
+  const sp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await sp.addInitScript(INIT_LS);
+  await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')",
+    null, { timeout: 30000 });
+  const start = await sp.evaluate(`(() => {
+    switchMode('bildquiz', true);
+    const knapp = document.getElementById('stad-bilder-btn');
+    return { stad: stadslage, key: HS_KEY, golv: rimligMinTid(), runda: stadRunda.size,
+      knapp: knapp.style.display !== 'none' && knapp.textContent.includes('Visa landbilder'),
+      tackta: COUNTRIES.every(c => landState(c.gid).tackt),
+      hitta: document.getElementById('hitta-ord').textContent,
+      fraga: document.getElementById('seterra-target-name').textContent
+        === HUVUDSTAD.get(seterraTarget.namnSv).huvudstad };
+  })()`);
+  await sp.waitForTimeout(200);   // huvudstadDirty väntar en bildruta
+  const lager = await sp.evaluate(`(() => ({
+    prickar: map.getLayoutProperty('prickar', 'visibility'),
+    mal: map.getFilter('stad-mal')[2][1].length }))()`);
+  ok('städer: Bildquiz + Huvudstäder klickar på staden',
+    start.stad && start.runda === 13 && start.fraga && start.hitta === 'Klicka på huvudstaden:'
+    && lager.mal === 13 && lager.prickar === 'none', JSON.stringify({ ...start, ...lager }).slice(0, 200));
+  ok('städer: egen topplista, samma golv', start.key === 'huvudstad-stad-glob-sydamerika-highscores' && start.golv === 10, start.key);
+  ok('städer: landbilderna avslagna, knappen syns', start.tackta && start.knapp);
+  // riktiga klick: kameran över frågans stad, ett fel på en annan stad
+  // som syns på kartan, sedan rätt
+  const pkt = await sp.evaluate(`(() => {
+    const p = stadPunkt.get(seterraTarget.gid);
+    map.jumpTo({ center: [p.lng, p.lat], zoom: 3 });
+    const r = map.getCanvas().getBoundingClientRect();
+    const skarm = g => { const q = stadPunkt.get(g), s = map.project([q.lng, q.lat]);
+      return { x: r.left + s.x, y: r.top + s.y }; };
+    const mal = skarm(seterraTarget.gid);
+    let fel = null;
+    for (const g of stadRunda) {
+      if (g === seterraTarget.gid) continue;
+      const s = skarm(g);
+      if (Math.hypot(s.x - mal.x, s.y - mal.y) < 40) continue;
+      if (document.elementFromPoint(s.x, s.y) !== map.getCanvas()) continue;
+      fel = { ...s, gid: g, namn: HUVUDSTAD.get(aktivByGid.get(g).namnSv).huvudstad };
+      break;
+    }
+    // en punkt i havet/landet långt från alla städer
+    return { mal, fel, tom: { x: r.left + 30, y: r.top + r.height - 30 }, gid: seterraTarget.gid };
+  })()`);
+  await sp.waitForTimeout(300);
+  await sp.mouse.click(pkt.tom.x, pkt.tom.y);
+  await sp.mouse.click(pkt.fel.x, pkt.fel.y);
+  const efterFel = await sp.evaluate(`({ fel: seterraWrong, ratt: seterraCorrect,
+    fb: seterraFeedback.textContent,
+    rod: !!map.getFeatureState({ source: 'huvudstader', id: ${pkt.fel.gid} }).fel })`);
+  ok('städer: klick bredvid räknas inte, fel stad ger felklick',
+    efterFel.fel === 1 && efterFel.ratt === 0 && efterFel.rod
+    && efterFel.fb.includes('Det var ' + pkt.fel.namn + ', huvudstad'), JSON.stringify(efterFel).slice(0, 200));
+  await sp.waitForTimeout(700);   // felklickets spärr
+  await sp.mouse.move(pkt.mal.x + 2, pkt.mal.y + 1);
+  const hover = await sp.evaluate(`!!map.getFeatureState({ source: 'huvudstader', id: ${pkt.gid} }).hover`);
+  await sp.mouse.click(pkt.mal.x + 2, pkt.mal.y + 1);
+  const efterRatt = await sp.evaluate(`({ ratt: seterraCorrect, fb: seterraFeedback.textContent,
+    avtackt: !landState(${pkt.gid}).tackt && revealed.has(${pkt.gid}),
+    svar: map.getFeatureState({ source: 'huvudstader', id: ${pkt.gid} }).svar })`);
+  ok('städer: rätt stad avslöjar landet och färgar cirkeln',
+    hover && efterRatt.ratt === 1 && efterRatt.avtackt && efterRatt.svar === 2
+    && /är huvudst(ad|äder) i/.test(efterRatt.fb), JSON.stringify({ hover, ...efterRatt }).slice(0, 200));
+  // dubbelklick och klick på en färdig cirkel: inget nytt svar (grannstaden
+  // intill får inte klicket)
+  await sp.mouse.click(pkt.mal.x + 2, pkt.mal.y + 1);
+  await sp.waitForTimeout(500);
+  await sp.mouse.click(pkt.mal.x, pkt.mal.y);
+  const efterDubbel = await sp.evaluate(`({ ratt: seterraCorrect, fel: seterraWrong })`);
+  ok('städer: klick på en hittad stad räknas inte', efterDubbel.ratt === 1 && efterDubbel.fel === 1,
+    JSON.stringify(efterDubbel));
+  // landbilderna på mitt i rundan: obesvarade länder visar bilden, och
+  // rundan hamnar inte i topplistan
+  const bilder = await sp.evaluate(`(() => {
+    document.getElementById('stad-bilder-btn').click();
+    const pa = COUNTRIES.every(c => !landState(c.gid).tackt);
+    const txt = document.getElementById('stad-bilder-btn').textContent;
+    seterraStartTime = Date.now() - 30000;
+    seterraCorrect = seterraTotal; seterraWrong = 0; seterraQueue = [];
+    endSeterra();
+    return { pa, txt, med: rundanMedBilder, sparad: autoSparadLofte !== null,
+      text: document.getElementById('seterra-final-detail').textContent,
+      vidare: document.getElementById('seterra-vidare').textContent };
+  })()`);
+  ok('städer: landbilderna går att slå på, rundan sparas då inte',
+    bilder.pa && bilder.txt.includes('Dölj landbilder') && bilder.med && !bilder.sparad
+    && /hamnar inte i topplistan/.test(bilder.text) && /utan cirklar/.test(bilder.vidare),
+    JSON.stringify(bilder).slice(0, 220));
+  // ny runda utan bilder sparas; tillbaka till Utforska städar kartan
+  const igen = await sp.evaluate(`(() => {
+    document.getElementById('stad-bilder-btn').click();
+    startSeterra();
+    const tackta = COUNTRIES.every(c => landState(c.gid).tackt);
+    seterraStartTime = Date.now() - 30000;
+    seterraCorrect = seterraTotal; seterraWrong = 0; seterraQueue = [];
+    endSeterra();
+    const sparad = autoSparadLofte !== null;
+    const textOk = !/hamnar inte/.test(document.getElementById('seterra-final-detail').textContent);
+    switchMode('explore');
+    return { tackta, sparad, textOk, stad: stadslage,
+      knapp: document.getElementById('stad-bilder-btn').style.display };
+  })()`);
+  await sp.waitForTimeout(200);
+  const utforska = await sp.evaluate(`({ prickar: map.getLayoutProperty('prickar', 'visibility'),
+    mal: map.getFilter('stad-mal')[2][1].length, klar: map.getFilter('stad-klar')[2][1].length })`);
+  ok('städer: runda utan bilder sparas, Utforska utan cirklar',
+    igen.tackta && igen.sparad && igen.textOk && !igen.stad && igen.knapp === 'none'
+    && utforska.prickar === 'visible' && utforska.mal === 0 && utforska.klar === 0,
+    JSON.stringify({ ...igen, ...utforska }));
+  // Klassiskt Quiz + Huvudstäder klickar fortfarande på landet
+  const klassisk = await sp.evaluate(`(() => {
+    switchMode('seterra', true);
+    return { stad: stadslage, lage: huvudstadslage, key: HS_KEY, runda: stadRunda.size,
+      knapp: document.getElementById('stad-bilder-btn').style.display,
+      hitta: document.getElementById('hitta-ord').textContent };
+  })()`);
+  ok('städer: Klassiskt Quiz frågar fortfarande efter landet',
+    !klassisk.stad && klassisk.lage && klassisk.key === 'huvudstad-glob-sydamerika-highscores'
+    && klassisk.runda === 0 && klassisk.knapp === 'none' && klassisk.hitta.startsWith('Hitta landet'),
+    JSON.stringify(klassisk));
+  await sp.close();
+} catch (e) {
+  ok('städer: Bildquiz + Huvudstäder klickar på staden', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

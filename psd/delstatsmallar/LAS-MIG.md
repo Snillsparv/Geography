@@ -12,10 +12,12 @@ på (0,0) i full storlek (den snäpper dit själv med Place). Lägg mallagret
   låt konsten ligga kvar som den är där.
 
 Bara kantstater har mallar (35 st). Inlandsstaterna ser redan bra ut.
-Hawaii har ingen mall — dess bilder är med flit större än öarna och ska
-inte ändras. Filnamnen är sorterade efter hur stor avvikelsen är i dag,
-värst först — siffran är största avståndet från mållinjen till närmaste
-målade pixel.
+Filnamnen är sorterade efter hur stor avvikelsen är i dag, värst först —
+siffran är största avståndet från mållinjen till närmaste målade pixel.
+
+Hawaii har en egen mall utanför rangordningen (36-hawaii-oarna.png): magenta
+kontur med rosa fyllning = de riktiga öarna. Hajen runt öarna är havsdekor
+och visas i spelet, men öarna i teckningen bör täcka de rosa fälten.
 
 | # | Stat | Största avvikelse | Andel av kanten utanför konsten |
 |---|------|-------------------|--------------------------------|
@@ -29,17 +31,17 @@ målade pixel.
 | 8 | Michigan | 72 px | 39 % |
 | 9 | Montana | 65 px | 100 % |
 | 10 | Minnesota | 62 px | 66 % |
-| 11 | New Mexico | 50 px | 100 % |
+| 11 | New Mexico | 48 px | 21 % |
 | 12 | Florida | 44 px | 14 % |
 | 13 | North Carolina | 39 px | 16 % |
 | 14 | Wisconsin | 36 px | 42 % |
-| 15 | New York | 36 px | 35 % |
-| 16 | Virginia | 36 px | 12 % |
-| 17 | Maryland | 32 px | 7 % |
-| 18 | Pennsylvania | 30 px | 13 % |
-| 19 | Idaho | 24 px | 100 % |
-| 20 | North Dakota | 24 px | 100 % |
-| 21 | New Hampshire | 24 px | 54 % |
+| 15 | Virginia | 36 px | 12 % |
+| 16 | Maryland | 32 px | 7 % |
+| 17 | Pennsylvania | 30 px | 13 % |
+| 18 | Idaho | 24 px | 100 % |
+| 19 | North Dakota | 24 px | 100 % |
+| 20 | New Hampshire | 24 px | 54 % |
+| 21 | New York | 24 px | 1 % |
 | 22 | Vermont | 24 px | 50 % |
 | 23 | Massachusetts | 24 px | 41 % |
 | 24 | Connecticut | 24 px | 10 % |

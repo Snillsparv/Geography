@@ -1,0 +1,86 @@
+{
+ "Nevada": {
+  "fil": "nevada.png",
+  "x": 516,
+  "y": 1125,
+  "b": 708,
+  "h": 1101
+ },
+ "Kansas": {
+  "fil": "kansas.png",
+  "x": 2388,
+  "y": 1686,
+  "b": 816,
+  "h": 459
+ },
+ "North Dakota": {
+  "fil": "north_dakota.png",
+  "x": 2256,
+  "y": 438,
+  "b": 738,
+  "h": 462
+ },
+ "South Dakota": {
+  "fil": "south_dakota.png",
+  "x": 2232,
+  "y": 852,
+  "b": 783,
+  "h": 504
+ },
+ "Arizona": {
+  "fil": "arizona.png",
+  "x": 888,
+  "y": 1941,
+  "b": 753,
+  "h": 879
+ },
+ "Pennsylvania": {
+  "fil": "pennsylvania.png",
+  "x": 4590,
+  "y": 1041,
+  "b": 660,
+  "h": 576
+ },
+ "Delaware": {
+  "fil": "delaware.png",
+  "x": 5154,
+  "y": 1503,
+  "b": 117,
+  "h": 192
+ },
+ "Massachusetts": {
+  "fil": "massachusetts.png",
+  "x": 5298,
+  "y": 975,
+  "b": 411,
+  "h": 207
+ },
+ "Michigan": {
+  "fil": "michigan.png",
+  "x": 3555,
+  "y": 546,
+  "b": 897,
+  "h": 873
+ },
+ "Minnesota": {
+  "fil": "minnesota.png",
+  "x": 2823,
+  "y": 384,
+  "b": 948,
+  "h": 852
+ },
+ "Arkansas": {
+  "fil": "arkansas.png",
+  "x": 3183,
+  "y": 2169,
+  "b": 567,
+  "h": 522
+ },
+ "Mississippi": {
+  "fil": "mississippi.png",
+  "x": 3558,
+  "y": 2361,
+  "b": 399,
+  "h": 675
+ }
+}
