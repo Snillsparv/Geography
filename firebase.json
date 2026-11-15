@@ -138,7 +138,10 @@
         "tv-grafik.html",
         "design-forslag.html",
         "*-demo.html",
-        "svg-preview.html"
+        "svg-preview.html",
+        "assets/flaggbilder/**",
+        "assets/flaggbilder.json",
+        "assets/flaggor/**"
       ],
       "rewrites": [
         {

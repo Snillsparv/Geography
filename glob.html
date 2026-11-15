@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=97">
+  <link rel="stylesheet" href="style.css?v=98">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=97"></script>
+  <script src="sprak.js?v=98"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -455,6 +455,95 @@
     @media (max-width: 400px) {
       .fraga-btn { padding: 4px 8px; font-size: .7rem; }
     }
+    /* tre val (Länder/Huvudstäder/Flaggor): på datorn blev rubriken
+       "Klass…". Lite tätare rad räcker; räcker det ändå inte (bredare
+       typsnitt) hamnar växeln på en egen rad i stället för att kapa
+       rubriken. Bara med tre knappar (glob-spel.js sätter .tre-val), så att
+       två knappar och engelska sajten ser ut som förut. */
+    @media (min-width: 901px) {
+      #seterra-ui .info-header.tre-val { padding-left: 20px; padding-right: 16px; gap: 6px 8px;
+        flex-wrap: wrap; }
+      #seterra-ui .info-header.tre-val h2 { flex: none; font-size: .95rem; }
+      .tre-val .fraga-btn { padding: 5px 8px; font-size: .75rem; }
+    }
+    /* minsta mobilerna (320 px): rubriken kapades av de tre knapparna */
+    @media (max-width: 340px) {
+      .tre-val .fraga-btn { padding: 3px 6px; font-size: .66rem; }
+      #seterra-ui .info-header.tre-val { gap: 6px; }
+    }
+    /* ── Flaggor (svenska sajten): frågan är landets riktiga flagga, stor i
+       panelen och liten vid pekaren. Ledtråden, rätt svar och landets kort
+       visar Jonas minnesbild för flaggan, i en lila ton (landets regel är
+       gul, huvudstadens grön). Flaggorna har en fast höjd och 3:2-form, så
+       platsen hålls medan bilden laddar (panelen hoppar inte); Schweiz och
+       Vatikanstaten är kvadratiska och Nepal en vimpel. ── */
+    .seterra-target .target-name.flagg-fraga { line-height: 0; padding: 4px 0 2px; }
+    .fraga-flagga, .etikett-flagga, .fb-flagga, .flagg-riktig {
+      display: block; width: auto; aspect-ratio: 3 / 2; border: 1px solid rgba(255, 255, 255, .3);
+      border-radius: 3px; background: rgba(255, 255, 255, .06); user-select: none; }
+    img.kvadrat { aspect-ratio: 1 / 1; }
+    img.vimpel { aspect-ratio: 281 / 341.333; border: none; border-radius: 0; background: none;
+      box-shadow: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .55)); }
+    .fraga-flagga { height: 85px; margin: 0 auto;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4); }
+    .cursor-label.flagg-etikett { padding: 5px; line-height: 0; }
+    .etikett-flagga { height: 31px; border-radius: 2px; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+    .fb-flagg-titel { display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 4px 8px; }
+    .fb-flagga { display: inline-block; height: 27px; vertical-align: middle;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+    .flagg-minne { text-align: center; }
+    .flagg-minnesbild { display: block; width: 100%; max-width: 250px; height: auto;
+      aspect-ratio: 16 / 9; margin: 0 auto; object-fit: contain; user-select: none; }
+    .flagg-minnestext { margin-top: 6px; font-size: .92rem; line-height: 1.4; font-weight: 600;
+      color: #ece4ff; text-align: left; }
+    .flagg-minnestext::before { content: '💡 '; }
+    .flagg-not { margin-top: 5px; font-size: .8rem; font-style: italic; color: #b9acdf; }
+    .flagg-minne.utan-bild .flagg-riktig { height: 80px; margin: 4px auto;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, .45); }
+    .flagg-lucka { display: inline-block; min-width: 2.2em; padding: 0 4px; margin: 0 1px;
+      border-radius: 5px; border: 1.5px dashed rgba(200, 180, 255, .75);
+      color: #d9ccff; text-align: center; line-height: 1.25; }
+    .seterra-hint.flagg-ledtrad { padding: 10px 12px; background: rgba(175, 150, 255, .1);
+      border-color: rgba(175, 150, 255, .45); color: #ece4ff; }
+    .seterra-feedback .flagg-minne { margin: 8px auto 2px; padding: 8px 10px; max-width: 320px;
+      border-radius: 10px; background: rgba(175, 150, 255, .08);
+      border: 1.5px solid rgba(175, 150, 255, .4); }
+    .seterra-feedback .flagg-minne.utan-bild { padding: 6px; }
+    .seterra-feedback .flagg-minnesbild { max-width: 260px; }
+    #info-card .flagg-box { margin-bottom: 8px; padding: 8px 10px 10px; border-radius: 10px;
+      background: rgba(175, 150, 255, .08); border: 1.5px solid rgba(175, 150, 255, .45); }
+    #info-card .flagg-rubrik { display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+      font-size: .85rem; font-weight: 700; color: #cbbcff; }
+    #info-card .flagg-rubrik .flagg-riktig { height: 29px; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+    /* datorn: panelens synliga del är låg (Jonas-raden under), så ledtråden
+       med bild och text ska rymmas nästan utan att skrolla */
+    @media (min-width: 901px) {
+      .seterra-hint.flagg-ledtrad { padding: 8px 10px; }
+      .seterra-hint.flagg-ledtrad .flagg-minnesbild { max-width: 176px; }
+      .seterra-hint.flagg-ledtrad .flagg-minnestext { margin-top: 4px; font-size: .86rem;
+        line-height: 1.35; }
+    }
+    @media (max-width: 900px) {
+      /* mobilens bottenpanel är låg: flaggan står bredvid frågan */
+      .seterra-target.flagg-lage { display: flex; align-items: center; justify-content: center;
+        gap: 12px; }
+      .seterra-target.flagg-lage .label { margin: 0; }
+      .seterra-target .target-name.flagg-fraga { padding: 0; }
+      .fraga-flagga { height: 48px; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+      .flagg-minnesbild { max-width: 200px; }
+      .seterra-hint.flagg-ledtrad { padding: 6px 10px; }
+      /* centrerad som panelens andra rutor och med luft på sidorna: den
+         runda ?-knappen nere till vänster ligger annars över radernas början */
+      .flagg-minnestext { margin-top: 4px; padding: 0 22px; font-size: .82rem; line-height: 1.35;
+        text-align: center; }
+      .seterra-feedback .flagg-minne { margin-top: 6px; padding: 6px 8px; }
+      .seterra-feedback .flagg-minnesbild { max-width: 190px; }
+      .fb-flagga { height: 21px; }
+      #info-card .flagg-box { margin-bottom: 6px; padding: 6px 8px 8px; }
+      #info-card .flagg-rubrik { margin-bottom: 4px; font-size: .78rem; }
+      #info-card .flagg-rubrik .flagg-riktig { height: 24px; }
+    }
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
     @media (max-width: 900px) {
       #info-card .assoc-box { font-size: .98rem; padding: 8px 10px; }
@@ -476,12 +565,29 @@
     /* ── Medaljer på startknapparna — klickbara: visar rekordet ── */
     .start-knappar .medalj { position: absolute; top: -12px; left: -8px; font-size: 1.1rem;
       filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
-    /* huvudstadsquizets medalj: bredvid landquizets (övre högra hörnet har
-       ofta filmknappen), med en liten pelarbyggnad */
-    .start-knappar .medalj-huvudstad { position: absolute; top: -12px; left: 16px;
-      font-size: 1.1rem; filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
-    .start-knappar .medalj-huvudstad::after { content: '🏛️'; position: absolute;
-      left: 62%; bottom: -5px; font-size: .62rem; }
+    /* huvudstadsquizets och flaggquizets medaljer: i rad bredvid landquizets
+       (övre högra hörnet har ofta filmknappen), med en liten pelarbyggnad
+       resp. flagga. --plats sätts av glob-spel.js: medaljerna som finns
+       packas i ordningen Länder, Huvudstäder, Flaggor utan tomma luckor. */
+    .start-knappar .medalj, .start-knappar .medalj-huvudstad, .start-knappar .medalj-flagga {
+      left: calc(-8px + var(--plats, 0) * 24px); }
+    .start-knappar .medalj-huvudstad, .start-knappar .medalj-flagga { position: absolute;
+      top: -12px; font-size: 1.1rem; filter: drop-shadow(0 2px 4px #000a); cursor: pointer; }
+    .start-knappar .medalj-huvudstad { --plats: 1; }
+    .start-knappar .medalj-flagga { --plats: 2; }
+    .start-knappar .medalj-huvudstad::after, .start-knappar .medalj-flagga::after {
+      position: absolute; left: 62%; bottom: -5px; font-size: .62rem; }
+    .start-knappar .medalj-huvudstad::after { content: '🏛️'; }
+    .start-knappar .medalj-flagga::after { content: '🚩'; }
+    /* mobilen: knapparna är smala och filmknappen sitter nära — med alla
+       tre medaljerna (.tre-medaljer) blir raden tätare och lite mindre */
+    @media (max-width: 700px) {
+      .start-knappar .tre-medaljer .medalj, .start-knappar .tre-medaljer .medalj-huvudstad,
+      .start-knappar .tre-medaljer .medalj-flagga {
+        left: calc(-8px + var(--plats, 0) * 19px); font-size: .95rem; }
+      .start-knappar .tre-medaljer .medalj-huvudstad::after,
+      .start-knappar .tre-medaljer .medalj-flagga::after { font-size: .55rem; }
+    }
     #medalj-info { position: fixed; z-index: 400; transform: translate(-50%, -100%);
       background: #10233a; border: 1px solid rgba(255,220,50,.5); border-radius: 10px;
       padding: 8px 14px; color: #ffdc32; font-weight: 800; font-size: .9rem;
@@ -931,6 +1037,12 @@
             <div class="hs-regel" id="info-hs-regel"></div>
             <div class="hs-not" id="info-hs-not"></div>
           </div>
+          <!-- Flaggan (svenska sajten): den riktiga flaggan och Jonas minnesbild
+               med texten. Ingen data-t: syns aldrig på engelska. -->
+          <div class="flagg-box" id="info-flagga" style="display:none">
+            <div class="flagg-rubrik"><span class="flagg-rubrik-flagga"></span><span>Flaggan</span></div>
+            <div id="info-flagga-minne"></div>
+          </div>
           <button class="info-toggle" id="info-toggle" type="button" data-t>Visa info om landet</button>
           <div class="info-extra" id="info-extra" style="display:none">
             <div class="description" id="info-desc"></div>
@@ -947,13 +1059,14 @@
     <div id="seterra-ui" style="display:none;">
       <div class="info-header">
         <h2 data-t>Klassiskt Quiz</h2>
-        <!-- Länder/Huvudstäder: bara svenska sajten och regioner där alla
-             länder har huvudstad (glob-spel.js visar den). Inte .mode-btn:
-             lägesknapparnas lyssnare binder varje .mode-btn. Ingen data-t:
-             texten syns aldrig på engelska. -->
+        <!-- Länder/Huvudstäder/Flaggor: bara svenska sajten och regioner där
+             alla länder har huvudstad resp. flagga (glob-spel.js visar dem).
+             Inte .mode-btn: lägesknapparnas lyssnare binder varje .mode-btn.
+             Ingen data-t: texten syns aldrig på engelska. -->
         <div class="fraga-val" id="fraga-val" role="group" aria-label="Fråga efter" style="display:none">
           <button type="button" class="fraga-btn active" data-fraga="land" aria-pressed="true">Länder</button>
           <button type="button" class="fraga-btn" data-fraga="huvudstad" aria-pressed="false">Huvudstäder</button>
+          <button type="button" class="fraga-btn" data-fraga="flagga" aria-pressed="false">Flaggor</button>
         </div>
       </div>
 
@@ -1122,8 +1235,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=97"></script>
-<script src="glob-spel.js?v=97"></script>
+<script src="kakor.js?v=98"></script>
+<script src="glob-spel.js?v=98"></script>
 
 </body>
 </html>
