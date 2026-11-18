@@ -120,7 +120,10 @@
     .alfabet li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); break-inside: avoid; }
     .alfabet .s { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1; color: var(--siffra); }
     .alfabet b { display: block; font-size: 1.05rem; }
-    .regel { display: block; font-size: .92rem; color: var(--text2); line-height: 1.45; }
+    /* minnesreglerna syns först när man trycker på Visa ledtrådar */
+    .regel { display: none; font-size: .92rem; color: var(--text2); line-height: 1.45; }
+    .visa-ledtradar .regel { display: block; }
+    .alfabet:not(.visa-ledtradar) li { align-items: center; }
     .regler li { position: relative; padding-left: 16px; }
     .regler li::before { content: "·"; position: absolute; left: 2px; top: -.1em; font-weight: 900; font-size: 1.3em; }
     .regler li + li { margin-top: 6px; }
@@ -304,6 +307,7 @@
       Det är samma system som jag använde när jag rabblade 13&nbsp;208 decimaler av pi.</p>
     <div class="exempel" id="exempel"></div>
     <ul class="alfabet" id="alfabet"></ul>
+    <div class="knapprad"><button class="knapp sekundar" type="button" id="ledtradar" aria-controls="alfabet" aria-expanded="false">Visa ledtrådar</button></div>
     <h3>Tre regler</h3>
     <ul class="regler">
       <li><b>Vokaler och H är fria.</b> Stoppa in dem var du vill.</li>
@@ -406,7 +410,7 @@
 
 <script src="siffror-ljud.js?v=1"></script>
 <script src="siffror-data.js?v=3"></script>
-<script src="siffror.js?v=4"></script>
+<script src="siffror.js?v=5"></script>
 <script src="siffror-bakgrund.js?v=2"></script>
 <script src="kakor.js?v=76"></script>
 </body>

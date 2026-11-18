@@ -116,8 +116,15 @@
   // ════════════════════════════════════════════════════════════════════
   function alfabet() {
     $('#exempel').innerHTML = `${upp('Jonas')}<span class="blir">= 620</span>`;
-    $('#alfabet').innerHTML = D.alfabet.map(a => `<li><span class="s">${a.s}</span>
+    const lista = $('#alfabet'), knapp = $('#ledtradar');
+    lista.innerHTML = D.alfabet.map(a => `<li><span class="s">${a.s}</span>
       <span><b>${a.ljud.join(' ')}</b><span class="regel">${esc(a.regel)}</span></span></li>`).join('');
+    // minnesreglerna är dolda tills man ber om dem
+    knapp.addEventListener('click', () => {
+      const visa = lista.classList.toggle('visa-ledtradar');
+      knapp.textContent = visa ? 'Dölj ledtrådar' : 'Visa ledtrådar';
+      knapp.setAttribute('aria-expanded', String(visa));
+    });
   }
 
   // snabbquiz: varje siffra två gånger (siffra → ljud och ljud → siffra)
