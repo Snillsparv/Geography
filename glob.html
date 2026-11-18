@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=97">
+  <link rel="stylesheet" href="style.css?v=99">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=97"></script>
+  <script src="sprak.js?v=99"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -454,6 +454,14 @@
     }
     @media (max-width: 400px) {
       .fraga-btn { padding: 4px 8px; font-size: .7rem; }
+    }
+    /* samma växel i Utforskas rubrikrad (länder eller huvudstäder att upptäcka) */
+    #explore-ui .info-header { display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; }
+    #explore-ui .info-header h2 { min-width: 0; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 900px) {
+      #explore-ui .info-header { gap: 8px; }
     }
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
     @media (max-width: 900px) {
@@ -912,7 +920,15 @@
     <div class="info-panel-content">
     <!-- EXPLORE MODE -->
     <div id="explore-ui">
-      <div class="info-header"><h2 data-t>Landinformation</h2></div>
+      <div class="info-header"><h2 data-t>Landinformation</h2>
+        <!-- Utforska: upptäck länderna eller huvudstäderna (bara svenska
+             sajten och regioner där alla länder har huvudstad; glob-spel.js
+             visar den). Ingen data-t: texten syns aldrig på engelska. -->
+        <div class="fraga-val" id="utforska-val" role="group" aria-label="Upptäck" style="display:none">
+          <button type="button" class="fraga-btn active" data-utforska="land" aria-pressed="true">Länder</button>
+          <button type="button" class="fraga-btn" data-utforska="huvudstad" aria-pressed="false">Huvudstäder</button>
+        </div>
+      </div>
 
       <div class="info-default" id="info-default">
         <div class="arrow-icon">&larr;</div>
@@ -1122,8 +1138,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=97"></script>
-<script src="glob-spel.js?v=97"></script>
+<script src="kakor.js?v=99"></script>
+<script src="glob-spel.js?v=99"></script>
 
 </body>
 </html>

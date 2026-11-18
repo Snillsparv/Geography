@@ -86,6 +86,12 @@ let stadslage = false;
 let stadBilder = false;
 let rundanMedBilder = false;
 let stadRunda = new Set();     // gid
+// Utforska + Huvudstäder: städerna upptäcks som länderna. En vit cirkel per
+// huvudstad; ett klick avslöjar staden (prick och namn, som i Länder-läget),
+// landets bild och kortet. Eget sparat val, skilt från quizens växel.
+let villStader = (() => {
+  try { return localStorage.getItem('utforska-fraga') === 'huvudstad'; } catch (e) { return false; }
+})();
 let aktivSlug = '';            // aktuell region (slug eller 'world')
 let aktivRegionNamn = '';
 // SPRAK.hsPrefix: den engelska sidan har egna topplistor ('en-', och
@@ -244,6 +250,46 @@ function stadRadiePx(z) {
 function stadKlickLage() {
   return stadslage && currentMode !== 'explore' && !document.body.classList.contains('startlage');
 }
+// Utforska: städerna går att upptäcka där varje land i regionen har en
+// huvudstad med plats på kartan (svenska sajten, inte usa)
+function utforskStaderKan() {
+  // aktivSlug är null från startsidan tills nästa region har laddat färdigt:
+  // då är COUNTRIES fortfarande den förra regionens, och dess städer ska
+  // inte ritas på jordgloben bakom 'Hela världen'-rutan
+  return !!aktivSlug && HUVUDSTAD.size > 0 && COUNTRIES.length > 0
+    && COUNTRIES.every(c => huvudstadFor(c) && stadPunkt.has(c.gid));
+}
+function utforskStadLage() {
+  return currentMode === 'explore' && villStader
+    && !document.body.classList.contains('startlage') && utforskStaderKan();
+}
+// skärmavstånd från pt till stadens cirkel, eller Infinity på globens baksida
+function stadAvstand(gid, pt) {
+  const p = stadPunkt.get(gid);
+  if (!p) return Infinity;
+  const ll = new maplibregl.LngLat(p.lng, p.lat);
+  if (map.transform.isLocationOccluded && map.transform.isLocationOccluded(ll)) return Infinity;
+  const s = map.project(ll);
+  return Math.hypot(s.x - pt.x, s.y - pt.y);
+}
+// Utforska: närmaste stad inom tryckytan, upptäckt eller inte (ett klick på
+// en upptäckt stad döljer den igen, som med länderna). De vita cirklarna
+// ritas OVANPÅ de upptäckta städernas svarta prickar: ligger klicket inuti
+// en vit cirkel gäller det den, även om en upptäckt stad ligger närmare
+// (Rom under Vatikanstatens cirkel, Kinshasa och Brazzaville).
+function stadVidUtforska(pt) {
+  const ritad = stadRadiePx(map.getZoom()) + 2;   // cirkeln med kantlinje
+  const nara = ritad + TRYCKMARGINAL;
+  let oppen = null, oppenD = Infinity, klar = null, klarD = Infinity;
+  for (const c of COUNTRIES) {
+    const d = stadAvstand(c.gid, pt);
+    if (d > nara) continue;
+    if (revealed.has(c.gid)) { if (d < klarD) { klarD = d; klar = c.gid; } }
+    else if (d < oppenD) { oppenD = d; oppen = c.gid; }
+  }
+  if (oppen !== null && (oppenD <= ritad || klar === null || oppenD <= klarD)) return oppen;
+  return klar;
+}
 // Två städer som ligger "ovanpå varandra" utzoomat (Rom och Vatikanstaten
 // 2 km isär, Kinshasa och Brazzaville 9 km) går inte att skilja åt förrän
 // man zoomar in. Ligger frågans stad högst så här många pixlar längre bort
@@ -262,12 +308,8 @@ function stadVid(pt) {
   const malGid = seterraTarget ? seterraTarget.gid : null;
   let bast = null, bastD = Infinity, malD = Infinity, iKlar = false, iOppen = false;
   for (const gid of stadRunda) {
-    const p = stadPunkt.get(gid);
-    if (!p) continue;
-    const ll = new maplibregl.LngLat(p.lng, p.lat);
-    if (map.transform.isLocationOccluded && map.transform.isLocationOccluded(ll)) continue;
-    const s = map.project(ll);
-    const d = Math.hypot(s.x - pt.x, s.y - pt.y);
+    const d = stadAvstand(gid, pt);
+    if (d === Infinity) continue;
     if (revealed.has(gid)) { if (d <= ritad) iKlar = true; continue; }
     if (d <= ritad) iOppen = true;
     if (d > nara) continue;
@@ -281,6 +323,16 @@ function stadVid(pt) {
 // dubbelklick på en stad man just hittat: andra klicket ska inte bli ett
 // svar på nästa fråga (Rom och Vatikanstaten ligger ovanpå varandra)
 let stadSparr = 0;
+// ✨-knappens blinkning (se längre ner). Stoppas när man byter läge eller
+// Länder/Huvudstäder mitt i en blinkning: annars kan länder fastna gula.
+let blinkKvarTimer = null, blinkKvarGids = [];
+function stoppaBlinkKvar() {
+  if (blinkKvarTimer === null) return;
+  clearInterval(blinkKvarTimer);
+  blinkKvarTimer = null;
+  for (const gid of blinkKvarGids) { setLand(gid, { tips: false }); setStad(gid, { tips: false }); }
+  blinkKvarGids = [];
+}
 function resetOverlays() {
   for (const c of COUNTRIES) coverCountry(c.gid);
   revealed.clear();
@@ -294,7 +346,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '97';
+const V = '99';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -482,10 +534,14 @@ async function loadHuvudstader() {
       HUVUDSTAD.set(h.land, h);
       const gid = gidAv.get(h.land);
       if (gid === undefined) continue;
+      // kartan är tecknad: där den riktiga punkten hamnar på fel bild
+      // (Valletta på Siciliens, kuststäder ute i havet) har filen en
+      // plats PÅ landets bild (tools/huvudstad-platser.mjs)
+      const [lng, lat] = h.karta || [h.lon, h.lat];
       huvudstadGj.features.push({ type: 'Feature', id: gid, properties: { gid, namn: h.huvudstad },
-        geometry: { type: 'Point', coordinates: [h.lon, h.lat] } });
-      huvudstadPts.push({ gid, lng: h.lon, lat: h.lat, namn: h.huvudstad });
-      stadPunkt.set(gid, { lng: h.lon, lat: h.lat });
+        geometry: { type: 'Point', coordinates: [lng, lat] } });
+      huvudstadPts.push({ gid, lng, lat, namn: h.huvudstad });
+      stadPunkt.set(gid, { lng, lat });
     }
   } catch (e) { console.warn('kunde inte läsa huvudstader.json', e); }
 }
@@ -586,10 +642,13 @@ function huvudstadDirty() {
     // Småländernas cirklar (prickar) göms under tiden — de ser ut som
     // städernas och skulle bara förvirra. Med synligheten, inte filtret:
     // laddaUsa kopierar prickarnas filter och färger till usa-prickar.
-    const runda = stadKlickLage() ? [...stadRunda] : [];
+    // Utforska: de oupptäckta städerna är vita cirklar; en upptäckt stad
+    // visas som i Länder-läget (prick och namn, filtret ovan)
+    const quiz = stadKlickLage(), utf = !quiz && utforskStadLage();
+    const runda = quiz ? [...stadRunda] : utf ? COUNTRIES.map(c => c.gid) : [];
     if (map.getLayer('stad-mal')) {
       map.setFilter('stad-mal', ['in', ['get', 'gid'], ['literal', runda.filter(g => !revealed.has(g))]]);
-      map.setFilter('stad-klar', ['in', ['get', 'gid'], ['literal', runda.filter(g => revealed.has(g))]]);
+      map.setFilter('stad-klar', ['in', ['get', 'gid'], ['literal', quiz ? runda.filter(g => revealed.has(g)) : []]]);
     }
     map.setLayoutProperty('prickar', 'visibility', runda.length ? 'none' : 'visible');
   });
@@ -1253,14 +1312,15 @@ function initMap() {
     }
     // stadsläget: städerna är det enda man kan peka på — länderna lyser
     // inte upp (då såg det ut som att man skulle klicka på landet)
-    if (stadKlickLage() || stadHover !== null) {
-      const g = stadKlickLage() && seterraTarget ? stadVid(e.point) : null;
+    const iStad = stadKlickLage(), iUtf = !iStad && utforskStadLage();
+    if (iStad || iUtf || stadHover !== null) {
+      const g = iStad ? (seterraTarget ? stadVid(e.point) : null) : iUtf ? stadVidUtforska(e.point) : null;
       if (g !== stadHover) {
         if (stadHover !== null) setStad(stadHover, { hover: false });
         if (g !== null) setStad(g, { hover: true });
         stadHover = g;
       }
-      if (stadKlickLage()) {
+      if (iStad || iUtf) {
         if (hoverGid !== null) { setLand(hoverGid, { hover: false }); hoverGid = null; }
         map.getCanvas().style.cursor = g !== null ? 'pointer' : '';
         return;
@@ -1309,6 +1369,13 @@ function initMap() {
     if (stadKlickLage()) {
       if (performance.now() < stadSparr) return;
       const g = seterraTarget ? stadVid(e.point) : null;
+      if (g !== null) handleMapClick(g, e.originalEvent);
+      return;
+    }
+    // Utforska + Huvudstäder: klick på en stad upptäcker den (eller döljer
+    // den igen); klick på land eller hav bredvid gör ingenting
+    if (utforskStadLage()) {
+      const g = stadVidUtforska(e.point);
       if (g !== null) handleMapClick(g, e.originalEvent);
       return;
     }
@@ -2676,7 +2743,50 @@ function uppdateraOrdval() {
   if (ho) ho.textContent = aktivSlug === 'usa' ? SPRAK.t('Hitta denna delstat:') : SPRAK.t('Hitta detta land:');
   if (currentMode === 'explore') headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
   if (huvudstadslage) uppdateraQuizTexter();
+  uppdateraUtforskStader();
 }
+// Utforskas Länder/Huvudstäder-växel och texterna när man upptäcker städer
+// (vanlig svenska: läget finns bara på svenska sajten). Länder-texterna
+// skrivs av uppdateraOrdval ovan, som alltid anropar hit sist.
+function uppdateraUtforskStader() {
+  const vx = document.getElementById('utforska-val');
+  if (vx) {
+    vx.style.display = utforskStaderKan() ? '' : 'none';
+    vx.querySelectorAll('.fraga-btn').forEach(b => {
+      const pa = (b.dataset.utforska === 'huvudstad') === villStader;
+      b.classList.toggle('active', pa);
+      b.setAttribute('aria-pressed', pa ? 'true' : 'false');
+    });
+  }
+  if (!villStader || !utforskStaderKan()) return;
+  const p = document.querySelector('#info-default p');
+  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>på globen för att<br>upptäcka huvudstaden!';
+  const uo = document.getElementById('utforsk-ord');
+  if (uo) uo.textContent = 'huvudstäder';
+  const so = document.getElementById('stang-ord');
+  if (so) so.textContent = 'staden';
+  if (currentMode === 'explore') headerHint.textContent = 'Klicka på en vit cirkel för att upptäcka huvudstaden';
+}
+document.querySelectorAll('#utforska-val .fraga-btn').forEach(b => b.addEventListener('click', () => {
+  const vill = b.dataset.utforska === 'huvudstad';
+  if (vill === villStader) return;
+  villStader = vill;
+  try { localStorage.setItem('utforska-fraga', vill ? 'huvudstad' : 'land'); } catch (e) { /* privat läge */ }
+  window.kakSpara?.('utforska_vald', { fraga: vill ? 'huvudstad' : 'land',
+    region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden' });
+  // ett nytt pass, som när man går in i Utforska: kartan täcks och räknaren nollas
+  stoppaBlinkKvar();
+  hideExploreTooltip();
+  resetOverlays();
+  nollaStader();
+  utforskade.clear();
+  activeCountry = null;
+  infoCard.classList.remove('active');
+  infoDefault.style.display = '';
+  exploredCountEl.textContent = '0';
+  uppdateraOrdval();
+  huvudstadDirty();
+}));
 function visaInfoUtfalld() {
   infoExtra.style.display = infoUtfalld ? '' : 'none';
   infoToggle.classList.toggle('open', infoUtfalld);
@@ -2724,14 +2834,18 @@ function exploreClick(c, e) {
   if (e) {
     clearTimeout(exploreTooltipTimer);
     // minnesregeln direkt vid pekaren — och längre tid när det finns
-    // en regel att hinna läsa
-    cursorLabel.innerHTML = `<div class="tt-namn">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
-      (c.assoc ? `<div class="tt-assoc">${escHtml(c.assoc)}</div>` : '');
+    // en regel att hinna läsa. Städerna: staden, landet och stadens regel
+    const hs = utforskStadLage() ? huvudstadFor(c) : null;
+    cursorLabel.innerHTML = hs
+      ? `<div class="tt-namn">🏛️ ${escHtml(hs.huvudstad)}, ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
+        (hs.association ? `<div class="tt-assoc">${minnesHtml(hs.association)}</div>` : '')
+      : `<div class="tt-namn">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
+        (c.assoc ? `<div class="tt-assoc">${escHtml(c.assoc)}</div>` : '');
     cursorLabel.classList.add('explore-tooltip');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
-    exploreTooltipTimer = setTimeout(hideExploreTooltip, c.assoc ? 4000 : 1400);
+    exploreTooltipTimer = setTimeout(hideExploreTooltip, (hs ? hs.association : c.assoc) ? 4000 : 1400);
   }
   exploredCountEl.textContent = utforskade.size;
 }
@@ -3683,6 +3797,7 @@ nameModalOverlay.addEventListener('click', e => {
 // ══════════════════════
 function switchMode(mode, force) {
   if (mode === currentMode && !force) return;
+  stoppaBlinkKvar();
   currentMode = mode;
   bildlage = mode === 'bildquiz';
   uppdateraHuvudstadslage();
@@ -3696,11 +3811,13 @@ function switchMode(mode, force) {
     seterraTarget = null;
     headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
     resetOverlays();
+    nollaStader();        // quizets kvittofärger på städerna hör inte hit
     utforskade.clear();   // nytt pass genom världsdelen
     activeCountry = null;
     infoCard.classList.remove('active');
     infoDefault.style.display = '';
     exploredCountEl.textContent = '0';
+    uppdateraUtforskStader();
   } else {
     document.getElementById('explore-ui').style.display = 'none';
     document.getElementById('seterra-ui').style.display = '';
@@ -3719,19 +3836,17 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 
 // ✨: blinka länderna man INTE hittat än — önskemål från träningsläget
 // när de sista gömda länderna är svåra att se på den ifyllda kartan
-let blinkKvarTimer = null;
 document.getElementById('blink-kvar-btn').addEventListener('click', () => {
   const kvar = COUNTRIES.filter(c => !revealed.has(c.gid)).map(c => c.gid);
   if (!kvar.length) return;
-  clearInterval(blinkKvarTimer);
+  stoppaBlinkKvar();
+  blinkKvarGids = kvar;
   let n = 0;
+  // städerna: det är de vita cirklarna som blinkar, inte länderna
+  const satt = utforskStadLage() ? setStad : setLand;
   blinkKvarTimer = setInterval(() => {
-    for (const gid of kvar) if (!revealed.has(gid)) setLand(gid, { tips: n % 2 === 0 });
-    if (++n >= 6) {
-      clearInterval(blinkKvarTimer);
-      blinkKvarTimer = null;
-      for (const gid of kvar) setLand(gid, { tips: false });
-    }
+    for (const gid of kvar) satt(gid, { tips: n % 2 === 0 && !revealed.has(gid) });
+    if (++n >= 6) stoppaBlinkKvar();
   }, 260);
 });
 
@@ -4591,7 +4706,7 @@ const SPEL_TOUR = [
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
     om: () => HUVUDSTAD.size > 0 && aktivSlug !== 'usa',
     bild: 'assets/jonas/kul.webp', plats: underKnappen,
-    text: 'I båda quizen kan du också välja Huvudstäder: då säger jag en huvudstad. I Bildquiz klickar du på den vita cirkeln där staden ligger, och i Klassiskt Quiz klickar du på landet. Min minnesregel för huvudstaden finns som ledtråd!' },
+    text: 'Du kan också välja Huvudstäder! I Utforska upptäcker du städerna. I Bildquiz säger jag en huvudstad och du klickar på den vita cirkeln där staden ligger, och i Klassiskt Quiz klickar du på landet. Min minnesregel för huvudstaden finns som ledtråd!' },
   { el: () => document.getElementById('back-btn'), om: () => !SPRAK.startRegion,
     bild: 'assets/jonas/upp.webp', spegel: true, plats: underKnappen,
     text: SPRAK.t('Pilen tar dig tillbaka till jordgloben när du vill välja något annat.') },

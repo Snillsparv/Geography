@@ -551,6 +551,171 @@ try {
   ok('städer: Bildquiz + Huvudstäder klickar på staden', false, String(e).slice(0, 160));
 }
 
+// ── v99: huvudstäderna på rätt bild + upptäck städerna i Utforska ──
+// Kartan är tecknad: varje huvudstads prick ska ligga på det egna landets
+// bild och inte på någon annans (Valletta låg på Sicilien). I Utforska går
+// städerna att upptäcka som länderna: vit cirkel, klick visar staden.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const up = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await up.addInitScript(INIT_LS);
+  await up.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await up.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')",
+    null, { timeout: 30000 });
+  const plats = await up.evaluate(`(() => {
+    const inRing = (x, y, r) => { let i2 = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) i2 = !i2; } return i2; };
+    const inMp = (x, y, mp) => mp.some(p => inRing(x, y, p[0]) && !p.slice(1).some(h => inRing(x, y, h)));
+    const fel = [];
+    for (const f of huvudstadGj.features) {
+      const [x, y] = f.geometry.coordinates;
+      const egen = regionsGj.features.filter(r => r.id === f.id && !r.properties.dekor);
+      const annan = regionsGj.features.find(r => r.id !== f.id && inMp(x, y, r.geometry.coordinates));
+      if (!egen.some(r => inMp(x, y, r.geometry.coordinates)) || annan)
+        fel.push(f.properties.namn + (annan ? ' på ' + annan.properties.namn : ''));
+    }
+    const malta = huvudstadGj.features.find(f => f.properties.namn === 'Valletta');
+    const jakarta = huvudstadGj.features.find(f => f.properties.namn === 'Jakarta');
+    return { n: huvudstadGj.features.length, fel, valletta: malta && malta.geometry.coordinates,
+      jakarta: jakarta && jakarta.geometry.coordinates };
+  })()`);
+  // Jakarta: Java är ritad ~2° söder om den riktiga — staden ska ligga på
+  // den ritade Java (lat < -7.9), inte på Sumatras östkust
+  ok('huvudstäderna ligger på sitt eget lands bild', plats.n >= 200 && plats.fel.length === 0
+    && plats.valletta && plats.valletta[1] < 35 && plats.jakarta && plats.jakarta[1] < -7.9,
+    JSON.stringify(plats).slice(0, 200));
+  const val = await up.evaluate(`(() => {
+    const vx = document.getElementById('utforska-val');
+    const syns = vx.style.display !== 'none' && !utforskStadLage();
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click();
+    return { syns, lage: utforskStadLage(), sparat: localStorage.getItem('utforska-fraga'),
+      ord: document.getElementById('utforsk-ord').textContent,
+      tom: document.querySelector('#info-default p').textContent };
+  })()`);
+  await up.waitForTimeout(200);   // huvudstadDirty väntar en bildruta
+  const lager = await up.evaluate(`({ prickar: map.getLayoutProperty('prickar', 'visibility'),
+    mal: map.getFilter('stad-mal')[2][1].length })`);
+  ok('Utforska: växeln Huvudstäder visar städerna som vita cirklar',
+    val.syns && val.lage && val.sparat === 'huvudstad' && val.ord === 'huvudstäder'
+    && /vit cirkel/.test(val.tom) && lager.mal === 13 && lager.prickar === 'none', JSON.stringify({ ...val, ...lager }));
+  // riktigt klick på en stad mitt på kartan
+  const pkt = await up.evaluate(`(() => {
+    const c = COUNTRIES.find(x => x.namnSv === 'Bolivia');
+    const p = stadPunkt.get(c.gid);
+    map.jumpTo({ center: [p.lng, p.lat], zoom: 3 });
+    const r = map.getCanvas().getBoundingClientRect(), s = map.project([p.lng, p.lat]);
+    return { x: r.left + s.x, y: r.top + s.y, gid: c.gid, tom: { x: r.left + 30, y: r.top + r.height - 30 } };
+  })()`);
+  await up.waitForTimeout(300);
+  await up.mouse.click(pkt.tom.x, pkt.tom.y);
+  const efterTom = await up.evaluate('revealed.size');
+  await up.mouse.click(pkt.x + 1, pkt.y + 1);
+  await up.waitForTimeout(200);
+  const upptackt = await up.evaluate(`({ avt: revealed.has(${pkt.gid}),
+    kort: document.getElementById('info-card').classList.contains('active'),
+    hs: document.getElementById('info-hs-namn').textContent,
+    tt: document.getElementById('cursor-label').textContent,
+    mal: map.getFilter('stad-mal')[2][1].length,
+    namn: map.getFilter('huvudstad-namn')[2][1].includes(${pkt.gid}),
+    antal: document.getElementById('explored-count').textContent })`);
+  ok('Utforska: klick på en stad upptäcker den',
+    efterTom === 0 && upptackt.avt && upptackt.kort && upptackt.hs === 'Sucre / La Paz'
+    && upptackt.tt.includes('Sucre / La Paz, ') && upptackt.tt.includes('Bolivia') && upptackt.mal === 12 && upptackt.namn && upptackt.antal === '1',
+    JSON.stringify(upptackt).slice(0, 200));
+  await up.mouse.click(pkt.x + 1, pkt.y + 1);
+  const dold = await up.evaluate(`({ avt: revealed.has(${pkt.gid}), antal: document.getElementById('explored-count').textContent })`);
+  ok('Utforska: ett klick till döljer staden igen', !dold.avt && dold.antal === '1', JSON.stringify(dold));
+  // tillbaka till Länder: som förut
+  const land = await up.evaluate(`(() => {
+    document.querySelector('#utforska-val [data-utforska="land"]').click();
+    return { lage: utforskStadLage(), ord: document.getElementById('utforsk-ord').textContent,
+      sparat: localStorage.getItem('utforska-fraga') };
+  })()`);
+  await up.waitForTimeout(200);
+  const land2 = await up.evaluate(`({ prickar: map.getLayoutProperty('prickar', 'visibility'),
+    mal: map.getFilter('stad-mal')[2][1].length })`);
+  ok('Utforska: tillbaka till Länder', !land.lage && land.ord === 'länder' && land.sparat === 'land'
+    && land2.prickar === 'visible' && land2.mal === 0, JSON.stringify({ ...land, ...land2 }));
+  await up.close();
+} catch (e) {
+  ok('huvudstäderna ligger på sitt eget lands bild', false, String(e).slice(0, 160));
+}
+
+// ── v99b: Utforska + Huvudstäder — granskningens fynd ──
+// Rom och Vatikanstaten ligger nästan ovanpå varandra: en upptäckt stad
+// (svart prick under den vita cirkeln) får inte stjäla klicket från den
+// vita cirkeln. ✨-blinkningen får inte lämna länder gula när man byter
+// Länder/Huvudstäder mitt i. Tillbaka till startsidan: förra regionens
+// städer ska inte synas bakom 'Hela världen'.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','huvudstad')";
+  const eu = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const euFel = [];
+  eu.on('pageerror', e => euFel.push(String(e)));
+  await eu.addInitScript(INIT_LS);
+  await eu.goto(BASE + '/glob.html?region=europa', { waitUntil: 'domcontentloaded' });
+  await eu.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('europa') && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')" +
+    " && utforskStadLage()", null, { timeout: 30000 });
+  await eu.waitForTimeout(600);
+  // Europa frågar först vilken del man vill öva på: stäng den rutan
+  await eu.evaluate("document.getElementById('del-overlay').classList.remove('active')");
+  const rv = await eu.evaluate(`(() => {
+    const hitta = n => COUNTRIES.find(c => (huvudstadFor(c) || {}).huvudstad === n);
+    const it = hitta('Rom'), va = hitta('Vatikanstaten');
+    const r = map.getCanvas().getBoundingClientRect();
+    const sr = map.project([stadPunkt.get(it.gid).lng, stadPunkt.get(it.gid).lat]);
+    const sv = map.project([stadPunkt.get(va.gid).lng, stadPunkt.get(va.gid).lat]);
+    const D = Math.hypot(sr.x - sv.x, sr.y - sv.y), ritad = stadRadiePx(map.getZoom()) + 2;
+    // en punkt bortom Rom, sett från Vatikanen: närmare Rom men inuti
+    // Vatikanens ritade cirkel
+    const ux = (sr.x - sv.x) / D, uy = (sr.y - sv.y) / D, k = ritad * 0.3;
+    return { it: it.gid, va: va.gid, D, ritad, rom: { x: r.left + sr.x, y: r.top + sr.y },
+      bortom: { x: r.left + sr.x + ux * k, y: r.top + sr.y + uy * k } };
+  })()`);
+  await eu.mouse.click(rv.rom.x, rv.rom.y);
+  await eu.waitForTimeout(200);
+  const forsta = await eu.evaluate(`[revealed.has(${rv.it}), revealed.has(${rv.va})]`);
+  await eu.mouse.click(rv.bortom.x, rv.bortom.y);
+  await eu.waitForTimeout(200);
+  const andra = await eu.evaluate(`[revealed.has(${rv.it}), revealed.has(${rv.va})]`);
+  ok('Utforska: en upptäckt stad stjäl inte klicket från den vita cirkeln ovanpå',
+    rv.D < rv.ritad && forsta[0] !== forsta[1] && andra[0] && andra[1],
+    JSON.stringify({ D: +rv.D.toFixed(1), ritad: +rv.ritad.toFixed(1), forsta, andra }));
+  // ✨ i Länder, byt till Huvudstäder mitt i blinkningen, ✨ igen
+  // bytet sker medan länderna är gula (väntar på blinken i sidan själv,
+  // så att testet inte hänger på hur snabbt maskinen är)
+  const gulaMitti = await eu.evaluate(`(async () => {
+    document.querySelector('#utforska-val [data-utforska="land"]').click();
+    document.getElementById('blink-kvar-btn').click();
+    const gula = () => COUNTRIES.filter(c => landState(c.gid).tips).length;
+    for (let i = 0; i < 100 && !gula(); i++) await new Promise(r => setTimeout(r, 10));
+    const n = gula();
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click();
+    document.getElementById('blink-kvar-btn').click();
+    return n;
+  })()`);
+  await eu.waitForTimeout(1900);
+  const gula = await eu.evaluate('COUNTRIES.filter(c => landState(c.gid).tips).length');
+  ok('Utforska: byte Länder/Huvudstäder mitt i ✨ lämnar inga gula länder',
+    gulaMitti > 0 && gula === 0, JSON.stringify({ gulaMitti, gula }));
+  // tillbaka till startsidan och vidare till Hela världen
+  await eu.evaluate('tillbakaTillStart()');
+  await eu.waitForTimeout(300);
+  await eu.evaluate("gaTillRegion('world')");
+  await eu.waitForTimeout(500);
+  const varld = await eu.evaluate(`({ lage: utforskStadLage(), slug: aktivSlug,
+    mal: map.getFilter('stad-mal')[2][1].length, prickar: map.getLayoutProperty('prickar', 'visibility') })`);
+  ok("Utforska: förra regionens städer syns inte bakom 'Hela världen'",
+    !varld.lage && varld.mal === 0 && varld.prickar === 'visible', JSON.stringify(varld));
+  ok('Utforska + Huvudstäder i Europa utan JS-fel', euFel.length === 0, euFel.join(' | ').slice(0, 160));
+  await eu.close();
+} catch (e) {
+  ok('Utforska: en upptäckt stad stjäl inte klicket från den vita cirkeln ovanpå', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

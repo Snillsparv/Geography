@@ -424,3 +424,12 @@ node tools/vectorize.mjs assets --force     # rebuild everything
   länder (svenska namn, koordinater ur Natural Earth populated places).
   `association` är tom och fylls i med Jonas minnesregler; `not` förklarar
   länder med flera eller omstridda huvudstäder.
+- Huvudstädernas plats på kartan: `node tools/huvudstad-platser.mjs`
+  (`--torrt` listar bara). Kartbilderna är tecknade, så en del riktiga
+  punkter hamnar på fel bild (Valletta på Siciliens, Rom på Vatikanens
+  emblem) eller ute i havet. Skriptet ger dem en plats på det egna landets
+  bild, `"karta": [lon, lat]` (emblemländer får emblemets mitt); `lat`/`lon`
+  är kvar som den riktiga punkten. Kör om när `art-regions.json` ändras.
+  Sökningen väljer närmaste punkt utan att bry sig om vilken ö den ligger
+  på, så länder där det blir fel läggs för hand i `FOR_HAND` (Jakarta på
+  Java, inte Sumatra). Långa flyttar som ingen har kollat ger en VARNING.
