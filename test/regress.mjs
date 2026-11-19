@@ -952,6 +952,47 @@ try {
   ok('v104: lägesknapparna står still när tipset i sidhuvudet byter längd', false, String(e).slice(0, 160));
 }
 
+// ── v106: Utforskas panel har samma höjd före och efter första klicket ──
+// Tipset före första klicket är lägre än landkortet efter. Panelen får inte
+// växa vid klicket (då krymper kartan och globen hoppar), och på låga
+// skärmar (Safari på små telefoner) ska tipset ändå synas ovanför sidfoten.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const ut = [];
+  for (const [w, h] of [[390, 844], [375, 548], [360, 540]]) {
+    for (const fraga of ['land', 'huvudstad']) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+      const mp = await ctx.newPage();
+      await mp.addInitScript(INIT_LS + `; localStorage.setItem('utforska-fraga','${fraga}')`);
+      await mp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+      await mp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0"
+        + " && !!map.getLayer('stad-mal') && typeof aktivSlug === 'string' && !!aktivSlug"
+        + (fraga === 'huvudstad' ? ' && utforskStadLage()' : ''), null, { timeout: 30000 });
+      await mp.evaluate('document.fonts.ready.then(() => 0)');
+      await mp.waitForTimeout(800);
+      const fore = await mp.evaluate(`(() => {
+        const pc = document.querySelector('.info-panel-content').getBoundingClientRect();
+        const t = document.querySelector('#info-default p').getBoundingClientRect();
+        const c = COUNTRIES.find(x => x.namnSv === 'Brasilien'), r = map.getCanvas().getBoundingClientRect();
+        const ll = '${fraga}' === 'huvudstad' ? stadPunkt.get(c.gid) : { lng: -50, lat: -10 };
+        const s = map.project([ll.lng, ll.lat]);
+        return { karta: map.getCanvas().clientHeight, inne: t.top >= pc.top - 1 && t.bottom <= pc.bottom + 1 && t.height > 10,
+          x: r.left + s.x, y: r.top + s.y };
+      })()`);
+      await mp.mouse.click(fore.x, fore.y);
+      await mp.waitForTimeout(800);
+      const efter = await mp.evaluate(`({ karta: map.getCanvas().clientHeight,
+        kort: getComputedStyle(document.getElementById('info-default')).display === 'none' })`);
+      ut.push({ vy: `${w}x${h} ${fraga}`, inne: fore.inne, karta: [fore.karta, efter.karta], kort: efter.kort });
+      await ctx.close();
+    }
+  }
+  ok('v106: Utforska på mobilen: tipset syns och kartan står still vid första klicket',
+    ut.length === 6 && ut.every(v => v.inne && v.kort && Math.abs(v.karta[0] - v.karta[1]) <= 1), JSON.stringify(ut));
+} catch (e) {
+  ok('v106: Utforska på mobilen: tipset syns och kartan står still vid första klicket', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=104">
+  <link rel="stylesheet" href="style.css?v=106">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=104"></script>
+  <script src="sprak.js?v=106"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -451,11 +451,19 @@
       /* 320 px: pilen skulle nudda ?-knappen till vänster */
       #info-default .arrow-icon { display: none; }
     }
-    @media (max-width: 400px) and (max-height: 660px) {
-      /* de lägsta telefonerna (320 × 568): panelen får växa lite (30vh → 34vh)
-         så att Utforskas tips syns ovanför sidfoten — bara medan tipset visas,
-         så att kartan i quizen inte krymper. Utan :has blir det som förut. */
-      .info-panel:has(#explore-ui:not([style*="none"]) #info-default:not([style*="none"])) { max-height: 34vh; }
+    /* Utforska på mobilen: panelen har samma höjd före och efter första
+       klicket. Tipset är lägre än landkortet, så annars krympte kartan vid
+       klicket och globen hoppade (35 px på 390 × 844, 60 px på 412 × 915).
+       På skärmar lägre än 640 px (320 × 568, 375 × 548 i Safari) får
+       panelen växa lite så att tipset syns ovanför sidfoten (192 px =
+       tipset i Huvudstäder + sidfoten). Quizen rörs inte; utan :has blir det som
+       förut. Flaggtavlan har en egen höjd. */
+    @media (max-width: 900px) {
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) { height: 35vh; }
+    }
+    @media (max-width: 400px) {
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) {
+        height: max(30vh, 192px); max-height: max(30vh, 192px); }
     }
     /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
        "Klicka på <stad>" (samma vita som namnrutorna på kartan) */
@@ -1187,8 +1195,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=104"></script>
-<script src="glob-spel.js?v=104"></script>
+<script src="kakor.js?v=106"></script>
+<script src="glob-spel.js?v=106"></script>
 
 </body>
 </html>
