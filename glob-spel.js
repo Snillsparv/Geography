@@ -400,7 +400,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '107';
+const V = '109';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -655,6 +655,7 @@ function uppdateraHuvudstadslage() {
   uppdateraStadBildKnapp();
   uppdateraQuizTexter();
   window.flaggtavla?.uppdatera();      // tavlan eller globen
+  uppdateraSpelVideo();
 }
 // vad rundan som pågår frågar efter
 const fragaLage = () => huvudstadslage ? 'huvudstad' : flagglage ? 'flagga' : 'land';
@@ -3065,6 +3066,7 @@ function uppdateraOrdval() {
   if (currentMode === 'explore') headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
   if (huvudstadslage || flagglage) uppdateraQuizTexter();
   uppdateraUtforskStader();
+  uppdateraSpelVideo();
 }
 // Utforskas växel Länder/Huvudstäder/Flaggor och texterna när man upptäcker
 // städer eller flaggor (vanlig svenska: lägena finns bara på svenska
@@ -5431,16 +5433,41 @@ function regionVideo(slug) {
     `.start-knappar .knapp[href*="region=${slug}"] .knapp-video`);
   return knapp ? knapp.dataset.video : null;
 }
+// Jonas egna filmer för ett val i växlarna (Länder/Huvudstäder): finns en
+// för världsdelen spelar ▶ den i stället för världsdelens film så länge
+// valet gäller. Valen finns bara på svenska sajten.
+const VAL_VIDEO = { huvudstad: { sydamerika: 'XXEq3nzAEWc' } };
+const VAL_VIDEO_TITEL = { huvudstad: 'Se videon om världsdelens huvudstäder' };
+// det aktiva valet ('land' | 'huvudstad' | 'flagga'): det Utforska visar i
+// Utforska (utforskVal), rundans läge i quizen (fragaLage)
+function videoVal() {
+  return currentMode === 'explore' ? utforskVal() : fragaLage();
+}
 const spelVideoKnapp = document.getElementById('spel-video');
+const spelVideoTitel = spelVideoKnapp.title;
 function visaSpelVideo(slug) {
-  const video = slug ? regionVideo(slug) : null;
+  spelVideoKnapp.dataset.slug = slug || '';
+  uppdateraSpelVideo();
+}
+// ▶ efter valet: anropas när världsdelen, läget eller valet byts
+// (uppdateraOrdval, uppdateraHuvudstadslage)
+function uppdateraSpelVideo() {
+  const slug = spelVideoKnapp.dataset.slug;
+  const val = slug ? videoVal() : 'land';
+  const egen = (slug && VAL_VIDEO[val] && VAL_VIDEO[val][slug]) || '';
+  const video = egen || (slug ? regionVideo(slug) : null);
   spelVideoKnapp.style.display = video ? '' : 'none';
   spelVideoKnapp.dataset.video = video || '';
+  spelVideoKnapp.dataset.val = egen ? val : '';
+  spelVideoKnapp.title = egen ? VAL_VIDEO_TITEL[val] : spelVideoTitel;
 }
 spelVideoKnapp.addEventListener('click', () => {
   if (!spelVideoKnapp.dataset.video) return;
+  // en egen film för valet börjar från början (delarna och starttiderna
+  // gäller världsdelens film)
+  const egen = !!spelVideoKnapp.dataset.val;
   oppnaVideo(spelVideoKnapp.dataset.video.split(','),
-    +spelVideoKnapp.dataset.videodel || 0, +spelVideoKnapp.dataset.videostart || 0);
+    egen ? 0 : +spelVideoKnapp.dataset.videodel || 0, egen ? 0 : +spelVideoKnapp.dataset.videostart || 0);
 });
 document.getElementById('spel-hjalp').addEventListener('click', () => {
   startaTour(SPEL_TOUR, 'speltur-klar', null);

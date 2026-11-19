@@ -2860,6 +2860,86 @@ try {
   ok('v107: flaggquizens fråga syns före första svaret på låga telefoner, fri från ?-knappen (320 × 460, 375 × 548, 412 × 540)', false, String(e).slice(0, 160));
 }
 
+// ── v108: ▶ spelar Jonas huvudstadsvideo när Huvudstäder är valt ──
+// Jonas egna filmer för ett val (VAL_VIDEO): i Sydamerika spelar ▶ i
+// sidhuvudet huvudstadsvideon så länge Huvudstäder är valt, i Utforska och
+// i quizen, med ett 🏛️-märke. Länder och världsdelar utan egen film har
+// världsdelens film som förut.
+try {
+  // (i try: init-skriptet körs även i videons iframe, där localStorage är spärrat)
+  const INIT_LS = "try { localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','huvudstad'); localStorage.setItem('quiz-fraga','land') } catch (e) {}";
+  const vp = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  const vFel = [];
+  vp.on('pageerror', e => vFel.push(String(e)));
+  await vp.addInitScript(INIT_LS);
+  await vp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await vp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && typeof aktivSlug === 'string'"
+    + " && !!aktivSlug && utforskStadLage()", null, { timeout: 30000 });
+  await vp.waitForTimeout(500);
+  const steg = await vp.evaluate(`(async () => {
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const k = document.getElementById('spel-video');
+    const st = () => [k.style.display === 'none' ? 'dold' : 'syns', k.dataset.video, k.dataset.val || '',
+      getComputedStyle(k, '::after').content, k.title];
+    const ut = { utfStad: st() };
+    document.querySelector('#utforska-val [data-utforska="land"]').click(); await vila(200); ut.utfLand = st();
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click(); await vila(200);
+    document.querySelector('.mode-btn[data-mode="bildquiz"]').click(); await vila(300); ut.bildLand = st();
+    document.querySelector('#fraga-val [data-fraga="huvudstad"]').click(); await vila(300); ut.bildStad = st();
+    k.click(); await vila(100);
+    ut.film = document.getElementById('video-iframe').src;
+    document.getElementById('video-stang').click();
+    document.querySelector('.mode-btn[data-mode="seterra"]').click(); await vila(300); ut.klassStad = st();
+    document.querySelector('#fraga-val [data-fraga="land"]').click(); await vila(300); ut.klassLand = st();
+    return ut;
+  })()`);
+  const HS = 'XXEq3nzAEWc', SYD = 'iyU2bR1MsQ8';
+  const ar = (v, film, val) => v[0] === 'syns' && v[1] === film && v[2] === val
+    && (val ? v[3].includes('🏛') && v[4].includes('huvudstäder') : v[3] === 'none' && v[4].includes('länder'));
+  ok('v108: ▶ spelar huvudstadsvideon i Sydamerika när Huvudstäder är valt',
+    ar(steg.utfStad, HS, 'huvudstad') && ar(steg.bildStad, HS, 'huvudstad') && ar(steg.klassStad, HS, 'huvudstad')
+    && ar(steg.utfLand, SYD, '') && ar(steg.bildLand, SYD, '') && ar(steg.klassLand, SYD, '')
+    && steg.film.includes('/embed/' + HS + '?') && !/[?&]start=/.test(steg.film), JSON.stringify(steg));
+  // Europa har ingen egen huvudstadsfilm: världsdelens film även i Huvudstäder
+  await vp.evaluate('tillbakaTillStart()');
+  await vp.waitForTimeout(300);
+  await vp.evaluate("gaTillRegion('europa')");
+  await vp.waitForFunction("aktivSlug === 'europa' && utforskStadLage()", null, { timeout: 30000 });
+  await vp.waitForTimeout(300);
+  const eu = await vp.evaluate(`(() => { const k = document.getElementById('spel-video');
+    return [k.style.display === 'none' ? 'dold' : 'syns', k.dataset.video, k.dataset.val || ''] })()`);
+  ok('v108: världsdelar utan egen huvudstadsfilm visar världsdelens film',
+    eu[0] === 'syns' && eu[1] === 't_-lDvNDF5g' && eu[2] === '', JSON.stringify(eu));
+  // en egen film börjar från början, även i en del av världsdelen där
+  // världsdelens film hoppar till delens avsnitt (Östeuropa: 456 s).
+  // Europa har ingen egen huvudstadsfilm, så testet lägger till en.
+  await vp.goto(BASE + '/glob.html?region=europa&del=ost', { waitUntil: 'domcontentloaded' });
+  await vp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && aktivSlug === 'europa'"
+    + " && utforskStadLage()", null, { timeout: 30000 });
+  await vp.waitForTimeout(300);
+  const del = await vp.evaluate(`(async () => {
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const k = document.getElementById('spel-video'), film = () => document.getElementById('video-iframe').src;
+    document.getElementById('del-overlay')?.classList.remove('active');
+    VAL_VIDEO.huvudstad.europa = 'EGENFILM_01';
+    uppdateraSpelVideo();
+    k.click(); await vila(100);
+    const egen = film(); document.getElementById('video-stang').click();
+    document.querySelector('#utforska-val [data-utforska="land"]').click(); await vila(200);
+    k.click(); await vila(100);
+    const land = film(); document.getElementById('video-stang').click();
+    delete VAL_VIDEO.huvudstad.europa;
+    return { start: k.dataset.videostart, egen, land };
+  })()`);
+  ok('v108: en egen film börjar från början, världsdelens film på delens avsnitt',
+    del.start === '456' && del.egen.includes('/embed/EGENFILM_01?') && !/[?&]start=/.test(del.egen)
+    && del.land.includes('/embed/t_-lDvNDF5g?') && /[?&]start=456\b/.test(del.land), JSON.stringify(del));
+  ok('v108: ▶-växlingen utan JS-fel', vFel.length === 0, vFel.join(' | ').slice(0, 160));
+  await vp.close();
+} catch (e) {
+  ok('v108: ▶ spelar huvudstadsvideon i Sydamerika när Huvudstäder är valt', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
