@@ -400,7 +400,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '103';
+const V = '105';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -691,7 +691,9 @@ function uppdateraQuizTexter() {
   const ho = document.getElementById('hitta-ord');
   if (flagglage) {
     if (ho) ho.textContent = 'Klicka på flaggan för:';
-    headerHint.textContent = bildlage ? 'Klicka på rätt flagga – då vänds den till Jonas minnesbild!'
+    // (tipset i sidhuvudet har fast bredd på datorn, glob.html .header-hint:
+    // det här ska rymmas på en rad som Huvudstädernas längsta)
+    headerHint.textContent = bildlage ? 'Klicka på rätt flagga – den vänds till minnesbilden!'
                                       : 'Klicka på rätt flagga!';
     return;
   }
@@ -3110,7 +3112,7 @@ function uppdateraUtforskStader() {
     if (currentMode === 'explore') headerHint.textContent = 'Klicka på en flagga';
     return;
   }
-  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>på globen för att<br>upptäcka huvudstaden!';
+  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>för att upptäcka huvudstaden!';
   if (uo) uo.textContent = 'huvudstäder';
   if (so) so.textContent = 'staden';
   if (currentMode === 'explore') headerHint.textContent = 'Klicka på en vit cirkel för att upptäcka huvudstaden';

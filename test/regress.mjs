@@ -2334,6 +2334,177 @@ try {
   ok('v103: raden Visa landbilder syns i Huvudstäder, inte i Länder eller Flaggor', false, String(e).slice(0, 200));
 }
 
+// ── v104: lägesknapparna står still, mobilpanelens tips syns ──
+// Datorn: tipset till höger i sidhuvudet har fast bredd, så lägesknapparna
+// flyttar sig inte när tipset byter längd (Länder → Huvudstäder var 164 px).
+// Mobilen: Utforskas tips före första klicket får plats i den låga
+// bottenpanelen även med landbildsknappen, i stället för bakom sidfoten.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','land')";
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')";
+  const rp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await rp.addInitScript(INIT_LS + "; localStorage.setItem('utforska-fraga','land')");
+  await rp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await rp.waitForFunction(klar, null, { timeout: 30000 });
+  await rp.waitForTimeout(500);
+  const lagen = await rp.evaluate(`(async () => {
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const ut = {};
+    const vanster = () => Math.round(document.querySelector('header .mode-toggle').getBoundingClientRect().left);
+    const mat = n => { ut[n] = [vanster(), document.getElementById('header-hint').textContent]; };
+    // på en upptagen dator kan typsnitt och knappar i sidhuvudet komma på
+    // plats efter laddningen: vänta tills knapparna stått still 0,5 s
+    await document.fonts.ready;
+    for (let i = 0, fore = null, lika = 0; i < 60 && lika < 5; i++) {
+      await vila(100); const x = vanster(); lika = x === fore ? lika + 1 : 0; fore = x;
+    }
+    mat('utforska');
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click(); await vila(200); mat('utforskaStader');
+    for (const m of ['bildquiz', 'seterra']) {
+      document.querySelector('.mode-btn[data-mode="' + m + '"]').click(); await vila(300); mat(m);
+      document.querySelector('#fraga-val [data-fraga="huvudstad"]').click(); await vila(300); mat(m + 'Stader');
+      document.querySelector('#fraga-val [data-fraga="land"]').click(); await vila(200);
+    }
+    document.querySelector('.mode-btn[data-mode="explore"]').click(); await vila(300); mat('utforskaIgen');
+    return ut;
+  })()`);
+  const xs = Object.values(lagen).map(v => v[0]);
+  ok('v104: lägesknapparna står still när tipset i sidhuvudet byter längd',
+    Object.keys(lagen).length === 7 && Math.max(...xs) - Math.min(...xs) <= 4
+    && new Set(Object.values(lagen).map(v => v[1])).size >= 5, JSON.stringify(lagen));
+  await rp.close();
+  // trångt sidhuvud (Europa har även 🧩): de runda knapparna förblir runda
+  const ep = await browser.newPage({ viewport: { width: 905, height: 760 } });
+  await ep.addInitScript(INIT_LS + "; localStorage.setItem('utforska-fraga','land')");
+  await ep.goto(BASE + '/glob.html?region=europa', { waitUntil: 'domcontentloaded' });
+  await ep.waitForFunction(klar, null, { timeout: 30000 });
+  await ep.waitForTimeout(500);
+  const runda = await ep.evaluate(`(async () => {
+    document.getElementById('del-overlay')?.classList.remove('active');
+    const mat = () => ['spel-video', 'spel-delar'].map(id => {
+      const r = document.getElementById(id).getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); });
+    const ut = [mat()];
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click();
+    await new Promise(r => setTimeout(r, 200));
+    ut.push(mat());
+    return ut;
+  })()`);
+  ok('v104: ▶ och 🧩 i sidhuvudet förblir runda när det är trångt',
+    runda.flat().every(m => m === '28x28'), JSON.stringify(runda));
+  await ep.close();
+  const syns = [], tavlor = [];
+  for (const [w, h] of [[375, 667], [320, 640], [320, 568]]) {
+    // (v105: även Flaggor, där flaggtavlan täcker kartan och växeln har tre knappar)
+    for (const fraga of ['land', 'huvudstad', 'flagga']) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+      const mp = await ctx.newPage();
+      await mp.addInitScript(INIT_LS + `; localStorage.setItem('utforska-fraga','${fraga}')`);
+      await mp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+      await mp.waitForFunction(klar + (fraga === 'huvudstad' ? ' && utforskStadLage()'
+        : fraga === 'flagga' ? " && document.body.classList.contains('flaggtavla') && !!document.querySelector('#flaggtavla .tavla-ruta')" : ''),
+        null, { timeout: 30000 });
+      await mp.evaluate('document.fonts.ready.then(() => 0)');
+      await mp.waitForTimeout(800);
+      syns.push(await mp.evaluate(`(() => {
+        const pc = document.querySelector('.info-panel-content').getBoundingClientRect();
+        const t = document.querySelector('#info-default p').getBoundingClientRect();
+        const rad = document.getElementById('utforsk-bild-rad');
+        const el = document.querySelector('.info-panel-content');
+        return { vy: '${w}x${h} ${fraga}', inne: t.top >= pc.top - 1 && t.bottom <= pc.bottom + 1 && t.height > 10,
+          rullar: el.scrollHeight > el.clientHeight + 1, rad: getComputedStyle(rad).display !== 'none' };
+      })()`));
+      if (fraga === 'flagga') {
+        // flaggtavlan: rubrikraden (Landinformation + tre knappar) på en rad,
+        // tavlan ovanför panelen, pilen fri från ?-knappen — och panelen
+        // behåller sin höjd när tipset byts mot kortet (v104:s 34vh för de
+        // lägsta telefonerna gäller inte här), så att tavlan står still
+        const hojd = `(() => Math.round(document.getElementById('info-panel').getBoundingClientRect().height)
+          + ':' + getComputedStyle(document.getElementById('flaggtavla')).getPropertyValue('--h'))()`;
+        const fore = await mp.evaluate(hojd);
+        const rubrik = await mp.evaluate(`(() => {
+          const hd = document.querySelector('#explore-ui .info-header'), h2 = hd.querySelector('h2');
+          const k = [...hd.querySelectorAll('.fraga-btn')].filter(b => b.offsetParent).map(b => b.getBoundingClientRect());
+          const hr = hd.getBoundingClientRect(), h2r = h2.getBoundingClientRect();
+          const pil = document.querySelector('#info-default .arrow-icon').getBoundingClientRect();
+          const hj = document.getElementById('spel-hjalp').getBoundingClientRect();
+          return { tre: hd.classList.contains('tre-val') && k.length === 3, helRubrik: h2.scrollWidth <= h2.clientWidth + 1,
+            enRad: k.every(r => Math.abs(r.top - k[0].top) < 2 && r.right <= hr.right + 1) && h2r.bottom > k[0].top && h2r.top < k[0].bottom,
+            tavlaOvan: document.getElementById('flaggtavla').getBoundingClientRect().bottom
+              <= document.getElementById('info-panel').getBoundingClientRect().top + 1,
+            pilFri: !pil.width || pil.right <= hj.left || pil.left >= hj.right || pil.bottom <= hj.top || pil.top >= hj.bottom,
+            text: document.querySelector('#info-default p').textContent };
+        })()`);
+        await mp.evaluate("document.querySelector('#flaggtavla .tavla-ruta').click()");
+        await mp.waitForFunction("document.getElementById('info-card').classList.contains('active')", null, { timeout: 5000 }).catch(() => {});
+        await mp.waitForTimeout(400);
+        tavlor.push({ vy: `${w}x${h}`, ...rubrik, fore, efter: await mp.evaluate(hojd) });
+      }
+      await ctx.close();
+    }
+  }
+  ok('v104: mobilen visar Utforskas tips i panelen, även med landbildsknappen',
+    syns.length === 9 && syns.every(v => v.inne && !v.rullar && v.rad === v.vy.endsWith('huvudstad')), JSON.stringify(syns));
+  ok('v105: Utforska + Flaggor på mobilen — tipset, tre knappar på en rad och tavlan som står still',
+    tavlor.length === 3 && tavlor.every(v => v.tre && v.helRubrik && v.enRad && v.tavlaOvan && v.pilFri
+      && /flagga/.test(v.text) && v.fore === v.efter), JSON.stringify(tavlor));
+} catch (e) {
+  ok('v104: lägesknapparna står still när tipset i sidhuvudet byter längd', false, String(e).slice(0, 160));
+}
+
+// ── v105: flaggorna under v104:s fasta tips i sidhuvudet ──
+// Lägesknapparna står still också när Utforska byter Länder → Flaggor →
+// Huvudstäder (flaggtavlan tar kartans plats) och när quizen byter till
+// Flaggor, och Bildquiz + Flaggors tips ryms på en rad i den fasta bredden.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','land'); localStorage.setItem('utforska-fraga','land')";
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')";
+  const still = [];
+  for (const [w, h] of [[1100, 750], [960, 760]]) {
+    const dp = await browser.newPage({ viewport: { width: w, height: h } });
+    await dp.addInitScript(INIT_LS);
+    await dp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+    await dp.waitForFunction(klar, null, { timeout: 30000 });
+    await dp.waitForTimeout(500);
+    still.push(await dp.evaluate(`(async () => {
+      const vila = ms => new Promise(r => setTimeout(r, ms));
+      const tills = async (f, ms) => { for (let t = 0; t < ms && !f(); t += 100) await vila(100); };
+      const vanster = () => Math.round(document.querySelector('header .mode-toggle').getBoundingClientRect().left);
+      const tips = () => document.getElementById('header-hint');
+      const tavla = () => document.body.classList.contains('flaggtavla');
+      await document.fonts.ready;
+      for (let i = 0, fore = null, lika = 0; i < 60 && lika < 5; i++) {
+        await vila(100); const x = vanster(); lika = x === fore ? lika + 1 : 0; fore = x;
+      }
+      const enRad = Math.round(tips().getBoundingClientRect().height);
+      const ut = { vy: '${w}x${h}', utforska: [vanster()], bildquiz: [], seterra: [] };
+      const valj = async (sel, f) => { document.querySelector(sel).click(); await tills(f, 3000); await vila(300); };
+      await valj('#utforska-val [data-utforska="flagga"]', tavla); ut.utforska.push(vanster()); ut.tavla = tavla();
+      ut.tipsFlaggor = tips().textContent;
+      await valj('#utforska-val [data-utforska="huvudstad"]', () => !tavla()); ut.utforska.push(vanster());
+      await valj('#utforska-val [data-utforska="land"]', () => true); ut.utforska.push(vanster());
+      for (const m of ['bildquiz', 'seterra']) {
+        await valj('.mode-btn[data-mode="' + m + '"]', () => true); ut[m].push(vanster());
+        await valj('#fraga-val [data-fraga="huvudstad"]', () => true); ut[m].push(vanster());
+        await valj('#fraga-val [data-fraga="flagga"]', tavla); ut[m].push(vanster());
+        if (m === 'bildquiz') ut.bildquizTips = [tips().textContent, Math.round(tips().getBoundingClientRect().height), enRad];
+        await valj('#fraga-val [data-fraga="land"]', () => !tavla());
+      }
+      return ut;
+    })()`));
+    await dp.close();
+  }
+  const spann = a => Math.max(...a) - Math.min(...a);
+  ok('v105: lägesknapparna står still när Utforska byter Länder → Flaggor → Huvudstäder, och i flaggquizen',
+    still.length === 2 && still.every(v => v.tavla && v.tipsFlaggor === 'Klicka på en flagga' && v.utforska.length === 4
+      && spann(v.utforska) <= 3 && v.bildquiz.length === 3 && spann(v.bildquiz) <= 3
+      && v.seterra.length === 3 && spann(v.seterra) <= 3), JSON.stringify(still));
+  const bt = still[0].bildquizTips;
+  ok('v105: Bildquiz + Flaggors tips i sidhuvudet ryms på en rad (1100 px)',
+    /flagga/.test(bt[0]) && bt[1] <= bt[2] + 1, JSON.stringify(bt));
+} catch (e) {
+  ok('v105: lägesknapparna står still när Utforska byter Länder → Flaggor → Huvudstäder, och i flaggquizen', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

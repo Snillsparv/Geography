@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=103">
+  <link rel="stylesheet" href="style.css?v=105">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=103"></script>
+  <script src="sprak.js?v=105"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -324,6 +324,13 @@
       .game-container { height: 100vh; }
       .map-panel { padding: 0; }
       body:not(.startlage) .maplibregl-ctrl-top-right { top: 52px; right: 394px; }
+      /* tipset till höger har fast bredd (det längsta får plats): annars
+         flyttar sig lägesknapparna varje gång tipset byter längd, som när
+         man byter läge eller Länder/Huvudstäder (upp till 164 px) */
+      header .header-hint { flex: 0 1 340px; }
+      /* …och då får de runda knapparna (▶, 🧩) inte tryckas ihop till ovaler
+         när det blir trångt under ~1100 px: tipset ger med sig i stället */
+      header > button { flex: none; }
       .info-panel { position: fixed; top: 60px; right: 14px; bottom: 14px; width: 366px;
         border-radius: 18px; background: rgba(13, 26, 44, .88);
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -423,8 +430,34 @@
     .utforsk-bild-rad { display: flex; justify-content: center; margin: 2px 0 10px; }
     @media (max-width: 900px) {
       /* mobilens bottenpanel är låg: en mindre knapp tätt under växeln */
-      .utforsk-bild-rad { margin: 0 0 4px; }
+      .utforsk-bild-rad { margin: 0 0 2px; }
       .utforsk-bild-rad .hint-btn { padding: 4px 12px; font-size: .8rem; }
+      /* Utforskas tips före första klicket: pilen bredvid texten i stället
+         för ovanför. Panelen är bara 110–170 px hög på vanliga telefoner:
+         med växeln (och landbildsknappen i Huvudstäder) ovanför hamnade
+         texten annars bakom sidfoten. */
+      #info-default { flex-direction: row; justify-content: center; gap: 12px;
+        padding: 6px 16px 8px; text-align: left; }
+      #info-default .arrow-icon { flex: none; margin: 0; font-size: 1.5rem; }
+      #info-default p { line-height: 1.4; }
+    }
+    @media (max-width: 400px) {
+      /* de minsta telefonerna (320 × 640): ännu tätare */
+      #explore-ui .info-header { padding-top: 6px; padding-bottom: 4px; }
+      .utforsk-bild-rad { margin: 0; }
+      #info-default { padding: 4px 12px; }
+    }
+    @media (max-width: 340px) {
+      /* 320 px: pilen skulle nudda ?-knappen till vänster */
+      #info-default .arrow-icon { display: none; }
+    }
+    @media (max-width: 400px) and (max-height: 660px) {
+      /* de lägsta telefonerna (320 × 568): panelen får växa lite (30vh → 34vh)
+         så att Utforskas tips syns ovanför sidfoten — bara medan tipset visas,
+         så att kartan i quizen inte krymper. Utan :has blir det som förut.
+         Inte på flaggtavlan: där har panelen fast höjd 40vh (Flaggtavlan
+         nedan), så att tavlan inte byter storlek vid första klicket. */
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"]) #info-default:not([style*="none"])) { max-height: 34vh; }
     }
     /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
        "Klicka på <stad>" (samma vita som namnrutorna på kartan) */
@@ -1527,10 +1560,10 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=103"></script>
-<script src="glob-spel.js?v=103"></script>
+<script src="kakor.js?v=105"></script>
+<script src="glob-spel.js?v=105"></script>
 <!-- flaggtavlan (Flaggor på svenska sajten); använder glob-spel.js globaler -->
-<script src="flaggtavla.js?v=103"></script>
+<script src="flaggtavla.js?v=105"></script>
 
 </body>
 </html>
