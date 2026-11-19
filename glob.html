@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=105">
+  <link rel="stylesheet" href="style.css?v=107">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=105"></script>
+  <script src="sprak.js?v=107"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -451,14 +451,19 @@
       /* 320 px: pilen skulle nudda ?-knappen till vänster */
       #info-default .arrow-icon { display: none; }
     }
-    @media (max-width: 400px) and (max-height: 660px) {
-      /* de lägsta telefonerna (320 × 568): panelen får växa lite (30vh → 34vh)
-         så att Utforskas tips syns ovanför sidfoten — bara medan tipset visas,
-         så att kartan i quizen inte krymper. Utan :has blir det som förut.
-         Inte på flaggtavlan: där har panelen en fast höjd (Flaggtavlan
-         nedan: 40vh från 560 px höjd, under det 34vh i Utforska), så att
-         tavlan inte byter storlek vid första klicket. */
-      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"]) #info-default:not([style*="none"])) { max-height: 34vh; }
+    /* Utforska på mobilen: panelen har samma höjd före och efter första
+       klicket. Tipset är lägre än landkortet, så annars krympte kartan vid
+       klicket och globen hoppade (35 px på 390 × 844, 60 px på 412 × 915).
+       På skärmar lägre än 640 px (320 × 568, 375 × 548 i Safari) får
+       panelen växa lite så att tipset syns ovanför sidfoten (192 px =
+       tipset i Huvudstäder + sidfoten). Quizen rörs inte; utan :has blir det som
+       förut. Flaggtavlan har en egen höjd. */
+    @media (max-width: 900px) {
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) { height: 35vh; }
+    }
+    @media (max-width: 400px) {
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) {
+        height: max(30vh, 192px); max-height: max(30vh, 192px); }
     }
     /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
        "Klicka på <stad>" (samma vita som namnrutorna på kartan) */
@@ -858,12 +863,15 @@
     @media (max-width: 900px) and (min-height: 560px) {
       body.flaggtavla .info-panel { height: 40vh; max-height: 40vh; }
     }
-    /* …och lägre än så (360 × 540: en telefon med webbläsarens fält) rymde
-       30vh (style.css) inte Utforskas tips. Där får Utforska samma 34vh som
-       Länder och Huvudstäder (v104 ovan), men fast: tavlan står still vid
-       första klicket. */
+    /* …och lägre än så (360 × 540: en telefon med webbläsarens fält,
+       320 × 460) rymde 30vh (style.css) inte Utforskas tips. Där får
+       Utforska samma fasta höjd som Länder och Huvudstäder (v106 ovan:
+       max(30vh, 192px), här alltid 192 px): flaggtipset syns ända ner till
+       320 × 460 (med 34vh låg sista raden under sidfoten), tavlan står
+       still vid första klicket och panelen när man byter läge. */
     @media (max-width: 400px) and (max-height: 559px) {
-      body.flaggtavla .info-panel:has(#explore-ui:not([style*="none"])) { height: 34vh; max-height: 34vh; }
+      body.flaggtavla .info-panel:has(#explore-ui:not([style*="none"])) {
+        height: max(30vh, 192px); max-height: max(30vh, 192px); }
     }
     /* ════ slut Flaggtavlan ══════════════════════════════════════════ */
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
@@ -1574,10 +1582,10 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=105"></script>
-<script src="glob-spel.js?v=105"></script>
+<script src="kakor.js?v=107"></script>
+<script src="glob-spel.js?v=107"></script>
 <!-- flaggtavlan (Flaggor på svenska sajten); använder glob-spel.js globaler -->
-<script src="flaggtavla.js?v=105"></script>
+<script src="flaggtavla.js?v=107"></script>
 
 </body>
 </html>
