@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=99">
+  <link rel="stylesheet" href="style.css?v=102">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=99"></script>
+  <script src="sprak.js?v=102"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -419,6 +419,19 @@
       color: #8fd3ff; }
     .hint-btn.bild-btn:hover { background: rgba(91, 191, 255, .2); border-color: rgba(91, 191, 255, .7); }
     .hint-btn.bild-btn.pa { background: rgba(91, 191, 255, .28); border-color: #5bbfff; color: #e3f4ff; }
+    /* Utforska + Huvudstäder: samma knapp, under växeln i panelen */
+    .utforsk-bild-rad { display: flex; justify-content: center; margin: 2px 0 10px; }
+    @media (max-width: 900px) {
+      /* mobilens bottenpanel är låg: en mindre knapp tätt under växeln */
+      .utforsk-bild-rad { margin: 0 0 4px; }
+      .utforsk-bild-rad .hint-btn { padding: 4px 12px; font-size: .8rem; }
+    }
+    /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
+       "Klicka på <stad>" (samma vita som namnrutorna på kartan) */
+    .cursor-label.gg-etikett { background: rgba(255, 255, 255, .9); color: #16261c;
+      border: none; border-radius: 5px; font-weight: 500; padding: 5px 11px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, .3); }
+    .cursor-label.gg-etikett strong { font-weight: 800; }
     /* Mobilen: bottenpanelen är låg, så rubriken och regeln flyter ihop
        i ett stycke och fotnoten göms. Längre regler skrollar i panelen. */
     @media (max-width: 900px) {
@@ -929,6 +942,11 @@
           <button type="button" class="fraga-btn" data-utforska="huvudstad" aria-pressed="false">Huvudstäder</button>
         </div>
       </div>
+      <!-- Utforska + Huvudstäder: landbilderna av/på (avslagna från start;
+           glob-spel.js visar raden). Ingen data-t: bara svenska sajten. -->
+      <div class="utforsk-bild-rad" id="utforsk-bild-rad" style="display:none">
+        <button class="hint-btn bild-btn" id="utforsk-bilder-btn" type="button">🖼️ <span>Visa landbilder</span></button>
+      </div>
 
       <div class="info-default" id="info-default">
         <div class="arrow-icon">&larr;</div>
@@ -1138,8 +1156,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=99"></script>
-<script src="glob-spel.js?v=99"></script>
+<script src="kakor.js?v=102"></script>
+<script src="glob-spel.js?v=102"></script>
 
 </body>
 </html>
