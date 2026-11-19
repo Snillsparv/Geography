@@ -716,6 +716,870 @@ try {
   ok('Utforska: en upptäckt stad stjäl inte klicket från den vita cirkeln ovanpå', false, String(e).slice(0, 160));
 }
 
+// ── v98: Flaggor som på Seterra (bara svenska sajten) ──
+// Med Flaggor valt täcks kartytan av flaggtavlan (flaggtavla.js): en riktig
+// flagga (assets/flaggor) per land i rundan. Quizen säger landets NAMN och
+// man klickar på rätt flagga; Bildquiz vänder den hittade flaggan till Jonas
+// minnesbild (assets/flaggbilder). Utforska har en egen växel
+// (#utforska-val: Länder | Huvudstäder | Flaggor, sparad i 'utforska-fraga',
+// oberoende av quizens 'quiz-fraga'); med Flaggor visar den tavlan i
+// bokstavsordning och ett klick öppnar landets kort (som börjar med Flaggan). Egna
+// topplistor (prefixet flagga-), egna medaljer, ingen passtämpel och ingen
+// utmaning. Globen ligger kvar under tavlan: inga nya kartlager eller
+// källor, inert och utan omritningar (kartaTackt) tills den syns igen.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const fp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const fFel = [];
+  fp.on('pageerror', e => fFel.push(String(e)));
+  await fp.addInitScript(INIT_LS);
+  await fp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await fp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && HUVUDSTAD.size > 0",
+    null, { timeout: 30000 });
+  const lagerFore = await fp.evaluate("map.getStyle().layers.length + '/' + Object.keys(map.getStyle().sources).length");
+  // rutornas ramar och blekning utan övergångar: testet läser slutlägena
+  // (övergångarna går på bildrutor, och mjukvaru-GPU:n här är seg)
+  await fp.addStyleTag({ content: '#flaggtavla .tavla-kort, #flaggtavla .tavla-flagga { transition: none !important; }' });
+  // Utforska: EN växel i landinformationens rubrikrad (v99:s #utforska-val)
+  // med Länder, Huvudstäder och Flaggor, på samma rad som rubriken. Quizens
+  // #fraga-val står kvar i quizpanelen.
+  const utf0 = await fp.evaluate(`(() => {
+    const vx = document.getElementById('utforska-val');
+    const h = vx.closest('.info-header'), h2 = h.querySelector('h2');
+    const hr = h.getBoundingClientRect(), vr = vx.getBoundingClientRect(), tr = h2.getBoundingClientRect();
+    return { knappar: [...vx.querySelectorAll('.fraga-btn')].filter(b => b.style.display !== 'none')
+        .map(b => b.textContent).join('|'),
+      iUtforska: !!vx.closest('#explore-ui'), syns: vx.style.display !== 'none' && vx.offsetHeight > 0,
+      aktiv: vx.querySelector('.fraga-btn.active').dataset.utforska, tre: h.classList.contains('tre-val'),
+      // ryms: på rubrikens rad, inom panelen, och rubriken kapas inte
+      ryms: vr.top < tr.bottom && vr.right <= hr.right && h2.scrollWidth <= h2.clientWidth,
+      ensam: document.querySelectorAll('#explore-ui .fraga-val').length === 1,
+      fragaIQuiz: !!document.getElementById('fraga-val').closest('#seterra-ui'),
+      tavla: document.getElementById('flaggtavla').hidden };
+  })()`);
+  ok('flaggtavla: Utforska har en växel Länder|Huvudstäder|Flaggor', utf0.knappar === 'Länder|Huvudstäder|Flaggor'
+    && utf0.iUtforska && utf0.syns && utf0.aktiv === 'land' && utf0.tre && utf0.ryms && utf0.ensam && utf0.fragaIQuiz
+    && utf0.tavla, JSON.stringify(utf0));
+  // quizen: tre val; Flaggor ger tavlan med en flagga per land i rundan
+  const val = await fp.evaluate(`(async () => {
+    window.__kakor = [];
+    const kak = window.kakSpara;
+    window.kakSpara = (n, p) => { window.__kakor.push([n, p]); kak?.(n, p); };
+    switchMode('seterra', true);
+    const vx = document.getElementById('fraga-val');
+    const knappar = [...vx.querySelectorAll('.fraga-btn')].filter(b => b.style.display !== 'none').map(b => b.textContent);
+    document.querySelector('#fraga-val [data-fraga="flagga"]').click();
+    await laddaFlaggbilder();
+    const t = seterraTarget;
+    const tavla = document.getElementById('flaggtavla');
+    const rutor = [...tavla.querySelectorAll('.tavla-ruta')];
+    const sortera = a => a.sort((x, y) => x - y).join();
+    const dold = el => !el || getComputedStyle(el).visibility === 'hidden' || getComputedStyle(el).display === 'none'
+      || el.getBoundingClientRect().width === 0;
+    const ui = document.getElementById('seterra-ui');
+    const fraga = document.getElementById('seterra-target-name');
+    return { knappar, iQuiz: !!vx.closest('#seterra-ui'), lage: flagglage, hs: huvudstadslage, key: HS_KEY,
+      golv: rimligMinTid(), sparat: localStorage.getItem('quiz-fraga'),
+      utforskaOrord: localStorage.getItem('utforska-fraga') === null && villUtforska === 'land' && !utforskaFlaggor,
+      kaka: JSON.stringify(window.__kakor.find(k => k[0] === 'fraga_vald')),
+      aktiv: vx.querySelector('.fraga-btn.active').dataset.fraga,
+      treVal: document.querySelector('#seterra-ui .info-header').classList.contains('tre-val'),
+      n: rutor.length, total: COUNTRIES.length,
+      sammaLander: sortera(rutor.map(b => +b.dataset.gid)) === sortera(COUNTRIES.map(c => c.gid)),
+      tavlaSyns: !tavla.hidden && tavla.getBoundingClientRect().width > 300,
+      karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
+      kontroller: dold(document.querySelector('.maplibregl-ctrl-zoom-in')) && dold(document.getElementById('explore-toggle-buttons'))
+        && dold(document.querySelector('.maplibregl-ctrl-attrib')),
+      // frågan är NAMNET — ingen flagga, emoji eller ruta säger vilken flagga det är
+      namn: fraga.textContent === t.name, hitta: document.getElementById('hitta-ord').textContent,
+      ingenFlagga: !ui.querySelector('img[src*="assets/flaggor/"]') && !ui.textContent.includes(flagga(t.flaggNamn || t.name))
+        && !headerHint.textContent.includes(flagga(t.flaggNamn || t.name)),
+      etikett: cursorLabel.textContent === 'Klicka på ' + t.name && cursorLabel.classList.contains('tavla-etikett')
+        && !cursorLabel.querySelector('img'),
+      rutorTiga: rutor.every(b => b.getAttribute('aria-label') === 'Flagga' && !b.title
+        && !b.textContent.trim() && b.querySelector('img').alt === ''),
+      knappar2: rutor.every(b => b.tagName === 'BUTTON'),
+      forladdat: COUNTRIES.every(c => flaggForladdade.has(flaggSrc(c))),
+      // globen under tavlan: varken fokus, tangenter eller omritningar
+      inert: document.getElementById('spel-map').inert && kartaTackt,
+      // statistiken står överst på tavlan, panelens göms; Visa ledtråd står i frågans block
+      status: document.querySelector('#flaggtavla .tavla-status').textContent.replace(/\s+/g, ' ').trim(),
+      statusSyns: getComputedStyle(document.querySelector('#flaggtavla .tavla-status')).display === 'flex',
+      panelStats: getComputedStyle(document.querySelector('#seterra-game .seterra-stats')).display,
+      hintIFragan: !!seterraHintBtn.closest('.seterra-target') };
+  })()`);
+  ok('flaggtavla: quizens växel har tre val (Länder, Huvudstäder, Flaggor)',
+    val.knappar.join('|') === 'Länder|Huvudstäder|Flaggor' && val.iQuiz && val.aktiv === 'flagga' && val.treVal, val.knappar.join('|'));
+  ok('flaggtavla: valet sparas och loggas', val.lage && !val.hs && val.sparat === 'flagga' && val.utforskaOrord
+    && /"fraga":"flagga"/.test(val.kaka) && /"quiz":"klassisk"/.test(val.kaka), JSON.stringify(val).slice(0, 200));
+  ok('flaggtavla: egen topplista, samma golv', val.key === 'flagga-glob-sydamerika-highscores' && val.golv === 10, val.key);
+  ok('flaggtavla: tavlan har en flaggknapp per land, kartans knappar göms',
+    val.tavlaSyns && val.n === val.total && val.n === 13 && val.sammaLander && val.knappar2
+    && val.karta === 'täckt' && val.kontroller && val.forladdat && val.inert,
+    JSON.stringify({ n: val.n, s: val.tavlaSyns, k: val.karta, c: val.kontroller, f: val.forladdat, i: val.inert }));
+  ok('flaggtavla: siffrorna står på tavlan, Visa ledtråd vid frågan',
+    val.statusSyns && /Poäng 100%/.test(val.status) && /Rätt 0/.test(val.status) && /0 \/ 13/.test(val.status)
+    && val.panelStats === 'none' && val.hintIFragan, JSON.stringify({ st: val.status, ps: val.panelStats, h: val.hintIFragan }));
+  ok('flaggtavla: frågan är landets namn, ingen flagga avslöjar svaret',
+    val.namn && val.hitta === 'Klicka på flaggan för:' && val.ingenFlagga && val.etikett && val.rutorTiga,
+    JSON.stringify({ namn: val.namn, h: val.hitta, i: val.ingenFlagga, e: val.etikett, r: val.rutorTiga }));
+  // globen under tavlan vilar: den täcks i stället för att döljas — en
+  // dold WebGL-duk blir aldrig klar med globens felmätning och ritar om
+  // varje bildruta (då gick sidan inte ens att ladda om)
+  const omritningar = await fp.evaluate(`new Promise(res => setTimeout(() => {
+    let n = 0; const h = () => n++; map.on('render', h);
+    setTimeout(() => { map.off('render', h); res(n); }, 2000);
+  }, 2500))`);
+  ok('flaggtavla: globen under tavlan ritar inte om hela tiden', omritningar < 20, omritningar + ' omritningar på 2 s');
+  // flaggorna laddar på riktigt
+  await fp.waitForFunction("[...document.querySelectorAll('#flaggtavla img.tavla-flagga')].every(i => i.complete)", null, { timeout: 15000 });
+  const laddade = await fp.evaluate(`(() => {
+    const imgs = [...document.querySelectorAll('#flaggtavla img.tavla-flagga')];
+    const h = imgs.map(i => Math.round(i.getBoundingClientRect().height));
+    return { ok: imgs.every(i => i.naturalWidth > 0), hojd: h[0], lika: h.every(x => x === h[0]) };
+  })()`);
+  ok('flaggtavla: flaggorna laddar och är lika höga', laddade.ok && laddade.lika && laddade.hojd >= 80 && laddade.hojd <= 100,
+    JSON.stringify(laddade));
+  // fel svar med ett riktigt klick: räknas, rutan blir röd, panelen säger
+  // vems flaggan var — och visar den flaggans minnesbild
+  const felGid = await fp.evaluate("COUNTRIES.find(c => c.gid !== seterraTarget.gid && flaggbildFor(c)?.text).gid");
+  const fore = await fp.evaluate("({ gid: seterraTarget.gid, fel: seterraWrong })");
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${felGid}"]`);
+  const fel = await fp.evaluate(`(() => {
+    const c = aktivByGid.get(${felGid});
+    const fb = seterraFeedback;
+    const bild = fb.querySelector('img.flagg-minnesbild');
+    return { fel: seterraWrong, kvar: seterraTarget.gid, text: fb.textContent, namn: c.name,
+      flagga: !!fb.querySelector('.fb-flagg-titel img.fb-flagga[src="' + flaggSrc(c) + '"]'),
+      minne: !!bild && bild.getAttribute('src') === flaggbildSrc(flaggbildFor(c)),
+      minneText: fb.textContent.includes(flaggbildFor(c).text), inteLand: !fb.querySelector('.fb-shape, .fb-desc'),
+      rod: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${felGid}"]').classList.contains('fel'),
+      statusFel: document.querySelector('#flaggtavla .ts-fel b').textContent === String(seterraWrong),
+      felRuta: getComputedStyle(document.querySelector('#flaggtavla .tavla-ruta[data-gid="${felGid}"] .tavla-kort')).boxShadow };
+  })()`);
+  ok('flaggtavla: fel flagga räknas och panelen säger vems den var',
+    fel.fel === fore.fel + 1 && fel.kvar === fore.gid && fel.text.includes('Det var') && fel.text.includes(fel.namn)
+    && fel.flagga && fel.minne && fel.minneText && fel.inteLand && fel.rod && /224, 82, 82/.test(fel.felRuta) && fel.statusFel,
+    JSON.stringify({ ...fel, text: fel.text.slice(0, 60) }).slice(0, 260));
+  // svaret står under frågan och panelen skrollar fram det, medan landets
+  // namn och Visa ledtråd står kvar överst (inte skymda av något)
+  await fp.waitForTimeout(800);   // panelen skrollar mjukt
+  const svarSyns = await fp.evaluate(`(() => {
+    const p = document.querySelector('#info-panel .info-panel-content').getBoundingClientRect();
+    const fb = seterraFeedback.getBoundingClientRect();
+    const namn = document.getElementById('seterra-target-name').getBoundingClientRect();
+    const fast = document.querySelector('#seterra-game .seterra-target').getBoundingClientRect();
+    const synlig = el => { const b = el.getBoundingClientRect();
+      const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!e && (e === el || el.contains(e)); };
+    return { svar: fb.top >= fast.bottom - 1 && fb.top + 120 <= p.bottom,
+      namn: namn.top >= p.top - 1 && synlig(document.getElementById('seterra-target-name')),
+      knapp: synlig(seterraHintBtn), sida: document.scrollingElement.scrollTop === 0 };
+  })()`);
+  ok('flaggtavla: svaret syns under frågan, namnet och Visa ledtråd står kvar', svarSyns.svar && svarSyns.namn
+    && svarSyns.knapp && svarSyns.sida, JSON.stringify(svarSyns));
+  // ledtråden (på begäran): frågans minnesbild med Jonas HELA text (några
+  // minnesbilder har ingen text, t.ex. Franska Guyana: då bara bilden)
+  const hint = await fp.evaluate(`(async () => {
+    const t = seterraTarget, fb = flaggbildFor(t);
+    const box = document.getElementById('seterra-hint');
+    const stangd = box.style.display === 'none' && seterraHintBtn.style.display !== 'none';
+    seterraHintBtn.click();
+    const bild = box.querySelector('img.flagg-minnesbild');
+    if (bild && !bild.complete) await new Promise(r => { bild.onload = bild.onerror = r; });
+    const br = COUNTRIES.find(c => c.namnSv === 'Brasilien');
+    return { stangd, syns: box.style.display !== 'none' && box.classList.contains('flagg-ledtrad'),
+      bild: !!bild && bild.naturalWidth > 0 && bild.getAttribute('src') === flaggbildSrc(fb),
+      hel: !fb.text || box.textContent.includes(fb.text), lucka: !!box.querySelector('.flagg-lucka'),
+      // texter som säger landet står kvar hela nu (frågan är ju namnet)
+      brasilien: /BRASILIENS/.test(flaggMinneHtml(br, true)) && !flaggMinneHtml(br, true).includes('flagg-lucka') };
+  })()`);
+  await fp.waitForTimeout(900);   // rutan poppar in och panelen skrollar
+  const hintPlats = await fp.evaluate(`(() => {
+    const fast = document.querySelector('#seterra-game .seterra-target').getBoundingClientRect();
+    const box = document.getElementById('seterra-hint').getBoundingClientRect();
+    const p = document.querySelector('#info-panel .info-panel-content').getBoundingClientRect();
+    return { under: box.top >= fast.bottom - 1, iBild: box.top < p.bottom - 100 };
+  })()`);
+  ok('flaggtavla: ledtråden är minnesbilden med hela texten', hint.stangd && hint.syns && hint.bild && hint.hel
+    && !hint.lucka && hint.brasilien && hintPlats.under && hintPlats.iBild, JSON.stringify({ ...hint, ...hintPlats }));
+  // rätt svar med ett riktigt klick: grön ram och ✓, namnet under, nästa fråga
+  await fp.waitForTimeout(700);   // felklickets spärr
+  const rattGid = await fp.evaluate('seterraTarget.gid');
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`);
+  await fp.waitForFunction(`(() => { const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${rattGid}"]');
+    return /46, 158, 68/.test(getComputedStyle(b.querySelector('.tavla-kort')).boxShadow)
+      && +getComputedStyle(b.querySelector('.tavla-flagga')).opacity < 0.6; })()`, null, { timeout: 5000 }).catch(() => {});
+  const ratt = await fp.evaluate(`(() => {
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${rattGid}"]');
+    const c = aktivByGid.get(${rattGid});
+    const fb = seterraFeedback;
+    return { ratt: seterraCorrect, nasta: !!seterraTarget && seterraTarget.gid !== ${rattGid},
+      hittad: b.classList.contains('hittad') && b.getAttribute('aria-disabled') === 'true',
+      namn: b.querySelector('.tavla-namn').textContent === c.name && b.getAttribute('aria-label').startsWith(c.name),
+      ram: getComputedStyle(b.querySelector('.tavla-kort')).boxShadow,
+      bock: getComputedStyle(b, '::after').content,
+      blek: +getComputedStyle(b.querySelector('.tavla-flagga')).opacity < 0.6,
+      text: fb.textContent, cnamn: c.name, flagga: !!fb.querySelector('.fb-flagg-titel img.fb-flagga'),
+      minne: !!fb.querySelector('img.flagg-minnesbild'), fragaNy: document.getElementById('seterra-target-name').textContent === seterraTarget.name,
+      platt: [...document.querySelectorAll('#flaggtavla .tavla-kort')].every(k => getComputedStyle(k).transformStyle === 'flat'),
+      statusRatt: document.querySelector('#flaggtavla .ts-ratt b').textContent === '1' && document.querySelector('#flaggtavla .ts-framsteg').textContent.includes('1 / 13') };
+  })()`);
+  ok('flaggtavla: rätt flagga markeras (grön ram, ✓, namnet) och nästa fråga kommer',
+    ratt.ratt === 1 && ratt.nasta && ratt.hittad && ratt.namn && /46, 158, 68/.test(ratt.ram) && ratt.bock.includes('✓')
+    && ratt.blek && ratt.text.includes('RÄTT!') && ratt.text.includes(ratt.cnamn) && ratt.flagga && ratt.minne && ratt.fragaNy
+    && ratt.platt && ratt.statusRatt,
+    JSON.stringify({ ...ratt, text: undefined }).slice(0, 240));
+  // en hittad flagga tar inga fler klick (aria-disabled: Playwright väntar
+  // annars på att knappen ska bli klickbar)
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`, { force: true });
+  const igenKlick = await fp.evaluate('({ r: seterraCorrect, f: seterraWrong })');
+  // tre missar på samma fråga: den rätta flaggan blinkar
+  for (let i = 0; i < 3; i++) {
+    await fp.waitForTimeout(650);
+    const g = await fp.evaluate("COUNTRIES.find(c => c.gid !== seterraTarget.gid && !revealed.has(c.gid)).gid");
+    await fp.click(`#flaggtavla .tavla-ruta[data-gid="${g}"]`);
+  }
+  const tips = await fp.evaluate(`(() => ({ missar: seterraTargetMisses,
+    blink: document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + seterraTarget.gid + '"]').classList.contains('tips') }))()`);
+  ok('flaggtavla: hittad flagga räknas inte igen, tre missar blinkar den rätta',
+    igenKlick.r === 1 && igenKlick.f === 1 && tips.missar === 3 && tips.blink, JSON.stringify({ igenKlick, tips }));
+  // Indonesien/Monaco och Tchad/Rumänien har (nästan) samma flagga: ett
+  // klick på tvillingen räknas inte som fel, och frågan står kvar
+  const tvilling = await fp.evaluate(`(() => {
+    const spar = seterraTarget, fore = seterraWrong;
+    seterraLocked = false;
+    seterraTarget = { gid: -90, namnSv: 'Indonesien', name: 'Indonesien' };
+    seterraClick({ gid: -91, namnSv: 'Monaco', name: 'Monaco' });
+    const r = { fel: seterraWrong - fore, kvar: seterraTarget.gid === -90,
+      text: seterraFeedback.textContent, flagga: !!seterraFeedback.querySelector('img.fb-flagga'),
+      td: flaggTvilling({ gid: 1, namnSv: 'Tchad' }, { gid: 2, namnSv: 'Rumänien' }),
+      inte: flaggTvilling({ gid: 1, namnSv: 'Indonesien' }, { gid: 2, namnSv: 'Polen' }) };
+    seterraTarget = spar; seterraLocked = false;
+    return r;
+  })()`);
+  ok('flaggtavla: tvillingflaggor (Indonesien/Monaco) räknas inte som fel',
+    tvilling.fel === 0 && tvilling.kvar && tvilling.flagga && tvilling.text.includes('Det där var Monacos flagga – nästan likadan som Indonesiens!')
+    && tvilling.td && !tvilling.inte, JSON.stringify(tvilling).slice(0, 200));
+  // Nordirland använder Storbritanniens flagga och minnesbild, med noten
+  const ni = await fp.evaluate(`(() => {
+    const c = { namnSv: 'Nordirland', name: 'Nordirland', gid: 0 };
+    return { ledtrad: flaggMinneHtml(c, true), kuba: FLAGGBILD.get('Kuba').text };
+  })()`);
+  ok('flaggtavla: Nordirland visar Storbritanniens bild och noten', /storbritannien\.webp/.test(ni.ledtrad)
+    && /Nordirland använder Storbritanniens flagga/.test(ni.ledtrad)
+    && ni.kuba === 'En KUBANSK CIGARR med en stor röd glödande spets med en vit gnista.', ni.ledtrad.slice(0, 160));
+  // Öva på felaktiga: samma tavla (alla flaggor, samma ordning), bara de
+  // missade frågas — en annan flagga är fel
+  const retry = await fp.evaluate(`(() => {
+    const ordning = () => [...document.querySelectorAll('#flaggtavla .tavla-ruta')].map(b => b.dataset.gid).join();
+    const fore = ordning();
+    const missade = COUNTRIES.slice(0, 2).map(c => c.gid);
+    seterraMissedCountries = new Set(missade);
+    startSeterraRetry();
+    const rutor = [...document.querySelectorAll('#flaggtavla .tavla-ruta')];
+    const r = { samma: ordning() === fore, n: rutor.length, total: COUNTRIES.length,
+      farska: rutor.every(b => !b.classList.contains('hittad')), fragor: seterraTotal,
+      bara: [seterraTarget.gid, ...seterraQueue.map(c => c.gid)].every(g => missade.includes(g)), key: HS_KEY };
+    const annan = COUNTRIES.find(c => !missade.includes(c.gid));
+    rutor.find(b => +b.dataset.gid === annan.gid).click();
+    r.fel = seterraWrong;
+    return r;
+  })()`);
+  ok('flaggtavla: Öva på felaktiga visar hela tavlan, bara de missade frågas',
+    retry.samma && retry.n === retry.total && retry.farska && retry.fragor === 2 && retry.bara && retry.fel === 1,
+    JSON.stringify(retry));
+  // simulerad 100 %-runda: egen medalj, ingen stämpel, ingen utmaning
+  const slut = await fp.evaluate(`(() => {
+    startSeterra();
+    seterraStartTime = Date.now() - 30000;
+    seterraCorrect = seterraTotal; seterraWrong = 0;
+    endSeterra();
+    return { medalj: localStorage.getItem('medalj-flagga-sydamerika'),
+      land: localStorage.getItem('medalj-sydamerika'), hs: localStorage.getItem('medalj-huvudstad-sydamerika'),
+      resa: localStorage.getItem('varldsresa'),
+      utmana: document.getElementById('utmana-btn').style.display,
+      diplom: document.getElementById('seterra-diplom').style.display,
+      kaka: JSON.stringify(window.__kakor.filter(k => k[0] === 'quiz_klar').pop()),
+      text: document.getElementById('seterra-final-detail').textContent,
+      tavla: !document.getElementById('flaggtavla').hidden };
+  })()`);
+  ok('flaggtavla: egen medalj, ingen stämpel eller utmaning',
+    slut.medalj === '100' && slut.land === null && slut.hs === null && slut.resa === null && slut.utmana === 'none'
+    && slut.diplom !== 'none' && /13 av 13 flaggor/.test(slut.text) && /"fraga":"flagga"/.test(slut.kaka) && slut.tavla,
+    JSON.stringify(slut).slice(0, 220));
+  // Bildquiz + Flaggor: tavlan, egen lista, och en hittad flagga vänds till
+  // Jonas minnesbild
+  const bild = await fp.evaluate(`(() => {
+    // firandet och namnrutan efter 100 %-rundan ligger över allt
+    if (document.getElementById('celebration-overlay').classList.contains('active'))
+      document.getElementById('celebration-close').click();
+    nameModalOverlay.classList.remove('active');
+    switchMode('bildquiz', true);
+    const rutor = document.querySelectorAll('#flaggtavla .tavla-ruta');
+    return { lage: flagglage, stad: stadslage, runda: stadRunda.size, key: HS_KEY, n: rutor.length,
+      knapp: document.getElementById('stad-bilder-btn').style.display,
+      tavla: !document.getElementById('flaggtavla').hidden, gid: seterraTarget.gid,
+      harBild: !!flaggbildFor(seterraTarget) };
+  })()`);
+  if (!bild.harBild) {
+    // ett land utan minnesbild (om ett sådant kommer till): ta en fråga som har
+    await fp.evaluate(`(() => { const i = seterraQueue.findIndex(c => flaggbildFor(c));
+      const k = seterraQueue.splice(i, 1)[0]; seterraQueue.unshift(seterraTarget); seterraQueue.push(k); nextSeterraTarget(); })()`);
+  }
+  const vandGid = await fp.evaluate('seterraTarget.gid');
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${vandGid}"]`);
+  await fp.waitForFunction(`document.querySelector('#flaggtavla .tavla-ruta[data-gid="${vandGid}"]').classList.contains('vand-klar')`,
+    null, { timeout: 10000 }).catch(() => {});
+  // minnesbilden ritas ner till rutans storlek (en liten egen bild), och
+  // efter vändningen är rutan platt igen (inget eget GPU-lager)
+  const vand = await fp.evaluate(`(() => {
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${vandGid}"]');
+    const img = b.querySelector('img.tavla-minne');
+    const kort = b.querySelector('.tavla-kort').getBoundingClientRect();
+    return { vand: b.classList.contains('vand') && b.classList.contains('hittad'),
+      src: !!img && img.dataset.bild === flaggbildSrc(flaggbildFor(aktivByGid.get(${vandGid}))) && img.src.startsWith('data:image/'),
+      liten: !!img && img.naturalWidth > 0 && img.naturalWidth <= Math.ceil(kort.width * 2) + 1,
+      platt: !b.classList.contains('minne') && getComputedStyle(b.querySelector('.tavla-kort')).transformStyle === 'flat'
+        && getComputedStyle(b.querySelector('.tavla-flagga')).display === 'none',
+      namn: b.querySelector('.tavla-namn').textContent === aktivByGid.get(${vandGid}).name };
+  })()`);
+  ok('flaggtavla: Bildquiz vänder hittade flaggor till minnesbilden',
+    bild.lage && !bild.stad && bild.runda === 0 && bild.key === 'flagga-bild-glob-sydamerika-highscores' && bild.n === 13
+    && bild.knapp === 'none' && bild.tavla && vand.vand && vand.src && vand.liten && vand.platt && vand.namn,
+    JSON.stringify({ ...bild, ...vand }));
+  // kompisutmaning: ingen växel och inget flaggläge i quizet, och Utforskas
+  // växel har ingen Flaggor-knapp (även med Flaggor valt där)
+  const utm = await fp.evaluate(`(() => {
+    aktivUtmaning = { id: 'test', data: {}, namn: 'Test' };
+    uppdateraHuvudstadslage();
+    const r = { vis: document.getElementById('fraga-val').style.display, lage: flagglage, key: HS_KEY,
+      tavla: document.getElementById('flaggtavla').hidden };
+    villUtforska = 'flagga';          // som om Flaggor var valt i Utforska (inte sparat)
+    switchMode('explore', true);
+    r.utfFlagga = document.querySelector('#utforska-val [data-utforska="flagga"]').style.display;
+    r.utfAktiv = document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska;
+    r.utf = utforskaFlaggor || !document.getElementById('flaggtavla').hidden;
+    aktivUtmaning = null;
+    villUtforska = 'land';
+    switchMode('bildquiz', true);
+    return r;
+  })()`);
+  ok('flaggtavla: inte i en kompisutmaning', utm.vis === 'none' && !utm.lage && utm.key === 'bild-glob-sydamerika-highscores'
+    && utm.tavla && utm.utfFlagga === 'none' && utm.utfAktiv === 'land' && !utm.utf, JSON.stringify(utm));
+  // Flaggor i quizet (sparat i 'quiz-fraga') ändrar inte Utforska: efter
+  // omladdning öppnar Utforska på globen med Länder, som förut
+  const laddaOm = async () => {
+    await fp.reload({ waitUntil: 'domcontentloaded' });
+    await fp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+      " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && COUNTRIES.length > 0 && !!map.getLayer('stad-mal')",
+      null, { timeout: 30000 });
+    await fp.waitForTimeout(300);
+  };
+  await laddaOm();
+  const orord = await fp.evaluate(`({ quiz: localStorage.getItem('quiz-fraga'), utforska: localStorage.getItem('utforska-fraga'),
+    val: villUtforska, lage: utforskaFlaggor, tavla: document.getElementById('flaggtavla').hidden,
+    aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
+    karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'), hint: headerHint.textContent })`);
+  ok('flaggtavla: Flaggor i quizet ändrar inte Utforskas val', orord.quiz === 'flagga' && orord.utforska === null
+    && orord.val === 'land' && !orord.lage && orord.tavla && orord.aktiv === 'land' && orord.karta === 'synlig'
+    && orord.hint === 'Klicka på ett land', JSON.stringify(orord));
+  // Flaggor i Utforskas växel: tavlan och inga stadscirklar; valet sparas
+  // (och loggas) i 'utforska-fraga', quizens val står kvar
+  await fp.evaluate(`(() => { window.__kakor = []; const kak = window.kakSpara;
+    window.kakSpara = (n, p) => { window.__kakor.push([n, p]); kak?.(n, p); }; })()`);
+  await fp.click('#utforska-val [data-utforska="flagga"]');
+  await fp.waitForTimeout(300);
+  const utfVal = await fp.evaluate(`({ sparat: localStorage.getItem('utforska-fraga'), quiz: localStorage.getItem('quiz-fraga'),
+    lage: utforskaFlaggor, tavla: !document.getElementById('flaggtavla').hidden, stader: map.getFilter('stad-mal')[2][1].length,
+    stadLage: utforskStadLage(), aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
+    kaka: JSON.stringify(window.__kakor.find(k => k[0] === 'utforska_vald')) })`);
+  ok('flaggtavla: Flaggor i Utforska visar tavlan och inga stadscirklar', utfVal.sparat === 'flagga' && utfVal.quiz === 'flagga'
+    && utfVal.lage && utfVal.tavla && utfVal.stader === 0 && !utfVal.stadLage && utfVal.aktiv === 'flagga'
+    && /"fraga":"flagga"/.test(utfVal.kaka), JSON.stringify(utfVal));
+  // valet ligger kvar efter omladdning — och Utforska öppnar på tavlan
+  await laddaOm();
+  const utf = await fp.evaluate(`(async () => {
+    await laddaFlaggbilder();
+    const rutor = [...document.querySelectorAll('#flaggtavla .tavla-ruta')];
+    const namn = rutor.map(b => b.querySelector('.tavla-namn').textContent);
+    return { sparat: localStorage.getItem('utforska-fraga'), lage: utforskaFlaggor, quiz: flagglage,
+      tavla: !document.getElementById('flaggtavla').hidden, stader: map.getFilter('stad-mal')[2][1].length,
+      n: rutor.length, alfa: namn.join('|') === [...namn].sort((a, b) => a.localeCompare(b, 'sv')).join('|'),
+      namnOk: rutor.every(b => b.getAttribute('aria-label') === b.querySelector('.tavla-namn').textContent && b.textContent.trim()),
+      aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
+      hint: headerHint.textContent, karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
+      knappar: getComputedStyle(document.getElementById('explore-toggle-buttons')).display };
+  })()`);
+  ok("flaggtavla: 'utforska-fraga' = flagga ligger kvar efter omladdning", utf.sparat === 'flagga' && utf.lage && utf.tavla
+    && utf.aktiv === 'flagga' && utf.stader === 0, JSON.stringify(utf));
+  ok('flaggtavla: Utforska visar tavlan i bokstavsordning med namnen',
+    utf.lage && !utf.quiz && utf.tavla && utf.n === 13 && utf.alfa && utf.namnOk && utf.aktiv === 'flagga'
+    && utf.hint === 'Klicka på en flagga' && utf.karta === 'täckt' && utf.knappar === 'none', JSON.stringify(utf));
+  const brGid = await fp.evaluate("COUNTRIES.find(c => c.namnSv === 'Brasilien').gid");
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${brGid}"]`);
+  await fp.waitForTimeout(300);
+  const kort = await fp.evaluate(`(() => {
+    const r = document.getElementById('info-flagga');
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${brGid}"]');
+    const p = document.querySelector('#info-panel .info-panel-content').getBoundingClientRect();
+    return { kort: infoCard.classList.contains('active') && document.getElementById('info-name').textContent.includes('Brasilien'),
+      vis: r.style.display !== 'none' && r.offsetHeight > 0, flagga: !!r.querySelector('img.flagg-riktig[src*="assets/flaggor/br.svg"]'),
+      // Flaggan direkt under namnet, och i bild utan att skrolla
+      forst: document.getElementById('info-name').nextElementSibling === r && r.getBoundingClientRect().top < p.bottom - 200,
+      minne: !!r.querySelector('img.flagg-minnesbild'), text: r.textContent.includes('BRASILIENS'),
+      raknat: document.getElementById('explored-count').textContent, utforskad: utforskade.has(${brGid}),
+      bock: b.classList.contains('utforskad') && b.classList.contains('aktiv'),
+      stangHint: getComputedStyle(document.querySelector('#info-card .close-hint')).display };
+  })()`);
+  // ett klick till på samma flagga döljer inget (kortet står kvar)
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${brGid}"]`);
+  const kvar = await fp.evaluate(`({ kort: infoCard.classList.contains('active'), raknat: document.getElementById('explored-count').textContent,
+    avtackt: revealed.has(${brGid}) })`);
+  ok('flaggtavla: en flagga i Utforska öppnar landets kort och räknas som utforskad',
+    kort.kort && kort.vis && kort.flagga && kort.forst && kort.minne && kort.text && kort.raknat === '1' && kort.utforskad && kort.bock
+    && kort.stangHint === 'none' && kvar.kort && kvar.raknat === '1' && kvar.avtackt, JSON.stringify({ ...kort, kvar }));
+  // Länder i Utforska: tillbaka till globen, landet är avtäckt där och
+  // räknaren står kvar (Länder och Flaggor upptäcker samma länder); landets
+  // kort på globen har också Flaggan
+  await fp.click('#utforska-val [data-utforska="land"]');
+  const land = await fp.evaluate(`(async () => {
+    const r = { tavla: document.getElementById('flaggtavla').hidden, karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
+      knappar: getComputedStyle(document.getElementById('explore-toggle-buttons')).display,
+      sparat: localStorage.getItem('utforska-fraga'), quiz: localStorage.getItem('quiz-fraga'), lage: utforskaFlaggor, raknat: document.getElementById('explored-count').textContent,
+      avtackt: revealed.has(${brGid}) && !landState(${brGid}).tackt, hint: headerHint.textContent,
+      platshallare: document.querySelector('#info-default p').textContent,
+      // kartan är nåbar igen och har fått det som hände under tavlan
+      inert: document.getElementById('spel-map').inert || kartaTackt,
+      synkad: map.getFeatureState({ source: 'regioner', id: ${brGid} }).tackt === false,
+      flaggRutaHemma: !!document.getElementById('info-flagga').closest('.info-side') };
+    const ar = COUNTRIES.find(c => c.namnSv === 'Argentina');
+    exploreClick(ar, null);
+    r.kortFlagga = document.getElementById('info-flagga').style.display !== 'none'
+      && !!document.querySelector('#info-flagga img.flagg-riktig[src*="assets/flaggor/ar.svg"]');
+    return r;
+  })()`);
+  ok('flaggtavla: Länder i Utforska ger tillbaka globen',
+    land.tavla && land.karta === 'synlig' && land.knappar !== 'none' && land.sparat === 'land' && land.quiz === 'flagga' && !land.lage
+    && land.raknat === '1' && land.avtackt && land.hint === 'Klicka på ett land' && /på globen/.test(land.platshallare)
+    && land.kortFlagga && !land.inert && land.synkad && land.flaggRutaHemma, JSON.stringify(land));
+  // Flaggor → Huvudstäder: tavlan försvinner helt (globen är nåbar, inga
+  // kvarglömda täcken) och städerna är vita cirklar — ett nytt pass, som i v99
+  await fp.click('#utforska-val [data-utforska="flagga"]');
+  await fp.waitForTimeout(200);
+  await fp.click('#utforska-val [data-utforska="huvudstad"]');
+  await fp.waitForTimeout(300);
+  const stad = await fp.evaluate(`({ tavla: document.getElementById('flaggtavla').hidden,
+    tackt: kartaTackt || document.getElementById('map-panel').classList.contains('tavla-pa') || document.getElementById('spel-map').inert,
+    karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'), lage: utforskStadLage(), utf: utforskaFlaggor,
+    mal: map.getFilter('stad-mal')[2][1].length, prickar: map.getLayoutProperty('prickar', 'visibility'),
+    sparat: localStorage.getItem('utforska-fraga'), raknat: document.getElementById('explored-count').textContent,
+    avtackt: revealed.size, aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
+    hint: headerHint.textContent, knappar: getComputedStyle(document.getElementById('explore-toggle-buttons')).display })`);
+  ok('flaggtavla: Huvudstäder efter Flaggor visar stadscirklarna och ingen tavla', stad.tavla && !stad.tackt
+    && stad.karta === 'synlig' && stad.lage && !stad.utf && stad.mal === 13 && stad.prickar === 'none' && stad.sparat === 'huvudstad'
+    && stad.raknat === '0' && stad.avtackt === 0 && stad.aktiv === 'huvudstad' && /vit cirkel/.test(stad.hint)
+    && stad.knappar !== 'none', JSON.stringify(stad));
+  // Huvudstäder → Flaggor mitt i en ✨-blinkning med en upptäckt stad: allt
+  // det städas bort innan tavlan kommer (som v99:s byte Länder/Huvudstäder)
+  const stadad = await fp.evaluate(`(async () => {
+    const c = COUNTRIES.find(x => x.namnSv === 'Bolivia');
+    exploreClick(c, null);
+    await new Promise(r => setTimeout(r, 200));     // huvudstadDirty väntar en bildruta
+    const fore = revealed.has(c.gid) && map.getFilter('huvudstad-namn')[2][1].includes(c.gid);
+    document.getElementById('blink-kvar-btn').click();
+    await new Promise(r => setTimeout(r, 300));
+    const blinkar = blinkKvarTimer !== null;
+    document.querySelector('#utforska-val [data-utforska="flagga"]').click();
+    await new Promise(r => setTimeout(r, 300));
+    return { fore, blinkar, timer: blinkKvarTimer === null, avtackt: revealed.size, utforskade: utforskade.size,
+      raknat: document.getElementById('explored-count').textContent, kort: infoCard.classList.contains('active'),
+      tavla: !document.getElementById('flaggtavla').hidden, mal: map.getFilter('stad-mal')[2][1].length,
+      tips: COUNTRIES.filter(x => (map.getFeatureState({ source: 'huvudstader', id: x.gid }) || {}).tips).length,
+      gula: COUNTRIES.filter(x => landState(x.gid).tips).length, hint: headerHint.textContent };
+  })()`);
+  ok('flaggtavla: Flaggor efter Huvudstäder städar städernas läge', stadad.fore && stadad.blinkar && stadad.timer
+    && stadad.avtackt === 0 && stadad.utforskade === 0 && stadad.raknat === '0' && !stadad.kort && stadad.tavla
+    && stadad.mal === 0 && stadad.tips === 0 && stadad.gula === 0 && stadad.hint === 'Klicka på en flagga', JSON.stringify(stadad));
+  // och tillbaka till Länder: globen exakt som i Länder-läget
+  await fp.click('#utforska-val [data-utforska="land"]');
+  await fp.waitForTimeout(300);
+  const landIgen = await fp.evaluate(`({ tavla: document.getElementById('flaggtavla').hidden, karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
+    tackt: kartaTackt || document.getElementById('spel-map').inert, lage: utforskStadLage() || utforskaFlaggor,
+    mal: map.getFilter('stad-mal')[2][1].length, prickar: map.getLayoutProperty('prickar', 'visibility'),
+    sparat: localStorage.getItem('utforska-fraga'), ord: document.getElementById('utforsk-ord').textContent,
+    stang: document.getElementById('stang-ord').textContent, hint: headerHint.textContent,
+    tackta: COUNTRIES.every(c => landState(c.gid).tackt && map.getFeatureState({ source: 'regioner', id: c.gid }).tackt) })`);
+  ok('flaggtavla: Länder efter Huvudstäder och Flaggor ger globen som förut', landIgen.tavla && landIgen.karta === 'synlig'
+    && !landIgen.tackt && !landIgen.lage && landIgen.mal === 0 && landIgen.prickar === 'visible' && landIgen.sparat === 'land'
+    && landIgen.ord === 'länder' && landIgen.stang === 'landet' && landIgen.hint === 'Klicka på ett land' && landIgen.tackta,
+    JSON.stringify(landIgen));
+  // quizen: Utforskas Länder rörde inte quizens val (quizet öppnar på
+  // tavlan), och quizens egen Länder-knapp ger tillbaka globen — som förut
+  const quizLand = await fp.evaluate(`(() => {
+    switchMode('seterra', true);
+    const fore = flagglage && !document.getElementById('flaggtavla').hidden;
+    document.querySelector('#fraga-val [data-fraga="land"]').click();
+    return { fore, sparat: localStorage.getItem('quiz-fraga'), utforska: localStorage.getItem('utforska-fraga'),
+      key: HS_KEY, lage: flagglage, tavla: document.getElementById('flaggtavla').hidden,
+      karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name,
+      etikett: cursorLabel.textContent === seterraTarget.name && !cursorLabel.classList.contains('tavla-etikett'),
+      hitta: document.getElementById('hitta-ord').textContent, iQuiz: !!document.getElementById('fraga-val').closest('#seterra-ui') };
+  })()`);
+  ok('flaggtavla: Länder i quizet ger tillbaka globen', quizLand.fore && quizLand.sparat === 'land' && quizLand.utforska === 'land'
+    && quizLand.key === 'glob-sydamerika-highscores' && !quizLand.lage
+    && quizLand.tavla && quizLand.karta === 'synlig' && quizLand.fraga && quizLand.etikett && quizLand.hitta === 'Hitta detta land:'
+    && quizLand.iQuiz, JSON.stringify(quizLand));
+  // och ett riktigt klick på globen räknas som förut (Brasilien mitt i bild)
+  const pt = await fp.evaluate(`(async () => {
+    const br = COUNTRIES.find(c => c.namnSv === 'Brasilien');
+    seterraQueue = seterraQueue.filter(c => c !== br); seterraQueue.push(seterraTarget); seterraQueue.push(br); nextSeterraTarget();
+    map.jumpTo({ center: [-51, -10], zoom: 3 });
+    await new Promise(res => { map.once('idle', res); setTimeout(res, 8000); });
+    const p = map.project([-51, -10]), r = map.getCanvas().getBoundingClientRect();
+    return { x: r.left + p.x, y: r.top + p.y, ratt: seterraCorrect, gid: br.gid };
+  })()`);
+  await fp.mouse.move(pt.x - 30, pt.y - 20);
+  await fp.mouse.click(pt.x, pt.y);
+  await fp.waitForTimeout(300);
+  const kartKlick = await fp.evaluate(`({ ratt: seterraCorrect, nasta: seterraTarget && seterraTarget.gid !== ${pt.gid} })`);
+  ok('flaggtavla: efter Flaggor svarar ett klick på globen som förut', kartKlick.ratt === pt.ratt + 1 && kartKlick.nasta,
+    JSON.stringify({ pt, kartKlick }));
+  const lagerEfter = await fp.evaluate("map.getStyle().layers.length + '/' + Object.keys(map.getStyle().sources).length");
+  ok('flaggtavla: inga nya kartlager eller källor', lagerFore === lagerEfter, lagerFore + ' → ' + lagerEfter);
+  const tur = await fp.evaluate("SPEL_TOUR.map(s => s.text).find(t => /Flaggor/.test(t)) || ''");
+  ok('flaggtavla: rundturen beskriver tavlan', /tavla/.test(tur) && /rätt flagga/.test(tur), tur.slice(0, 120));
+  // Flaggor-steget pekar på samma knapp som Huvudstäder-steget (Klassiskt
+  // Quiz): texten handlar om quizen, inte om Utforskas Flaggor-knapp
+  const turEl = await fp.evaluate(`(() => {
+    const steg = t => SPEL_TOUR.find(s => s.text && t.test(s.text));
+    const hs = steg(/välja Huvudstäder/), fl = steg(/välj Flaggor/);
+    const quiz = document.querySelector('.mode-btn[data-mode="seterra"]');
+    return { hs: hs.el() === quiz, fl: fl.el() === quiz };
+  })()`);
+  ok('flaggtavla: rundturens Flaggor-steg pekar på Klassiskt Quiz som Huvudstäder-steget', turEl.hs && turEl.fl, JSON.stringify(turEl));
+  ok('flaggtavla: inga JS-fel', fFel.filter(e => !/firebase/i.test(e)).length === 0, fFel.join(' | ').slice(0, 160));
+  await fp.close();
+  // Hela världen: på väg ut ur en flaggregion (←) och in i världsvalet syns
+  // ingen gammal tavla och ingen växel; världsrundan får sin egen tavla.
+  // Tvillingflaggan på tavlan räknas inte som fel. Kartans utforska-tooltip
+  // ligger inte kvar över tavlan.
+  const wp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const wFel = [];
+  wp.on('pageerror', e => wFel.push(String(e)));
+  await wp.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','flagga'); localStorage.setItem('utforska-fraga','flagga')");
+  await wp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await wp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && COUNTRIES.length > 0", null, { timeout: 30000 });
+  await wp.waitForTimeout(300);
+  const tip = await wp.evaluate(`(() => {
+    const fore = !document.getElementById('flaggtavla').hidden;
+    document.querySelector('#utforska-val [data-utforska="land"]').click();
+    exploreClick(COUNTRIES[0], { clientX: 300, clientY: 300 });
+    const tt = cursorLabel.style.display === 'block' && cursorLabel.classList.contains('explore-tooltip');
+    document.querySelector('#utforska-val [data-utforska="flagga"]').click();
+    return { fore, tt, efter: cursorLabel.style.display === 'none' && !cursorLabel.classList.contains('explore-tooltip') };
+  })()`);
+  ok('flaggtavla: kartans tooltip ligger inte kvar över tavlan', tip.fore && tip.tt && tip.efter, JSON.stringify(tip));
+  await wp.click('#back-btn');
+  await wp.waitForTimeout(600);
+  await wp.evaluate("gaTillRegion('world')");
+  await wp.waitForTimeout(1200);
+  const val0 = await wp.evaluate(`({ tavla: document.getElementById('flaggtavla').hidden,
+    tackt: document.getElementById('map-panel').classList.contains('tavla-pa') || kartaTackt || document.getElementById('spel-map').inert,
+    vx: document.getElementById('utforska-val').style.display, fv: document.getElementById('fraga-val').style.display,
+    utf: utforskaFlaggor, slug: aktivSlug,
+    overlay: document.getElementById('world-setup-overlay').classList.contains('active'), hint: headerHint.textContent })`);
+  ok('flaggtavla: världsvalet efter en flaggregion visar globen, ingen tavla',
+    val0.tavla && !val0.tackt && val0.vx === 'none' && val0.fv === 'none' && !val0.utf && !val0.slug && val0.overlay && val0.hint === 'Klicka på ett land',
+    JSON.stringify(val0));
+  await wp.click('#world-start-btn');
+  await wp.waitForFunction("aktivSlug === 'world' && flagglage && document.querySelectorAll('#flaggtavla .tavla-ruta').length === COUNTRIES.length",
+    null, { timeout: 30000 }).catch(() => {});
+  const varld = await wp.evaluate("({ lage: flagglage, n: document.querySelectorAll('#flaggtavla .tavla-ruta').length, total: COUNTRIES.length, key: HS_KEY })");
+  ok('flaggtavla: världsrundan får sin tavla', varld.lage && varld.n === varld.total && varld.n > 0 && /^flagga-/.test(varld.key),
+    JSON.stringify(varld));
+  // en världsrunda med tvillingarna: frågan Monaco, klick på Indonesiens flagga
+  const tv = await wp.evaluate(`(async () => {
+    const lista = [];
+    for (const slug of WORLD_SLUGS) lista.push(...buildCountries(slug, await loadRegionConfig(slug)));
+    const ids = ['Indonesien', 'Monaco', 'Tchad', 'Rumänien', 'Sverige', 'Kenya'].map(n => lista.find(c => c.namnSv === n).gid);
+    await startWorld(ids.length, ids);
+    const mon = COUNTRIES.find(c => c.namnSv === 'Monaco');
+    seterraQueue = seterraQueue.filter(c => c !== mon); seterraQueue.push(seterraTarget); seterraQueue.push(mon); nextSeterraTarget();
+    return { n: document.querySelectorAll('#flaggtavla .tavla-ruta').length, t: seterraTarget.namnSv,
+      ind: COUNTRIES.find(c => c.namnSv === 'Indonesien').gid };
+  })()`);
+  await wp.click(`#flaggtavla .tavla-ruta[data-gid="${tv.ind}"]`);
+  const tv2 = await wp.evaluate(`({ fel: seterraWrong, t: seterraTarget.namnSv,
+    orange: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${tv.ind}"]').classList.contains('tvilling'),
+    text: seterraFeedback.textContent })`);
+  ok('flaggtavla: tvillingflaggan på tavlan räknas inte som fel', tv.n === 6 && tv.t === 'Monaco' && tv2.fel === 0
+    && tv2.t === 'Monaco' && tv2.orange && tv2.text.includes('Det där var Indonesiens flagga – nästan likadan som Monacos!'),
+    JSON.stringify({ tv, tv2 }));
+  ok('flaggtavla: inga JS-fel i världsrundan', wFel.filter(e => !/firebase/i.test(e)).length === 0, wFel.join(' | ').slice(0, 160));
+  await wp.close();
+  // Europa: England, Skottland och Wales har fått Jonas minnesbilder —
+  // ledtråden och rätt svar visar Englands, och landets kort har Flaggan.
+  // Utforskas växel har alla tre valen även här.
+  const ep = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await ep.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','flagga')");
+  await ep.goto(BASE + '/glob.html?region=europa', { waitUntil: 'domcontentloaded' });
+  await ep.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('europa') && COUNTRIES.length > 40", null, { timeout: 40000 });
+  const eu = await ep.evaluate(`(async () => {
+    document.getElementById('del-overlay')?.classList.remove('active');
+    const synliga = sel => [...document.querySelectorAll(sel)].filter(b => b.style.display !== 'none').map(b => b.textContent).join('|');
+    const utfKnappar = synliga('#utforska-val .fraga-btn');
+    switchMode('seterra', true);
+    await laddaFlaggbilder();
+    const knappar = synliga('#fraga-val .fraga-btn');
+    const tavla = document.getElementById('flaggtavla');
+    const eng = COUNTRIES.find(c => c.namnSv === 'England');
+    seterraQueue = seterraQueue.filter(c => c !== eng); seterraQueue.push(eng); nextSeterraTarget();
+    const hint = document.getElementById('seterra-hint');
+    const engBild = 'img.flagg-minnesbild[src^="assets/flaggbilder/england.webp"]';
+    const r = { utfKnappar, knappar, key: HS_KEY, lage: flagglage, n: tavla.querySelectorAll('.tavla-ruta').length, total: COUNTRIES.length,
+      // alla flaggor ryms på datorn: man ska se hela tavlan på en gång
+      ryms: tavla.scrollHeight <= tavla.clientHeight + 1,
+      knapp: seterraHintBtn.style.display !== 'none', ni: (FLAGGBILD.get('Nordirland') || {}).bild,
+      skWa: ['Skottland', 'Wales'].every(n => new RegExp('flaggbilder/' + n.toLowerCase() + '\\.webp')
+        .test(flaggMinneHtml(COUNTRIES.find(c => c.namnSv === n), true))) };
+    seterraHintBtn.click();
+    r.hint = hint.style.display !== 'none' && !!hint.querySelector(engBild) && hint.textContent.includes(FLAGGBILD.get('England').text);
+    tavla.querySelector('.tavla-ruta[data-gid="' + eng.gid + '"]').click();
+    r.ratt = !!seterraFeedback.querySelector(engBild)
+      && !!seterraFeedback.querySelector('.fb-flagg-titel img.fb-flagga[src="assets/flaggor/gbeng.svg"]');
+    r.tre = document.querySelector('#seterra-ui .info-header').classList.contains('tre-val');
+    switchMode('explore', true);
+    exploreClick(eng, null);
+    const ruta = document.getElementById('info-flagga');
+    r.kort = ruta.style.display !== 'none' && !!ruta.querySelector(engBild)
+      && !!ruta.querySelector('img.flagg-riktig[src="assets/flaggor/gbeng.svg"]');
+    return r;
+  })()`);
+  ok('flaggtavla: Europa ryms på datorn, England har sin minnesbild',
+    eu.knappar === 'Länder|Huvudstäder|Flaggor' && eu.utfKnappar === 'Länder|Huvudstäder|Flaggor' && eu.lage
+    && eu.key === 'flagga-glob-europa-highscores' && eu.n === eu.total && eu.ryms && eu.knapp && eu.hint && eu.ratt && eu.skWa
+    && eu.tre && eu.kort && /storbritannien\.webp$/.test(eu.ni || ''), JSON.stringify(eu));
+  // Bildquiz: svaret skrollar panelen, men rubrikraden (Klassiskt Quiz och
+  // växeln) står hel eller är helt bortskrollad, aldrig halvt kapad — och
+  // svaret syns helt under den fästa frågan
+  const rubrikSkroll = await ep.evaluate(`(async () => {
+    switchMode('bildquiz', true);
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const rulla = document.querySelector('#seterra-ui').closest('.info-panel-content');
+    const hdr = document.querySelector('#seterra-ui > .info-header');
+    const mal = document.querySelector('#seterra-game .seterra-target');
+    const lagen = [];
+    const mat = () => {
+      const p = rulla.getBoundingClientRect(), fb = seterraFeedback.getBoundingClientRect();
+      const kant = hdr.getBoundingClientRect().bottom - p.top + rulla.scrollTop;
+      const s = rulla.scrollTop, max = rulla.scrollHeight - rulla.clientHeight;
+      lagen.push({ s: Math.round(s), kant: Math.round(kant), max,
+        hel: s < 1 || s >= kant - 1 || max < kant,
+        svar: fb.top >= mal.getBoundingClientRect().bottom - 1 && fb.bottom <= p.bottom + 1 });
+    };
+    for (let i = 0; i < 6; i++) {
+      document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + seterraTarget.gid + '"]').click();
+      await vila(900);
+      mat();
+    }
+    return lagen;
+  })()`);
+  ok('flaggtavla: svaret kapar aldrig quizens rubrikrad (dator)',
+    rubrikSkroll.every(l => l.hel && l.svar) && rubrikSkroll.some(l => l.s > 0), JSON.stringify(rubrikSkroll));
+  await ep.close();
+  // USA: ingen växel och inga flagglistor, även med Flaggor valt — och
+  // flaggorna hämtas inte ens när man klickar på en delstat
+  const up = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const usaUrl = [];
+  up.on('request', r => usaUrl.push(r.url()));
+  await up.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','flagga'); localStorage.setItem('utforska-fraga','flagga')");
+  await up.goto(BASE + '/glob.html?region=usa', { waitUntil: 'domcontentloaded' });
+  await up.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('usa') && COUNTRIES.length >= 50",
+    null, { timeout: 60000 });
+  const usa = await up.evaluate(`(async () => {
+    const r = { utfVis: document.getElementById('utforska-val').style.display, utf: utforskaFlaggor,
+      utfTavla: document.getElementById('flaggtavla').hidden };
+    switchMode('seterra', true);
+    Object.assign(r, { vis: document.getElementById('fraga-val').style.display, lage: flagglage, key: HS_KEY,
+      fraga: document.getElementById('seterra-target-name').textContent === seterraTarget.name,
+      tre: document.querySelector('#seterra-ui .info-header').classList.contains('tre-val'),
+      tavla: document.getElementById('flaggtavla').hidden });
+    switchMode('explore', true);
+    exploreClick(COUNTRIES[0], null);
+    await new Promise(res => setTimeout(res, 300));
+    r.kort = document.getElementById('info-flagga').style.display;
+    return r;
+  })()`);
+  ok('flaggtavla: usa har ingen växel och ingen tavla', usa.vis === 'none' && usa.utfVis === 'none' && !usa.lage && !usa.utf
+    && usa.utfTavla && usa.tavla && usa.key === 'glob-usa-highscores' && usa.fraga && !usa.tre
+    && usa.kort === 'none' && !usaUrl.some(u => /flaggbilder|assets\/flaggor\//.test(u)), JSON.stringify(usa));
+  await up.close();
+  // engelska sajten: inget Flaggor-val, ingen tavla och ingen flaggbilder.json
+  const en = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const enUrl = [];
+  en.on('request', r => enUrl.push(r.url()));
+  await en.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga','flagga'); localStorage.setItem('utforska-fraga','flagga')");
+  await en.goto(BASE + '/glob.html?lang=en', { waitUntil: 'domcontentloaded' });
+  await en.waitForFunction("typeof aktivSlug !== 'undefined' && aktivSlug === 'usa' && COUNTRIES.length > 0",
+    null, { timeout: 60000 });
+  const eng = await en.evaluate(`(() => {
+    const r0 = { utfVis: document.getElementById('utforska-val').style.display, utfTavla: !document.getElementById('flaggtavla') && window.flaggtavla === null };
+    switchMode('seterra', true);
+    const h = document.querySelector('#seterra-ui .info-header');
+    const r = { ...r0, lang: SPRAK.lang, vis: document.getElementById('fraga-val').style.display, lage: flagglage,
+      key: HS_KEY, tavla: !document.getElementById('flaggtavla'),
+      // rubriken som förut: ingen tre-val-klass, samma storlek som utforska-panelens
+      tre: h.classList.contains('tre-val'), h2: getComputedStyle(h.querySelector('h2')).fontSize,
+      pad: getComputedStyle(h).paddingLeft };
+    switchMode('explore', true);
+    exploreClick(COUNTRIES[0], null);
+    r.kort = document.getElementById('info-flagga').style.display;
+    r.utfLage = utforskaFlaggor;
+    return r;
+  })()`);
+  ok('flaggtavla: engelska sajten har inget Flaggor-val', eng.lang === 'en' && eng.vis === 'none' && eng.utfVis === 'none'
+    && !eng.lage && !eng.utfLage && eng.tavla && eng.utfTavla
+    && !eng.key.includes('flagga') && eng.kort === 'none' && !enUrl.some(u => /flaggbilder|assets\/flaggor\//.test(u))
+    && !eng.tre && eng.h2 === '16px' && eng.pad === '24px',
+    JSON.stringify(eng));
+  await en.close();
+  // startsidan på mobilen: medaljerna packas i ordningen Länder,
+  // Huvudstäder, Flaggor utan luckor och når inte filmknappen
+  const mp = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await mp.addInitScript(INIT_LS + "; ['europa','afrika'].forEach(r => { localStorage.setItem('medalj-' + r, '100');"
+    + " localStorage.setItem('medalj-huvudstad-' + r, '95'); localStorage.setItem('medalj-flagga-' + r, '75'); });"
+    + " localStorage.setItem('medalj-flagga-asien', '100');");
+  await mp.goto(BASE + '/glob.html', { waitUntil: 'domcontentloaded' });
+  await mp.waitForFunction("document.body.classList.contains('startlage') && document.querySelector('.start-knappar .medalj-flagga')",
+    null, { timeout: 20000 });
+  const med = await mp.evaluate(() => {
+    const knapp = r => document.querySelector(`.start-knappar a[href="?region=${r}"]`);
+    const r = {};
+    for (const reg of ['europa', 'afrika', 'asien']) {
+      const a = knapp(reg);
+      const span = a.querySelector('.medalj-flagga');
+      const fl = span.getBoundingClientRect();
+      const vid = a.querySelector('.knapp-video').getBoundingClientRect();
+      // den lilla flaggan (::after) börjar vid 62 % och är ungefär 1,2 em bred
+      const hoger = fl.left + fl.width * 0.62 + parseFloat(getComputedStyle(span, '::after').fontSize) * 1.2;
+      r[reg] = { left: Math.round(fl.left - a.getBoundingClientRect().left), luft: Math.round(vid.left - hoger) };
+    }
+    r.tavla = getComputedStyle(document.getElementById('flaggtavla')).display;
+    return r;
+  });
+  ok('flaggtavla: medaljerna packas och når inte filmknappen (390 px)',
+    med.asien.left === -8 && ['europa', 'afrika', 'asien'].every(r => med[r].luft >= 0) && med.tavla === 'none', JSON.stringify(med));
+  await mp.close();
+  // mobilen (390 px): tavlan ligger ovanför bottenpanelen och skrollar, och
+  // landets namn står kvar i bild även när ledtråden skrollat panelen
+  const mq = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mFel = [];
+  mq.on('pageerror', e => mFel.push(String(e)));
+  await mq.addInitScript(INIT_LS + "; localStorage.setItem('quiz-fraga', 'flagga')");
+  await mq.goto(BASE + '/glob.html?region=europa', { waitUntil: 'domcontentloaded' });
+  await mq.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('europa') && COUNTRIES.length > 40", null, { timeout: 40000 });
+  // Utforskas växel med tre val ryms i rubrikraden bredvid rubriken, även
+  // på smala mobiler (344 px: Galaxy Z Folds yttre skärm, 320 px: minsta).
+  // Knapparna är låga, men en osynlig kant ovanför och under tar emot
+  // fingret (rubrikraden blir inte högre).
+  const RUBRIK_MAT = `(sel => {
+    const vx = document.querySelector(sel), h = vx.closest('.info-header'), h2 = h.querySelector('h2');
+    const vr = vx.getBoundingClientRect(), tr = h2.getBoundingClientRect(), hr = h.getBoundingClientRect();
+    const b = vx.querySelector('.fraga-btn.active'), br = b.getBoundingClientRect();
+    const traff = y => { const e = document.elementFromPoint(br.left + br.width / 2, y); return !!e && (e === b || b.contains(e)); };
+    return { knappar: [...vx.querySelectorAll('.fraga-btn')].filter(b => b.style.display !== 'none').map(b => b.textContent).join('|'),
+      rad: vr.top < tr.bottom && vr.left >= tr.right, inom: vr.right <= innerWidth - 8,
+      helRubrik: h2.scrollWidth <= h2.clientWidth, sidled: document.documentElement.scrollWidth <= innerWidth,
+      kant: traff(br.top - 5) && traff(br.bottom + 4) && br.top - 6 >= hr.top && br.bottom + 6 <= hr.bottom };
+  })`;
+  await mq.evaluate("document.getElementById('del-overlay')?.classList.remove('active')");
+  const mobVal = {};
+  for (const w of [390, 360, 344, 341, 320]) {
+    await mq.setViewportSize({ width: w, height: 844 });
+    await mq.waitForTimeout(200);
+    mobVal[w] = await mq.evaluate(RUBRIK_MAT + "('#utforska-val')");
+  }
+  await mq.setViewportSize({ width: 390, height: 844 });
+  await mq.waitForTimeout(200);
+  ok('flaggtavla: Utforskas tre val ryms i rubrikraden på mobilen (390, 360, 344, 341 och 320 px)',
+    Object.values(mobVal).every(v => v.knappar === 'Länder|Huvudstäder|Flaggor' && v.rad && v.inom && v.helRubrik && v.sidled && v.kant),
+    JSON.stringify(mobVal));
+  const mob = await mq.evaluate(`(async () => {
+    document.getElementById('del-overlay')?.classList.remove('active');
+    switchMode('seterra', true);
+    await laddaFlaggbilder();
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const synlig = el => {
+      const b = el.getBoundingClientRect();
+      const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      return !!e && (e === el || el.contains(e));
+    };
+    const tavla = document.getElementById('flaggtavla');
+    const panel = document.getElementById('info-panel').getBoundingClientRect();
+    const tb = tavla.getBoundingClientRect();
+    const h = Math.round(document.querySelector('#flaggtavla .tavla-flagga').getBoundingClientRect().height);
+    const r = { skrollar: tavla.scrollHeight > tavla.clientHeight + 20, ovanfor: tb.bottom <= panel.top + 1 && tb.top >= 0,
+      bredd: tb.left >= 0 && tb.right <= innerWidth, h, etikett: getComputedStyle(cursorLabel).display,
+      sidled: document.documentElement.scrollWidth <= innerWidth,
+      // panelen är högre i flaggläget (svaret med minnesbild och text)
+      panelH: Math.round(panel.height) > innerHeight * 0.36 };
+    tavla.scrollTop = 400;
+    await vila(100);
+    r.skrollat = tavla.scrollTop > 0;
+    // en fråga med minnesbild: namnet syns direkt (och i sidhuvudet, som
+    // syns på liggande mobil), sedan ett fel på tavlan och ledtråden
+    const i = seterraQueue.findIndex(c => flaggbildFor(c));
+    const k = seterraQueue.splice(i, 1)[0]; seterraQueue.unshift(seterraTarget); seterraQueue.push(k); nextSeterraTarget();
+    const fore = seterraTarget;
+    r.namnStart = synlig(document.getElementById('seterra-target-name'));
+    r.sidhuvud = headerHint.innerHTML === 'Klicka på flaggan för <b>' + escHtml(fore.name) + '</b>';
+    document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + COUNTRIES.find(c => c.gid !== fore.gid && flaggbildFor(c)).gid + '"]').click();
+    await vila(900);
+    const fb = seterraFeedback.getBoundingClientRect(), fast = document.querySelector('#seterra-game .seterra-target').getBoundingClientRect();
+    r.svarEfterFel = seterraWrong === 1 && fb.top >= fast.bottom - 1 && fb.top < document.getElementById('info-panel').getBoundingClientRect().bottom - 150;
+    r.knappEfterFel = synlig(seterraHintBtn) && synlig(document.getElementById('seterra-target-name'));
+    await vila(700);
+    seterraHintBtn.click();
+    await vila(1200);
+    r.ledtradSyns = synlig(document.getElementById('seterra-hint'));
+    r.namnEfterLedtrad = synlig(document.getElementById('seterra-target-name'))
+      && document.getElementById('seterra-target-name').textContent === fore.name;
+    document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + fore.gid + '"]').click();
+    await vila(400);
+    r.ny = !!seterraTarget && seterraTarget.gid !== fore.gid;
+    r.namnNasta = synlig(document.getElementById('seterra-target-name'));
+    return r;
+  })()`);
+  ok('flaggtavla: mobilen — tavlan skrollar ovanför panelen och namnet syns (390 px)',
+    mob.skrollar && mob.skrollat && mob.ovanfor && mob.bredd && mob.h >= 48 && mob.h <= 64 && mob.etikett === 'none' && mob.sidled
+    && mob.panelH && mob.namnStart && mob.sidhuvud && mob.svarEfterFel && mob.knappEfterFel
+    && mob.ledtradSyns && mob.namnEfterLedtrad && mob.ny && mob.namnNasta, JSON.stringify(mob));
+  // quizens växel (Klassiskt Quiz + tre val) på samma bredder; panelen
+  // skrollas upp så att rubrikraden syns
+  await mq.waitForTimeout(600);
+  await mq.evaluate("document.querySelector('#seterra-ui').closest('.info-panel-content').scrollTop = 0");
+  const mobQuiz = {};
+  for (const w of [390, 360, 344, 341, 320]) {
+    await mq.setViewportSize({ width: w, height: 844 });
+    await mq.waitForTimeout(200);
+    mobQuiz[w] = await mq.evaluate(RUBRIK_MAT + "('#fraga-val')");
+  }
+  await mq.setViewportSize({ width: 390, height: 844 });
+  ok('flaggtavla: quizens tre val ryms i rubrikraden på mobilen (390, 360, 344, 341 och 320 px)',
+    Object.values(mobQuiz).every(v => v.knappar === 'Länder|Huvudstäder|Flaggor' && v.rad && v.inom && v.helRubrik && v.sidled && v.kant),
+    JSON.stringify(mobQuiz));
+  ok('flaggtavla: inga JS-fel på mobilen', mFel.filter(e => !/firebase/i.test(e)).length === 0, mFel.join(' | ').slice(0, 160));
+  await mq.close();
+} catch (e) {
+  ok('flaggtavla: quizens växel har tre val (Länder, Huvudstäder, Flaggor)', false, String(e).slice(0, 200));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

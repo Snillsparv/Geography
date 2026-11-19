@@ -1,0 +1,49 @@
+Flaggorna i den här mappen (en SVG per kod i FLAGG_ISO i glob-spel.js)
+kommer från två källor:
+
+1. country-flag-icons (3x2), version 1.6.20
+   https://www.npmjs.com/package/country-flag-icons
+   https://gitlab.com/catamphetamine/country-flag-icons
+   MIT-licens, Copyright (c) 2020 @catamphetamine
+
+   Härifrån direkt: ad al at ba be bg by ca cy cz de dk ee es fi fr gb
+   gbeng gbsct gbwls (GB-ENG, GB-SCT, GB-WLS) gr hr hu ie in is jp li lt
+   lu lv mc md me mk mt ng nl no pl pt ro rs sa se si sk sm tr ua xk
+   Ur paketets 1x1-mapp (kvadratiska som de riktiga flaggorna): ch va
+
+2. Referensflaggorna som Jonas flaggbilder (assets/flaggbilder) ritades
+   efter, för de afrikanska, asiatiska, amerikanska och oceaniska länderna
+   (och it ru ge am az). Nästan alla är filer ur äldre versioner av samma
+   paket (country-flag-icons 1.4-1.6, MIT, ovan). Undantag:
+   - sy.svg: Syriens nya flagga från 2025 (grönt, vitt, svart, tre röda
+     stjärnor), ritad som enkla geometriska former
+   - it.svg: trikoloren som tre rektanglar
+   - af.svg: den svart-röd-gröna trikoloren (country-flag-icons före 1.6),
+     den flagga som Jonas bild föreställer
+   - np.svg: den vita bakgrunden borttagen och viewBox beskuren till
+     vimpeln, så att Nepals flagga har sin riktiga form
+
+Nordirland visar Storbritanniens flagga (gb.svg).
+
+The MIT License
+
+Copyright (c) 2020 @catamphetamine <purecatamphetamine@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
