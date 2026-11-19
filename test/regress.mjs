@@ -915,7 +915,9 @@ try {
     const c = aktivByGid.get(${rattGid});
     const fb = seterraFeedback;
     return { ratt: seterraCorrect, nasta: !!seterraTarget && seterraTarget.gid !== ${rattGid},
-      hittad: b.classList.contains('hittad') && b.getAttribute('aria-disabled') === 'true',
+      // en hittad flagga med minnesbild går att vända: en vanlig knapp
+      hittad: b.classList.contains('hittad') && b.classList.contains('vandbar') && !b.hasAttribute('aria-disabled')
+        && b.getAttribute('aria-pressed') === 'false' && b.getAttribute('aria-label') === c.name + ', hittad – visa minnesbilden',
       namn: b.querySelector('.tavla-namn').textContent === c.name && b.getAttribute('aria-label').startsWith(c.name),
       ram: getComputedStyle(b.querySelector('.tavla-kort')).boxShadow,
       bock: getComputedStyle(b, '::after').content,
@@ -930,9 +932,65 @@ try {
     && ratt.blek && ratt.text.includes('RÄTT!') && ratt.text.includes(ratt.cnamn) && ratt.flagga && ratt.minne && ratt.fragaNy
     && ratt.platt && ratt.statusRatt,
     JSON.stringify({ ...ratt, text: undefined }).slice(0, 240));
-  // en hittad flagga tar inga fler klick (aria-disabled: Playwright väntar
-  // annars på att knappen ska bli klickbar)
-  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`, { force: true });
+  // v101: en hittad flagga vänds vid varje klick — Klassiskt Quiz: den
+  // bleka flaggan → minnesbilden → den bleka flaggan → … — och det är aldrig
+  // ett svar: poäng, tid, räknare, svaret i panelen, frågan och spärren
+  // står kvar, och det låter bara ett mjukt klick. Vändningen går också med
+  // tangentbordet (Enter på knappen) och medan ett felklick spärrar.
+  const VAND_LAGE = `(gid => {
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + gid + '"]');
+    const kort = b.querySelector('.tavla-kort'), flagga = b.querySelector('.tavla-flagga');
+    const minnen = b.querySelectorAll('.tavla-minne'), m = minnen[0];
+    return { klass: b.className, vand: b.classList.contains('vand'), klar: b.classList.contains('vand-klar'),
+      i3d: b.classList.contains('minne'), pressed: b.getAttribute('aria-pressed'), label: b.getAttribute('aria-label'),
+      disabled: b.hasAttribute('aria-disabled'), minnen: minnen.length,
+      minneSyns: !!m && getComputedStyle(m).display !== 'none', minneData: !!m && m.src.startsWith('data:image/'),
+      flaggaSyns: getComputedStyle(flagga).display !== 'none', flaggaHel: +getComputedStyle(flagga).opacity === 1,
+      flaggaBlek: +getComputedStyle(flagga).opacity < 0.6, titel: b.title,
+      platt: getComputedStyle(kort).transformStyle === 'flat' && getComputedStyle(kort).transform === 'none',
+      ram: /46, 158, 68/.test(getComputedStyle(kort).boxShadow), bock: getComputedStyle(b, '::after').content.includes('✓'),
+      namn: b.querySelector('.tavla-namn').textContent, pekare: getComputedStyle(b).cursor };
+  })`;
+  const QUIZ_LAGE = `(() => ({ r: seterraCorrect, f: seterraWrong, t: seterraTarget && seterraTarget.gid, lock: seterraLocked,
+    poang: seterraScoreEl.textContent, fb: seterraFeedback.innerHTML.length, fram: seterraProgressLabel.textContent,
+    status: document.querySelector('#flaggtavla .tavla-status').textContent }))()`;
+  const vantaVila = (pg, gid, minne) => pg.waitForFunction(`(() => { const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${gid}"]');
+    return !b.classList.contains('minne') && b.classList.contains('vand') === ${minne} && b.classList.contains('vand-klar') === ${minne}; })()`,
+    null, { timeout: 8000 }).catch(() => {});
+  await fp.waitForTimeout(700);   // (rätt svar spärrar inte, men vänta ut allt)
+  await fp.evaluate("window.__ljud = []; window.__spela = spela; spela = t => { window.__ljud.push(t); }");
+  const kFore = await fp.evaluate(QUIZ_LAGE);
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`);
+  await vantaVila(fp, rattGid, true);
+  const kMinne = await fp.evaluate(VAND_LAGE + `(${rattGid})`);
+  const kMinneQ = await fp.evaluate(QUIZ_LAGE);
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`);
+  await vantaVila(fp, rattGid, false);
+  const kFlagga = await fp.evaluate(VAND_LAGE + `(${rattGid})`);
+  // tangentbordet: Enter på den hittade flaggan, mitt i ett felklicks spärr
+  await fp.evaluate('seterraLocked = true');
+  await fp.focus(`#flaggtavla .tavla-ruta[data-gid="${rattGid}"]`);
+  await fp.keyboard.press('Enter');
+  await vantaVila(fp, rattGid, true);
+  const kTangent = await fp.evaluate(VAND_LAGE + `(${rattGid})`);
+  const kEfter = await fp.evaluate(QUIZ_LAGE);
+  const ljud = await fp.evaluate('window.__ljud.join()');
+  await fp.evaluate('spela = window.__spela; seterraLocked = false; document.activeElement.blur()');
+  const rattNamn = await fp.evaluate(`aktivByGid.get(${rattGid}).name`);
+  const kSamma = q => q.r === kFore.r && q.f === kFore.f && q.t === kFore.t && q.poang === kFore.poang && q.fb === kFore.fb
+    && q.fram === kFore.fram && q.status.replace(/Tid \S+/, '') === kFore.status.replace(/Tid \S+/, '');
+  ok('flaggtavla: Klassiskt Quiz — en hittad flagga vänds till minnesbilden och tillbaka, utan att räknas',
+    kMinne.vand && kMinne.klar && kMinne.minneSyns && kMinne.minneData && !kMinne.flaggaSyns && kMinne.platt && kMinne.minnen === 1
+    && kMinne.pressed === 'true' && kMinne.label === rattNamn + ', hittad – visa flaggan' && kMinne.ram && kMinne.bock
+    && kMinne.namn === rattNamn && kMinne.pekare === 'pointer' && !kMinne.disabled
+    && !kFlagga.vand && !kFlagga.klar && !kFlagga.i3d && kFlagga.flaggaSyns && kFlagga.flaggaBlek && !kFlagga.minneSyns && kFlagga.platt
+    && kFlagga.minnen === 1 && kFlagga.pressed === 'false' && kFlagga.label === rattNamn + ', hittad – visa minnesbilden'
+    && kFlagga.ram && kFlagga.bock && kFlagga.namn === rattNamn && kFlagga.titel === rattNamn + ' – klicka för att vända'
+    && kSamma(kMinneQ) && !kMinneQ.lock && ljud === 'klick,klick,klick',
+    JSON.stringify({ kMinne, kFlagga, kFore, kMinneQ, ljud }).slice(0, 400));
+  ok('flaggtavla: Enter vänder en hittad flagga, även under felklickets spärr',
+    kTangent.vand && kTangent.klar && kTangent.minneSyns && kTangent.minnen === 1 && kTangent.pressed === 'true'
+    && kSamma(kEfter) && kEfter.lock === true, JSON.stringify({ kTangent, kEfter }).slice(0, 300));
   const igenKlick = await fp.evaluate('({ r: seterraCorrect, f: seterraWrong })');
   // tre missar på samma fråga: den rätta flaggan blinkar
   for (let i = 0; i < 3; i++) {
@@ -940,10 +998,10 @@ try {
     const g = await fp.evaluate("COUNTRIES.find(c => c.gid !== seterraTarget.gid && !revealed.has(c.gid)).gid");
     await fp.click(`#flaggtavla .tavla-ruta[data-gid="${g}"]`);
   }
-  const tips = await fp.evaluate(`(() => ({ missar: seterraTargetMisses,
+  const tips = await fp.evaluate(`(() => ({ missar: seterraTargetMisses, fel: seterraWrong,
     blink: document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + seterraTarget.gid + '"]').classList.contains('tips') }))()`);
   ok('flaggtavla: hittad flagga räknas inte igen, tre missar blinkar den rätta',
-    igenKlick.r === 1 && igenKlick.f === 1 && tips.missar === 3 && tips.blink, JSON.stringify({ igenKlick, tips }));
+    igenKlick.r === 1 && igenKlick.f === 1 && tips.missar === 3 && tips.fel === 4 && tips.blink, JSON.stringify({ igenKlick, tips }));
   // Indonesien/Monaco och Tchad/Rumänien har (nästan) samma flagga: ett
   // klick på tvillingen räknas inte som fel, och frågan står kvar
   const tvilling = await fp.evaluate(`(() => {
@@ -1048,6 +1106,50 @@ try {
     bild.lage && !bild.stad && bild.runda === 0 && bild.key === 'flagga-bild-glob-sydamerika-highscores' && bild.n === 13
     && bild.knapp === 'none' && bild.tavla && vand.vand && vand.src && vand.liten && vand.platt && vand.namn,
     JSON.stringify({ ...bild, ...vand }));
+  // v101: Bildquiz — ett klick på den hittade flaggan vänder fram flaggan
+  // (hel, inte blek) och ett till minnesbilden igen: samma lilla bild, som
+  // bara ritas en gång. Inget räknas, frågan står kvar.
+  await fp.evaluate(`document.querySelector('#flaggtavla .tavla-ruta[data-gid="${vandGid}"] .tavla-minne').__test = 1`);
+  const bFore = await fp.evaluate(QUIZ_LAGE);
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${vandGid}"]`);
+  await vantaVila(fp, vandGid, false);
+  const bFlagga = await fp.evaluate(VAND_LAGE + `(${vandGid})`);
+  const bFlaggaQ = await fp.evaluate(QUIZ_LAGE);
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${vandGid}"]`);
+  await vantaVila(fp, vandGid, true);
+  const bMinne = await fp.evaluate(VAND_LAGE + `(${vandGid})`);
+  const bMinneQ = await fp.evaluate(QUIZ_LAGE);
+  const sammaBild = await fp.evaluate(`document.querySelector('#flaggtavla .tavla-ruta[data-gid="${vandGid}"] .tavla-minne').__test === 1`);
+  const vandNamn = await fp.evaluate(`aktivByGid.get(${vandGid}).name`);
+  const bSamma = q => q.r === bFore.r && q.f === bFore.f && q.t === bFore.t && q.poang === bFore.poang && q.fb === bFore.fb
+    && q.fram === bFore.fram && !q.lock;
+  ok('flaggtavla: Bildquiz — en hittad flagga vänds till flaggan och tillbaka, utan att räknas',
+    !bFlagga.vand && bFlagga.flaggaSyns && bFlagga.flaggaHel && !bFlagga.minneSyns && bFlagga.platt && bFlagga.minnen === 1
+    && bFlagga.pressed === 'false' && bFlagga.label === vandNamn + ', hittad – visa minnesbilden' && bFlagga.ram && bFlagga.bock
+    && bFlagga.namn === vandNamn && bMinne.vand && bMinne.klar && bMinne.minneSyns && !bMinne.flaggaSyns && bMinne.platt
+    && bMinne.minnen === 1 && sammaBild && bMinne.pressed === 'true' && bMinne.label === vandNamn + ', hittad – visa flaggan'
+    && bMinne.ram && bMinne.bock && bSamma(bFlaggaQ) && bSamma(bMinneQ) && bFore.t !== vandGid,
+    JSON.stringify({ bFlagga, bMinne, sammaBild, bFore, bFlaggaQ }).slice(0, 400));
+  // en ohittad flagga svarar som förut: rätt flagga räknas och vänds
+  const nyGid = await fp.evaluate('seterraTarget.gid');
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${nyGid}"]`);
+  await vantaVila(fp, nyGid, true);
+  const nySvar = await fp.evaluate(`({ r: seterraCorrect, f: seterraWrong, nasta: !seterraTarget || seterraTarget.gid !== ${nyGid},
+    hittad: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${nyGid}"]').classList.contains('hittad') })`);
+  const nyVand = await fp.evaluate(VAND_LAGE + `(${nyGid})`);
+  ok('flaggtavla: en ohittad flagga svarar som förut (efter vändningarna)',
+    nySvar.r === bFore.r + 1 && nySvar.f === bFore.f && nySvar.nasta && nySvar.hittad && nyVand.vand && nyVand.klar,
+    JSON.stringify({ nySvar, nyVand: nyVand.klass }));
+  // Spela igen bygger en ny tavla: alla rutor på flaggan, inga vända
+  const omBygg = await fp.evaluate(`(() => {
+    const fore = document.querySelector('#flaggtavla .tavla-ruta');
+    document.getElementById('seterra-restart').click();
+    const rutor = [...document.querySelectorAll('#flaggtavla .tavla-ruta')];
+    return { ny: !rutor.includes(fore) && rutor.length === COUNTRIES.length, r: seterraCorrect,
+      orord: rutor.every(b => !b.querySelector('.tavla-minne') && !b.hasAttribute('aria-pressed')
+        && !/hittad|vandbar|vand|minne|flagga-igen/.test(b.className) && b.getAttribute('aria-label') === 'Flagga') };
+  })()`);
+  ok('flaggtavla: Spela igen börjar med alla flaggor ovända', omBygg.ny && omBygg.r === 0 && omBygg.orord, JSON.stringify(omBygg));
   // kompisutmaning: ingen växel och inget flaggläge i quizet, och Utforskas
   // växel har ingen Flaggor-knapp (även med Flaggor valt där)
   const utm = await fp.evaluate(`(() => {
@@ -1106,7 +1208,9 @@ try {
     return { sparat: localStorage.getItem('utforska-fraga'), lage: utforskaFlaggor, quiz: flagglage,
       tavla: !document.getElementById('flaggtavla').hidden, stader: map.getFilter('stad-mal')[2][1].length,
       n: rutor.length, alfa: namn.join('|') === [...namn].sort((a, b) => a.localeCompare(b, 'sv')).join('|'),
-      namnOk: rutor.every(b => b.getAttribute('aria-label') === b.querySelector('.tavla-namn').textContent && b.textContent.trim()),
+      // v101: knappen säger att ett klick visar minnesbilden (och vänder flaggan)
+      namnOk: rutor.every(b => b.getAttribute('aria-label') === b.querySelector('.tavla-namn').textContent + ' – visa minnesbilden'
+        && b.getAttribute('aria-pressed') === 'false' && b.classList.contains('vandbar') && b.textContent.trim()),
       aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
       hint: headerHint.textContent, karta: (getComputedStyle(document.getElementById('map-panel'), '::after').content === 'none' ? 'synlig' : 'täckt'),
       knappar: getComputedStyle(document.getElementById('explore-toggle-buttons')).display };
@@ -1119,6 +1223,8 @@ try {
   const brGid = await fp.evaluate("COUNTRIES.find(c => c.namnSv === 'Brasilien').gid");
   await fp.click(`#flaggtavla .tavla-ruta[data-gid="${brGid}"]`);
   await fp.waitForTimeout(300);
+  await vantaVila(fp, brGid, true);
+  const uVand = await fp.evaluate(VAND_LAGE + `(${brGid})`);
   const kort = await fp.evaluate(`(() => {
     const r = document.getElementById('info-flagga');
     const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${brGid}"]');
@@ -1132,13 +1238,32 @@ try {
       bock: b.classList.contains('utforskad') && b.classList.contains('aktiv'),
       stangHint: getComputedStyle(document.querySelector('#info-card .close-hint')).display };
   })()`);
-  // ett klick till på samma flagga döljer inget (kortet står kvar)
+  // v101: flera flaggor kan vara vända samtidigt (Chile också)
+  const clGid = await fp.evaluate("COUNTRIES.find(c => c.namnSv === 'Chile').gid");
+  await fp.click(`#flaggtavla .tavla-ruta[data-gid="${clGid}"]`);
+  await vantaVila(fp, clGid, true);
+  const tva = await fp.evaluate(`({ br: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${brGid}"]').classList.contains('vand-klar'),
+    cl: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${clGid}"]').classList.contains('vand-klar'),
+    raknat: document.getElementById('explored-count').textContent,
+    kortCl: document.getElementById('info-name').textContent.includes('Chile') })`);
+  // ett klick till på Brasilien döljer inget (kortet står kvar på landet)
+  // men vänder tillbaka till flaggan, och räknas inte igen
   await fp.click(`#flaggtavla .tavla-ruta[data-gid="${brGid}"]`);
+  await vantaVila(fp, brGid, false);
   const kvar = await fp.evaluate(`({ kort: infoCard.classList.contains('active'), raknat: document.getElementById('explored-count').textContent,
-    avtackt: revealed.has(${brGid}) })`);
+    avtackt: revealed.has(${brGid}), brKort: document.getElementById('info-name').textContent.includes('Brasilien'),
+    clVand: document.querySelector('#flaggtavla .tavla-ruta[data-gid="${clGid}"]').classList.contains('vand-klar') })`);
+  const uFlagga = await fp.evaluate(VAND_LAGE + `(${brGid})`);
   ok('flaggtavla: en flagga i Utforska öppnar landets kort och räknas som utforskad',
     kort.kort && kort.vis && kort.flagga && kort.forst && kort.minne && kort.text && kort.raknat === '1' && kort.utforskad && kort.bock
-    && kort.stangHint === 'none' && kvar.kort && kvar.raknat === '1' && kvar.avtackt, JSON.stringify({ ...kort, kvar }));
+    && kort.stangHint === 'none' && kvar.kort && kvar.raknat === '2' && kvar.avtackt && kvar.brKort, JSON.stringify({ ...kort, kvar }));
+  ok('flaggtavla: Utforska — klicket vänder flaggan till minnesbilden, nästa klick tillbaka, flera kan vara vända',
+    uVand.vand && uVand.klar && uVand.minneSyns && uVand.minneData && !uVand.flaggaSyns && uVand.platt && uVand.minnen === 1
+    && uVand.pressed === 'true' && uVand.label === 'Brasilien – visa flaggan' && uVand.namn === 'Brasilien'
+    && tva.br && tva.cl && tva.raknat === '2' && tva.kortCl
+    && !uFlagga.vand && !uFlagga.klar && uFlagga.flaggaSyns && !uFlagga.minneSyns && uFlagga.platt && uFlagga.minnen === 1
+    && uFlagga.pressed === 'false' && uFlagga.label === 'Brasilien – visa minnesbilden' && kvar.clVand,
+    JSON.stringify({ uVand, tva, uFlagga: uFlagga.klass, kvar }).slice(0, 400));
   // Länder i Utforska: tillbaka till globen, landet är avtäckt där och
   // räknaren står kvar (Länder och Flaggor upptäcker samma länder); landets
   // kort på globen har också Flaggan
@@ -1152,16 +1277,19 @@ try {
       // kartan är nåbar igen och har fått det som hände under tavlan
       inert: document.getElementById('spel-map').inert || kartaTackt,
       synkad: map.getFeatureState({ source: 'regioner', id: ${brGid} }).tackt === false,
-      flaggRutaHemma: !!document.getElementById('info-flagga').closest('.info-side') };
+      flaggRutaHemma: !!document.getElementById('info-flagga').closest('.info-side'),
+      // tavlan gick: Chile är vänd tillbaka till flaggan när den kommer igen
+      ovanda: [...document.querySelectorAll('#flaggtavla .tavla-ruta')].every(b => !/(^| )(vand|vand-klar|minne)( |$)/.test(b.className)
+        && b.getAttribute('aria-pressed') !== 'true') };
     const ar = COUNTRIES.find(c => c.namnSv === 'Argentina');
     exploreClick(ar, null);
     r.kortFlagga = document.getElementById('info-flagga').style.display !== 'none'
       && !!document.querySelector('#info-flagga img.flagg-riktig[src*="assets/flaggor/ar.svg"]');
     return r;
   })()`);
-  ok('flaggtavla: Länder i Utforska ger tillbaka globen',
+  ok('flaggtavla: Länder i Utforska ger tillbaka globen (och Utforskas vända flaggor vänds tillbaka)',
     land.tavla && land.karta === 'synlig' && land.knappar !== 'none' && land.sparat === 'land' && land.quiz === 'flagga' && !land.lage
-    && land.raknat === '1' && land.avtackt && land.hint === 'Klicka på ett land' && /på globen/.test(land.platshallare)
+    && land.raknat === '2' && land.avtackt && land.ovanda && land.hint === 'Klicka på ett land' && /på globen/.test(land.platshallare)
     && land.kortFlagga && !land.inert && land.synkad && land.flaggRutaHemma, JSON.stringify(land));
   // Flaggor → Huvudstäder: tavlan försvinner helt (globen är nåbar, inga
   // kvarglömda täcken) och städerna är vita cirklar — ett nytt pass, som i v99
@@ -1560,6 +1688,23 @@ try {
     mob.skrollar && mob.skrollat && mob.ovanfor && mob.bredd && mob.h >= 48 && mob.h <= 64 && mob.etikett === 'none' && mob.sidled
     && mob.panelH && mob.namnStart && mob.sidhuvud && mob.svarEfterFel && mob.knappEfterFel
     && mob.ledtradSyns && mob.namnEfterLedtrad && mob.ny && mob.namnNasta, JSON.stringify(mob));
+  // v101: pekskärmen — ett tryck på den hittade flaggan vänder den
+  // (Klassiskt Quiz: till minnesbilden) och ett till tillbaka, utan svar
+  const tGid = await mq.evaluate("document.querySelector('#flaggtavla .tavla-ruta.hittad.vandbar')?.dataset.gid");
+  await mq.waitForTimeout(700);   // (ett tryck strax efter svaret hör till svaret, som ett dubbeltryck)
+  const tFore = await mq.evaluate('({ r: seterraCorrect, f: seterraWrong, t: seterraTarget && seterraTarget.gid })');
+  await mq.tap(`#flaggtavla .tavla-ruta[data-gid="${tGid}"]`);
+  await vantaVila(mq, tGid, true);
+  const tMinne = await mq.evaluate(VAND_LAGE + `(${tGid})`);
+  await mq.waitForTimeout(100);
+  await mq.tap(`#flaggtavla .tavla-ruta[data-gid="${tGid}"]`);
+  await vantaVila(mq, tGid, false);
+  const tFlagga = await mq.evaluate(VAND_LAGE + `(${tGid})`);
+  const tEfter = await mq.evaluate('({ r: seterraCorrect, f: seterraWrong, t: seterraTarget && seterraTarget.gid })');
+  ok('flaggtavla: mobilen — ett tryck vänder en hittad flagga och ett till tillbaka',
+    !!tGid && tMinne.vand && tMinne.klar && tMinne.minneSyns && tMinne.pressed === 'true' && !tFlagga.vand && tFlagga.flaggaSyns
+    && !tFlagga.minneSyns && tFlagga.pressed === 'false' && tMinne.minnen === 1 && tFlagga.minnen === 1
+    && JSON.stringify(tFore) === JSON.stringify(tEfter), JSON.stringify({ tGid, tMinne: tMinne.klass, tFlagga: tFlagga.klass, tFore, tEfter }));
   // quizens växel (Klassiskt Quiz + tre val) på samma bredder; panelen
   // skrollas upp så att rubrikraden syns
   await mq.waitForTimeout(600);
@@ -1578,6 +1723,250 @@ try {
   await mq.close();
 } catch (e) {
   ok('flaggtavla: quizens växel har tre val (Länder, Huvudstäder, Flaggor)', false, String(e).slice(0, 200));
+}
+
+// ── v101: vändningen med riktiga övergångar ──
+// Ovan är tavlans övergångar avstängda; här går de som hos Jonas. Ett
+// dubbelklick eller dubbeltryck är ett klick: klicket som hittade flaggan
+// vänder inte tillbaka (Bildquiz behåller minnesbilden, som i v100), och
+// två snabba klick på en hittad flagga vänder den en gång. Ett klick mitt
+// i en vändning vänder tillbaka därifrån. Efteråt finns inget 3D-läge kvar
+// och en enda minnesbild per ruta. Klassiskt Quiz: den bleka flaggan är
+// blek medan den vänds bort och när den vänds tillbaka. Tipset om
+// vändningen, ↻ vid hovring, förritade minnesbilder, en tavla som växer,
+// klick innan flaggbilder.json kommit och en minnesbild som inte gick att
+// hämta.
+try {
+  const INIT_V = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const RUTA = gid => `#flaggtavla .tavla-ruta[data-gid="${gid}"]`;
+  const LAGE = `(gid => {
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + gid + '"]');
+    const f = b.querySelector('.tavla-flagga');
+    return { klass: b.className, vand: b.classList.contains('vand'), klar: b.classList.contains('vand-klar'),
+      i3d: b.classList.contains('minne') || b.classList.contains('direkt'), igen: b.classList.contains('flagga-igen'),
+      hittad: b.classList.contains('hittad'), pressed: b.getAttribute('aria-pressed'), label: b.getAttribute('aria-label'),
+      titel: b.title, minnen: b.querySelectorAll('.tavla-minne').length, op: +getComputedStyle(f).opacity,
+      vil: b.vilMinne, ikon: getComputedStyle(b.querySelector('.tavla-kort'), '::after').content };
+  })`;
+  // vänta tills rutan vilar på den sidan (en vändning tar 700 ms)
+  const vantaSida = (pg, gid, minne) => pg.waitForFunction(`(() => {
+    const b = document.querySelector('#flaggtavla .tavla-ruta[data-gid="${gid}"]');
+    return !b.classList.contains('minne') && b.classList.contains('vand') === ${minne} && b.classList.contains('vand-klar') === ${minne}; })()`,
+    null, { timeout: 8000 }).catch(() => {});
+  const TAVLA = `(() => { const rutor = [...document.querySelectorAll('#flaggtavla .tavla-ruta')];
+    return { kvar3d: rutor.filter(b => /(^| )(minne|direkt)( |$)/.test(b.className)).length,
+      dubbla: rutor.filter(b => b.querySelectorAll('.tavla-minne').length > 1).length,
+      osynk: rutor.filter(b => b.classList.contains('vandbar') && (b.getAttribute('aria-pressed') === 'true') !== b.classList.contains('vand')).length,
+      halv: rutor.filter(b => b.classList.contains('vand') !== b.classList.contains('vand-klar')).length }; })()`;
+  const RAKNARE = `({ r: seterraCorrect, f: seterraWrong, t: seterraTarget && seterraTarget.gid })`;
+  // nästa fråga är ett land med minnesbild
+  const MED_BILD = `(() => { if (!flaggbildFor(seterraTarget)) { const i = seterraQueue.findIndex(c => flaggbildFor(c));
+    const k = seterraQueue.splice(i, 1)[0]; seterraQueue.unshift(seterraTarget); seterraQueue.push(k); nextSeterraTarget(); }
+    return seterraTarget.gid; })()`;
+  const mitt = async (pg, gid) => { const r = await pg.locator(RUTA(gid)).boundingBox(); return [r.x + r.width / 2, r.y + r.height * 0.4]; };
+  const rp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const rFel = [];
+  rp.on('pageerror', e => rFel.push(String(e)));
+  await rp.addInitScript(INIT_V + "; localStorage.setItem('quiz-fraga','flagga')");
+  await rp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await rp.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && typeof HS_KEY === 'string' && HS_KEY.includes('sydamerika') && COUNTRIES.length > 0", null, { timeout: 30000 });
+  await rp.evaluate("(async () => { switchMode('bildquiz', true); await laddaFlaggbilder(); })()");
+  await rp.waitForTimeout(300);
+  // Bildquiz: ett dubbelklick på rätt flagga — svaret räknas en gång och
+  // minnesbilden står kvar (v101 vände tillbaka till den bleka flaggan)
+  const d1 = await rp.evaluate(MED_BILD);
+  const dFore = await rp.evaluate(RAKNARE);
+  const vinkFore = await rp.evaluate("document.querySelector('#flaggtavla .tavla-vink').classList.contains('syns')");
+  await rp.dblclick(RUTA(d1));
+  const vink = await rp.evaluate(`(() => { const v = document.querySelector('#flaggtavla .tavla-vink');
+    return { syns: v.classList.contains('syns'), text: v.textContent, pe: getComputedStyle(v).pointerEvents }; })()`);
+  await rp.waitForFunction(`document.querySelector('${RUTA(d1)}').classList.contains('vand-klar')`, null, { timeout: 8000 }).catch(() => {});
+  await rp.waitForTimeout(400);
+  const dEfter = await rp.evaluate(LAGE + `(${d1})`);
+  const dRakn = await rp.evaluate(RAKNARE);
+  ok('flaggvändning: dubbelklick på rätt flagga i Bildquiz — minnesbilden står kvar, svaret räknas en gång',
+    dEfter.vand && dEfter.klar && !dEfter.i3d && dEfter.pressed === 'true' && dEfter.minnen === 1
+    && dRakn.r === dFore.r + 1 && dRakn.f === dFore.f, JSON.stringify({ dEfter, dFore, dRakn }));
+  ok('flaggvändning: tipset om vändningen kommer när den första flaggan hittats',
+    !vinkFore && vink.syns && vink.text === 'Klicka på en hittad flagga för att vända den' && vink.pe === 'none', JSON.stringify({ vinkFore, vink }));
+  // ett andra klick 60 ms efter svaret hör också till svaret (dubbeltryck)
+  const d2 = await rp.evaluate(MED_BILD);
+  const [x2, y2] = await mitt(rp, d2);
+  await rp.mouse.move(x2, y2);
+  await rp.waitForTimeout(250);
+  const ikonOhittad = await rp.evaluate(LAGE + `(${d2})`);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(60);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForFunction(`document.querySelector('${RUTA(d2)}').classList.contains('vand-klar')`, null, { timeout: 8000 }).catch(() => {});
+  await rp.waitForTimeout(400);
+  const d2Efter = await rp.evaluate(LAGE + `(${d2})`);
+  const d2Rakn = await rp.evaluate(RAKNARE);
+  // ett klick efter en stund vänder fram flaggan (hel), utan att räknas
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(150);
+  await vantaSida(rp, d2, false);
+  const d2Flagga = await rp.evaluate(LAGE + `(${d2})`);
+  const vinkEfter = await rp.evaluate("document.querySelector('#flaggtavla .tavla-vink').classList.contains('syns')");
+  // två klick 150 ms isär (ett dubbelklick): en vändning, till minnesbilden
+  await rp.waitForTimeout(500);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(150);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(200);
+  await vantaSida(rp, d2, true);
+  const d2Dubbel = await rp.evaluate(LAGE + `(${d2})`);
+  // ett klick mitt i en vändning vänder tillbaka därifrån
+  await rp.waitForTimeout(500);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(450);
+  const iLuften = await rp.evaluate(LAGE + `(${d2})`);
+  await rp.mouse.click(x2, y2);
+  await rp.waitForTimeout(200);
+  await vantaSida(rp, d2, true);
+  const d2Tillbaka = await rp.evaluate(LAGE + `(${d2})`);
+  // många snabba klick: rutan kommer till vila på en sida, utan 3D-läge
+  await rp.waitForTimeout(500);
+  for (let i = 0; i < 7; i++) { await rp.mouse.click(x2, y2); await rp.waitForTimeout(90); }
+  await rp.waitForTimeout(1200);
+  const tavla1 = await rp.evaluate(TAVLA);
+  const d2Slut = await rp.evaluate(RAKNARE);
+  const d2Namn = await rp.evaluate(`aktivByGid.get(${d2}).name`);
+  ok('flaggvändning: Bildquiz — ett klick strax efter svaret vänder inte tillbaka, ett klick senare vänder fram flaggan (hel)',
+    d2Efter.vand && d2Efter.klar && d2Efter.minnen === 1 && d2Rakn.r === dRakn.r + 1 && d2Rakn.f === dRakn.f
+    && !d2Flagga.vand && !d2Flagga.i3d && d2Flagga.igen && d2Flagga.op === 1 && d2Flagga.pressed === 'false' && d2Flagga.minnen === 1
+    && d2Flagga.titel === d2Namn + ' – klicka för att vända' && !vinkEfter
+    && ikonOhittad.ikon === 'none' && d2Efter.ikon === '"↻"',
+    JSON.stringify({ d2Efter, d2Rakn, d2Flagga, vinkEfter, ikon: ikonOhittad.ikon }).slice(0, 500));
+  ok('flaggvändning: dubbelklick på en hittad flagga vänder en gång, ett klick mitt i vändningen vänder tillbaka',
+    d2Dubbel.vand && d2Dubbel.klar && d2Dubbel.pressed === 'true' && iLuften.i3d && !iLuften.vand
+    && d2Tillbaka.vand && d2Tillbaka.klar && !d2Tillbaka.i3d && d2Tillbaka.minnen === 1
+    && tavla1.kvar3d === 0 && tavla1.dubbla === 0 && tavla1.osynk === 0 && tavla1.halv === 0
+    && d2Slut.r === d2Rakn.r && d2Slut.f === d2Rakn.f && d2Slut.t === d2Rakn.t,
+    JSON.stringify({ d2Dubbel: d2Dubbel.klass, iLuften: iLuften.klass, d2Tillbaka: d2Tillbaka.klass, tavla1, d2Slut, d2Rakn }));
+  // Klassiskt Quiz: dubbelklick på rätt flagga vänder inte; minnesbilden
+  // ritas i förväg; den bleka flaggan är blek medan den vänds bort och när
+  // den vänds tillbaka (som de andra hittade). Tipset kommer inte igen.
+  await rp.evaluate("switchMode('seterra', true)");
+  await rp.waitForTimeout(300);
+  const k1 = await rp.evaluate(MED_BILD);
+  await rp.dblclick(RUTA(k1));
+  const kVink = await rp.evaluate("document.querySelector('#flaggtavla .tavla-vink').classList.contains('syns')");
+  await rp.waitForTimeout(900);
+  const kSvar = await rp.evaluate(LAGE + `(${k1})`);
+  await rp.waitForFunction(`!!document.querySelector('${RUTA(k1)} .tavla-minne')`, null, { timeout: 6000 }).catch(() => {});
+  const kForritad = await rp.evaluate(`!!document.querySelector('${RUTA(k1)} .tavla-minne')`);
+  await rp.click(RUTA(k1));
+  await rp.waitForTimeout(90);
+  const kBort = await rp.evaluate(LAGE + `(${k1})`);
+  await vantaSida(rp, k1, true);
+  const kMinne = await rp.evaluate(LAGE + `(${k1})`);
+  await rp.waitForTimeout(200);
+  await rp.click(RUTA(k1));
+  await rp.waitForTimeout(200);
+  await vantaSida(rp, k1, false);
+  const kTillbaka = await rp.evaluate(LAGE + `(${k1})`);
+  ok('flaggvändning: Klassiskt Quiz — dubbelklick vänder inte, minnesbilden förritad, flaggan blek åt båda hållen',
+    kSvar.hittad && !kSvar.vand && !kSvar.i3d && kSvar.op < 0.6 && kSvar.pressed === 'false' && !kVink && kForritad
+    && kBort.i3d && kBort.op < 0.6 && kMinne.vand && kMinne.klar && kMinne.minnen === 1
+    && !kTillbaka.vand && !kTillbaka.igen && kTillbaka.op < 0.6 && kTillbaka.pressed === 'false' && kTillbaka.minnen === 1,
+    JSON.stringify({ kSvar, kVink, kForritad, kBort: [kBort.klass, kBort.op], kMinne: kMinne.klass, kTillbaka: [kTillbaka.klass, kTillbaka.op] }).slice(0, 500));
+  // Utforska (mindre fönster): ett dubbelklick öppnar kortet, räknas en
+  // gång och vänder flaggan en gång; pekaren på en flagga ritar minnesbilden
+  // i förväg
+  await rp.setViewportSize({ width: 1000, height: 650 });
+  await rp.evaluate("switchMode('explore', true)");
+  await rp.click('#utforska-val [data-utforska="flagga"]');
+  await rp.waitForTimeout(400);
+  const u1 = await rp.evaluate("COUNTRIES.find(c => c.namnSv === 'Peru').gid");
+  const uFore = await rp.evaluate("document.getElementById('explored-count').textContent");
+  await rp.dblclick(RUTA(u1));
+  await rp.waitForFunction(`document.querySelector('${RUTA(u1)}').classList.contains('vand-klar')`, null, { timeout: 8000 }).catch(() => {});
+  await rp.waitForTimeout(400);
+  const uEfter = await rp.evaluate(LAGE + `(${u1})`);
+  const uKort = await rp.evaluate(`({ kort: infoCard.classList.contains('active') && document.getElementById('info-name').textContent.includes('Peru'),
+    raknat: document.getElementById('explored-count').textContent, utforskad: utforskade.has(${u1}) })`);
+  const u2 = await rp.evaluate("COUNTRIES.find(c => c.namnSv === 'Chile').gid");
+  const [ux, uy] = await mitt(rp, u2);
+  await rp.mouse.move(ux, uy);
+  await rp.waitForFunction(`!!document.querySelector('${RUTA(u2)} .tavla-minne')`, null, { timeout: 6000 }).catch(() => {});
+  const uForritad = await rp.evaluate(`({ minne: !!document.querySelector('${RUTA(u2)} .tavla-minne'), utforskad: utforskade.has(${u2}) })`);
+  ok('flaggvändning: Utforska — dubbelklick öppnar kortet, räknas en gång och vänder en gång',
+    uEfter.vand && uEfter.klar && uEfter.pressed === 'true' && uEfter.label === 'Peru – visa flaggan' && uEfter.minnen === 1
+    && uKort.kort && uKort.utforskad && +uKort.raknat === +uFore + 1, JSON.stringify({ uEfter: uEfter.klass, uKort, uFore }));
+  ok('flaggvändning: Utforska — pekaren på en flagga ritar minnesbilden i förväg (inget klick, inget räknat)',
+    uForritad.minne && !uForritad.utforskad, JSON.stringify(uForritad));
+  // en tavla som växer: minnesbilden som syns ritas om större (samma bild)
+  await rp.click(RUTA(u2));
+  await vantaSida(rp, u2, true);
+  const fore = await rp.evaluate(`(() => { const m = document.querySelector('${RUTA(u2)} .tavla-minne'); m.__test = 1;
+    return { w: m.naturalWidth, h: parseFloat(getComputedStyle(document.getElementById('flaggtavla')).getPropertyValue('--h')) }; })()`);
+  await rp.setViewportSize({ width: 1600, height: 1000 });
+  await rp.waitForFunction(`document.querySelector('${RUTA(u2)} .tavla-minne').naturalWidth > ${fore.w}`, null, { timeout: 8000 }).catch(() => {});
+  const efter = await rp.evaluate(`(() => { const b = document.querySelector('${RUTA(u2)}'), ms = b.querySelectorAll('.tavla-minne');
+    return { w: ms[0].naturalWidth, n: ms.length, samma: ms[0].__test === 1, kort: b.querySelector('.tavla-kort').getBoundingClientRect().width,
+      h: parseFloat(getComputedStyle(document.getElementById('flaggtavla')).getPropertyValue('--h')), klar: b.classList.contains('vand-klar') }; })()`);
+  ok('flaggvändning: en tavla som växer ritar om minnesbilden som syns',
+    efter.h > fore.h * 1.15 && efter.w > fore.w && efter.w >= Math.round(efter.kort) && efter.n === 1 && efter.samma && efter.klar,
+    JSON.stringify({ fore, efter }));
+  const tavla2 = await rp.evaluate(TAVLA);
+  ok('flaggvändning: inget 3D-läge eller dubbla minnesbilder kvar, inga JS-fel',
+    tavla2.kvar3d === 0 && tavla2.dubbla === 0 && tavla2.osynk === 0 && tavla2.halv === 0
+    && rFel.filter(e => !/firebase/i.test(e)).length === 0, JSON.stringify(tavla2) + ' ' + rFel.join(' | ').slice(0, 160));
+  await rp.close();
+  // Långsam uppkoppling (servicearbetaren av, så att vägarna nedan gäller):
+  // klick innan flaggbilder.json kommit räknas — ett klick vänder när den
+  // kommer, två är tillbaka på flaggan. En minnesbild som inte gick att
+  // hämta: nästa klick försöker igen och vänder (inget klick går förlorat).
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 750 }, serviceWorkers: 'block' });
+  const sp = await ctx.newPage();
+  const sFel = [];
+  sp.on('pageerror', e => sFel.push(String(e)));
+  let slapp;
+  const jsonVantar = new Promise(r => { slapp = r; });
+  await sp.route('**/assets/flaggbilder.json*', async route => { await jsonVantar; await route.continue(); });
+  let blockera = '';
+  await sp.route('**/assets/flaggbilder/**', route => (blockera && route.request().url().includes(blockera) ? route.abort() : route.continue()));
+  await sp.addInitScript(INIT_V + "; localStorage.setItem('utforska-fraga','flagga')");
+  await sp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await sp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && COUNTRIES.length > 0"
+    + " && document.querySelectorAll('#flaggtavla .tavla-ruta').length === COUNTRIES.length", null, { timeout: 30000 });
+  await sp.waitForTimeout(300);
+  const [ar, bo, cl] = await sp.evaluate("['Argentina', 'Bolivia', 'Chile'].map(n => COUNTRIES.find(c => c.namnSv === n).gid)");
+  const innan = await sp.evaluate(`({ tom: FLAGGBILD.size === 0, vandbar: document.querySelectorAll('#flaggtavla .tavla-ruta.vandbar').length })`);
+  await sp.click(RUTA(ar));
+  await sp.click(RUTA(bo));
+  await sp.waitForTimeout(500);
+  await sp.click(RUTA(bo));
+  await sp.waitForTimeout(300);
+  slapp();
+  await sp.waitForFunction(`FLAGGBILD.size > 0`, null, { timeout: 10000 }).catch(() => {});
+  await vantaSida(sp, ar, true);
+  await sp.waitForTimeout(800);
+  const vAr = await sp.evaluate(LAGE + `(${ar})`), vBo = await sp.evaluate(LAGE + `(${bo})`);
+  ok('flaggvändning: klick innan flaggbilder.json kommit räknas (ett: minnesbilden, två: flaggan)',
+    innan.tom && innan.vandbar === 0 && vAr.vand && vAr.klar && vAr.pressed === 'true'
+    && !vBo.vand && !vBo.i3d && vBo.pressed === 'false' && /vandbar/.test(vBo.klass),
+    JSON.stringify({ innan, vAr: vAr.klass, vBo: vBo.klass }));
+  blockera = await sp.evaluate("FLAGGBILD.get('Chile').bild.split('/').pop()");
+  await sp.click(RUTA(cl));
+  await sp.waitForTimeout(1200);
+  const misslyckad = await sp.evaluate(LAGE + `(${cl})`);
+  blockera = '';
+  await sp.waitForTimeout(300);
+  await sp.click(RUTA(cl));
+  await sp.waitForTimeout(200);
+  await vantaSida(sp, cl, true);
+  const igen = await sp.evaluate(LAGE + `(${cl})`);
+  ok('flaggvändning: en minnesbild som inte gick att hämta — nästa klick vänder',
+    !misslyckad.vand && !misslyckad.i3d && misslyckad.vil === false && misslyckad.minnen === 0
+    && igen.vand && igen.klar && igen.minnen === 1 && igen.pressed === 'true'
+    && sFel.filter(e => !/firebase/i.test(e)).length === 0,
+    JSON.stringify({ misslyckad: [misslyckad.klass, misslyckad.vil, misslyckad.minnen], igen: igen.klass, fel: sFel.slice(0, 2) }));
+  await ctx.close();
+} catch (e) {
+  ok('flaggvändning: med riktiga övergångar', false, String(e).slice(0, 200));
 }
 
 // ── v72: lärarsidan + lärarlänken på startsidan ──

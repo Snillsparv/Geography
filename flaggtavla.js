@@ -17,11 +17,23 @@
 //    blinkar den rätta. Rutorna heter bara "Flagga" för skärmläsare tills
 //    de hittats, och vid pekaren står "Klicka på Kina" (inte på pekskärm:
 //    där står namnet i sidhuvudet också, för liggande mobil).
+//    En hittad flagga vänds vid varje klick: minnesbilden ⇄ flaggan (v101).
+//    Det är aldrig ett svar: inget seterraClick, ingen poäng, inget felljud
+//    och ingen spärr — bara ett mjukt klick. Det går också när rundan är
+//    slut, tills tavlan byggs om. Ett land utan minnesbild vänds inte.
+//    Ett dubbelklick (dubbeltryck) är ett klick: klicket som hittade
+//    flaggan och ett klick till strax efter vänder inte tillbaka.
+//    När rundans första flagga hittats står ett tips om vändningen en
+//    stund på tavlan (tills man har vänt en hittad flagga en gång).
 //    Poäng, tid, rätt, fel och framstegen står överst på tavlan. Panelen
 //    har frågan (namnet och Visa ledtråd) fäst överst och svaret under.
 //  Utforska: flaggorna i bokstavsordning med namnet under. Ett klick öppnar
 //    landets kort (som börjar med rutan Flaggan) och räknas som utforskat —
-//    som ett klick på globen.
+//    som ett klick på globen — och vänder flaggan till minnesbilden; ett
+//    klick till vänder tillbaka (kortet står kvar på landet). Flera rutor
+//    kan vara vända samtidigt. Ett dubbelklick vänder en gång.
+//  En ny tavla (ny runda, region, Spela igen, annat läge) och en tavla som
+//  göms och visas igen börjar med alla rutor på sin vanliga sida.
 //
 // Globen ligger kvar laddad under tavlan, täckt (inte dold: en dold WebGL-duk
 // ritar om varje bildruta, se glob.html .tavla-pa), utan sina knappar, inert
@@ -35,7 +47,7 @@
 // git säger något — kör hela test/regress.mjs efter en ombasering:
 //   läge      COUNTRIES aktivByGid aktivSlug currentMode bildlage flagglage
 //             utforskaFlaggor kartaTackt tillstand map USA_GID revealed
-//             utforskade activeCountry
+//             utforskade activeCountry FLAGGBILD
 //   quizet    seterraTarget seterraLocked seterraCorrect seterraWrong
 //             seterraTargetMisses seterraClick
 //   element   cursorLabel headerHint infoCard infoName seterraFeedback
@@ -71,6 +83,13 @@ window.flaggtavla = (() => {
     + '<span class="ts ts-framsteg"><span class="ts-bar"><i></i></span><b>0 / 0</b></span>';
   const [sPoang, sTid, sRatt, sFel, sFram] = [...status.querySelectorAll('b')];
   const sBar = status.querySelector('.ts-bar i');
+  // tipset om vändningen, en stund under siffrorna (vinka). Skärmläsaren
+  // hör det på knappen i stället ("– visa minnesbilden").
+  const vink = document.createElement('div');
+  vink.className = 'tavla-vink';
+  vink.setAttribute('aria-hidden', 'true');
+  vink.textContent = 'Klicka på en hittad flagga för att vända den';
+  status.appendChild(vink);
   const rutnat = document.createElement('div');
   rutnat.className = 'tavla-rutnat';
   rutnat.setAttribute('role', 'group');
@@ -87,6 +106,15 @@ window.flaggtavla = (() => {
   let ordning = [];              // quizets blandade ordning (Öva på felaktiga återanvänder den)
   let egnaTexter = false;        // Utforska-texterna säger "flagga" (uppdateraUtforskStader)
   const rutor = new Map();       // gid → knapp
+  // Ett dubbelklick (dubbeltryck) är ett klick: en ruta vänds inte igen
+  // förrän så här länge efter förra vändningen, och klicket som hittade en
+  // flagga i quizet varar som Bildquizets belöningsvändning.
+  const OMVAND_MS = 400, SVAR_MS = 700;
+  let vinkat = false;            // tipset har visats den här rundan
+  let provat = false;            // en hittad flagga har vänts: då behövs inget tips
+  let vinkTid = 0;
+  const skarpKo = new Set();     // rutor vars minnesbild ska ritas om större (skarpa)
+  let skarpGar = false;
 
   const syns = () => (flagglage || utforskaFlaggor) && COUNTRIES.length > 0 && !!aktivSlug;
   const nyckel = (l, lista) => l + ':' + lista.map(c => c.gid).join(',');
@@ -107,6 +135,9 @@ window.flaggtavla = (() => {
                                           : 'Flaggorna: klicka på rätt flagga');
     rutnat.textContent = '';
     rutor.clear();
+    skarpKo.clear();
+    vinkat = false;
+    dolVink();
     for (const c of lista) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -125,10 +156,24 @@ window.flaggtavla = (() => {
     }
     namnMatt = utf ? matNamn(lista) : null;
     storlek();
+    // Utforska: varje flagga med en minnesbild går att vända (när
+    // flaggbilder.json kommit — tavlan kan ha byggts om under tiden)
+    if (utf) {
+      const nu = byggdFor;
+      laddaFlaggbilder().then(() => {
+        if (byggdFor !== nu) return;
+        for (const c of lista) {
+          const b = rutor.get(c.gid);
+          if (b && flaggbildFor(c)) gorVandbar(c, b);
+        }
+      });
+    }
   }
   function tom() {
     rutnat.textContent = '';
     rutor.clear();
+    skarpKo.clear();
+    dolVink();
     byggdFor = '';
     namnMatt = null;
   }
@@ -138,6 +183,9 @@ window.flaggtavla = (() => {
     const visa = syns();
     const utf = currentMode === 'explore';
     const quiz = visa && !utf;
+    // Utforskas vända flaggor vänds tillbaka när tavlan går (Länder,
+    // Huvudstäder, ett quiz): kommer den igen börjar alla på flaggan
+    if (!visa && !tavla.hidden && lage === 'utforska') vilaAlla();
     tavla.hidden = !visa;
     tavla.classList.toggle('quiz', quiz);
     panel.classList.toggle('tavla-pa', visa);
@@ -149,7 +197,10 @@ window.flaggtavla = (() => {
     flyttaFlaggRuta(visa && utf);
     // kartans utforska-tooltip (upp till 4 s) ska inte ligga kvar över tavlan
     if (visa && cursorLabel.classList.contains('explore-tooltip')) hideExploreTooltip();
-    if (!quiz) cursorLabel.classList.remove('tavla-etikett', 'utanfor');
+    if (!quiz) {
+      cursorLabel.classList.remove('tavla-etikett', 'utanfor');
+      dolVink();
+    }
     // Utforska: sidhuvudet och kortets platshållare talar om flaggor, och
     // tillbaka om länder eller städer när tavlan går (texterna står i
     // glob-spel.js uppdateraUtforskStader, som uppdateraOrdval anropar)
@@ -206,12 +257,60 @@ window.flaggtavla = (() => {
     if (!b || !rutnat.contains(b)) return;
     const c = aktivByGid.get(+b.dataset.gid);
     if (!c) return;
-    if (lage === 'utforska') utforskaKlick(c);
+    if (lage === 'utforska') utforskaKlick(c, b);
     else quizKlick(c, b);
   });
+  // Minnesbilden ritas i förväg när ett klick är på väg (pekaren stannar på
+  // en vändbar flagga, ett tryck börjar, tangentbordet når den), så att
+  // vändningen inte väntar på den stora bilden. (Klassiskt Quiz ritar
+  // dessutom när datorn har tid efter att flaggan hittats, se hittad.)
+  let pekRuta = null, pekTid = 0;
+  rutnat.addEventListener('pointerover', e => {
+    const b = e.target.closest('.tavla-ruta');
+    if (b === pekRuta) return;
+    pekRuta = b;
+    clearTimeout(pekTid);
+    if (b) pekTid = setTimeout(() => forladda(b), 150);
+  });
+  rutnat.addEventListener('pointerleave', () => { pekRuta = null; clearTimeout(pekTid); });
+  for (const typ of ['pointerdown', 'focusin']) {
+    rutnat.addEventListener(typ, e => {
+      const b = e.target.closest('.tavla-ruta');
+      if (b) forladda(b);
+    });
+  }
+  function forladda(b) {
+    if (!b.isConnected || !b.classList.contains('vandbar') || b.minneP) return;
+    const c = aktivByGid.get(+b.dataset.gid);
+    if (c) minnesbild(c, b);
+  }
+  const ledigt = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 300);
+
+  // Är klicket en ny vändning, eller resten av ett dubbelklick? (Klicket
+  // som hittade flaggan och klick på samma ruta tätare än OMVAND_MS.)
+  function nyVandning(b) {
+    const nu = performance.now();
+    if (nu - (b.hittadNar || -1e9) < SVAR_MS || nu - (b.vandNar || -1e9) < OMVAND_MS) return false;
+    b.vandNar = nu;
+    return true;
+  }
 
   function quizKlick(c, b) {
-    if (currentMode === 'explore' || !flagglage || !seterraTarget || seterraLocked || revealed.has(c.gid)) return;
+    if (currentMode === 'explore' || !flagglage) return;
+    // en hittad flagga vänds (minnesbilden ⇄ flaggan) och är aldrig ett
+    // svar: före spärren och frågan, så att det går mitt i ett felklicks
+    // spärr och när rundan är slut. Utan minnesbild händer inget, och
+    // resten av ett dubbelklick (det som hittade den) vänder inte tillbaka:
+    // då försvann Bildquizets minnesbild direkt.
+    if (b.classList.contains('hittad')) {
+      if (b.classList.contains('vandbar') && nyVandning(b)) {
+        provat = true;
+        dolVink();
+        vand(c, b, !b.vilMinne, true);
+      }
+      return;
+    }
+    if (!seterraTarget || seterraLocked || revealed.has(c.gid)) return;
     const fragan = seterraTarget, ratt = seterraCorrect, fel = seterraWrong;
     seterraClick(c);                   // poäng, ljud, panelen, nästa fråga
     visaRuta(seterraFeedback);
@@ -230,51 +329,190 @@ window.flaggtavla = (() => {
   function hittad(c, b) {
     b.classList.remove('fel', 'tips', 'tvilling');
     b.classList.add('hittad');
+    // tills den visat sig gå att vända (gorVandbar): en ruta utan
+    // minnesbild tar inga fler klick
     b.setAttribute('aria-disabled', 'true');
     b.setAttribute('aria-label', c.name + ', hittad');
     b.querySelector('.tavla-namn').textContent = c.name;
     b.title = c.name;
-    if (bildlage) vand(c, b);
+    b.hittadNar = performance.now();
+    laddaFlaggbilder().then(() => {
+      if (!b.isConnected || !flaggbildFor(c)) return;
+      gorVandbar(c, b);
+      vinka();
+      if (!bildlage) ledigt(() => forladda(b));
+    });
+    if (bildlage) vand(c, b, true);
   }
 
-  // Bildquiz: den hittade flaggan vänds till Jonas minnesbild, så tavlan
-  // fylls med hans teckningar (som konsten på globen). Utan minnesbild (ett
-  // land som saknar en, eller innan flaggbilder.json laddat) bleknar den bara.
-  // Bilden är 800×450 men rutan några tiotal pixlar: den ritas ner till
-  // rutans storlek och blir en liten egen bild, så att en hel världsrunda
-  // inte håller hundratals stora avkodade bilder i minnet. (En canvas
-  // direkt i rutan blir ett eget GPU-lager per ruta.) 3D-läget finns bara
-  // under själva vändningen: sedan är rutan platt igen.
-  function vand(c, b) {
-    laddaFlaggbilder().then(() => {
+  // Första gången i en runda som en hittad flagga går att vända: ett tips
+  // på tavlan en stund (också på pekskärmen, som inte har någon hovring).
+  // Har man vänt en hittad flagga en gång behövs det inte mer.
+  function vinka() {
+    if (vinkat || provat || lage !== 'quiz') return;
+    vinkat = true;
+    vink.classList.add('syns');
+    clearTimeout(vinkTid);
+    vinkTid = setTimeout(dolVink, 5000);
+  }
+  function dolVink() {
+    clearTimeout(vinkTid);
+    vink.classList.remove('syns');
+  }
+
+  // ── vändningen: flaggan ⇄ Jonas minnesbild ──
+  // Bildquiz vänder den hittade flaggan till minnesbilden, så tavlan fylls
+  // med hans teckningar (som konsten på globen). Sedan vänds en hittad
+  // flagga vid varje klick (Klassiskt Quiz: från den bleka flaggan, och
+  // tillbaka till den bleka), och i Utforska vid varje klick på flaggan.
+  // Utan minnesbild (ett land som saknar en, eller innan flaggbilder.json
+  // laddat) vänds inget.
+  //   .vandbar     rutan går att vända (pekare, hovring, aria-pressed)
+  //   .vand        minnesbilden är den sida som visas (eller vänds fram)
+  //   .minne       3D-läget, bara medan vändningen pågår: annars får varje
+  //                ruta ett eget GPU-lager (en världsrunda har 202)
+  //   .vand-klar   i vila med minnesbilden: platt, utan flaggan
+  //   .flagga-igen Bildquiz: flaggan har vänts fram igen, hel och inte blek
+  //                (den är det man vill se där)
+  //   .direkt      ett ögonblick utan övergångar (in i 3D-läget utan ryck)
+  // b.vilMinne är sidan som senast begärdes: ett klick begär den andra,
+  // också medan bilden laddar eller rutan vänds (vändningen går då
+  // tillbaka därifrån den är).
+  function gorVandbar(c, b) {
+    if (b.classList.contains('vandbar')) return;
+    b.classList.add('vandbar');
+    b.removeAttribute('aria-disabled');
+    etikett(c, b);
+  }
+  // skärmläsaren: knappen säger vad ett klick gör, aria-pressed vilken sida
+  // som visas. (I quizet säger en ohittad ruta fortfarande bara "Flagga".)
+  // Med musen säger en hittad flagga att den går att vända.
+  function etikett(c, b) {
+    if (!c || !b.classList.contains('vandbar')) return;
+    const minne = b.classList.contains('vand'), hittad = b.classList.contains('hittad');
+    b.setAttribute('aria-pressed', minne ? 'true' : 'false');
+    b.setAttribute('aria-label', c.name + (hittad ? ', hittad' : '')
+      + (minne ? ' – visa flaggan' : ' – visa minnesbilden'));
+    if (hittad) b.title = c.name + ' – klicka för att vända';
+  }
+  // ljud: quizets mjuka klick, när vändningen börjar (Utforska har sitt eget)
+  function vand(c, b, tillMinne, ljud) {
+    b.vilMinne = tillMinne;
+    minnesbild(c, b).then(bild => {
+      if (!b.isConnected || b.vilMinne !== tillMinne) return;
+      // ingen bild (gick inte att hämta, tavlan gömdes): rutan står kvar,
+      // och nästa klick ska begära den andra sidan än den som syns
+      if (!bild) { b.vilMinne = b.classList.contains('vand'); return; }
+      if (ljud) spela('klick');
+      snurra(c, b, tillMinne);
+      if (tillMinne) skarpa(b);
+    });
+  }
+  // Själva vändningen, lika åt båda hållen: 3D-läget slås på utan att något
+  // syns hoppa (samma sida som nu), och nästa bildruta vrids kortet.
+  function snurra(c, b, tillMinne) {
+    clearTimeout(b.vandTid);
+    cancelAnimationFrame(b.vandRaf);
+    if (!b.classList.contains('minne')) {
+      if (b.classList.contains('vand') === tillMinne) return etikett(c, b);
+      b.classList.add('direkt', 'minne');
+      b.classList.remove('vand-klar');
+      void b.firstChild.offsetWidth;
+      b.classList.remove('direkt');
+    }
+    if (!tillMinne && lage === 'quiz' && bildlage) b.classList.add('flagga-igen');
+    b.vandRaf = requestAnimationFrame(() => {
+      b.classList.toggle('vand', tillMinne);
+      etikett(c, b);
+      b.vandTid = setTimeout(() => {
+        b.classList.toggle('vand-klar', tillMinne);
+        b.classList.remove('minne');
+      }, 700);
+    });
+  }
+  // tillbaka till flaggan direkt, utan vändning (tavlan gömdes, passet nollades)
+  function vila(c, b) {
+    clearTimeout(b.vandTid);
+    cancelAnimationFrame(b.vandRaf);
+    b.vilMinne = false;
+    b.vantar = false;
+    b.classList.remove('minne', 'vand', 'vand-klar', 'flagga-igen');
+    etikett(c, b);
+  }
+  function vilaAlla() {
+    for (const [gid, b] of rutor) if (b.vilMinne || b.vantar || b.classList.contains('vand')) vila(aktivByGid.get(gid), b);
+  }
+  // Minnesbilden ritas en gång per ruta och sparas i den (ligger dold när
+  // flaggan visas). Bilden är 800×450 men rutan några tiotal pixlar: den
+  // ritas ner till rutans storlek och blir en liten egen bild, så att en
+  // hel världsrunda inte håller hundratals stora avkodade bilder i minnet.
+  // (En canvas direkt i rutan blir ett eget GPU-lager per ruta.) Den läggs
+  // i rutan först när den är avkodad: vänds aldrig till en tom baksida.
+  // Gick laddningen fel försöker nästa klick igen.
+  function minnesbild(c, b) {
+    if (b.minneP) return b.minneP;
+    const igen = () => { if (b.minneP === p) b.minneP = null; return null; };
+    const p = b.minneP = laddaFlaggbilder().then(() => {
       const fb = flaggbildFor(c);
-      if (!fb || !b.isConnected || b.querySelector('.tavla-minne')) return;
-      const stor = new Image();
-      stor.src = flaggbildSrc(fb);
-      // vänd när bilden finns — inte till en tom baksida
-      stor.decode().then(() => {
-        if (!b.isConnected || !b.classList.contains('hittad') || b.querySelector('.tavla-minne')) return;
-        const kort = b.querySelector('.tavla-kort');
+      if (!fb) return FLAGGBILD.size ? null : igen();
+      return ritaNer(fb, b).then(ner => {
+        if (!ner) return igen();                                     // tavlan gömdes under tiden
         const bild = new Image();
         bild.className = 'tavla-minne';
         bild.alt = '';
         bild.draggable = false;
         bild.dataset.bild = flaggbildSrc(fb);
-        bild.src = nedskalad(stor, kort);
+        bild.src = ner.src;
         return bild.decode().then(() => {
-          if (!b.isConnected || b.querySelector('.tavla-minne')) return;
-          b.classList.add('minne');
-          kort.appendChild(bild);
-          requestAnimationFrame(() => {
-            b.classList.add('vand');
-            setTimeout(() => {
-              b.classList.add('vand-klar');
-              b.classList.remove('minne');
-            }, 700);
-          });
+          if (!b.isConnected) return null;
+          b.querySelector('.tavla-kort').appendChild(bild);
+          b.minneH = ner.h;
+          return bild;
         });
-      }).catch(() => {});
+      });
+    }).catch(igen);
+    return p;
+  }
+  // den stora bilden, nerritad till rutans storlek nu: { src, h } (rutans
+  // höjd), eller null när rutan inte syns
+  function ritaNer(fb, b) {
+    const stor = new Image();
+    stor.src = flaggbildSrc(fb);
+    return stor.decode().then(() => {
+      const kort = b.querySelector('.tavla-kort');
+      if (!b.isConnected || kort.offsetWidth < 4) return null;
+      return { src: nedskalad(stor, kort), h: kort.offsetHeight };
     });
+  }
+  // Tavlan har växt (fönstret, en vriden mobil, panelen): en minnesbild som
+  // ritats för en mindre ruta blir suddig. Den ritas om när den visas, en
+  // ruta i taget när det finns tid; den gamla syns tills den nya är klar.
+  function skarpa(b, h = b.querySelector('.tavla-kort').offsetHeight) {
+    if (!b.minneH || h <= b.minneH * 1.15) return;
+    skarpKo.add(b);
+    if (!skarpGar) {
+      skarpGar = true;
+      ledigt(skarpNasta);
+    }
+  }
+  function skarpNasta() {
+    const b = skarpKo.values().next().value;
+    if (!b) { skarpGar = false; return; }
+    skarpKo.delete(b);
+    const c = aktivByGid.get(+b.dataset.gid), fb = c && flaggbildFor(c);
+    const bild = b.querySelector('.tavla-minne');
+    const kort = b.querySelector('.tavla-kort');
+    const klar = () => ledigt(skarpNasta);
+    if (!fb || !bild || !b.isConnected || !b.classList.contains('vand') || kort.offsetHeight <= b.minneH * 1.15) return klar();
+    ritaNer(fb, b).then(ner => {
+      if (!ner) return;
+      const ny = new Image();
+      ny.src = ner.src;
+      return ny.decode().then(() => {
+        bild.src = ner.src;
+        b.minneH = ner.h;
+      });
+    }).catch(() => {}).then(klar);
   }
   // minnesbilden i rutans storlek (×2 för skarpa skärmar), som data-URL
   function nedskalad(img, kort) {
@@ -332,22 +570,48 @@ window.flaggtavla = (() => {
   // Utforska: som ett klick på globen — landet avtäcks (även på globen) och
   // räknas som utforskat. Ett klick till döljer inget, kortet visas igen.
   // Kortet börjar med Flaggan (flyttaFlaggRuta), och panelen visas från
-  // början så att det är det man ser.
-  function utforskaKlick(c) {
+  // början så att det är det man ser. Flaggan vänds till minnesbilden, och
+  // tillbaka vid nästa klick (kortet visar landet ändå). Det andra klicket
+  // i ett dubbelklick visar kortet som förut men vänder inte tillbaka.
+  function utforskaKlick(c, b) {
     if (currentMode !== 'explore') return;
+    const vanda = nyVandning(b);
     if (revealed.has(c.gid)) { spela('klick'); showInfoCard(c); }
     else exploreClick(c, null);
     synka();
+    if (vanda) {
+      if (b.classList.contains('vandbar')) vand(c, b, !b.vilMinne);
+      else vantaPaBilder(c, b);
+    }
     const rulla = infoCard.closest('.info-panel-content');
     if (rulla) rulla.scrollTop = 0;
   }
+  // flaggbilder.json hade inte kommit (eller gick inte att läsa förut):
+  // vänd när den finns, om landet har en minnesbild. Klicken medan man
+  // väntar räknas: två klick är tillbaka på flaggan.
+  function vantaPaBilder(c, b) {
+    b.vantar = !b.vantar;
+    if (b.vantarP) return;
+    b.vantarP = laddaFlaggbilder().then(() => {
+      b.vantarP = null;
+      const vill = b.vantar;
+      b.vantar = false;
+      if (!b.isConnected || !flaggbildFor(c)) return;
+      gorVandbar(c, b);
+      if (vill && !tavla.hidden && utforskade.has(c.gid)) vand(c, b, true);
+    });
+  }
 
+  // Utforskas bockar och kortets blå ram. Ett nytt pass (Utforska igen,
+  // Huvudstäder och tillbaka) vänder också flaggorna tillbaka.
   function synka() {
     if (lage !== 'utforska') return;
     const kort = infoCard.classList.contains('active');
     for (const [gid, b] of rutor) {
-      b.classList.toggle('utforskad', utforskade.has(gid));
+      const utforskad = utforskade.has(gid);
+      b.classList.toggle('utforskad', utforskad);
       b.classList.toggle('aktiv', kort && activeCountry === gid);
+      if (!utforskad && (b.vilMinne || b.vantar || b.classList.contains('vand'))) vila(aktivByGid.get(gid), b);
     }
   }
 
@@ -520,6 +784,8 @@ window.flaggtavla = (() => {
     tavla.style.setProperty('--px', m.px + 'px');
     tavla.style.setProperty('--pt', m.pt + 'px');
     tavla.style.setProperty('--pb', m.pb + 'px');
+    // en större tavla: minnesbilderna som syns ritas om (skarpa)
+    for (const b of rutor.values()) if (b.minneH && b.classList.contains('vand')) skarpa(b, m.h);
     if (utf && namnMatt) {
       for (const nm of namnMatt) {
         const b = rutor.get(nm.gid), s = skalaFor(nm, m.W, m.namn);

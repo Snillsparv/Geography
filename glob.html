@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=100">
+  <link rel="stylesheet" href="style.css?v=101">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=100"></script>
+  <script src="sprak.js?v=101"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -611,6 +611,7 @@
       .tavla-rutnat { padding: var(--pt, 12px) var(--px, 10px) var(--pb, 22px); }
       .tavla-status { gap: 3px 12px; padding: 6px 10px; font-size: .72rem; }
       .ts-bar { width: 56px; height: 6px; }
+      #flaggtavla .tavla-vink { font-size: .74rem; padding: 5px 12px; }
     }
     /* nederkanten tonar ut när fler flaggor finns längre ner */
     .tavla-mer { flex: none; position: sticky; bottom: 0; height: 34px; margin-top: -34px;
@@ -619,6 +620,17 @@
     #flaggtavla.mer-under .tavla-mer { opacity: 1; }
     .tavla-mer::after { content: '▾'; position: absolute; left: 50%; bottom: 2px;
       transform: translateX(-50%); color: #7d8896; font-size: 1.1rem; line-height: 1; }
+    /* tipset om vändningen (flaggtavla.js vinka): en stund under siffrorna,
+       ovanpå flaggorna men utan att ta klicken */
+    .tavla-vink { position: absolute; top: calc(100% + 8px); left: 50%; width: max-content;
+      max-width: calc(100% - 24px); padding: 6px 14px; border-radius: 999px;
+      background: rgba(31, 42, 55, .9); color: #fff; font-size: .82rem; font-weight: 700;
+      text-align: center; pointer-events: none; box-shadow: 0 3px 12px rgba(0, 0, 0, .25);
+      opacity: 0; visibility: hidden; transform: translate(-50%, -6px);
+      transition: opacity .25s, transform .25s, visibility 0s linear .25s; }
+    .tavla-vink::before { content: '↻ '; }
+    .tavla-vink.syns { opacity: 1; visibility: visible; transform: translate(-50%, 0);
+      transition: opacity .25s, transform .25s; }
     /* rutan: flaggan (fast höjd, bredd efter formen) och namnet under */
     .tavla-ruta { position: relative; display: flex; flex-direction: column; align-items: center;
       width: calc(var(--h) * 1.5); padding: 0; border: 0; background: none; color: inherit;
@@ -651,27 +663,49 @@
       .tavla-ruta:not(.hittad):hover .tavla-kort { box-shadow: 0 0 0 1px rgba(20, 30, 45, .25),
         0 9px 18px rgba(20, 30, 45, .28); }
       .tavla-ruta.vimpel:not(.hittad):hover .tavla-kort { box-shadow: none; }
+      /* en hittad flagga som går att vända: en lugnare hovring, ramen kvar */
+      .tavla-ruta.hittad.vandbar:hover { transform: translateY(-2px); }
+      .tavla-ruta.hittad.vandbar:hover .tavla-kort { box-shadow: 0 0 0 3px #2e9e44,
+        0 7px 14px rgba(20, 30, 45, .26); }
+      .tavla-ruta.vandbar:not(.minne):hover .tavla-kort::after { content: '↻'; }
     }
-    /* rätt: grön ram och ✓, flaggan bleknar (Bildquiz: vänds till minnesbilden) */
-    .tavla-ruta.hittad { cursor: default; }
+    /* ↻ i hörnet: den här flaggan går att vända (hovring och tangentbordet) */
+    .tavla-ruta.vandbar:not(.minne):focus-visible .tavla-kort::after { content: '↻'; }
+    .tavla-kort::after { position: absolute; z-index: 1; left: -7px; bottom: -7px; display: grid;
+      place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #fff;
+      color: #1f2a37; font-size: 13px; font-weight: 900; line-height: 1; pointer-events: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+    /* rätt: grön ram och ✓, flaggan bleknar (Bildquiz: vänds till
+       minnesbilden). Ett klick vänder den (flaggtavla.js): Klassiskt Quiz
+       vänder tillbaka till den bleka flaggan, Bildquiz till den hela
+       (.flagga-igen). Den bleka bleknar inte upp medan den vänds bort.
+       Utan minnesbild tar den inga klick. */
+    .tavla-ruta.hittad:not(.vandbar) { cursor: default; }
     .tavla-ruta.hittad .tavla-kort { box-shadow: 0 0 0 3px #2e9e44, 0 2px 6px rgba(20, 30, 45, .2); }
-    .tavla-ruta.hittad:not(.vand) .tavla-flagga { opacity: .4; filter: saturate(.55); }
+    .tavla-ruta.hittad:not(.flagga-igen) .tavla-flagga { opacity: .4; filter: saturate(.55); }
     .tavla-ruta.hittad::after, #flaggtavla.utforska .tavla-ruta.utforskad::after {
       content: '✓'; position: absolute; z-index: 1; top: -8px; right: -8px;
       display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
       background: #2e9e44; color: #fff; font-size: 13px; font-weight: 900; line-height: 1;
       box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
-    /* Bildquiz: vändningen. 3D bara medan den pågår (.minne): annars får
-       varje ruta ett eget GPU-lager. Efteråt (.vand-klar) är rutan platt igen
-       med bara minnesbilden. */
+    /* Vändningen, åt båda hållen (flaggtavla.js snurra). 3D bara medan den
+       pågår (.minne): annars får varje ruta ett eget GPU-lager. I vila är
+       rutan platt: med minnesbilden (.vand-klar) utan flaggan, och med
+       flaggan ligger den sparade minnesbilden dold. .direkt: in i 3D-läget
+       utan att något hinner glida; under vändningen byter flaggan blekhet
+       direkt (Bildquiz: den hela kommer fram medan den är bortvänd). */
     .tavla-ruta.minne .tavla-kort { transform-style: preserve-3d; }
     .tavla-ruta.minne .tavla-flagga, .tavla-ruta.minne .tavla-minne {
       backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     .tavla-minne { transform: rotateY(180deg); background: #fff; }
+    .tavla-ruta:not(.minne):not(.vand-klar) .tavla-minne { display: none; }
     .tavla-ruta.vand .tavla-kort { transform: rotateY(180deg); }
     .tavla-ruta.vand-klar .tavla-kort { transform: none; transition: box-shadow .2s; }
     .tavla-ruta.vand-klar .tavla-flagga { display: none; }
     .tavla-ruta.vand-klar .tavla-minne { transform: none; }
+    #flaggtavla .tavla-ruta.direkt .tavla-kort,
+    #flaggtavla .tavla-ruta.direkt .tavla-flagga,
+    #flaggtavla .tavla-ruta.minne .tavla-flagga { transition: none; }
     /* Utforska: utforskad = en liten bock, kortet som visas = blå ram */
     #flaggtavla.utforska .tavla-ruta.utforskad::after { top: -6px; right: -6px; width: 17px;
       height: 17px; font-size: 10px; background: rgba(46, 158, 68, .85); }
@@ -690,7 +724,7 @@
     @keyframes tavla-tips {
       50% { box-shadow: 0 0 0 5px #ffdc32, 0 0 22px 6px rgba(255, 210, 40, .85); } }
     @media (prefers-reduced-motion: reduce) {
-      .tavla-kort, .tavla-ruta { transition: none; }
+      .tavla-kort, .tavla-ruta, .tavla-vink, .tavla-vink.syns { transition: none; }
       #flaggtavla .tavla-ruta.fel .tavla-kort { animation: none; }
     }
     /* "Klicka på Kina" vid pekaren: en vit lapp som på Seterra, snett
@@ -1475,10 +1509,10 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=100"></script>
-<script src="glob-spel.js?v=100"></script>
+<script src="kakor.js?v=101"></script>
+<script src="glob-spel.js?v=101"></script>
 <!-- flaggtavlan (Flaggor på svenska sajten); använder glob-spel.js globaler -->
-<script src="flaggtavla.js?v=100"></script>
+<script src="flaggtavla.js?v=101"></script>
 
 </body>
 </html>
