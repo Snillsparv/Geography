@@ -1549,9 +1549,22 @@ try {
         hel: s < 1 || s >= kant - 1 || max < kant,
         svar: fb.top >= mal.getBoundingClientRect().bottom - 1 && fb.bottom <= p.bottom + 1 });
     };
+    // den mjuka skrollningen kan gå långsamt på en upptagen dator: mät
+    // först när scrollTop stått still två bildrutor i rad (högst 2 s till)
+    const bildruta = () => new Promise(r => requestAnimationFrame(() => r()));
+    const stilla = async () => {
+      const slut = performance.now() + 2000;
+      let fore = rulla.scrollTop, lika = 0;
+      while (lika < 2 && performance.now() < slut) {
+        await bildruta();
+        lika = rulla.scrollTop === fore ? lika + 1 : 0;
+        fore = rulla.scrollTop;
+      }
+    };
     for (let i = 0; i < 6; i++) {
       document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + seterraTarget.gid + '"]').click();
       await vila(900);
+      await stilla();
       mat();
     }
     return lagen;
@@ -2040,7 +2053,10 @@ try {
   await gg.waitForTimeout(150);
   const pekar = await gg.evaluate(`!!map.getFeatureState({ source: 'huvudstader', id: ${lima.gid} }).hover`);
   await gg.mouse.click(lima.x, lima.y);
-  await gg.waitForTimeout(1200);       // namnrutan placeras vid nästa bildruta
+  // namnrutan placeras vid en senare bildruta — på en upptagen dator kan det
+  // dröja ett par sekunder: vänta på den i stället för en fast tid
+  await gg.waitForFunction("map.queryRenderedFeatures({ layers: ['stad-etikett'] }).some(f => f.properties.namn === 'Lima')",
+    null, { timeout: 8000 }).catch(() => {});
   const upp = await gg.evaluate(`({ avt: revealed.has(${lima.gid}), tackt: !!landState(${lima.gid}).tackt,
     etikett: map.getFilter('stad-etikett')[2][1], bild: map.hasImage('etikett-vit'),
     ritad: map.queryRenderedFeatures({ layers: ['stad-etikett'] }).map(f => f.properties.namn) })`);
@@ -2056,7 +2072,11 @@ try {
     await gg.evaluate(`(() => { const p = stadPunkt.get(${lima.gid}); map.jumpTo({ center: [p.lng, p.lat], zoom: ${z} });
       map.setLayoutProperty('stad-etikett', 'text-variable-anchor-offset', ${JSON.stringify(allaLagen.slice(i, i + 2))}); })()`);
     await gg.waitForTimeout(450);
-    if (!(await gg.evaluate(`map.queryRenderedFeatures({ layers: ['stad-etikett'] }).length`))) lagen.push(z + ':' + allaLagen[i]);
+    // (ett läge som krockar ritas aldrig; ett som går kan dröja på en
+    // upptagen dator — vänta då upp till 4 s till på det)
+    const ritad = await gg.waitForFunction("map.queryRenderedFeatures({ layers: ['stad-etikett'] }).length > 0",
+      null, { timeout: 4000 }).then(() => true, () => false);
+    if (!ritad) lagen.push(z + ':' + allaLagen[i]);
   }
   await gg.evaluate(`map.setLayoutProperty('stad-etikett', 'text-variable-anchor-offset', ${JSON.stringify(allaLagen)});
     map.jumpTo(${JSON.stringify(kamera)})`);
@@ -2233,6 +2253,32 @@ try {
   // Flaggor igen (bilderna på): tavlan börjar ovänd, vändningen fungerar;
   // tillbaka i Länder är bara det upptäckta landet avtäckt
   const flIgen = await vaxla('flagga');
+  // Flaggor → Huvudstäder direkt: det enda bytet där sattUtforskBilder()
+  // körs medan tavlan ännu täcker kartan (kartaTackt). setLand sparar då
+  // bara tillståndet, och tavlan lägger på det när globen syns igen
+  // (tackKartan) — både tillståndet och det globen ritar ska stämma, med
+  // bilderna på (alla avtäckta) och av (alla täckta). Chile upptäcks först
+  // i Flaggor, så att det nya passet syns.
+  const clFl = await vandFlagga(cl, true);
+  const flChile = await lage();
+  const hsFranFl = await vaxla('huvudstad');
+  await hf.click('#utforsk-bilder-btn');
+  await vaxla('flagga');
+  const hsFranFlAv = await vaxla('huvudstad');
+  await hf.click('#utforsk-bilder-btn');
+  const flIgen2 = await vaxla('flagga');
+  ok('v103: Flaggor → Huvudstäder: nytt pass, landbilderna följer knappen (på och av) på globen',
+    clFl.klar && flChile.raknat === '1' && flChile.rev === 'Chile'
+    && hsFranFl.stad && !hsFranFl.tavla && !hsFranFl.tacktKarta && hsFranFl.rad !== 'none' && hsFranFl.bilder
+    && hsFranFl.knapp.endsWith('Dölj landbilder') && hsFranFl.tackt === 0 && hsFranFl.ritadTackt === 0
+    && hsFranFl.raknat === '0' && hsFranFl.rev === '' && hsFranFl.utforskade === 0 && hsFranFl.kort === ''
+    && hsFranFl.etikett === 0 && hsFranFl.mal === hsFranFl.n
+    && hsFranFlAv.stad && !hsFranFlAv.bilder && hsFranFlAv.knapp.endsWith('Visa landbilder') && hsFranFlAv.rad !== 'none'
+    && hsFranFlAv.tackt === hsFranFlAv.n && hsFranFlAv.ritadTackt === hsFranFlAv.n && hsFranFlAv.raknat === '0'
+    && hsFranFlAv.mal === hsFranFlAv.n
+    && flIgen2.tavla && flIgen2.bilder && flIgen2.vanda === 0 && flIgen2.bockar === 0 && flIgen2.tackt === flIgen2.n
+    && flIgen2.raknat === '0', JSON.stringify({ clFl, flChile: [flChile.raknat, flChile.rev], hsFranFl,
+      av: [hsFranFlAv.bilder, hsFranFlAv.tackt, hsFranFlAv.ritadTackt, hsFranFlAv.knapp], flIgen2: [flIgen2.vanda, flIgen2.tackt, flIgen2.raknat] }));
   const brIgen = await vandFlagga(br, true);
   const brIgenTillbaka = await vandFlagga(br, false);
   const flEfter = await lage();
