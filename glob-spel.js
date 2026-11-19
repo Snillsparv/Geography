@@ -365,7 +365,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '102';
+const V = '104';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2903,7 +2903,7 @@ function uppdateraUtforskStader() {
   }
   if (!villStader || !utforskStaderKan()) return;
   const p = document.querySelector('#info-default p');
-  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>på globen för att<br>upptäcka huvudstaden!';
+  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>för att upptäcka huvudstaden!';
   const uo = document.getElementById('utforsk-ord');
   if (uo) uo.textContent = 'huvudstäder';
   const so = document.getElementById('stang-ord');
