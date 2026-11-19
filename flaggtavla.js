@@ -51,8 +51,8 @@
 //   quizet    seterraTarget seterraLocked seterraCorrect seterraWrong
 //             seterraTargetMisses seterraClick
 //   element   cursorLabel headerHint infoCard infoName seterraFeedback
-//             seterraHintBox seterraScoreEl seterraTimeEl seterraCorrectEl
-//             seterraWrongEl seterraProgressLabel seterraBar
+//             seterraHintBox seterraTargetName seterraScoreEl seterraTimeEl
+//             seterraCorrectEl seterraWrongEl seterraProgressLabel seterraBar
 //   funktioner exploreClick showInfoCard hideExploreTooltip spela shuffle
 //             escHtml uppdateraOrdval uppdateraQuizTexter flaggKod flaggSrc
 //             FLAGG_FORM flaggTvilling laddaFlaggbilder flaggbildFor
@@ -200,6 +200,7 @@ window.flaggtavla = (() => {
     if (!quiz) {
       cursorLabel.classList.remove('tavla-etikett', 'utanfor');
       dolVink();
+      satLuft(0);
     }
     // Utforska: sidhuvudet och kortets platshållare talar om flaggor, och
     // tillbaka om länder eller städer när tavlan går (texterna står i
@@ -228,6 +229,7 @@ window.flaggtavla = (() => {
   function nyRunda(retry) {
     if (!flagglage) return;
     if (!retry || lage !== 'quiz' || !sammaLander()) ordning = shuffle([...COUNTRIES]);
+    satLuft(0);
     bygg(ordning, 'quiz');
     uppdatera();
     // "Klicka på …" syns först när pekaren är över tavlan
@@ -235,13 +237,27 @@ window.flaggtavla = (() => {
   }
 
   // nästa fråga: "Klicka på Kina" vid pekaren (vit som på Seterra). Panelen
-  // har redan namnet (nextSeterraTarget).
+  // har redan namnet (nextSeterraTarget). Utan pekaretikett står samma text
+  // i sidhuvudet: "Klicka på flaggan för …" bröt raden i v104:s fasta tips
+  // (340 px) på en platta på tvären (Demokratiska Republiken Kongo).
   function fraga() {
     if (!flagglage || !seterraTarget) return;
     if (!rutor.size) nyRunda();          // (en runda som startats förbi nyRunda)
     cursorLabel.classList.add('tavla-etikett');
-    cursorLabel.innerHTML = `Klicka på <b>${escHtml(seterraTarget.name)}</b>`;
-    if (smal.matches) headerHint.innerHTML = `Klicka på flaggan för <b>${escHtml(seterraTarget.name)}</b>`;
+    const text = `Klicka på <b>${escHtml(seterraTarget.name)}</b>`;
+    cursorLabel.innerHTML = text;
+    if (smal.matches) headerHint.innerHTML = text;
+    passaMalNamn();
+  }
+  // mobilen: panelens namn står bredvid Visa ledtråd. Ryms ett ord inte
+  // (Centralafrikanska, Ekvatorialguinea på 320 px) eller blir namnet tre
+  // rader, får det ett mindre typsnitt (glob.html .target-name.langt)
+  function passaMalNamn() {
+    const n = seterraTargetName;
+    n.classList.remove('langt');
+    if (!mobil.matches || !n.clientWidth) return;
+    const rad = parseFloat(getComputedStyle(n).lineHeight);
+    if (n.scrollWidth > n.clientWidth + 1 || n.offsetHeight > rad * 2.5) n.classList.add('langt');
   }
   const smalByte = () => {
     if (!flagglage) return;
@@ -645,8 +661,25 @@ window.flaggtavla = (() => {
   // är helt bortskrollad, aldrig halvt kapad: ett stopp mitt i den rundas
   // upp till dess underkant. Där har frågan ännu inte börjat glida över
   // något, så rutan syns ändå.
+  // Räcker panelens innehåll inte till för att skrolla bort hela rubrikraden
+  // (svaret är bara lite högre än det som syns: 390 × 844 efter ett fel,
+  // då syntes 10 px av växeln), får frågerutan den luft som fattas under
+  // sig. Luften tas bort när rundan eller läget byts.
   const rubrikRad = document.querySelector('#seterra-ui > .info-header');
+  const spelRuta = document.getElementById('seterra-game');
+  let luft = 0;
+  function satLuft(px) {
+    if (!spelRuta || px === luft) return;
+    const bas = parseFloat(getComputedStyle(spelRuta).paddingBottom) - luft;
+    luft = px;
+    spelRuta.style.paddingBottom = px ? (bas + px) + 'px' : '';
+  }
   function visaRuta(el) {
+    // en minnesbild som ännu laddar gör rutan högre efteråt (den visades
+    // då kapad nertill, med hela rubrikraden ovanför): mät igen när den kommit
+    if (el) for (const img of el.querySelectorAll('img')) {
+      if (!img.complete) img.addEventListener('load', () => visaRuta(el), { once: true });
+    }
     requestAnimationFrame(() => {
       const rulla = el && el.closest('.info-panel-content');
       if (!rulla || !flagglage || !el.firstChild || el.style.display === 'none') return;
@@ -659,7 +692,8 @@ window.flaggtavla = (() => {
       if (rubrikRad && rulla.contains(rubrikRad) && mal > 0) {
         const kant = Math.ceil(rubrikRad.getBoundingClientRect().bottom - p.top + rulla.scrollTop);
         if (mal < kant) mal = kant;
-      }
+        satLuft(Math.max(0, kant - (rulla.scrollHeight - luft - rulla.clientHeight)));
+      } else satLuft(0);
       if (Math.abs(mal - rulla.scrollTop) > 1) rulla.scrollTo({ top: mal, behavior: 'smooth' });
     });
   }

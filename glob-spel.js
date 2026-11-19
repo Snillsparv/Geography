@@ -693,7 +693,7 @@ function uppdateraQuizTexter() {
     if (ho) ho.textContent = 'Klicka på flaggan för:';
     // (tipset i sidhuvudet har fast bredd på datorn, glob.html .header-hint:
     // det här ska rymmas på en rad som Huvudstädernas längsta)
-    headerHint.textContent = bildlage ? 'Klicka på rätt flagga – den vänds till minnesbilden!'
+    headerHint.textContent = bildlage ? 'Klicka på rätt flagga – den blir Jonas minnesbild!'
                                       : 'Klicka på rätt flagga!';
     return;
   }
@@ -5527,6 +5527,15 @@ function showGame() {
     const header = document.querySelector('header');
     if (header) document.documentElement.style.setProperty('--mobile-header-h', header.offsetHeight + 'px');
   });
+}
+// …och följer sidhuvudet sedan: det blir högre när ▶ och 🧩 kommer fram
+// (startRegion, efter mätningen ovan: panelen slutade 4 px under skärmen)
+// och mäts aldrig ovan när man kommer från startsidan (gaTillRegion)
+if (window.ResizeObserver) {
+  const header = document.querySelector('header');
+  if (header) new ResizeObserver(() => {
+    if (header.offsetHeight) document.documentElement.style.setProperty('--mobile-header-h', header.offsetHeight + 'px');
+  }).observe(header, { box: 'border-box' });
 }
 
 // litet API för tester och felsökning — INTE i produktion: med klick()

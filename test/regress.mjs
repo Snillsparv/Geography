@@ -1402,7 +1402,11 @@ try {
   // och ett riktigt klick på globen räknas som förut (Brasilien mitt i bild)
   const pt = await fp.evaluate(`(async () => {
     const br = COUNTRIES.find(c => c.namnSv === 'Brasilien');
-    seterraQueue = seterraQueue.filter(c => c !== br); seterraQueue.push(seterraTarget); seterraQueue.push(br); nextSeterraTarget();
+    // (var frågan redan Brasilien kom den annars tillbaka direkt efter
+    // svaret: en på tretton körningar föll testet så)
+    seterraQueue = seterraQueue.filter(c => c !== br);
+    if (seterraTarget !== br) seterraQueue.push(seterraTarget);
+    seterraQueue.push(br); nextSeterraTarget();
     map.jumpTo({ center: [-51, -10], zoom: 3 });
     await new Promise(res => { map.once('idle', res); setTimeout(res, 8000); });
     const p = map.project([-51, -10]), r = map.getCanvas().getBoundingClientRect();
@@ -1714,12 +1718,13 @@ try {
     await vila(100);
     r.skrollat = tavla.scrollTop > 0;
     // en fråga med minnesbild: namnet syns direkt (och i sidhuvudet, som
-    // syns på liggande mobil), sedan ett fel på tavlan och ledtråden
+    // syns på liggande mobil, i pekaretikettens form sedan v105), sedan
+    // ett fel på tavlan och ledtråden
     const i = seterraQueue.findIndex(c => flaggbildFor(c));
     const k = seterraQueue.splice(i, 1)[0]; seterraQueue.unshift(seterraTarget); seterraQueue.push(k); nextSeterraTarget();
     const fore = seterraTarget;
     r.namnStart = synlig(document.getElementById('seterra-target-name'));
-    r.sidhuvud = headerHint.innerHTML === 'Klicka på flaggan för <b>' + escHtml(fore.name) + '</b>';
+    r.sidhuvud = headerHint.innerHTML === 'Klicka på <b>' + escHtml(fore.name) + '</b>';
     document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + COUNTRIES.find(c => c.gid !== fore.gid && flaggbildFor(c)).gid + '"]').click();
     await vila(900);
     const fb = seterraFeedback.getBoundingClientRect(), fast = document.querySelector('#seterra-game .seterra-target').getBoundingClientRect();
@@ -2341,12 +2346,13 @@ try {
 // bottenpanelen även med landbildsknappen, i stället för bakom sidfoten.
 try {
   const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','land')";
-  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')";
+  // (v105: spel-load göms före startRegion — aktivSlug sätts där, i samma
+  // svep som ▶ och 🧩 visas: vänta på den i stället för en fast paus)
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal') && !!aktivSlug";
   const rp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
   await rp.addInitScript(INIT_LS + "; localStorage.setItem('utforska-fraga','land')");
   await rp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
   await rp.waitForFunction(klar, null, { timeout: 30000 });
-  await rp.waitForTimeout(500);
   const lagen = await rp.evaluate(`(async () => {
     const vila = ms => new Promise(r => setTimeout(r, ms));
     const ut = {};
@@ -2377,8 +2383,9 @@ try {
   const ep = await browser.newPage({ viewport: { width: 905, height: 760 } });
   await ep.addInitScript(INIT_LS + "; localStorage.setItem('utforska-fraga','land')");
   await ep.goto(BASE + '/glob.html?region=europa', { waitUntil: 'domcontentloaded' });
-  await ep.waitForFunction(klar, null, { timeout: 30000 });
-  await ep.waitForTimeout(500);
+  await ep.waitForFunction(klar + " && aktivSlug === 'europa' && document.getElementById('spel-delar').style.display !== 'none'",
+    null, { timeout: 30000 });
+  await ep.evaluate('document.fonts.ready.then(() => 0)');
   const runda = await ep.evaluate(`(async () => {
     document.getElementById('del-overlay')?.classList.remove('active');
     const mat = () => ['spel-video', 'spel-delar'].map(id => {
@@ -2393,9 +2400,11 @@ try {
     runda.flat().every(m => m === '28x28'), JSON.stringify(runda));
   await ep.close();
   const syns = [], tavlor = [];
-  for (const [w, h] of [[375, 667], [320, 640], [320, 568]]) {
-    // (v105: även Flaggor, där flaggtavlan täcker kartan och växeln har tre knappar)
-    for (const fraga of ['land', 'huvudstad', 'flagga']) {
+  // (v105: även Flaggor, där flaggtavlan täcker kartan och växeln har tre
+  // knappar, och 360 × 540 — en telefon med webbläsarens fält — där
+  // Flaggor har en egen fast höjd under 560 px)
+  for (const [w, h, lagen] of [[375, 667], [320, 640], [320, 568], [360, 540, ['land', 'flagga']]]) {
+    for (const fraga of lagen || ['land', 'huvudstad', 'flagga']) {
       const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
       const mp = await ctx.newPage();
       await mp.addInitScript(INIT_LS + `; localStorage.setItem('utforska-fraga','${fraga}')`);
@@ -2443,9 +2452,9 @@ try {
     }
   }
   ok('v104: mobilen visar Utforskas tips i panelen, även med landbildsknappen',
-    syns.length === 9 && syns.every(v => v.inne && !v.rullar && v.rad === v.vy.endsWith('huvudstad')), JSON.stringify(syns));
+    syns.length === 11 && syns.every(v => v.inne && !v.rullar && v.rad === v.vy.endsWith('huvudstad')), JSON.stringify(syns));
   ok('v105: Utforska + Flaggor på mobilen — tipset, tre knappar på en rad och tavlan som står still',
-    tavlor.length === 3 && tavlor.every(v => v.tre && v.helRubrik && v.enRad && v.tavlaOvan && v.pilFri
+    tavlor.length === 4 && tavlor.every(v => v.tre && v.helRubrik && v.enRad && v.tavlaOvan && v.pilFri
       && /flagga/.test(v.text) && v.fore === v.efter), JSON.stringify(tavlor));
 } catch (e) {
   ok('v104: lägesknapparna står still när tipset i sidhuvudet byter längd', false, String(e).slice(0, 160));
@@ -2455,16 +2464,21 @@ try {
 // Lägesknapparna står still också när Utforska byter Länder → Flaggor →
 // Huvudstäder (flaggtavlan tar kartans plats) och när quizen byter till
 // Flaggor, och Bildquiz + Flaggors tips ryms på en rad i den fasta bredden.
+// Varje läge i Utforska har sina egna texter, hur man än växlar.
 try {
   const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','land'); localStorage.setItem('utforska-fraga','land')";
-  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal')";
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal') && !!aktivSlug";
+  const UTF_TEXTER = {
+    land: ['Klicka på ett land på globen<br>för att se dess form och<br>läsa om det!', 'Klicka på ett land'],
+    huvudstad: ['Klicka på en vit cirkel<br>för att upptäcka huvudstaden!', 'Klicka på en vit cirkel för att upptäcka huvudstaden'],
+    flagga: ['Klicka på en flagga<br>för att läsa om landet<br>och se Jonas minnesbild!', 'Klicka på en flagga'],
+  };
   const still = [];
   for (const [w, h] of [[1100, 750], [960, 760]]) {
     const dp = await browser.newPage({ viewport: { width: w, height: h } });
     await dp.addInitScript(INIT_LS);
     await dp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
     await dp.waitForFunction(klar, null, { timeout: 30000 });
-    await dp.waitForTimeout(500);
     still.push(await dp.evaluate(`(async () => {
       const vila = ms => new Promise(r => setTimeout(r, ms));
       const tills = async (f, ms) => { for (let t = 0; t < ms && !f(); t += 100) await vila(100); };
@@ -2476,12 +2490,15 @@ try {
         await vila(100); const x = vanster(); lika = x === fore ? lika + 1 : 0; fore = x;
       }
       const enRad = Math.round(tips().getBoundingClientRect().height);
-      const ut = { vy: '${w}x${h}', utforska: [vanster()], bildquiz: [], seterra: [] };
+      const ut = { vy: '${w}x${h}', utforska: [vanster()], bildquiz: [], seterra: [], texter: [] };
+      // Utforskas texter: platshållarens tips i panelen och sidhuvudets tips
+      const text = vantat => ut.texter.push([vantat, document.querySelector('#info-default p').innerHTML, tips().textContent]);
+      text('land');
       const valj = async (sel, f) => { document.querySelector(sel).click(); await tills(f, 3000); await vila(300); };
       await valj('#utforska-val [data-utforska="flagga"]', tavla); ut.utforska.push(vanster()); ut.tavla = tavla();
-      ut.tipsFlaggor = tips().textContent;
-      await valj('#utforska-val [data-utforska="huvudstad"]', () => !tavla()); ut.utforska.push(vanster());
-      await valj('#utforska-val [data-utforska="land"]', () => true); ut.utforska.push(vanster());
+      ut.tipsFlaggor = tips().textContent; text('flagga');
+      await valj('#utforska-val [data-utforska="huvudstad"]', () => !tavla()); ut.utforska.push(vanster()); text('huvudstad');
+      await valj('#utforska-val [data-utforska="land"]', () => true); ut.utforska.push(vanster()); text('land');
       for (const m of ['bildquiz', 'seterra']) {
         await valj('.mode-btn[data-mode="' + m + '"]', () => true); ut[m].push(vanster());
         await valj('#fraga-val [data-fraga="huvudstad"]', () => true); ut[m].push(vanster());
@@ -2489,6 +2506,18 @@ try {
         if (m === 'bildquiz') ut.bildquizTips = [tips().textContent, Math.round(tips().getBoundingClientRect().height), enRad];
         await valj('#fraga-val [data-fraga="land"]', () => !tavla());
       }
+      // tillbaka till Utforska, fram och tillbaka mellan lägena, och via
+      // quizet: varje läge sätter sina egna texter (uppdateraUtforskStader)
+      await valj('.mode-btn[data-mode="explore"]', () => true); text('land');
+      for (const [val, f] of [['flagga', tavla], ['huvudstad', () => !tavla()], ['flagga', tavla], ['land', () => !tavla()],
+        ['huvudstad', () => true], ['land', () => true], ['flagga', tavla]]) {
+        await valj('#utforska-val [data-utforska="' + val + '"]', f); text(val);
+      }
+      await valj('.mode-btn[data-mode="seterra"]', () => true);
+      await valj('.mode-btn[data-mode="explore"]', tavla); text('flagga');
+      await valj('#utforska-val [data-utforska="huvudstad"]', () => !tavla());
+      await valj('.mode-btn[data-mode="bildquiz"]', () => true);
+      await valj('.mode-btn[data-mode="explore"]', () => true); text('huvudstad');
       return ut;
     })()`));
     await dp.close();
@@ -2498,11 +2527,132 @@ try {
     still.length === 2 && still.every(v => v.tavla && v.tipsFlaggor === 'Klicka på en flagga' && v.utforska.length === 4
       && spann(v.utforska) <= 3 && v.bildquiz.length === 3 && spann(v.bildquiz) <= 3
       && v.seterra.length === 3 && spann(v.seterra) <= 3), JSON.stringify(still));
-  const bt = still[0].bildquizTips;
-  ok('v105: Bildquiz + Flaggors tips i sidhuvudet ryms på en rad (1100 px)',
-    /flagga/.test(bt[0]) && bt[1] <= bt[2] + 1, JSON.stringify(bt));
+  ok('v105: Utforskas tips i panelen och sidhuvudet följer läget (Länder, Huvudstäder, Flaggor), hur man än växlar',
+    still.every(v => v.texter.length === 14 && v.texter.every(([l, p, t]) => p === UTF_TEXTER[l][0] && t === UTF_TEXTER[l][1])),
+    JSON.stringify(still.map(v => [v.texter.length, v.texter.filter(([l, p, t]) => p !== UTF_TEXTER[l][0] || t !== UTF_TEXTER[l][1])])));
+  ok('v105: Bildquiz + Flaggors tips i sidhuvudet ryms på en rad (1100 och 960 px)',
+    still.every(v => v.bildquizTips[0] === 'Klicka på rätt flagga – den blir Jonas minnesbild!'
+      && v.bildquizTips[1] <= v.bildquizTips[2] + 1), JSON.stringify(still.map(v => v.bildquizTips)));
+  // pekplatta på tvären (hover: none, > 900 px): ingen pekaretikett, så
+  // frågan står i sidhuvudets fasta tips — på en rad även för de längsta namnen
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true });
+  const tp = await ctx.newPage();
+  await tp.addInitScript(INIT_LS.replace("'quiz-fraga','land'", "'quiz-fraga','flagga'"));
+  await tp.goto(BASE + '/glob.html?region=afrika', { waitUntil: 'domcontentloaded' });
+  await tp.waitForFunction(klar + " && aktivSlug === 'afrika'", null, { timeout: 30000 });
+  const platta = await tp.evaluate(`(async () => {
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    document.getElementById('del-overlay')?.classList.remove('active');
+    await document.fonts.ready;
+    document.querySelector('.mode-btn[data-mode="seterra"]').click();
+    for (let t = 0; t < 8000 && !(seterraTarget && document.body.classList.contains('flaggtavla')); t += 100) await vila(100);
+    const hh = document.getElementById('header-hint');
+    const ut = { hover: matchMedia('(hover: none)').matches, namn: [] };
+    const fraga = c => { seterraQueue.push(c); nextSeterraTarget(); const r = hh.getBoundingClientRect();
+      return [c.name, hh.textContent, Math.round(r.height)]; };
+    ut.kort = fraga(COUNTRIES.find(c => c.name === 'Kenya'));
+    for (const c of [...COUNTRIES].sort((a, b) => b.name.length - a.name.length).slice(0, 3)) ut.namn.push(fraga(c));
+    return ut;
+  })()`);
+  ok('v105: flaggquizets fråga i sidhuvudet på en pekplatta (1024 px) ryms på en rad',
+    platta.hover && platta.kort[1] === 'Klicka på Kenya' && platta.namn.length === 3
+      && platta.namn.every(([n, t, h]) => n.length >= 19 && t === 'Klicka på ' + n && h === platta.kort[2]), JSON.stringify(platta));
+  await ctx.close();
 } catch (e) {
   ok('v105: lägesknapparna står still när Utforska byter Länder → Flaggor → Huvudstäder, och i flaggquizen', false, String(e).slice(0, 160));
+}
+
+// ── v105: mobilens flaggquiz — långa namn och rubrikraden ──
+// 320 px: ett långt namn (Centralafrikanska, Ekvatorialguinea) gick in under
+// Visa ledtråd och Demokratiska Republiken Kongo blev tre rader: de får ett
+// mindre typsnitt. 390 × 844: efter ett fel räckte panelen inte till för att
+// skrolla bort hela rubrikraden (10 px av växeln syntes ovanför frågan).
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','flagga'); localStorage.setItem('utforska-fraga','land')";
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal') && aktivSlug === 'afrika'";
+  const flaggquiz = async (w, h) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+    const mp = await ctx.newPage();
+    await mp.addInitScript(INIT_LS);
+    await mp.goto(BASE + '/glob.html?region=afrika', { waitUntil: 'domcontentloaded' });
+    await mp.waitForFunction(klar, null, { timeout: 30000 });
+    await mp.evaluate(`(async () => {
+      document.getElementById('del-overlay')?.classList.remove('active');
+      await document.fonts.ready;
+      await laddaFlaggbilder();
+      document.querySelector('.mode-btn[data-mode="seterra"]').click();
+    })()`);
+    await mp.waitForFunction("document.body.classList.contains('flaggtavla') && !!seterraTarget", null, { timeout: 10000 });
+    return [ctx, mp];
+  };
+  let [ctx, mp] = await flaggquiz(320, 568);
+  const namn = await mp.evaluate(`(() => {
+    const el = document.getElementById('seterra-target-name');
+    const knapp = document.querySelector('#seterra-game .seterra-target .hint-btn');
+    const ut = [];
+    for (const n of ['Centralafrikanska Republiken', 'Ekvatorialguinea', 'Elfenbenskusten', 'Demokratiska Republiken Kongo', 'Kenya']) {
+      const c = COUNTRIES.find(c => c.name === n);
+      if (!c) { ut.push([n, 'saknas']); continue; }
+      seterraQueue.push(c); nextSeterraTarget();
+      const r = el.getBoundingClientRect();
+      ut.push([n, el.classList.contains('langt'), el.scrollWidth <= el.clientWidth + 1,
+        Math.round(r.height / parseFloat(getComputedStyle(el).lineHeight)), r.right <= knapp.getBoundingClientRect().left + 1]);
+    }
+    return ut;
+  })()`);
+  ok('v105: långa namn i mobilens flaggquiz ryms bredvid Visa ledtråd, på högst två rader (320 px)',
+    namn.length === 5 && namn.every(([n, langt, ryms, rader, fri]) => ryms === true && rader <= 2 && fri && langt === (n !== 'Kenya')),
+    JSON.stringify(namn));
+  await ctx.close();
+  [ctx, mp] = await flaggquiz(390, 844);
+  // samma fråga, fel svar på några olika flaggor: rubrikraden står hel
+  // eller är helt bortskrollad, och svaret syns helt under frågan
+  const rubrik = await mp.evaluate(`(async () => {
+    const vila = ms => new Promise(r => setTimeout(r, ms));
+    const bildruta = () => new Promise(r => requestAnimationFrame(() => r()));
+    const rulla = document.querySelector('#seterra-ui').closest('.info-panel-content');
+    const hdr = document.querySelector('#seterra-ui > .info-header');
+    const mal = document.querySelector('#seterra-game .seterra-target');
+    const stilla = async () => {
+      const slut = performance.now() + 2500;
+      let fore = rulla.scrollTop, lika = 0;
+      while (lika < 3 && performance.now() < slut) {
+        await bildruta();
+        lika = rulla.scrollTop === fore ? lika + 1 : 0;
+        fore = rulla.scrollTop;
+      }
+    };
+    // först ett rätt svar: panelen skrollar rubrikraden ur sikte. Sedan fel
+    // svar på en annan fråga, vars rutor (Det var …) är nästan lika höga
+    const fraga = n => { seterraQueue.push(COUNTRIES.find(c => c.name === n)); nextSeterraTarget(); };
+    fraga('Kenya');
+    document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + seterraTarget.gid + '"]').click();
+    await vila(900);
+    await stilla();
+    fraga('Tanzania');
+    const ut = [];
+    for (const n of ['Burundi', 'Rwanda', 'Egypten', 'Ghana', 'Nigeria']) {
+      const c = COUNTRIES.find(c => c.name === n);
+      if (!c) { ut.push({ n, saknas: true }); continue; }
+      document.querySelector('#flaggtavla .tavla-ruta[data-gid="' + c.gid + '"]').click();
+      await vila(400);
+      for (const img of seterraFeedback.querySelectorAll('img')) {
+        if (!img.complete) await new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); setTimeout(r, 3000); });
+      }
+      await vila(300);
+      await stilla();
+      const p = rulla.getBoundingClientRect(), fb = seterraFeedback.getBoundingClientRect();
+      const kant = Math.round(hdr.getBoundingClientRect().bottom - p.top + rulla.scrollTop), s = Math.round(rulla.scrollTop);
+      ut.push({ n, s, kant, luft: document.getElementById('seterra-game').style.paddingBottom, hel: s === 0 || s >= kant - 1,
+        svar: fb.top >= mal.getBoundingClientRect().bottom - 1 && fb.bottom <= p.bottom + 1 });
+    }
+    return ut;
+  })()`);
+  ok('v105: mobilens flaggquiz kapar aldrig rubrikraden efter ett fel (390 × 844)',
+    rubrik.length === 5 && rubrik.every(l => l.hel && l.svar) && rubrik.some(l => l.s > 0), JSON.stringify(rubrik));
+  await ctx.close();
+} catch (e) {
+  ok('v105: långa namn i mobilens flaggquiz ryms bredvid Visa ledtråd, på högst två rader (320 px)', false, String(e).slice(0, 160));
 }
 
 // ── v72: lärarsidan + lärarlänken på startsidan ──

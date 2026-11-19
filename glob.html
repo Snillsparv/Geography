@@ -455,8 +455,9 @@
       /* de lägsta telefonerna (320 × 568): panelen får växa lite (30vh → 34vh)
          så att Utforskas tips syns ovanför sidfoten — bara medan tipset visas,
          så att kartan i quizen inte krymper. Utan :has blir det som förut.
-         Inte på flaggtavlan: där har panelen fast höjd 40vh (Flaggtavlan
-         nedan), så att tavlan inte byter storlek vid första klicket. */
+         Inte på flaggtavlan: där har panelen en fast höjd (Flaggtavlan
+         nedan: 40vh från 560 px höjd, under det 34vh i Utforska), så att
+         tavlan inte byter storlek vid första klicket. */
       body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"]) #info-default:not([style*="none"])) { max-height: 34vh; }
     }
     /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
@@ -826,6 +827,12 @@
         grid-template-areas: "etikett knapp" "namn knapp"; align-items: center; text-align: left; }
       body.flaggtavla #seterra-game .seterra-target .label { grid-area: etikett; }
       body.flaggtavla #seterra-game .seterra-target .target-name { grid-area: namn; line-height: 1.15; }
+      /* ett långt namn (Centralafrikanska, Ekvatorialguinea på 320 px) gick
+         in under Visa ledtråd och Demokratiska Republiken Kongo blev tre
+         rader: flaggtavla.js (passaMalNamn) ger det ett mindre typsnitt —
+         och bryter ordet hellre än att det går in under knappen */
+      body.flaggtavla #seterra-game .seterra-target .target-name.langt { font-size: 1.1rem;
+        overflow-wrap: break-word; }
       body.flaggtavla #seterra-game .seterra-target .hint-knappar { grid-area: knapp; margin: 0; }
       body.flaggtavla #seterra-game .seterra-target .hint-btn { padding: 6px 11px; font-size: .78rem; gap: 5px; }
       .tavla-ruta.hittad::after { top: -6px; right: -6px; width: 18px; height: 18px; font-size: 11px; }
@@ -850,6 +857,13 @@
        svaret dyker upp ska tavlan inte krympa och flaggorna byta storlek. */
     @media (max-width: 900px) and (min-height: 560px) {
       body.flaggtavla .info-panel { height: 40vh; max-height: 40vh; }
+    }
+    /* …och lägre än så (360 × 540: en telefon med webbläsarens fält) rymde
+       30vh (style.css) inte Utforskas tips. Där får Utforska samma 34vh som
+       Länder och Huvudstäder (v104 ovan), men fast: tavlan står still vid
+       första klicket. */
+    @media (max-width: 400px) and (max-height: 559px) {
+      body.flaggtavla .info-panel:has(#explore-ui:not([style*="none"])) { height: 34vh; max-height: 34vh; }
     }
     /* ════ slut Flaggtavlan ══════════════════════════════════════════ */
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
