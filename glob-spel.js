@@ -5433,11 +5433,18 @@ function regionVideo(slug) {
     `.start-knappar .knapp[href*="region=${slug}"] .knapp-video`);
   return knapp ? knapp.dataset.video : null;
 }
-// Jonas egna filmer för ett val i växlarna (Länder/Huvudstäder): finns en
-// för världsdelen spelar ▶ den i stället för världsdelens film så länge
-// valet gäller. Valen finns bara på svenska sajten.
-const VAL_VIDEO = { huvudstad: { sydamerika: 'XXEq3nzAEWc' } };
-const VAL_VIDEO_TITEL = { huvudstad: 'Se videon om världsdelens huvudstäder' };
+// Jonas egna filmer för ett val i växlarna (Länder/Huvudstäder/Flaggor):
+// finns en för världsdelen spelar ▶ den i stället för världsdelens film så
+// länge valet gäller. Valen finns bara på svenska sajten (därför vanlig
+// svenska i titlarna, inte SPRAK.t).
+const VAL_VIDEO = {
+  huvudstad: { sydamerika: 'XXEq3nzAEWc' },
+  flagga: { sydamerika: '5i5bADJikwY' },
+};
+const VAL_VIDEO_TITEL = {
+  huvudstad: 'Se videon om världsdelens huvudstäder',
+  flagga: 'Se videon om världsdelens flaggor',
+};
 // det aktiva valet ('land' | 'huvudstad' | 'flagga'): det Utforska visar i
 // Utforska (utforskVal), rundans läge i quizen (fragaLage)
 function videoVal() {
@@ -5449,8 +5456,11 @@ function visaSpelVideo(slug) {
   spelVideoKnapp.dataset.slug = slug || '';
   uppdateraSpelVideo();
 }
-// ▶ efter valet: anropas när världsdelen, läget eller valet byts
-// (uppdateraOrdval, uppdateraHuvudstadslage)
+// ▶ efter valet: anropas när världsdelen, läget eller valet byts. Alla
+// vägar dit går genom uppdateraOrdval och uppdateraHuvudstadslage (båda
+// anropar hit sist): Utforskas växel (även Länder ⇄ Flaggor, där passet
+// står kvar), quizens växel (startSeterra), switchMode, en ny region
+// (visaSpelVideo) och tillbakaTillStart.
 function uppdateraSpelVideo() {
   const slug = spelVideoKnapp.dataset.slug;
   const val = slug ? videoVal() : 'land';

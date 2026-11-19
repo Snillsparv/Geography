@@ -2940,6 +2940,159 @@ try {
   ok('v108: ▶ spelar huvudstadsvideon i Sydamerika när Huvudstäder är valt', false, String(e).slice(0, 160));
 }
 
+// ── v109: ▶ spelar Jonas flaggvideo när Flaggor är valt ──
+// VAL_VIDEO.flagga: i Sydamerika spelar ▶ i sidhuvudet flaggvideon så länge
+// Flaggor är valt (Utforska, Bildquiz, Klassiskt Quiz), med ett 🚩-märke
+// och från början. Länder har världsdelens film, Huvudstäder
+// huvudstadsvideon. Vägarna som byter valet: Utforskas växel (även Länder ⇄
+// Flaggor, där passet står kvar), quizens växel, lägesknapparna, Spela igen,
+// Öva på felaktiga, startsidan och en ny världsdel. Andra världsdelar, USA
+// och engelska sajten har ▶ som förut. YouTube laddas aldrig (avbryts).
+try {
+  const INIT = (u, q) => "try { localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej');"
+    + ` localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','${u}'); localStorage.setItem('quiz-fraga','${q}') } catch (e) {}`;
+  const YT = /youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com/;
+  const fFel = [];
+  const nySida = async (u, q) => {
+    const p = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+    p.on('pageerror', e => fFel.push(String(e)));
+    await p.route(YT, r => r.abort());
+    await p.addInitScript(INIT(u, q));
+    return p;
+  };
+  const FL = '5i5bADJikwY', HS = 'XXEq3nzAEWc', SYD = 'iyU2bR1MsQ8', EU = 't_-lDvNDF5g';
+  // [synlig, film, data-val, märket, titel]
+  const ar = (v, film, val) => !!v && v[0] === 'syns' && v[1] === film && v[2] === val
+    && (val === 'flagga' ? v[3].includes('🚩') && v[4] === 'Se videon om världsdelens flaggor'
+      : val === 'huvudstad' ? v[3].includes('🏛') && v[4] === 'Se videon om världsdelens huvudstäder'
+      : v[3] === 'none' && v[4] === 'Se videon om världsdelens länder');
+  // klick på ▶: filmen i modalen (iframens src), från början
+  const fran = (src, film) => !!src && src.startsWith('https://www.youtube.com/embed/' + film + '?') && !/[?&]start=/.test(src);
+  const HJALP = `const vila = ms => new Promise(r => setTimeout(r, ms));
+    const k = document.getElementById('spel-video');
+    const st = () => [k.style.display === 'none' ? 'dold' : 'syns', k.dataset.video, k.dataset.val || '',
+      getComputedStyle(k, '::after').content, k.title];
+    const utf = async v => { document.querySelector('#utforska-val [data-utforska="' + v + '"]').click(); await vila(250); };
+    const fraga = async v => { document.querySelector('#fraga-val [data-fraga="' + v + '"]').click(); await vila(300); };
+    const lage = async v => { document.querySelector('.mode-btn[data-mode="' + v + '"]').click(); await vila(350); };
+    const spela = async () => { k.click(); await vila(150);
+      const m = document.getElementById('video-modal');
+      const r = [getComputedStyle(m).display, document.getElementById('video-iframe').src];
+      document.getElementById('video-stang').click(); await vila(100); return r; };`;
+  const vp = await nySida('flagga', 'land');
+  await vp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await vp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && aktivSlug === 'sydamerika' && HUVUDSTAD.size > 0"
+    + " && document.body.classList.contains('flaggtavla') && !!document.querySelector('#flaggtavla .tavla-ruta')", null, { timeout: 30000 });
+  await vp.waitForTimeout(500);
+  const s = await vp.evaluate(`(async () => { ${HJALP}
+    const ut = { utfFlagga: st() };
+    // Länder ⇄ Flaggor: passet, kortet och räknaren står kvar
+    document.querySelector('#flaggtavla .tavla-ruta').click(); await vila(300);
+    const pass = () => [utforskade.size, exploredCountEl.textContent, infoCard.classList.contains('active')];
+    ut.passFore = pass();
+    await utf('land'); ut.utfLand = st(); ut.passLand = pass();
+    await utf('flagga'); ut.utfFlagga2 = st(); ut.passFlagga = pass();
+    await utf('huvudstad'); ut.utfStad = st();
+    await utf('flagga'); ut.utfFlagga3 = st();
+    ut.utfFilm = await spela();
+    // quizen (Utforska står på Länder under tiden)
+    await utf('land');
+    await lage('bildquiz'); ut.bildLand = st();
+    await fraga('flagga'); ut.bildFlagga = st();
+    ut.bildFilm = await spela();
+    await fraga('huvudstad'); ut.bildStad = st();
+    await fraga('flagga');
+    await lage('seterra'); ut.klassFlagga = st();
+    document.getElementById('seterra-restart').click(); await vila(300); ut.klassOmstart = st();
+    seterraMissedCountries.add(COUNTRIES[0].gid);
+    document.getElementById('seterra-retry').click(); await vila(300); ut.klassOva = [st(), seterraIsRetry, flagglage];
+    ut.klassFilm = await spela();
+    // lägesknapparna: Utforska visar Länder, quizen Flaggor
+    await lage('explore'); ut.utfLand2 = st();
+    await lage('seterra'); ut.klassFlagga2 = st();
+    await fraga('land'); ut.klassLand = st();
+    await fraga('flagga');
+    await lage('explore'); await utf('flagga'); ut.utfFlagga4 = st();
+    return ut;
+  })()`);
+  ok('v109: ▶ spelar flaggvideon i Utforska + Flaggor i Sydamerika (🚩, titeln, från början)',
+    ar(s.utfFlagga, FL, 'flagga') && ar(s.utfFlagga2, FL, 'flagga') && ar(s.utfFlagga3, FL, 'flagga') && ar(s.utfFlagga4, FL, 'flagga')
+    && s.utfFilm[0] === 'flex' && fran(s.utfFilm[1], FL), JSON.stringify(s));
+  ok('v109: Utforska Länder ⇄ Flaggor byter film och passet står kvar, Huvudstäder har huvudstadsvideon',
+    ar(s.utfLand, SYD, '') && ar(s.utfStad, HS, 'huvudstad') && s.passFore[0] === 1 && s.passFore[2]
+    && JSON.stringify(s.passLand) === JSON.stringify(s.passFore) && JSON.stringify(s.passFlagga) === JSON.stringify(s.passFore),
+    JSON.stringify([s.utfLand, s.utfStad, s.passFore, s.passLand, s.passFlagga]));
+  ok('v109: quizens växel: Flaggor ger flaggvideon i Bildquiz och Klassiskt Quiz, Länder och Huvudstäder sina filmer',
+    ar(s.bildLand, SYD, '') && ar(s.bildFlagga, FL, 'flagga') && ar(s.bildStad, HS, 'huvudstad')
+    && ar(s.klassFlagga, FL, 'flagga') && ar(s.klassLand, SYD, '')
+    && s.bildFilm[0] === 'flex' && fran(s.bildFilm[1], FL) && fran(s.klassFilm[1], FL),
+    JSON.stringify([s.bildLand, s.bildFlagga, s.bildStad, s.klassFlagga, s.klassLand, s.bildFilm, s.klassFilm]));
+  ok('v109: Spela igen, Öva på felaktiga och lägesknapparna behåller rätt film',
+    ar(s.klassOmstart, FL, 'flagga') && ar(s.klassOva[0], FL, 'flagga') && s.klassOva[1] && s.klassOva[2]
+    && ar(s.utfLand2, SYD, '') && ar(s.klassFlagga2, FL, 'flagga'),
+    JSON.stringify([s.klassOmstart, s.klassOva, s.utfLand2, s.klassFlagga2]));
+  // startsidan och en ny världsdel med Flaggor valt i både Utforska och quizen
+  await vp.evaluate('tillbakaTillStart()');
+  await vp.waitForTimeout(400);
+  const start = await vp.evaluate(`(() => { const k = document.getElementById('spel-video');
+    return [k.dataset.video, k.dataset.val || '', getComputedStyle(k, '::after').content,
+      getComputedStyle(document.querySelector('header')).display, document.body.classList.contains('startlage')]; })()`);
+  await vp.evaluate("gaTillRegion('europa')");
+  await vp.waitForFunction("aktivSlug === 'europa' && COUNTRIES.length > 0 && utforskVal() === 'flagga'"
+    + " && document.body.classList.contains('flaggtavla')", null, { timeout: 30000 });
+  await vp.waitForTimeout(400);
+  const eu = await vp.evaluate(`(async () => { ${HJALP}
+    document.getElementById('del-overlay')?.classList.remove('active');
+    const ut = { utf: st() };
+    ut.film = await spela();
+    await lage('bildquiz'); ut.bild = st(); ut.lage = fragaLage();
+    await lage('seterra'); ut.klass = st();
+    await lage('explore');
+    return ut;
+  })()`);
+  await vp.evaluate('tillbakaTillStart()');
+  await vp.waitForTimeout(400);
+  await vp.evaluate("gaTillRegion('sydamerika')");
+  await vp.waitForFunction("aktivSlug === 'sydamerika' && COUNTRIES.length > 0 && utforskVal() === 'flagga'", null, { timeout: 30000 });
+  await vp.waitForTimeout(400);
+  const tillbaka = await vp.evaluate(`(async () => { ${HJALP}
+    const ut = { utf: st() };
+    await lage('bildquiz'); ut.bild = st();
+    await lage('explore');
+    return ut;
+  })()`);
+  ok('v109: startsidan som förut och Sydamerika → Europa med Flaggor valt: Europas film utan märke, tillbaka: flaggvideon',
+    start[0] === SYD && start[1] === '' && start[2] === 'none' && start[3] === 'none' && start[4]
+    && ar(eu.utf, EU, '') && ar(eu.bild, EU, '') && ar(eu.klass, EU, '') && eu.lage === 'flagga'
+    && eu.film[0] === 'flex' && fran(eu.film[1], EU)
+    && ar(tillbaka.utf, FL, 'flagga') && ar(tillbaka.bild, FL, 'flagga'),
+    JSON.stringify({ start, eu, tillbaka }));
+  await vp.close();
+  // USA och engelska sajten (bara usa): ingen egen film, ▶ göms som förut
+  const usa = [];
+  for (const [url, slug] of [['/glob.html?region=usa', 'usa'], ['/glob.html?lang=en', 'usa']]) {
+    const p = await nySida('flagga', 'flagga');
+    await p.goto(BASE + url, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(`document.getElementById('spel-load').style.display === 'none' && aktivSlug === '${slug}' && COUNTRIES.length > 0`,
+      null, { timeout: 60000 });
+    await p.waitForTimeout(400);
+    usa.push(await p.evaluate(`(async () => { ${HJALP}
+      const ut = { lang: SPRAK.lang, utf: st() };
+      switchMode('seterra', true); await vila(300); ut.klass = st(); ut.lage = fragaLage();
+      switchMode('bildquiz', true); await vila(300); ut.bild = st();
+      return ut;
+    })()`));
+    await p.close();
+  }
+  const dold = v => v[0] === 'dold' && v[1] === '' && v[2] === '' && v[3] === 'none';
+  ok('v109: USA och engelska sajten: ▶ som förut (ingen film, inget märke)',
+    usa.length === 2 && usa[0].lang === 'sv' && usa[1].lang === 'en'
+    && usa.every(u => dold(u.utf) && dold(u.klass) && dold(u.bild) && u.lage === 'land'), JSON.stringify(usa));
+  ok('v109: flaggvideon utan JS-fel', fFel.length === 0, fFel.join(' | ').slice(0, 160));
+} catch (e) {
+  ok('v109: ▶ spelar flaggvideon i Utforska + Flaggor i Sydamerika (🚩, titeln, från början)', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

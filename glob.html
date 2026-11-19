@@ -194,12 +194,14 @@
       padding-left: 3px; margin-left: 8px; vertical-align: middle;
       box-shadow: 0 2px 6px #000a; flex: none; }
     #spel-video:hover { transform: scale(1.12); }
-    /* ▶ spelar Jonas film för valet (Huvudstäder): ett märke som på
-       huvudstadsmedaljen visar vilken film det är */
+    /* ▶ spelar Jonas film för valet (Huvudstäder, Flaggor): ett märke som
+       på medaljerna visar vilken film det är */
     #spel-video[data-val] { position: relative; }
-    #spel-video[data-val="huvudstad"]::after { content: '🏛️'; position: absolute;
+    #spel-video[data-val]:not([data-val=""])::after { position: absolute;
       right: -7px; bottom: -6px; font-size: .62rem; line-height: 1;
       filter: drop-shadow(0 1px 2px #000c); }
+    #spel-video[data-val="huvudstad"]::after { content: '🏛️'; }
+    #spel-video[data-val="flagga"]::after { content: '🚩'; }
     #feedback-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
       display: flex; align-items: center; justify-content: center; padding: 3vmin; }
     .feedback-kort { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
