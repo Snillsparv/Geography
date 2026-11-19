@@ -2767,6 +2767,99 @@ try {
   ok('v107: Utforska + Flaggor på låga telefoner har Länders höjd, och flaggtipset syns (320 × 460, 360 × 540)', false, String(e).slice(0, 160));
 }
 
+// ── v107: granskningen — flaggquizens fråga och flaggornas Utforska på låga skärmar ──
+// Flaggquizen på låga telefoner på höjden (375 × 548: iPhone SE i Safari):
+// panelen var 30vh och frågan stod under sidfoten, och ?-knappen låg över
+// namnet. Nu syns namnet före första svaret, fritt från ?-knappen också på
+// två rader, och panelen och tavlan står still efter svaret. Utforska +
+// Flaggor har Länders höjd också mellan 401 och 900 px bredd (401 × 559:
+// tavlan hoppade 1,4 px vid första klicket), och en höjd mellan 559 och
+// 560 px (zoom) faller inte mellan reglerna (då blev panelen 30vh och
+// tipset kapades).
+try {
+  const INIT = (q, u) => `localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','${q}'); localStorage.setItem('utforska-fraga','${u}')`;
+  const klar = "document.getElementById('spel-load').style.display === 'none' && HUVUDSTAD.size > 0 && !!map.getLayer('stad-mal') && !!aktivSlug";
+  const tavlaKlar = " && document.body.classList.contains('flaggtavla') && !!document.querySelector('#flaggtavla .tavla-ruta')";
+  const FRAGA = `(() => {
+    const r = el => el.getBoundingClientRect();
+    const pc = r(document.querySelector('.info-panel-content')), n = r(document.getElementById('seterra-target-name'));
+    const hj = r(document.getElementById('spel-hjalp'));
+    return { panel: Math.round(r(document.getElementById('info-panel')).height * 100) / 100,
+      tavla: Math.round(r(document.getElementById('flaggtavla')).height * 100) / 100,
+      syns: n.height > 10 && n.top >= pc.top - 1 && n.bottom <= pc.bottom + 1,
+      fri: n.bottom <= hj.top || n.left >= hj.right,
+      namn: document.getElementById('seterra-target-name').textContent + ' ' + Math.round(n.bottom) + '/' + Math.round(hj.top) };
+  })()`;
+  const quiz = [];
+  for (const [w, h, lage] of [[320, 460, 'seterra'], [375, 548, 'bildquiz'], [412, 540, 'seterra']]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+    const mp = await ctx.newPage();
+    await mp.addInitScript(INIT('flagga', 'land'));
+    await mp.goto(BASE + '/glob.html?region=afrika', { waitUntil: 'domcontentloaded' });
+    await mp.waitForFunction(klar + " && aktivSlug === 'afrika'", null, { timeout: 30000 });
+    await mp.evaluate("document.getElementById('del-overlay')?.classList.remove('active'); document.fonts.ready.then(() => 0)");
+    await mp.evaluate(`document.querySelector('.mode-btn[data-mode="${lage}"]').click()`);
+    await mp.waitForFunction('!!seterraTarget' + tavlaKlar, null, { timeout: 10000 });
+    await mp.waitForTimeout(800);
+    const v = { vy: `${w}x${h} ${lage}`, fore: [] };
+    // före första svaret: ett namn på en rad och två på två rader
+    for (const n of ['Kenya', 'Centralafrikanska Republiken', 'Demokratiska Republiken Kongo']) {
+      await mp.evaluate(`seterraQueue.push(COUNTRIES.find(c => c.name === '${n}')); nextSeterraTarget()`);
+      await mp.waitForTimeout(150);
+      v.fore.push(await mp.evaluate(FRAGA));
+    }
+    // fel svar (en annan flagga): svaret visas, panelen och tavlan står still
+    await mp.evaluate("[...document.querySelectorAll('#flaggtavla .tavla-ruta')].find(r => r.dataset.gid !== String(seterraTarget.gid)).click()");
+    await mp.waitForTimeout(900);
+    v.efter = await mp.evaluate(FRAGA);
+    quiz.push(v);
+    await ctx.close();
+  }
+  ok('v107: flaggquizens fråga syns före första svaret på låga telefoner, fri från ?-knappen (320 × 460, 375 × 548, 412 × 540)',
+    quiz.length === 3 && quiz.every(v => v.fore.length === 3 && v.fore.every(f => f.syns && f.fri && f.panel === v.efter.panel && f.tavla === v.efter.tavla)
+      && v.efter.syns && v.efter.fri), JSON.stringify(quiz));
+  // Utforska 401 × 559: Flaggor som Länder, före och efter första klicket
+  const ctx = await browser.newContext({ viewport: { width: 401, height: 559 }, isMobile: true, hasTouch: true });
+  const mp = await ctx.newPage();
+  await mp.addInitScript(INIT('land', 'flagga'));
+  await mp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await mp.waitForFunction(klar + tavlaKlar, null, { timeout: 30000 });
+  await mp.evaluate('document.fonts.ready.then(() => 0)');
+  await mp.waitForTimeout(800);
+  const P = "Math.round(document.getElementById('info-panel').getBoundingClientRect().height * 100) / 100";
+  const bred = { flagga: await mp.evaluate(P) };
+  await mp.evaluate("document.querySelector('#flaggtavla .tavla-ruta').click()");
+  await mp.waitForFunction("document.getElementById('info-card').classList.contains('active')", null, { timeout: 5000 }).catch(() => {});
+  await mp.waitForTimeout(600);
+  bred.flaggaKort = await mp.evaluate(P);
+  await mp.evaluate(`document.querySelector('#utforska-val [data-utforska="land"]').click()`);
+  await mp.waitForFunction("!document.body.classList.contains('flaggtavla')", null, { timeout: 10000 });
+  await mp.waitForTimeout(600);
+  bred.land = await mp.evaluate(P);
+  await ctx.close();
+  // 559,5 px hög (zoom): glob.html i en iframe med zoom 2, där sidan blir
+  // 360 × 559,5 css-px stor
+  const zctx = await browser.newContext({ viewport: { width: 800, height: 1200 }, isMobile: true, hasTouch: true });
+  const zp = await zctx.newPage();
+  await zp.addInitScript(INIT('land', 'flagga'));
+  // samma ursprung som spelet först (annars nekas iframen localStorage)
+  await zp.goto(BASE + '/finns-inte.html', { waitUntil: 'domcontentloaded' });
+  await zp.setContent(`<body style="margin:0"><iframe id="f" src="${BASE}/glob.html?region=sydamerika" style="border:0;width:360px;height:559.5px;zoom:2"></iframe></body>`);
+  const zf = await (await zp.$('#f')).contentFrame();
+  await zf.waitForFunction(klar + tavlaKlar, null, { timeout: 30000 });
+  await zf.evaluate('document.fonts.ready.then(() => 0)');
+  await zp.waitForTimeout(800);
+  const zoom = await zf.evaluate(`(() => { const pc = document.querySelector('.info-panel-content');
+    return { glapp: !matchMedia('(max-height: 559px)').matches && !matchMedia('(min-height: 560px)').matches,
+      panel: Math.round(document.getElementById('info-panel').getBoundingClientRect().height), tips: pc.scrollHeight <= pc.clientHeight + 1 }; })()`);
+  await zctx.close();
+  ok('v107: Utforska + Flaggor har Länders höjd också på 401 × 559 och 559,5 px höjd (zoom), och flaggtipset syns',
+    bred.flagga === bred.land && bred.flaggaKort === bred.flagga && zoom.glapp && zoom.panel === 192 && zoom.tips,
+    JSON.stringify({ bred, zoom }));
+} catch (e) {
+  ok('v107: flaggquizens fråga syns före första svaret på låga telefoner, fri från ?-knappen (320 × 460, 375 × 548, 412 × 540)', false, String(e).slice(0, 160));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });

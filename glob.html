@@ -457,13 +457,16 @@
        På skärmar lägre än 640 px (320 × 568, 375 × 548 i Safari) får
        panelen växa lite så att tipset syns ovanför sidfoten (192 px =
        tipset i Huvudstäder + sidfoten). Quizen rörs inte; utan :has blir det som
-       förut. Flaggtavlan har en egen höjd. */
+       förut. Flaggtavlan har en egen höjd. (Höjden står i --utforska-hojd:
+       flaggtavlans Utforska under 560 px höjd använder samma, se Flaggtavlan.) */
     @media (max-width: 900px) {
-      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) { height: 35vh; }
+      :root { --utforska-hojd: 35vh; }
+      body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) { height: var(--utforska-hojd); }
     }
     @media (max-width: 400px) {
+      :root { --utforska-hojd: max(30vh, 192px); }
       body:not(.flaggtavla) .info-panel:has(#explore-ui:not([style*="none"])) {
-        height: max(30vh, 192px); max-height: max(30vh, 192px); }
+        height: var(--utforska-hojd); max-height: var(--utforska-hojd); }
     }
     /* Städerna som på GeoGuessr: quizets etikett vid pekaren är en vit ruta
        "Klicka på <stad>" (samma vita som namnrutorna på kartan) */
@@ -863,15 +866,26 @@
     @media (max-width: 900px) and (min-height: 560px) {
       body.flaggtavla .info-panel { height: 40vh; max-height: 40vh; }
     }
-    /* …och lägre än så (360 × 540: en telefon med webbläsarens fält,
-       320 × 460) rymde 30vh (style.css) inte Utforskas tips. Där får
-       Utforska samma fasta höjd som Länder och Huvudstäder (v106 ovan:
-       max(30vh, 192px), här alltid 192 px): flaggtipset syns ända ner till
-       320 × 460 (med 34vh låg sista raden under sidfoten), tavlan står
-       still vid första klicket och panelen när man byter läge. */
-    @media (max-width: 400px) and (max-height: 559px) {
+    /* Telefonen på höjden: 40vh, men minst 236 px — också under 560 px
+       höjd (375 × 548: iPhone SE i Safari, 360 × 540, 320 × 460), där
+       panelen annars var 30vh (style.css). Där stod quizets fråga under
+       sidfoten: man såg inte vilket land man skulle hitta förrän man
+       skrollat panelen (sidhuvudets tips göms under 700 px bredd), och
+       ?-knappen låg över namnet. Med 236 px står namnet fritt ovanför
+       ?-knappen, också på två rader (Centralafrikanska Republiken). Från
+       590 px höjd är 40vh mer. På tvären (844 × 390) visar sidhuvudet
+       frågan och tavlan behöver höjden: där är det som förut. */
+    @media (max-width: 900px) and (orientation: portrait) {
+      body.flaggtavla .info-panel { height: max(40vh, 236px); max-height: max(40vh, 236px); }
+    }
+    /* Utforska under 560 px höjd: samma fasta höjd som Länder och
+       Huvudstäder (v106 ovan, --utforska-hojd: 35vh, upp till 400 px bredd
+       max(30vh, 192px)). Flaggtipset syns ända ner till 320 × 460, tavlan
+       står still vid första klicket och panelen när man byter läge.
+       559.98: inget glapp mot 560 när zoomen ger bråkdelar av en pixel. */
+    @media (max-width: 900px) and (max-height: 559.98px) {
       body.flaggtavla .info-panel:has(#explore-ui:not([style*="none"])) {
-        height: max(30vh, 192px); max-height: max(30vh, 192px); }
+        height: var(--utforska-hojd); max-height: var(--utforska-hojd); }
     }
     /* ════ slut Flaggtavlan ══════════════════════════════════════════ */
     /* ── Mobilfinputs: allt ska rymmas utan att kännas trångt ── */
