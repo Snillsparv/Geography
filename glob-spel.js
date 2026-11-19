@@ -105,9 +105,10 @@ let stadRunda = new Set();     // gid
 // Utforskas växel (svenska sajten): vad man upptäcker. Eget sparat val
 // ('utforska-fraga'), skilt från quizens växel (villFraga):
 //   'land'       länderna på globen
-//   'huvudstad'  städerna: en vit cirkel per huvudstad; ett klick avslöjar
-//                staden (prick och namn, som i Länder-läget), landets bild
-//                och kortet (utforskStadLage)
+//   'huvudstad'  städerna i GeoGuessr-stil: en vit cirkel per huvudstad; ett
+//                klick upptäcker staden (en vit namnruta bredvid cirkeln,
+//                lagret stad-etikett) och visar kortet (utforskStadLage).
+//                Landbilderna följer en egen knapp (utforskBilder nedan)
 //   'flagga'     flaggtavlan i bokstavsordning (utforskaFlaggor, flaggtavla.js)
 // Går valet inte här (usa, en region utan huvudstäder eller flaggor) visar
 // Utforska länderna, och valet ligger kvar till nästa region (utforskVal).
@@ -117,6 +118,10 @@ let villUtforska = (() => {
     return v === 'huvudstad' || v === 'flagga' ? v : 'land';
   } catch (e) { return 'land'; }
 })();
+// Landbilderna i Utforska + Huvudstäder: avslagna från start (länderna står
+// täckta) och påslagna med en egen knapp — då syns ALLA länders bilder.
+// Bilderna följer knappen, inte upptäckterna (sattUtforskBilder).
+let utforskBilder = false;
 let aktivSlug = '';            // aktuell region (slug eller 'world')
 let aktivRegionNamn = '';
 // SPRAK.hsPrefix: den engelska sidan har egna topplistor ('en-', och
@@ -297,6 +302,13 @@ function utforskVal() {
   if (villUtforska === 'flagga' && flaggaKanSpelas()) return 'flagga';
   return 'land';
 }
+// Utforska + Huvudstäder: landbilderna följer knappen — alla eller inga.
+// Anropas efter allt som täcker länderna (resetOverlays, en ny region).
+// Länder och Flaggor rörs aldrig: där följer bilderna upptäckterna.
+function sattUtforskBilder() {
+  if (!utforskStadLage()) return;
+  for (const c of COUNTRIES) setLand(c.gid, { tackt: !utforskBilder, hover: false });
+}
 // skärmavstånd från pt till stadens cirkel, eller Infinity på globens baksida
 function stadAvstand(gid, pt) {
   const p = stadPunkt.get(gid);
@@ -307,13 +319,17 @@ function stadAvstand(gid, pt) {
   return Math.hypot(s.x - pt.x, s.y - pt.y);
 }
 // Utforska: närmaste stad inom tryckytan, upptäckt eller inte (ett klick på
-// en upptäckt stad döljer den igen, som med länderna). De vita cirklarna
-// ritas OVANPÅ de upptäckta städernas svarta prickar: ligger klicket inuti
-// en vit cirkel gäller det den, även om en upptäckt stad ligger närmare
-// (Rom under Vatikanstatens cirkel, Kinshasa och Brazzaville).
+// en upptäckt stad döljer den igen, som med länderna). Upptäckta och
+// oupptäckta städer är likadana vita cirklar, så den närmaste gäller. Bara
+// när två cirklar ligger så tätt att de inte går att skilja åt (städerna
+// själva högst STAD_SAMMA_PX isär på skärmen: Rom och Vatikanstaten,
+// Kinshasa och Brazzaville) vinner den som inte är upptäckt än — annars
+// gick den aldrig att hitta utan att zooma in. Det avgörs på städernas
+// eget avstånd, inte klickets: ligger de längre isär (Beirut och Damaskus,
+// 5 px) döljer ett klick inuti den upptäckta cirkeln den, även en bit
+// från mitten, och upptäcker inte grannen.
 function stadVidUtforska(pt) {
-  const ritad = stadRadiePx(map.getZoom()) + 2;   // cirkeln med kantlinje
-  const nara = ritad + TRYCKMARGINAL;
+  const nara = stadRadiePx(map.getZoom()) + 2 + TRYCKMARGINAL;
   let oppen = null, oppenD = Infinity, klar = null, klarD = Infinity;
   for (const c of COUNTRIES) {
     const d = stadAvstand(c.gid, pt);
@@ -321,8 +337,12 @@ function stadVidUtforska(pt) {
     if (revealed.has(c.gid)) { if (d < klarD) { klarD = d; klar = c.gid; } }
     else if (d < oppenD) { oppenD = d; oppen = c.gid; }
   }
-  if (oppen !== null && (oppenD <= ritad || klar === null || oppenD <= klarD)) return oppen;
-  return klar;
+  if (oppen === null) return klar;
+  if (klar === null) return oppen;
+  const a = stadPunkt.get(oppen), b = stadPunkt.get(klar);
+  const pa = map.project([a.lng, a.lat]), pb = map.project([b.lng, b.lat]);
+  if (Math.hypot(pa.x - pb.x, pa.y - pb.y) <= STAD_SAMMA_PX) return oppen;
+  return oppenD <= klarD ? oppen : klar;
 }
 // Två städer som ligger "ovanpå varandra" utzoomat (Rom och Vatikanstaten
 // 2 km isär, Kinshasa och Brazzaville 9 km) går inte att skilja åt förrän
@@ -380,7 +400,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '101';
+const V = '103';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -694,6 +714,7 @@ function uppdateraQuizTexter() {
 // skulle annars ändå ta plats och knuffa bort grannarnas namn.
 function synligaHuvudstader() {
   if (currentMode !== 'explore' || document.body.classList.contains('startlage')) return [];
+  if (utforskStadLage()) return [];   // städerna har sina namnrutor (stad-etikett)
   return [...revealed].filter(g => g < USA_GID && aktivByGid.has(g));
 }
 let hsDirtyFlag = false;
@@ -712,13 +733,18 @@ function huvudstadDirty() {
     // Småländernas cirklar (prickar) göms under tiden — de ser ut som
     // städernas och skulle bara förvirra. Med synligheten, inte filtret:
     // laddaUsa kopierar prickarnas filter och färger till usa-prickar.
-    // Utforska: de oupptäckta städerna är vita cirklar; en upptäckt stad
-    // visas som i Länder-läget (prick och namn, filtret ovan)
+    // Utforska: alla städer är vita cirklar, upptäckta som oupptäckta; en
+    // upptäckt stad får en vit namnruta bredvid (stad-etikett). Ringen
+    // runt cirkeln man pekar på (stad-ring) tänds av hover-tillståndet.
     const quiz = stadKlickLage(), utf = !quiz && utforskStadLage();
     const runda = quiz ? [...stadRunda] : utf ? COUNTRIES.map(c => c.gid) : [];
+    const lista = gids => ['in', ['get', 'gid'], ['literal', gids]];
     if (map.getLayer('stad-mal')) {
-      map.setFilter('stad-mal', ['in', ['get', 'gid'], ['literal', runda.filter(g => !revealed.has(g))]]);
-      map.setFilter('stad-klar', ['in', ['get', 'gid'], ['literal', quiz ? runda.filter(g => revealed.has(g)) : []]]);
+      map.setFilter('stad-mal', lista(utf ? runda : runda.filter(g => !revealed.has(g))));
+      map.setFilter('stad-klar', lista(quiz ? runda.filter(g => revealed.has(g)) : []));
+      map.setFilter('stad-ring', lista(runda));
+      map.setFilter('stad-etikett', lista(utf ? runda.filter(g => revealed.has(g)) : []));
+      map.setFilter('stad-hinder', lista(utf ? runda : []));
     }
     map.setLayoutProperty('prickar', 'visibility', runda.length ? 'none' : 'visible');
   });
@@ -1246,24 +1272,125 @@ function buildCountries(slug, raw) {
 // MapLibre-globen
 // ══════════════════════════════════
 // lagerdefinitionen för städernas cirklar (två lager med samma utseende)
+// Som på GeoGuessr: cirkeln man pekar på behåller sin färg men får en
+// tjockare svart kant och en ljus ring runt sig (stadRingLager).
+const STAD_ZOOM = fn => ['interpolate', ['linear'], ['zoom'],
+  ...STAD_STOPP.flatMap(([z, r]) => [z, fn(r * STAD_SKALA, z)])];
+const pekad = (ja, nej) => ['case', ['boolean', ['feature-state', 'hover'], false], ja, nej];
 function stadLager(id) {
-  const vid = fn => ['interpolate', ['linear'], ['zoom'],
-    ...STAD_STOPP.flatMap(([z, r]) => [z, fn(r * STAD_SKALA)])];
   return { id, type: 'circle', source: 'huvudstader',
     filter: ['in', ['get', 'gid'], ['literal', []]],
     paint: {
-      'circle-radius': vid(r => ['case',
-        ['boolean', ['feature-state', 'tips'], false], r * 1.5,
-        ['boolean', ['feature-state', 'hover'], false], r * 1.2, r]),
+      'circle-radius': STAD_ZOOM(r => ['case',
+        ['boolean', ['feature-state', 'tips'], false], r * 1.5, r]),
       'circle-color': ['case',
         ['boolean', ['feature-state', 'fel'], false], ROD,
         ['boolean', ['feature-state', 'tips'], false], GUL,
         ['match', ['coalesce', ['feature-state', 'svar'], 0],
-          1, SVAR_FARG[1], 2, SVAR_FARG[2], 3, SVAR_FARG[3], 4, SVAR_FARG[4],
-          ['case', ['boolean', ['feature-state', 'hover'], false], HOVERGUL, '#ffffff']]],
+          1, SVAR_FARG[1], 2, SVAR_FARG[2], 3, SVAR_FARG[3], 4, SVAR_FARG[4], '#ffffff']],
       'circle-stroke-color': '#0a0a0a',
-      'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 1.4, 1.5, 6, 2, 9.5, 2.5],
+      'circle-stroke-width': STAD_ZOOM((r, z) => {
+        const kant = z <= 1.4 ? 1.5 : z <= 6 ? 1.5 + (z - 1.4) / 4.6 * 0.5 : 2 + (z - 6) / 3.5 * 0.5;
+        return pekad(kant * 2, kant);
+      }),
     } };
+}
+// ringen runt städernas cirkel man pekar på (under cirklarna; alla
+// rundans städer finns i filtret, men ringen syns bara vid hover). På
+// GeoGuessr är den ljusare än det gröna landet; här är länderna krämvita,
+// så ringen är i stället mörk och genomskinlig.
+function stadRingLager() {
+  return { id: 'stad-ring', type: 'circle', source: 'huvudstader',
+    filter: ['in', ['get', 'gid'], ['literal', []]],
+    paint: {
+      'circle-radius': STAD_ZOOM(r => r * 2 + 3),
+      'circle-opacity': 0,
+      'circle-stroke-color': '#16261c',
+      'circle-stroke-width': STAD_ZOOM(r => Math.max(2.5, r * 0.5)),
+      'circle-stroke-opacity': pekad(0.35, 0),
+    } };
+}
+// Osynliga hinder på varje stad i Utforska + Huvudstäder: namnrutorna
+// placeras aldrig över en cirkel (de hamnade annars bredvid fel stad, som
+// Montevideos ruta mellan Buenos Aires och Santiago). Ryms ingen ruta
+// väntar den tills man zoomat in; namnet syns ändå i rutan vid pekaren och
+// på kortet. Ligger ÖVER stad-etikett: maplibre placerar de översta
+// symbollagren först.
+const HINDER_BILD = 'stad-hinder', HINDER_PX = 20;
+function stadHinderLager() {
+  return { id: 'stad-hinder', type: 'symbol', source: 'huvudstader',
+    filter: ['in', ['get', 'gid'], ['literal', []]],
+    layout: {
+      'icon-image': HINDER_BILD,
+      // cirkelns diameter med kanten, i bildens storlek
+      'icon-size': STAD_ZOOM(r => 2 * (r + 3) / HINDER_PX),
+      'icon-padding': 0,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': false,
+    },
+    paint: { 'icon-opacity': 0 } };
+}
+function laggTillHinderBild() {
+  if (!map || map.hasImage(HINDER_BILD)) return;
+  map.addImage(HINDER_BILD, { width: HINDER_PX, height: HINDER_PX,
+    data: new Uint8Array(HINDER_PX * HINDER_PX * 4) });
+}
+// Utforska + Huvudstäder: en upptäckt stads vita namnruta bredvid cirkeln
+// (som på GeoGuessr). Rutan är en töjbar bild (laggTillEtikettBild) som
+// maplibre sträcker runt texten. Under cirklarna: en ruta får aldrig dölja
+// en grannstads cirkel (Montevideo bredvid Buenos Aires). Krockar två rutor
+// väljer maplibre en annan sida eller ett hörn, eller väntar tills man
+// zoomat in.
+function stadEtikettLager() {
+  return { id: 'stad-etikett', type: 'symbol', source: 'huvudstader',
+    filter: ['in', ['get', 'gid'], ['literal', []]],
+    layout: {
+      'text-field': ['get', 'namn'],
+      'text-font': ['Segoe UI Semibold'],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 1.4, 13, 5, 15, 8, 17],
+      // höger, vänster, under, över och de fyra hörnen, i em. Så långt ut att
+      // rutan (texten plus 8/4 px luft och 1 px marginal) aldrig krockar med
+      // stadens egen cirkel (stad-hinder, ±(r + 3) px) vid någon zoom, även
+      // med pekskärmens större cirklar — annars väljs den sidan aldrig
+      'text-variable-anchor-offset': [
+        'left', [1.7, 0], 'right', [-1.7, 0], 'top', [0, 1.4], 'bottom', [0, -1.6],
+        'top-left', [1.5, 1.35], 'bottom-left', [1.5, -1.5],
+        'top-right', [-1.5, 1.35], 'bottom-right', [-1.5, -1.5]],
+      'icon-padding': 1,
+      'text-justify': 'auto',
+      'text-max-width': 12,
+      'text-padding': 1,
+      'icon-image': ETIKETT_BILD,
+      'icon-text-fit': 'both',
+      'icon-text-fit-padding': [4, 8, 4, 8],
+    },
+    paint: {
+      'text-color': '#16261c',
+      'icon-opacity': 0.9,
+    } };
+}
+// den vita rundade rutan bakom namnet: töjbar i mitten, hörnen ligger kvar
+const ETIKETT_BILD = 'etikett-vit';
+function laggTillEtikettBild() {
+  if (!map || map.hasImage(ETIKETT_BILD)) return;
+  const pr = 2, sida = 24, horn = 6, px = sida * pr, h = horn * pr;
+  const duk = document.createElement('canvas');
+  duk.width = px; duk.height = px;
+  const g = duk.getContext('2d');
+  g.fillStyle = '#ffffff';
+  // en (enhets)pixel in från kanten: hela kantlinjen hamnar på duken
+  const a = 1, z = px - 1;
+  g.beginPath();
+  g.moveTo(h, a); g.lineTo(px - h, a); g.arcTo(z, a, z, h, h - a);
+  g.lineTo(z, px - h); g.arcTo(z, z, px - h, z, h - a);
+  g.lineTo(h, z); g.arcTo(a, z, a, px - h, h - a);
+  g.lineTo(a, h); g.arcTo(a, a, h, a, h - a);
+  g.closePath(); g.fill();
+  // tunn mörk kant: rutan ska synas mot de täckta ländernas krämvita
+  g.strokeStyle = 'rgba(22, 38, 28, 0.35)'; g.lineWidth = 2;
+  g.stroke();
+  map.addImage(ETIKETT_BILD, g.getImageData(0, 0, px, px), {
+    pixelRatio: pr, stretchX: [[h, px - h]], stretchY: [[h, px - h]], content: [0, 0, px, px] });
 }
 function initMap() {
   protocol = new pmtiles.Protocol();
@@ -1473,12 +1600,20 @@ function initMap() {
         // UNDER de obesvarade: en vit cirkel ska aldrig gömmas av en klar
         // granne (Rom och Vatikanstaten ligger 2 km isär). Filtren sätts av
         // huvudstadDirty(); träffarna räknas i stadVid(), inte av maplibre.
+        stadEtikettLager(),
+        stadRingLager(),
         stadLager('stad-klar'),
         stadLager('stad-mal'),
+        stadHinderLager(),
       ],
     },
   });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+  // städernas namnrutor (stad-etikett) ritas på en bild som görs här
+  map.on('styleimagemissing', e => {
+    if (e.id === ETIKETT_BILD) laggTillEtikettBild();
+    if (e.id === HINDER_BILD) laggTillHinderBild();
+  });
 
   let hoverGid = null;
   let stadHover = null;
@@ -2779,6 +2914,7 @@ async function startRegion(slug, flyg, delId) {
     if (usaVarld) setLand(usaVarld.id, { gron: false, tackt: false });
     setLand(USA_REMSA_GID, { gron: true, tackt: false });
   }
+  sattUtforskBilder();   // Utforska + Huvudstäder med landbilderna på
   // väggkartan bakas ur världsarkivet och känner inte delstaterna — göm
   // det vyvalet i delstatsregionen (globen + originalkartan räcker gott)
   const plattKnapp = document.getElementById('view-platt');
@@ -2953,6 +3089,16 @@ function uppdateraUtforskStader() {
     // tre knappar: rubrikraden blir tätare, som i quizen (glob.html .tre-val)
     vx.closest('.info-header')?.classList.toggle('tre-val', (kanStad || kanFlagga) && synliga === 3);
   }
+  // "Visa landbilder" (utforskBilder) hör bara till Huvudstäder: i Länder
+  // och Flaggor följer bilderna upptäckterna, och raden göms
+  const rad = document.getElementById('utforsk-bild-rad');
+  if (rad) rad.style.display = val === 'huvudstad' ? '' : 'none';
+  const bk = document.getElementById('utforsk-bilder-btn');
+  if (bk) {
+    bk.classList.toggle('pa', utforskBilder);
+    const txt = bk.querySelector('span');
+    if (txt) txt.textContent = utforskBilder ? 'Dölj landbilder' : 'Visa landbilder';
+  }
   if (val === 'land') return;
   const p = document.querySelector('#info-default p');
   const uo = document.getElementById('utforsk-ord');
@@ -2988,9 +3134,13 @@ document.querySelectorAll('#utforska-val .fraga-btn').forEach(b => b.addEventLis
   // Länder och Flaggor är det samma länder som upptäcks: passet, kortet och
   // räknaren står kvar. Under flaggtavlan sparar setLand bara tillståndet;
   // tavlan lägger på allt när globen syns igen (flaggtavla.js tackKartan).
+  // Till Huvudstäder: landbilderna följer sedan knappen (sattUtforskBilder,
+  // valet står kvar mellan passen); till Länder eller Flaggor står alla
+  // länder täckta, som i ett nytt pass där.
   if (fore === 'huvudstad' || nu === 'huvudstad') {
     resetOverlays();
     nollaStader();
+    sattUtforskBilder();
     utforskade.clear();
     activeCountry = null;
     infoCard.classList.remove('active');
@@ -3001,6 +3151,14 @@ document.querySelectorAll('#utforska-val .fraga-btn').forEach(b => b.addEventLis
   uppdateraHuvudstadslage();   // flaggtavlan eller globen (sist: tavlans texter)
   huvudstadDirty();
 }));
+// "Visa landbilder" i Utforska + Huvudstäder: alla länders bilder av/på
+document.getElementById('utforsk-bilder-btn')?.addEventListener('click', () => {
+  utforskBilder = !utforskBilder;
+  window.kakSpara?.('utforska_bilder', { pa: utforskBilder,
+    region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden' });
+  sattUtforskBilder();
+  uppdateraUtforskStader();
+});
 function visaInfoUtfalld() {
   infoExtra.style.display = infoUtfalld ? '' : 'none';
   infoToggle.classList.toggle('open', infoUtfalld);
@@ -3054,7 +3212,14 @@ function visaFlaggRuta(c) {
   document.getElementById('info-flagga-minne').innerHTML = fb ? flaggMinneHtml(c, false) : '';
 }
 function exploreClick(c, e) {
-  if (revealed.has(c.gid)) coverCountry(c.gid);
+  const stad = utforskStadLage();
+  if (stad) {
+    // städerna: upptäckten är namnrutan; landets bild följer knappen
+    // "Visa landbilder" (utforskBilder), inte klicket
+    if (revealed.has(c.gid)) revealed.delete(c.gid);
+    else { revealed.add(c.gid); utforskade.add(c.gid); }
+    huvudstadDirty();
+  } else if (revealed.has(c.gid)) coverCountry(c.gid);
   else revealCountry(c.gid);
   spela('klick');
   showInfoCard(c);
@@ -3062,14 +3227,14 @@ function exploreClick(c, e) {
     clearTimeout(exploreTooltipTimer);
     // minnesregeln direkt vid pekaren — och längre tid när det finns
     // en regel att hinna läsa. Städerna: staden, landet och stadens regel
-    const hs = utforskStadLage() ? huvudstadFor(c) : null;
+    const hs = stad ? huvudstadFor(c) : null;
+    cursorLabel.classList.remove('gg-etikett', 'tavla-etikett', 'utanfor');
     cursorLabel.innerHTML = hs
       ? `<div class="tt-namn">🏛️ ${escHtml(hs.huvudstad)}, ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
         (hs.association ? `<div class="tt-assoc">${minnesHtml(hs.association)}</div>` : '')
       : `<div class="tt-namn">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
         (c.assoc ? `<div class="tt-assoc">${escHtml(c.assoc)}</div>` : '');
     cursorLabel.classList.add('explore-tooltip');
-    cursorLabel.classList.remove('tavla-etikett', 'utanfor');
     cursorLabel.style.left = e.clientX + 'px';
     cursorLabel.style.top = e.clientY + 'px';
     cursorLabel.style.display = 'block';
@@ -3080,7 +3245,7 @@ function exploreClick(c, e) {
 function hideExploreTooltip() {
   clearTimeout(exploreTooltipTimer);
   cursorLabel.style.display = 'none';
-  cursorLabel.classList.remove('explore-tooltip');
+  cursorLabel.classList.remove('explore-tooltip', 'gg-etikett');
 }
 // pekaretiketterna följer pekaren på FÖNSTERNIVÅ: kartans egna mousemove
 // tystnar medan man drar i globen, och då blev rutan stående där den var.
@@ -3181,7 +3346,11 @@ function nextSeterraTarget() {
   seterraTargetMisses = 0;
   const namn = promptNamn(seterraTarget);
   seterraTargetName.textContent = namn;
-  cursorLabel.textContent = huvudstadslage ? '🏛️ ' + namn : namn;
+  // stadsläget: som på GeoGuessr, en vit ruta "Klicka på <stad>"
+  cursorLabel.classList.remove('explore-tooltip');
+  cursorLabel.classList.toggle('gg-etikett', stadslage);
+  if (stadslage) cursorLabel.innerHTML = 'Klicka på <strong>' + escHtml(namn) + '</strong>';
+  else cursorLabel.textContent = huvudstadslage ? '🏛️ ' + namn : namn;
   // feedbacken (RÄTT! + landbilden) ligger kvar tills nästa svar —
   // originalspelet visade bilden på kollaget; här är panelen platsen.
   // Huvudstadsläget: ledtråden är huvudstadens minnesregel (den pekar på
@@ -4091,6 +4260,7 @@ function switchMode(mode, force) {
     headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
     resetOverlays();
     nollaStader();        // quizets kvittofärger på städerna hör inte hit
+    sattUtforskBilder();
     utforskade.clear();   // nytt pass genom världsdelen
     activeCountry = null;
     infoCard.classList.remove('active');
@@ -4131,7 +4301,11 @@ document.getElementById('blink-kvar-btn').addEventListener('click', () => {
 });
 
 document.getElementById('show-all-btn').addEventListener('click', () => {
-  COUNTRIES.forEach(c => revealCountry(c.gid));
+  if (utforskStadLage()) {
+    // städerna: alla namnrutor fram; landbilderna följer sin knapp
+    COUNTRIES.forEach(c => { revealed.add(c.gid); utforskade.add(c.gid); });
+    huvudstadDirty();
+  } else COUNTRIES.forEach(c => revealCountry(c.gid));
   exploredCountEl.textContent = utforskade.size;
   if (COUNTRIES.length) showInfoCard(COUNTRIES[0]);
 });
@@ -4139,6 +4313,7 @@ document.getElementById('hide-all-btn').addEventListener('click', () => {
   // bara en bulkversion av att klicka bort länderna ett och ett — därför
   // står räknaren kvar, precis som den gör vid enstaka klick
   resetOverlays();
+  sattUtforskBilder();
   exploredCountEl.textContent = utforskade.size;
   activeCountry = null;
   infoCard.classList.remove('active');

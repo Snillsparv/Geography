@@ -618,11 +618,15 @@ try {
     hs: document.getElementById('info-hs-namn').textContent,
     tt: document.getElementById('cursor-label').textContent,
     mal: map.getFilter('stad-mal')[2][1].length,
-    namn: map.getFilter('huvudstad-namn')[2][1].includes(${pkt.gid}),
+    etikett: map.getFilter('stad-etikett')[2][1].includes(${pkt.gid}),
+    prick: map.getFilter('huvudstad-prick')[2][1].length,
     antal: document.getElementById('explored-count').textContent })`);
+  // v102: staden får en vit namnruta (stad-etikett) och cirkeln står kvar;
+  // ingen svart prick som i Länder-läget
   ok('Utforska: klick på en stad upptäcker den',
     efterTom === 0 && upptackt.avt && upptackt.kort && upptackt.hs === 'Sucre / La Paz'
-    && upptackt.tt.includes('Sucre / La Paz, ') && upptackt.tt.includes('Bolivia') && upptackt.mal === 12 && upptackt.namn && upptackt.antal === '1',
+    && upptackt.tt.includes('Sucre / La Paz, ') && upptackt.tt.includes('Bolivia') && upptackt.mal === 13
+    && upptackt.etikett && upptackt.prick === 0 && upptackt.antal === '1',
     JSON.stringify(upptackt).slice(0, 200));
   await up.mouse.click(pkt.x + 1, pkt.y + 1);
   const dold = await up.evaluate(`({ avt: revealed.has(${pkt.gid}), antal: document.getElementById('explored-count').textContent })`);
@@ -682,8 +686,41 @@ try {
   await eu.waitForTimeout(200);
   const andra = await eu.evaluate(`[revealed.has(${rv.it}), revealed.has(${rv.va})]`);
   ok('Utforska: en upptäckt stad stjäl inte klicket från den vita cirkeln ovanpå',
-    rv.D < rv.ritad && forsta[0] !== forsta[1] && andra[0] && andra[1],
+    rv.D <= 3 && rv.D < rv.ritad && forsta[0] !== forsta[1] && andra[0] && andra[1],
     JSON.stringify({ D: +rv.D.toFixed(1), ritad: +rv.ritad.toFixed(1), forsta, andra }));
+  // v102: upptäckta städer är också vita cirklar. Två städer som går att
+  // skilja åt (Wien och Bratislava, ~5 px isär): ett klick till på den
+  // hittade döljer den, i stället för att hitta grannen
+  const wb = await eu.evaluate(`(() => {
+    revealed.clear(); huvudstadDirty();
+    const hitta = n => COUNTRIES.find(c => (huvudstadFor(c) || {}).huvudstad === n);
+    const w = hitta('Wien'), b = hitta('Bratislava');
+    const pw = stadPunkt.get(w.gid), pb = stadPunkt.get(b.gid);
+    const avst = () => { const a = map.project([pw.lng, pw.lat]), c = map.project([pb.lng, pb.lat]); return Math.hypot(a.x - c.x, a.y - c.y); };
+    map.jumpTo({ center: [pw.lng, pw.lat], zoom: map.getZoom() });
+    map.jumpTo({ center: [pw.lng, pw.lat], zoom: map.getZoom() + Math.log2(5 / avst()) });
+    const r = map.getCanvas().getBoundingClientRect(), s = map.project([pw.lng, pw.lat]);
+    const t = map.project([pb.lng, pb.lat]), D = avst();
+    // en punkt inuti Wiens cirkel, 4 px vid sidan om linjen mot Bratislava:
+    // närmare Wien (4 px) än Bratislava (~6,4 px), men bara ~2,4 px skillnad
+    const off = Math.min(4, (stadRadiePx(map.getZoom()) + 2) * 0.8);
+    const nx = -(t.y - s.y) / D, ny = (t.x - s.x) / D;
+    return { w: w.gid, b: b.gid, D, off, x: r.left + s.x, y: r.top + s.y,
+      sx: r.left + s.x + nx * off, sy: r.top + s.y + ny * off };
+  })()`);
+  await eu.waitForTimeout(300);
+  const wbKlick = async (x, y) => {
+    await eu.mouse.click(x, y);
+    await eu.waitForTimeout(200);
+    return eu.evaluate(`[revealed.has(${wb.w}), revealed.has(${wb.b})]`);
+  };
+  const wb1 = await wbKlick(wb.x, wb.y);     // mitt på: Wien hittas
+  const wb2 = await wbKlick(wb.sx, wb.sy);   // vid sidan om: Wien döljs
+  const wb3 = await wbKlick(wb.x, wb.y);     // mitt på: hittas igen
+  const wb4 = await wbKlick(wb.x, wb.y);     // mitt på: döljs
+  ok('Utforska: ett klick till på en hittad stad döljer den, även bredvid en annan',
+    wb.D > 3.5 && wb1[0] && !wb1[1] && !wb2[0] && !wb2[1] && wb3[0] && !wb3[1] && !wb4[0] && !wb4[1],
+    JSON.stringify({ D: +wb.D.toFixed(1), off: +wb.off.toFixed(1), wb1, wb2, wb3, wb4 }));
   // ✨ i Länder, byt till Huvudstäder mitt i blinkningen, ✨ igen
   // bytet sker medan länderna är gula (väntar på blinken i sidan själv,
   // så att testet inte hänger på hur snabbt maskinen är)
@@ -1314,7 +1351,8 @@ try {
     const c = COUNTRIES.find(x => x.namnSv === 'Bolivia');
     exploreClick(c, null);
     await new Promise(r => setTimeout(r, 200));     // huvudstadDirty väntar en bildruta
-    const fore = revealed.has(c.gid) && map.getFilter('huvudstad-namn')[2][1].includes(c.gid);
+    // (v102: en upptäckt stad har en vit namnruta, stad-etikett)
+    const fore = revealed.has(c.gid) && map.getFilter('stad-etikett')[2][1].includes(c.gid);
     document.getElementById('blink-kvar-btn').click();
     await new Promise(r => setTimeout(r, 300));
     const blinkar = blinkKvarTimer !== null;
@@ -1323,12 +1361,14 @@ try {
     return { fore, blinkar, timer: blinkKvarTimer === null, avtackt: revealed.size, utforskade: utforskade.size,
       raknat: document.getElementById('explored-count').textContent, kort: infoCard.classList.contains('active'),
       tavla: !document.getElementById('flaggtavla').hidden, mal: map.getFilter('stad-mal')[2][1].length,
+      etikett: map.getFilter('stad-etikett')[2][1].length, rad: getComputedStyle(document.getElementById('utforsk-bild-rad')).display,
       tips: COUNTRIES.filter(x => (map.getFeatureState({ source: 'huvudstader', id: x.gid }) || {}).tips).length,
       gula: COUNTRIES.filter(x => landState(x.gid).tips).length, hint: headerHint.textContent };
   })()`);
   ok('flaggtavla: Flaggor efter Huvudstäder städar städernas läge', stadad.fore && stadad.blinkar && stadad.timer
     && stadad.avtackt === 0 && stadad.utforskade === 0 && stadad.raknat === '0' && !stadad.kort && stadad.tavla
-    && stadad.mal === 0 && stadad.tips === 0 && stadad.gula === 0 && stadad.hint === 'Klicka på en flagga', JSON.stringify(stadad));
+    && stadad.mal === 0 && stadad.etikett === 0 && stadad.rad === 'none' && stadad.tips === 0 && stadad.gula === 0
+    && stadad.hint === 'Klicka på en flagga', JSON.stringify(stadad));
   // och tillbaka till Länder: globen exakt som i Länder-läget
   await fp.click('#utforska-val [data-utforska="land"]');
   await fp.waitForTimeout(300);
@@ -1967,6 +2007,285 @@ try {
   await ctx.close();
 } catch (e) {
   ok('flaggvändning: med riktiga övergångar', false, String(e).slice(0, 200));
+}
+
+// ── v102: Utforska + Huvudstäder som på GeoGuessr ──
+// En upptäckt stad får en vit namnruta bredvid cirkeln, landbilderna är
+// avslagna från start och slås på med en egen knapp (alla eller inga), och
+// quizets etikett vid pekaren är en vit "Klicka på <stad>"-ruta.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','huvudstad'); localStorage.setItem('quiz-fraga','huvudstad')";
+  const gg = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const ggFel = [];
+  gg.on('pageerror', e => ggFel.push(String(e)));
+  await gg.addInitScript(INIT_LS);
+  await gg.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await gg.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+    " && HUVUDSTAD.size > 0 && !!map.getLayer('stad-etikett') && utforskStadLage()", null, { timeout: 30000 });
+  await gg.waitForTimeout(800);
+  const tackta = 'COUNTRIES.filter(c => landState(c.gid).tackt).length';
+  const start = await gg.evaluate(`({ rad: getComputedStyle(document.getElementById('utforsk-bild-rad')).display,
+    knapp: document.getElementById('utforsk-bilder-btn').textContent.trim(), tackt: ${tackta}, n: COUNTRIES.length,
+    hinder: map.getFilter('stad-hinder')[2][1].length, ring: map.getFilter('stad-ring')[2][1].length })`);
+  ok('Utforska + Huvudstäder: landbilderna avslagna från start', start.rad !== 'none'
+    && start.knapp.includes('Visa landbilder') && start.tackt === start.n && start.hinder === start.n
+    && start.ring === start.n, JSON.stringify(start));
+  // riktigt klick på Lima: namnrutan ritas, landet står kvar täckt
+  const lima = await gg.evaluate(`(() => {
+    const c = COUNTRIES.find(x => x.namnSv === 'Peru');
+    const r = map.getCanvas().getBoundingClientRect(), p = stadPunkt.get(c.gid), s = map.project([p.lng, p.lat]);
+    return { x: r.left + s.x, y: r.top + s.y, gid: c.gid };
+  })()`);
+  await gg.mouse.move(lima.x, lima.y);
+  await gg.waitForTimeout(150);
+  const pekar = await gg.evaluate(`!!map.getFeatureState({ source: 'huvudstader', id: ${lima.gid} }).hover`);
+  await gg.mouse.click(lima.x, lima.y);
+  await gg.waitForTimeout(1200);       // namnrutan placeras vid nästa bildruta
+  const upp = await gg.evaluate(`({ avt: revealed.has(${lima.gid}), tackt: !!landState(${lima.gid}).tackt,
+    etikett: map.getFilter('stad-etikett')[2][1], bild: map.hasImage('etikett-vit'),
+    ritad: map.queryRenderedFeatures({ layers: ['stad-etikett'] }).map(f => f.properties.namn) })`);
+  ok('Utforska + Huvudstäder: upptäckt stad får en vit namnruta, landet står täckt',
+    pekar && upp.avt && upp.tackt && upp.etikett.length === 1 && upp.etikett[0] === lima.gid && upp.bild
+    && upp.ritad.includes('Lima'), JSON.stringify({ pekar, ...upp }));
+  // namnrutans åtta lägen (sidorna och hörnen) får aldrig krocka med
+  // stadens egen cirkel (stad-hinder): prova vart och ett för sig
+  const lagen = [];
+  const allaLagen = await gg.evaluate(`map.getLayoutProperty('stad-etikett', 'text-variable-anchor-offset')`);
+  const kamera = await gg.evaluate(`({ center: map.getCenter().toArray(), zoom: map.getZoom() })`);
+  for (const z of [4, 8]) for (let i = 0; i < allaLagen.length; i += 2) {
+    await gg.evaluate(`(() => { const p = stadPunkt.get(${lima.gid}); map.jumpTo({ center: [p.lng, p.lat], zoom: ${z} });
+      map.setLayoutProperty('stad-etikett', 'text-variable-anchor-offset', ${JSON.stringify(allaLagen.slice(i, i + 2))}); })()`);
+    await gg.waitForTimeout(450);
+    if (!(await gg.evaluate(`map.queryRenderedFeatures({ layers: ['stad-etikett'] }).length`))) lagen.push(z + ':' + allaLagen[i]);
+  }
+  await gg.evaluate(`map.setLayoutProperty('stad-etikett', 'text-variable-anchor-offset', ${JSON.stringify(allaLagen)});
+    map.jumpTo(${JSON.stringify(kamera)})`);
+  await gg.waitForTimeout(300);
+  ok('Utforska + Huvudstäder: namnrutan kan ligga på alla åtta sidor om staden',
+    allaLagen.length === 16 && lagen.length === 0, JSON.stringify(lagen));
+  // knappen: alla bilder på; upptäckterna rörs inte; ett klick döljer
+  // staden men landets bild står kvar
+  await gg.click('#utforsk-bilder-btn');
+  await gg.waitForTimeout(100);
+  const pa = await gg.evaluate(`({ tackt: ${tackta}, knapp: document.getElementById('utforsk-bilder-btn').textContent.trim(),
+    aktiv: document.getElementById('utforsk-bilder-btn').classList.contains('pa'), rev: revealed.size })`);
+  await gg.mouse.click(lima.x, lima.y);
+  await gg.waitForTimeout(150);
+  const dold = await gg.evaluate(`({ avt: revealed.has(${lima.gid}), tackt: !!landState(${lima.gid}).tackt,
+    etikett: map.getFilter('stad-etikett')[2][1].length })`);
+  ok('Utforska + Huvudstäder: Visa landbilder visar alla bilder, upptäckterna står kvar',
+    pa.tackt === 0 && pa.knapp.includes('Dölj landbilder') && pa.aktiv && pa.rev === 1
+    && !dold.avt && !dold.tackt && dold.etikett === 0, JSON.stringify({ ...pa, dold }));
+  // visa/dölj alla följer knappen för bilderna
+  const alla = await gg.evaluate(`(() => {
+    document.getElementById('hide-all-btn').click();
+    const efterDolj = { rev: revealed.size, tackt: ${tackta} };
+    document.getElementById('utforsk-bilder-btn').click();
+    document.getElementById('show-all-btn').click();
+    return { efterDolj, rev: revealed.size, tackt: ${tackta}, n: COUNTRIES.length };
+  })()`);
+  await gg.waitForTimeout(150);
+  const alla2 = await gg.evaluate(`map.getFilter('stad-etikett')[2][1].length`);
+  ok('Utforska + Huvudstäder: visa/dölj alla rör inte landbilderna',
+    alla.efterDolj.rev === 0 && alla.efterDolj.tackt === 0 && alla.rev === alla.n && alla.tackt === alla.n
+    && alla2 === alla.n, JSON.stringify({ ...alla, alla2 }));
+  // bilderna på + Länder och tillbaka: valet står kvar; Länder som förut
+  const vx = await gg.evaluate(`(() => {
+    document.getElementById('utforsk-bilder-btn').click();
+    document.querySelector('#utforska-val [data-utforska="land"]').click();
+    const land = { rad: getComputedStyle(document.getElementById('utforsk-bild-rad')).display, tackt: ${tackta} };
+    document.querySelector('#utforska-val [data-utforska="huvudstad"]').click();
+    return { land, tackt: ${tackta}, rev: revealed.size };
+  })()`);
+  ok('Utforska + Huvudstäder: bildvalet följer med mellan Länder och Huvudstäder',
+    vx.land.rad === 'none' && vx.land.tackt === start.n && vx.tackt === 0 && vx.rev === 0, JSON.stringify(vx));
+  // quizet: vit "Klicka på <stad>"-ruta vid pekaren; Länder som förut
+  await gg.evaluate("document.querySelector('.mode-btn[data-mode=\"bildquiz\"]').click()");
+  await gg.waitForTimeout(400);
+  const quiz = await gg.evaluate(`({ stadslage, cls: document.getElementById('cursor-label').className,
+    txt: document.getElementById('cursor-label').textContent, mal: seterraTarget && huvudstadFor(seterraTarget).huvudstad })`);
+  await gg.evaluate(`document.querySelector('#fraga-val [data-fraga="land"]').click()`);
+  await gg.waitForTimeout(400);
+  const quizLand = await gg.evaluate(`({ cls: document.getElementById('cursor-label').className })`);
+  ok('Bildquiz + Huvudstäder: vit "Klicka på"-ruta vid pekaren',
+    quiz.stadslage && quiz.cls.includes('gg-etikett') && quiz.txt === 'Klicka på ' + quiz.mal
+    && !quizLand.cls.includes('gg-etikett'), JSON.stringify({ quiz, quizLand }));
+  ok('Utforska + Huvudstäder i GeoGuessr-stil utan JS-fel', ggFel.length === 0, ggFel.join(' | ').slice(0, 160));
+  await gg.close();
+} catch (e) {
+  ok('Utforska + Huvudstäder: landbilderna avslagna från start', false, String(e).slice(0, 160));
+}
+
+// ── v103: huvudstädernas GeoGuessr-läge (v102) och flaggtavlan (v100–v101) ihop ──
+// Utforskas växel har tre val (villUtforska). "Visa landbilder"
+// (utforskBilder, #utforsk-bild-rad) hör bara till Huvudstäder och rör
+// aldrig Länder eller Flaggor. Ett byte till eller från Huvudstäder är ett
+// nytt pass (alla länder täckta, räknaren noll); Länder ⇄ Flaggor behåller
+// passet. Bildvalet står kvar mellan passen (som i v102), och flaggtavlan
+// med vändningen fungerar som förut efter Huvudstäder med bilderna på.
+try {
+  const INIT_LS = "localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1')";
+  const hf = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const hfFel = [];
+  hf.on('pageerror', e => hfFel.push(String(e)));
+  await hf.addInitScript(INIT_LS);
+  const laddad = async () => {
+    await hf.waitForFunction("document.getElementById('spel-load').style.display === 'none'" +
+      " && HUVUDSTAD.size > 0 && COUNTRIES.length > 0 && !!map.getLayer('stad-etikett') && currentMode === 'explore'",
+      null, { timeout: 30000 });
+    await hf.waitForTimeout(500);
+  };
+  await hf.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await laddad();
+  await hf.evaluate('laddaFlaggbilder()');
+  await hf.addStyleTag({ content: '#flaggtavla .tavla-kort, #flaggtavla .tavla-flagga { transition: none !important; }' });
+  // allt som avgör vad Utforska visar: valet, raden, bilderna (tillståndet
+  // och det globen ritar — det senare bara när tavlan inte täcker den)
+  const HF = `(() => ({
+    val: villUtforska, visar: utforskVal(), stad: utforskStadLage(), flaggor: utforskaFlaggor,
+    rad: getComputedStyle(document.getElementById('utforsk-bild-rad')).display,
+    knapp: document.getElementById('utforsk-bilder-btn').textContent.trim(), bilder: utforskBilder,
+    aktiv: document.querySelector('#utforska-val .fraga-btn.active').dataset.utforska,
+    tavla: !document.getElementById('flaggtavla').hidden, tacktKarta: kartaTackt,
+    n: COUNTRIES.length, tackt: COUNTRIES.filter(c => landState(c.gid).tackt).length,
+    ritadTackt: kartaTackt ? -1 : COUNTRIES.filter(c => map.getFeatureState({ source: 'regioner', id: c.gid }).tackt).length,
+    avtackta: COUNTRIES.filter(c => !landState(c.gid).tackt).map(c => c.namnSv).sort().join(','),
+    rev: [...revealed].map(g => aktivByGid.get(g).namnSv).sort().join(','), utforskade: utforskade.size,
+    raknat: document.getElementById('explored-count').textContent,
+    etikett: map.getFilter('stad-etikett')[2][1].length, mal: map.getFilter('stad-mal')[2][1].length,
+    vanda: [...document.querySelectorAll('#flaggtavla .tavla-ruta.vand, #flaggtavla .tavla-ruta.vand-klar')].length,
+    bockar: [...document.querySelectorAll('#flaggtavla .tavla-ruta.utforskad')].length,
+    kort: infoCard.classList.contains('active') ? document.getElementById('info-name').textContent : '' }))()`;
+  const lage = async () => { await hf.waitForTimeout(250); return hf.evaluate(HF); };
+  const vaxla = async v => { await hf.click(`#utforska-val [data-utforska="${v}"]`); return lage(); };
+  const gidFor = namn => hf.evaluate(`COUNTRIES.find(c => c.namnSv === ${JSON.stringify(namn)}).gid`);
+  const RUTA = gid => `#flaggtavla .tavla-ruta[data-gid="${gid}"]`;
+  const vantaVila = (gid, minne) => hf.waitForFunction(`(() => { const b = document.querySelector('${RUTA(gid)}');
+    return !b.classList.contains('minne') && b.classList.contains('vand') === ${minne} && b.classList.contains('vand-klar') === ${minne}; })()`,
+    null, { timeout: 8000 }).catch(() => {});
+  const vandFlagga = async (gid, minne) => {
+    await hf.click(RUTA(gid));
+    await vantaVila(gid, minne);
+    await hf.waitForTimeout(450);      // ett klick till är inte resten av ett dubbelklick
+    return hf.evaluate(`(() => { const b = document.querySelector('${RUTA(gid)}');
+      return { klar: b.classList.contains('vand-klar'), pressed: b.getAttribute('aria-pressed') }; })()`);
+  };
+  // raden syns bara i Huvudstäder
+  const land0 = await lage();
+  const hs0 = await vaxla('huvudstad');
+  const fl0 = await vaxla('flagga');
+  const land1 = await vaxla('land');
+  ok('v103: raden Visa landbilder syns i Huvudstäder, inte i Länder eller Flaggor',
+    land0.aktiv === 'land' && land0.rad === 'none' && hs0.aktiv === 'huvudstad' && hs0.stad && hs0.rad !== 'none'
+    && hs0.knapp.endsWith('Visa landbilder') && fl0.aktiv === 'flagga' && fl0.flaggor && fl0.tavla && fl0.rad === 'none'
+    && land1.aktiv === 'land' && land1.rad === 'none' && !land1.tavla,
+    JSON.stringify([land0, hs0, fl0, land1].map(x => [x.aktiv, x.rad, x.tavla])));
+  // Huvudstäder: en upptäckt stad och landbilderna på — alla länder avtäckta
+  await vaxla('huvudstad');
+  await hf.evaluate("exploreClick(COUNTRIES.find(c => c.namnSv === 'Peru'), null)");
+  await hf.click('#utforsk-bilder-btn');
+  const hsPa = await lage();
+  ok('v103: Huvudstäder med landbilderna på (start för bytena)', hsPa.stad && hsPa.bilder && hsPa.knapp.endsWith('Dölj landbilder')
+    && hsPa.tackt === 0 && hsPa.ritadTackt === 0 && hsPa.rev === 'Peru' && hsPa.raknat === '1' && hsPa.etikett === 1
+    && hsPa.mal === hsPa.n, JSON.stringify(hsPa));
+  // → Flaggor: ett nytt pass, alla länder täckta under tavlan (bildvalet
+  // står kvar men rör inte Flaggor), inga städer kvar
+  const flPa = await vaxla('flagga');
+  ok('v103: Huvudstäder (bilderna på) → Flaggor: nytt pass, alla länder täckta, inga städer',
+    flPa.flaggor && flPa.tavla && flPa.tacktKarta && flPa.rad === 'none' && flPa.bilder && flPa.tackt === flPa.n
+    && flPa.rev === '' && flPa.utforskade === 0 && flPa.raknat === '0' && flPa.etikett === 0 && flPa.mal === 0
+    && flPa.vanda === 0 && flPa.bockar === 0 && flPa.kort === '', JSON.stringify(flPa));
+  // flaggtavlan och vändningen som förut: Brasilien vänds fram och tillbaka,
+  // Chile vänds; två länder upptäckta
+  const br = await gidFor('Brasilien'), cl = await gidFor('Chile'), ar = await gidFor('Argentina');
+  const brMinne = await vandFlagga(br, true);
+  const brKort = await lage();
+  const brFlagga = await vandFlagga(br, false);
+  const clMinne = await vandFlagga(cl, true);
+  const flTva = await lage();
+  ok('v103: Flaggor efter Huvudstäder med bilderna på — kortet, räknaren och vändningen fungerar',
+    brMinne.klar && brMinne.pressed === 'true' && /Brasilien/.test(brKort.kort) && brKort.raknat === '1'
+    && !brFlagga.klar && brFlagga.pressed === 'false' && clMinne.klar && flTva.raknat === '2' && flTva.bockar === 2
+    && flTva.rev === 'Brasilien,Chile' && flTva.tackt === flTva.n - 2 && flTva.vanda === 1 && flTva.bilder,
+    JSON.stringify({ brMinne, brFlagga, clMinne, flTva }));
+  // → Länder: samma pass, globen visar just de två länderna (bilderna
+  // följer upptäckterna, inte knappen); ett klick på globen räknas vidare
+  const landPa = await vaxla('land');
+  await hf.evaluate(`exploreClick(aktivByGid.get(${ar}), null)`);
+  const landTre = await lage();
+  ok('v103: Flaggor → Länder: samma pass, bara de upptäckta länderna avtäckta på globen',
+    !landPa.tavla && !landPa.tacktKarta && landPa.rad === 'none' && landPa.raknat === '2' && landPa.rev === 'Brasilien,Chile'
+    && landPa.avtackta === 'Brasilien,Chile' && landPa.ritadTackt === landPa.n - 2 && landPa.etikett === 0 && landPa.mal === 0
+    && landTre.raknat === '3' && landTre.avtackta === 'Argentina,Brasilien,Chile' && landTre.ritadTackt === landTre.n - 3,
+    JSON.stringify({ landPa, landTre: [landTre.raknat, landTre.avtackta, landTre.ritadTackt] }));
+  // → Huvudstäder: ett nytt pass; bildvalet står kvar (alla bilder), och
+  // knappen slår av dem igen
+  const hsIgen = await vaxla('huvudstad');
+  await hf.click('#utforsk-bilder-btn');
+  const hsAv = await lage();
+  await hf.click('#utforsk-bilder-btn');
+  const hsPaIgen = await lage();
+  ok('v103: Länder → Huvudstäder: nytt pass, bildvalet står kvar och knappen styr alla bilder',
+    hsIgen.stad && hsIgen.rad !== 'none' && hsIgen.bilder && hsIgen.knapp.endsWith('Dölj landbilder') && hsIgen.tackt === 0
+    && hsIgen.ritadTackt === 0 && hsIgen.rev === '' && hsIgen.utforskade === 0 && hsIgen.raknat === '0' && hsIgen.etikett === 0
+    && hsIgen.mal === hsIgen.n && hsAv.tackt === hsAv.n && hsAv.ritadTackt === hsAv.n && hsAv.knapp.endsWith('Visa landbilder')
+    && hsPaIgen.tackt === 0 && hsPaIgen.ritadTackt === 0, JSON.stringify({ hsIgen, av: [hsAv.tackt, hsAv.ritadTackt, hsAv.knapp] }));
+  // Flaggor igen (bilderna på): tavlan börjar ovänd, vändningen fungerar;
+  // tillbaka i Länder är bara det upptäckta landet avtäckt
+  const flIgen = await vaxla('flagga');
+  const brIgen = await vandFlagga(br, true);
+  const brIgenTillbaka = await vandFlagga(br, false);
+  const flEfter = await lage();
+  const landEfter = await vaxla('land');
+  ok('v103: Huvudstäder → Flaggor igen: tavlan ovänd, vändningen fungerar, Länder visar bara det upptäckta',
+    flIgen.tavla && flIgen.vanda === 0 && flIgen.bockar === 0 && flIgen.tackt === flIgen.n && flIgen.raknat === '0'
+    && brIgen.klar && !brIgenTillbaka.klar && flEfter.raknat === '1' && flEfter.bockar === 1
+    && landEfter.avtackta === 'Brasilien' && landEfter.ritadTackt === landEfter.n - 1 && landEfter.raknat === '1'
+    && landEfter.rad === 'none', JSON.stringify({ flIgen, brIgen, brIgenTillbaka, landEfter }));
+  // 'utforska-fraga' = land, huvudstad och flagga kommer tillbaka efter
+  // omladdning (och ett okänt värde blir Länder). Bildvalet sparas inte
+  // mellan sidladdningar: bilderna är avslagna från start.
+  const aterstallt = {};
+  for (const v of ['land', 'huvudstad', 'flagga', 'okänt']) {
+    await hf.evaluate(`localStorage.setItem('utforska-fraga', ${JSON.stringify(v)})`);
+    await hf.reload({ waitUntil: 'domcontentloaded' });
+    await laddad();
+    const s = await hf.evaluate(HF);
+    const pressed = await hf.evaluate(`[...document.querySelectorAll('#utforska-val .fraga-btn')].map(b => b.dataset.utforska + '=' + b.getAttribute('aria-pressed')).join(',')`);
+    aterstallt[v] = { ...s, pressed };
+  }
+  const { land: lsL, huvudstad: lsH, flagga: lsF, 'okänt': lsX } = aterstallt;
+  ok("v103: 'utforska-fraga' land, huvudstad och flagga återställs efter omladdning",
+    lsL.val === 'land' && lsL.aktiv === 'land' && !lsL.stad && !lsL.flaggor && !lsL.tavla && lsL.rad === 'none'
+    && lsL.pressed === 'land=true,huvudstad=false,flagga=false'
+    && lsH.val === 'huvudstad' && lsH.aktiv === 'huvudstad' && lsH.stad && !lsH.tavla && lsH.rad !== 'none' && !lsH.bilder
+    && lsH.tackt === lsH.n && lsH.knapp.endsWith('Visa landbilder') && lsH.mal === lsH.n
+    && lsH.pressed === 'land=false,huvudstad=true,flagga=false'
+    && lsF.val === 'flagga' && lsF.aktiv === 'flagga' && lsF.flaggor && lsF.tavla && lsF.rad === 'none' && lsF.mal === 0
+    && lsF.pressed === 'land=false,huvudstad=false,flagga=true'
+    && lsX.val === 'land' && lsX.aktiv === 'land' && !lsX.tavla && lsX.rad === 'none',
+    JSON.stringify(Object.fromEntries(Object.entries(aterstallt).map(([k, s]) => [k, [s.val, s.aktiv, s.rad, s.tavla, s.pressed]]))));
+  // Bildquiz: städernas vita "Klicka på"-ruta (gg-etikett) och flaggtavlans
+  // (tavla-etikett) blandas aldrig när man växlar mellan dem
+  await hf.evaluate("document.querySelector('.mode-btn[data-mode=\"bildquiz\"]').click()");
+  await hf.waitForTimeout(400);
+  const etikett = () => hf.evaluate(`({ cls: document.getElementById('cursor-label').className,
+    txt: document.getElementById('cursor-label').textContent, stad: stadslage, flagga: flagglage,
+    mal: seterraTarget && seterraTarget.name, hs: seterraTarget && (huvudstadFor(seterraTarget) || {}).huvudstad })`);
+  const fraga = async v => { await hf.click(`#fraga-val [data-fraga="${v}"]`); await hf.waitForTimeout(400); return etikett(); };
+  const qH = await fraga('huvudstad'), qF = await fraga('flagga'), qH2 = await fraga('huvudstad'), qL = await fraga('land');
+  const har = (e, k) => e.cls.split(/\s+/).includes(k);
+  ok('v103: Bildquiz — Huvudstäders vita ruta och flaggtavlans etikett blandas inte',
+    qH.stad && har(qH, 'gg-etikett') && !har(qH, 'tavla-etikett') && qH.txt === 'Klicka på ' + qH.hs
+    && qF.flagga && har(qF, 'tavla-etikett') && !har(qF, 'gg-etikett') && qF.txt === 'Klicka på ' + qF.mal
+    && qH2.stad && har(qH2, 'gg-etikett') && !har(qH2, 'tavla-etikett')
+    && !qL.stad && !qL.flagga && !har(qL, 'gg-etikett') && !har(qL, 'tavla-etikett'),
+    JSON.stringify({ qH, qF, qH2, qL }).slice(0, 400));
+  ok('v103: huvudstäder och flaggor ihop utan JS-fel', hfFel.filter(e => !/firebase/i.test(e)).length === 0,
+    hfFel.join(' | ').slice(0, 160));
+  await hf.close();
+} catch (e) {
+  ok('v103: raden Visa landbilder syns i Huvudstäder, inte i Länder eller Flaggor', false, String(e).slice(0, 200));
 }
 
 // ── v72: lärarsidan + lärarlänken på startsidan ──
