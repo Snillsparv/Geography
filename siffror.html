@@ -120,10 +120,10 @@
     .alfabet li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px dotted var(--prick); break-inside: avoid; }
     .alfabet .s { font-family: var(--rubrik); font-size: 2.5rem; line-height: 1; color: var(--siffra); }
     .alfabet b { display: block; font-size: 1.05rem; }
-    /* minnesreglerna syns först när man trycker på Visa ledtrådar */
-    .regel { display: none; font-size: .92rem; color: var(--text2); line-height: 1.45; }
-    .visa-ledtradar .regel { display: block; }
-    .alfabet:not(.visa-ledtradar) li { align-items: center; }
+    /* minnesreglerna syns först när man trycker på Visa ledtrådar, men de tar
+       sin plats från början så att listan och knappen står still */
+    .regel { display: block; visibility: hidden; font-size: .92rem; color: var(--text2); line-height: 1.45; }
+    .visa-ledtradar .regel { visibility: visible; }
     .regler li { position: relative; padding-left: 16px; }
     .regler li::before { content: "·"; position: absolute; left: 2px; top: -.1em; font-weight: 900; font-size: 1.3em; }
     .regler li + li { margin-top: 6px; }
