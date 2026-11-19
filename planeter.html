@@ -2,6 +2,17 @@
 <html lang="sv"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Solsystemet på kartan – Jonas geografi</title>
+<meta name="description" content="Lägg ut solsystemet i rätt skala där du bor. Solen är en pilatesboll och planeterna är vardagssaker, från ett senapsfrö till en pingisboll.">
+<meta property="og:title" content="Solsystemet på kartan">
+<meta property="og:description" content="Solen är en pilatesboll. Var hamnar planeterna där du bor?">
+<meta property="og:image" content="https://www.jonasgeografi.se/assets/planeter/dela-v1.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://www.jonasgeografi.se/planeter.html">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#081320">
+<link rel="icon" type="image/png" href="assets/planeter/ikon-v1.png">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
 <style>
   :root { color-scheme: dark; --bg: rgba(10,22,38,.94); --line: rgba(91,191,255,.28); --txt: #d6e4f0; --dim: #85a7c2; --acc: #f0c64a; }
@@ -11,6 +22,12 @@
   #panel { position: fixed; top: 12px; left: 12px; width: 330px; max-height: calc(100vh - 24px); overflow: auto;
     background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; z-index: 2; }
   h1 { font-size: 1.05rem; margin: 0 0 4px; }
+
+  /* header picture with the title on top */
+  #hero { position: relative; height: 132px; margin: -14px -16px 12px; border-radius: 13px 13px 0 0; overflow: hidden; background: #050b16; }
+  #hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  #hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(5,11,22,0) 40%, rgba(5,11,22,.88)); }
+  #hero h1 { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 9px; margin: 0; font-size: 1.25rem; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.9); }
   p.hint { font-size: .82rem; color: var(--dim); margin: 0 0 10px; line-height: 1.45; }
   button { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--txt); cursor: pointer; font-size: .82rem; }
   button.on { background: #2980b9; border-color: #5bbfff; color: #fff; }
@@ -50,11 +67,18 @@
   #list input { grid-column: 2 / 4; padding: 4px 7px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: #0d1d30; color: var(--txt); font-size: .78rem; }
 
   .ico { display: block; flex: none; }
-  .ico svg, .mk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .ico img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
-  /* map markers drawn as the memory objects */
-  .mk { width: 34px; height: 34px; cursor: grab; filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
-  .mk.sun { width: 52px; height: 52px; filter: drop-shadow(0 0 8px rgba(255,140,0,.85)); }
+  /* map markers show the memory objects, each in proportion to the others (--s) */
+  .mk { width: 34px; height: 34px; display: grid; place-items: center; cursor: grab; filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+  .mk img { display: block; width: calc(var(--s, 1) * 100%); pointer-events: none; user-select: none; -webkit-user-drag: none; }
+  .mk.sun { width: 52px; height: 52px; filter: none; }
+  .mk.sun img { transform-origin: 50% 65%; animation: glow 2.6s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { filter: drop-shadow(0 0 5px rgba(255,140,0,.8)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 13px rgba(255,190,50,1)); transform: scale(1.04); }
+  }
+  @media (prefers-reduced-motion: reduce) { .mk.sun img { animation: none; filter: drop-shadow(0 0 8px rgba(255,140,0,.85)); } }
   .mk .lab { position: absolute; left: 27px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 12px; font-weight: 600;
     color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; pointer-events: none; }
   .mk.sun .lab { left: 46px; }
@@ -83,25 +107,14 @@
     #panel { width: auto; right: 12px; max-height: 45vh; }
     #next { bottom: 46px; }
     .maplibregl-ctrl-top-right { display: none; }   /* pinch to zoom instead; the panel covers this corner */
+    #hero { height: 84px; }
+    #hero h1 { font-size: 1.1rem; bottom: 7px; }
   }
 </style>
 </head><body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
-  <radialGradient id="g-sun" cx=".38" cy=".33" r=".75"><stop offset="0" stop-color="#fff4b0"/><stop offset=".45" stop-color="#ffb21e"/><stop offset="1" stop-color="#d9480f"/></radialGradient>
-  <radialGradient id="g-seed" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f7e4a3"/><stop offset=".6" stop-color="#d6aa45"/><stop offset="1" stop-color="#8a6420"/></radialGradient>
-  <radialGradient id="g-berry" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#9aa8dc"/><stop offset=".45" stop-color="#44529a"/><stop offset="1" stop-color="#1a2150"/></radialGradient>
-  <radialGradient id="g-pea" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e2f8a6"/><stop offset=".55" stop-color="#74c43e"/><stop offset="1" stop-color="#2f6e1d"/></radialGradient>
-  <radialGradient id="g-pepper" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffc9d2"/><stop offset=".55" stop-color="#e35a73"/><stop offset="1" stop-color="#8f2037"/></radialGradient>
-  <radialGradient id="g-tennis" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f8ffb0"/><stop offset=".55" stop-color="#d7ea2e"/><stop offset="1" stop-color="#92a614"/></radialGradient>
-  <radialGradient id="g-pool6" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#8fe6a0"/><stop offset=".5" stop-color="#22a043"/><stop offset="1" stop-color="#0c4c1c"/></radialGradient>
-  <radialGradient id="g-golf" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef1f4"/><stop offset="1" stop-color="#a9b3bc"/></radialGradient>
-  <radialGradient id="g-pingis" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f6f2e8"/><stop offset="1" stop-color="#c6bca6"/></radialGradient>
-  <radialGradient id="g-sand" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f6e0b4"/><stop offset=".6" stop-color="#cfa063"/><stop offset="1" stop-color="#85602f"/></radialGradient>
-  <clipPath id="clip14"><circle cx="20" cy="20" r="14"/></clipPath>
-</defs></svg>
 <div id="map"></div>
 <div id="panel">
-  <h1>Solsystemet på kartan</h1>
+  <div id="hero"><img src="assets/planeter/sidhuvud-v1.webp" alt=""><h1>Solsystemet på kartan</h1></div>
   <p class="hint">Solen är en pilatesboll. Sök din adress eller klicka på kartan där du vill ha den. Sedan lägger du ut planeterna en i taget: de hamnar alltid på rätt avstånd från solen, och går att dra runt sin cirkel.</p>
   <form id="search" autocomplete="off">
     <input type="search" id="q" placeholder="Sök adress, t.ex. Storgatan 1, Skövde" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
@@ -126,16 +139,16 @@
 <script>
 // Distances (m) and objects from the book's rymdpromenad: sun = pilates ball
 const BODIES = [
-  { id: 'sun', name: 'Solen', d: 0, obj: 'pilatesboll', color: '#ffb300' },
-  { id: 'merkurius', name: 'Merkurius', d: 25, obj: 'senapsfrö', color: '#b8b1a6' },
-  { id: 'venus', name: 'Venus', d: 45, obj: 'blåbär', color: '#e8c27a' },
-  { id: 'jorden', name: 'Jorden', d: 60, obj: 'ärta', extra: 'Månen är ett gruskorn 15 cm bort.', color: '#3fa0ff' },
-  { id: 'mars', name: 'Mars', d: 90, obj: 'pepparkorn (rosépeppar)', color: '#e0553a' },
-  { id: 'jupiter', name: 'Jupiter', d: 310, obj: 'tennisboll', color: '#d9a066' },
-  { id: 'saturnus', name: 'Saturnus', d: 570, obj: 'biljardboll nr 6', color: '#e6d27a' },
-  { id: 'uranus', name: 'Uranus', d: 1150, obj: 'golfboll', color: '#8fe3e8' },
-  { id: 'neptunus', name: 'Neptunus', d: 1852, obj: 'pingisboll', color: '#4f6dff' },
-  { id: 'pluto', name: 'Pluto', d: 2370, obj: 'sandkorn', color: '#c9a98a', bonus: true },
+  { id: 'sun', name: 'Solen', d: 0, obj: 'pilatesboll', color: '#ffb300', size: 1 },
+  { id: 'merkurius', name: 'Merkurius', d: 25, obj: 'senapsfrö', color: '#b8b1a6', size: 0.27 },
+  { id: 'venus', name: 'Venus', d: 45, obj: 'blåbär', color: '#e8c27a', size: 0.46 },
+  { id: 'jorden', name: 'Jorden', d: 60, obj: 'ärta', extra: 'Månen är ett gruskorn 15 cm bort.', color: '#3fa0ff', size: 0.54 },
+  { id: 'mars', name: 'Mars', d: 90, obj: 'pepparkorn (rosépeppar)', color: '#e0553a', size: 0.35 },
+  { id: 'jupiter', name: 'Jupiter', d: 310, obj: 'tennisboll', color: '#d9a066', size: 0.76 },
+  { id: 'saturnus', name: 'Saturnus', d: 570, obj: 'biljardboll nr 6', color: '#e6d27a', size: 0.76 },
+  { id: 'uranus', name: 'Uranus', d: 1150, obj: 'golfboll', color: '#8fe3e8', size: 0.62 },
+  { id: 'neptunus', name: 'Neptunus', d: 1852, obj: 'pingisboll', color: '#4f6dff', size: 0.6 },
+  { id: 'pluto', name: 'Pluto', d: 2370, obj: 'sandkorn', color: '#c9a98a', size: 0.2, bonus: true },
 ];
 const byId = id => BODIES.find(b => b.id === id);
 const KEY = 'planeter-v1';
@@ -161,39 +174,11 @@ const ROUTES = {
 const wantRoute = (k => ROUTES[k] ? k : null)(new URLSearchParams(location.search).get('runda'));
 const esc = s => String(s).replace(/[<&>"]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// --- icons: each planet is drawn as the object the book uses for its size ---
-const HL = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff" opacity=".55" transform="rotate(-30 ${cx} ${cy})"/>`;
-function star(cx, cy, R, r) {
-  let d = '';
-  for (let i = 0; i < 10; i++) {
-    const a = Math.PI / 5 * i - Math.PI / 2, k = i % 2 ? r : R;
-    d += (i ? 'L' : 'M') + (cx + k * Math.cos(a)).toFixed(2) + ' ' + (cy + k * Math.sin(a)).toFixed(2);
-  }
-  return d + 'Z';
-}
-const flame = (cx, b, h, w, fill) => `<path d="M${cx - w} ${b}C${cx - w - 1} ${b - h * .45} ${cx - 1.5} ${b - h * .55} ${cx} ${b - h}C${cx + 1.5} ${b - h * .55} ${cx + w + 1} ${b - h * .45} ${cx + w} ${b}Z" fill="${fill}"/>`;
-const fire = (cx, b, h, w) => flame(cx, b, h, w, '#ff6a1f') + flame(cx, b, h * .62, w * .55, '#ffd54a');
-let dimples = '';
-for (let i = 0; i < 9; i++) for (let j = 0; j < 9; j++) {
-  const x = -10.4 + j * 2.6 + (i % 2 ? 1.3 : 0), y = -10.4 + i * 2.6;
-  if (x * x + y * y < 92) dimples += `<circle cx="${(20 + x).toFixed(1)}" cy="${(20 + y).toFixed(1)}" r=".8"/>`;
-}
-const ICONS = {
-  sun: `<svg viewBox="0 0 48 48">${fire(15, 15.5, 9, 4)}${fire(33, 15.5, 9, 4)}${fire(24, 13, 12, 5)}<circle cx="24" cy="28" r="17" fill="url(#g-sun)"/><path d="M24 11Q14.5 28 24 45M24 11Q33.5 28 24 45" stroke="#fff" stroke-opacity=".35" fill="none"/>${HL(17, 21, 5, 3.2)}</svg>`,
-  merkurius: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="5" fill="url(#g-seed)" stroke="#6b4d14" stroke-width=".6"/>${HL(18.4, 18.3, 1.6, 1)}</svg>`,
-  venus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="21" r="8.5" fill="url(#g-berry)"/><path d="${star(20, 14.4, 2.8, 1.15)}" fill="#151a38"/>${HL(16.6, 18.6, 2.4, 1.5)}</svg>`,
-  jorden: `<svg viewBox="0 0 40 40"><circle cx="19" cy="21" r="9" fill="url(#g-pea)"/>${HL(15.8, 17.6, 2.6, 1.6)}<path d="M30.2 9.3l1.6-.9 1.5.6.4 1.6-1 1.3-1.7.1-1-1z" fill="#a7a49e" stroke="#55524c" stroke-width=".5"/></svg>`,
-  mars: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="6.5" fill="url(#g-pepper)"/><path d="M16.5 18.5q2 1.5 1 4M21 15.5q1.2 2.2 3.6 2.6M20.5 24.4q1.6-2 4-1.6" stroke="#7d1a30" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>${HL(18, 17.6, 1.8, 1.1)}</svg>`,
-  jupiter: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="url(#g-tennis)"/><g clip-path="url(#clip14)" fill="none" stroke="#fff" stroke-width="1.8"><path d="M8 9C15.5 15 15.5 25 8 31"/><path d="M32 9C24.5 15 24.5 25 32 31"/></g>${HL(14.5, 13.5, 3.2, 2)}</svg>`,
-  saturnus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="url(#g-pool6)"/><circle cx="20" cy="20" r="6.3" fill="#fbfaf2"/><text x="20" y="23.3" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="9.2" fill="#111">6</text>${HL(13.8, 12.8, 3.2, 1.9)}</svg>`,
-  uranus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="11.5" fill="url(#g-golf)"/><g fill="#5a6672" fill-opacity=".28">${dimples}</g>${HL(15.6, 15, 2.8, 1.7)}</svg>`,
-  neptunus: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="11" fill="url(#g-pingis)"/><path d="M9.2 21.5Q20 25 30.8 21.5" stroke="#000" stroke-opacity=".12" stroke-width=".7" fill="none"/><path d="${star(16.6, 17.4, 1.5, .6)}${star(20, 17.4, 1.5, .6)}${star(23.4, 17.4, 1.5, .6)}" fill="#e0601a"/>${HL(15.6, 14.2, 2.6, 1.5)}</svg>`,
-  pluto: `<svg viewBox="0 0 40 40"><path d="M17 18.6l2.9-2.2 3.2 1.2.5 3.1-2.4 2.3-3.3-.4z" fill="url(#g-sand)" stroke="#6b4b22" stroke-width=".5"/></svg>`,
-};
-// in the panel and tooltips each object fills its icon, so the small ones are easy to see
-const CLOSEUP = { merkurius: '13 13 14 14', venus: '10 10 20 20', jorden: '8 7 27 27', mars: '12 12 16 16', jupiter: '5 5 30 30',
-  saturnus: '5 5 30 30', uranus: '7.5 7.5 25 25', neptunus: '8 8 24 24', pluto: '15 15 10 10' };
-const ico = id => `<span class="ico">${CLOSEUP[id] ? ICONS[id].replace(/viewBox="[^"]*"/, `viewBox="${CLOSEUP[id]}"`) : ICONS[id]}</span>`;
+// --- pictures: each planet is shown as the object the book uses for its size,
+// made with Higgsfield. In the panel and tooltips every object fills its icon;
+// on the map it gets the share of the marker in BODIES[].size
+const IMG = id => `assets/planeter/${id}-v1.webp`;
+const ico = id => `<span class="ico"><img src="${IMG(id)}" alt=""></span>`;
 
 // --- geodesy (sphere) ---
 const R = 6371008.8, rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
@@ -281,7 +266,7 @@ const fmt = d => d >= 1000 ? (d / 1000).toLocaleString('sv', { maximumFractionDi
 function markerEl(b, ghost) {
   const el = document.createElement('div');
   el.className = 'mk' + (b.id === 'sun' ? ' sun' : '') + (ghost ? ' ghost' : '');
-  el.innerHTML = ICONS[b.id] + (ghost ? '' : `<span class="lab">${b.name}</span>`);
+  el.innerHTML = `<img src="${IMG(b.id)}" alt="" draggable="false" style="--s:${b.size}">` + (ghost ? '' : `<span class="lab">${b.name}</span>`);
   if (!ghost) {
     el.addEventListener('mouseenter', e => { hovering = true; ghost?.remove(); showTip(e, infoHtml(b)); });
     el.addEventListener('click', e => { e.stopPropagation(); if (b.id !== 'sun' && Date.now() - lastDrag > 300) select(b.id); });
