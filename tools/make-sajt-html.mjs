@@ -9,7 +9,8 @@
 // (engelsk titel, beskrivning, og-taggar för länkförhandsvisningar, det
 // engelska manifestet). <html> får lang="en" och data-sajt="allusstates",
 // så sprak.js väljer den engelska sajten oavsett värdnamn, och sprak-en.js
-// laddas direkt efter sprak.js med samma ?v.
+// laddas direkt efter sprak.js med samma ?v. Flaggtavlan (flaggtavla.js)
+// och Flaggblixten (flaggblixt.js), bara svenska sajten, tas bort.
 //
 // Filen är inte incheckad (.gitignore): båda GitHub-arbetsflödena kör skriptet
 // före deploy, och firebase.json serverar den som / på målet "en". Bara
@@ -52,6 +53,15 @@ export function bygg(glob, huvud) {
   const rad = t[0].endsWith('\n') ? '' : '\n';
   const indrag = (/([ \t]*)$/.exec(html.slice(0, t.index)) || ['', ''])[1];
   html = html.slice(0, slut) + rad + indrag + `<script src="sprak-en.js${t[1] || ''}"></script>\n` + html.slice(slut);
+
+  // flaggtavlan finns bara på svenska sajten: den engelska hämtar den inte ens
+  const tavla = [...html.matchAll(/[ \t]*<!-- flaggtavlan[^>]*-->\n[ \t]*<script src="flaggtavla\.js(\?v=[^"]*)?"><\/script>\n?/g)];
+  if (tavla.length !== 1) fel(`<script src="flaggtavla.js"> med sin kommentar ska finnas exakt en gång (${tavla.length})`);
+  html = html.replace(tavla[0][0], '');
+  // flaggblixten likaså (säg flaggans land, bygger på flaggorna)
+  const blixt = [...html.matchAll(/[ \t]*<!-- flaggblixten[^>]*-->\n[ \t]*<script src="flaggblixt\.js(\?v=[^"]*)?"><\/script>\n?/g)];
+  if (blixt.length !== 1) fel(`<script src="flaggblixt.js"> med sin kommentar ska finnas exakt en gång (${blixt.length})`);
+  html = html.replace(blixt[0][0], '');
 
   const banner = '<!-- GENERERAD av tools/make-sajt-html.mjs ur glob.html och tools/sajter/allusstates-head.html.\n' +
     '     Ändra i dem och kör skriptet igen, inte här. -->\n';

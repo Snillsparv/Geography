@@ -69,14 +69,30 @@ let IMAGE_ASSOCIATIONS = {};
 let HS_KEY = '';
 let HS_BAS = '';               // grundnyckel; bildquizet får egen rekordlista
 let bildlage = false;          // bildquiz: konsten synlig, hittade länder blir gröna
-// Länder/Huvudstäder-växeln i quizen (bara svenska sajten). villHuvudstader
-// är spelarens val och sparas; huvudstadslage är vad rundan som pågår
-// frågar efter. Det sätts i startSeterra, så en runda byter aldrig läge
-// halvvägs, och bara där varje land har en huvudstad (inte usa).
-let villHuvudstader = (() => {
-  try { return localStorage.getItem('quiz-fraga') === 'huvudstad'; } catch (e) { return false; }
+// Länder/Huvudstäder/Flaggor-växeln i quizen (bara svenska sajten).
+// villFraga är spelarens val ('land' | 'huvudstad' | 'flagga') och sparas;
+// huvudstadslage och flagglage är vad rundan som pågår frågar efter (högst
+// ett av dem). De sätts i startSeterra, så en runda byter aldrig läge
+// halvvägs, och bara där varje land har en huvudstad / en riktig flagga
+// (inte usa).
+let villFraga = (() => {
+  try {
+    const v = localStorage.getItem('quiz-fraga');
+    return v === 'huvudstad' || v === 'flagga' ? v : 'land';
+  } catch (e) { return 'land'; }
 })();
 let huvudstadslage = false;
+// Flaggor (som på Seterra): kartytan blir en tavla med rundans riktiga
+// flaggor, panelen säger landets NAMN och man klickar på rätt flagga (även
+// i Bildquiz). Ledtråden är Jonas minnesbild för flaggan (assets/flaggbilder).
+// Tavlan finns i flaggtavla.js. utforskaFlaggor: Utforska med Flaggor
+// (Utforskas egen växel, villUtforska nedan) — samma tavla i
+// bokstavsordning, ett klick öppnar landets kort.
+let flagglage = false;
+let utforskaFlaggor = false;
+// tavlan täcker kartan: setLand sparar bara tillståndet (inga omritningar
+// under tavlan) och flaggtavla.js lägger på allt när kartan syns igen
+let kartaTackt = false;
 // Bildquiz + Huvudstäder spelas som på Seterra: vita cirklar där rundans
 // huvudstäder ligger, och man klickar på STADEN (Klassiskt Quiz frågar
 // fortfarande efter landet). Landbilderna är avslagna från start men går
@@ -86,12 +102,21 @@ let stadslage = false;
 let stadBilder = false;
 let rundanMedBilder = false;
 let stadRunda = new Set();     // gid
-// Utforska + Huvudstäder: städerna upptäcks som länderna, i GeoGuessr-stil.
-// En vit cirkel per huvudstad; ett klick upptäcker staden (en vit namnruta
-// bredvid cirkeln, lagret stad-etikett) och visar kortet. Eget sparat val,
-// skilt från quizens växel.
-let villStader = (() => {
-  try { return localStorage.getItem('utforska-fraga') === 'huvudstad'; } catch (e) { return false; }
+// Utforskas växel (svenska sajten): vad man upptäcker. Eget sparat val
+// ('utforska-fraga'), skilt från quizens växel (villFraga):
+//   'land'       länderna på globen
+//   'huvudstad'  städerna i GeoGuessr-stil: en vit cirkel per huvudstad; ett
+//                klick upptäcker staden (en vit namnruta bredvid cirkeln,
+//                lagret stad-etikett) och visar kortet (utforskStadLage).
+//                Landbilderna följer en egen knapp (utforskBilder nedan)
+//   'flagga'     flaggtavlan i bokstavsordning (utforskaFlaggor, flaggtavla.js)
+// Går valet inte här (usa, en region utan huvudstäder eller flaggor) visar
+// Utforska länderna, och valet ligger kvar till nästa region (utforskVal).
+let villUtforska = (() => {
+  try {
+    const v = localStorage.getItem('utforska-fraga');
+    return v === 'huvudstad' || v === 'flagga' ? v : 'land';
+  } catch (e) { return 'land'; }
 })();
 // Landbilderna i Utforska + Huvudstäder: avslagna från start (länderna står
 // täckta) och påslagna med en egen knapp — då syns ALLA länders bilder.
@@ -105,9 +130,11 @@ let aktivRegionNamn = '';
 // klickar på städerna): tidsgolven (rimligMinTid och database.rules.json)
 // är förankrade i slutet av nyckeln och gäller lika. stadslage följer
 // alltid med här, så att läget och listan aldrig kan glida isär.
+// Flaggrundorna har prefixet 'flagga-' (och 'flagga-bild-' i Bildquiz).
 function uppdateraHsKey() {
   stadslage = huvudstadslage && bildlage && COUNTRIES.every(c => stadPunkt.has(c.gid));
-  HS_KEY = SPRAK.hsPrefix + (huvudstadslage ? (stadslage ? 'huvudstad-stad-' : 'huvudstad-') : '')
+  HS_KEY = SPRAK.hsPrefix
+    + (flagglage ? 'flagga-' : huvudstadslage ? (stadslage ? 'huvudstad-stad-' : 'huvudstad-') : '')
     + (bildlage && !stadslage ? 'bild-' : '') + HS_BAS;
 }
 let ASSET_BASE = '';
@@ -159,6 +186,7 @@ function setLand(gid, patch) {
   const t = tillstand.get(gid) || {};
   Object.assign(t, patch);
   tillstand.set(gid, t);
+  if (kartaTackt) return;
   if (map) {
     try {
       // delstaterna (gid ≥ USA_GID) bor i sin egen källfamilj
@@ -265,11 +293,18 @@ function utforskStaderKan() {
     && COUNTRIES.every(c => huvudstadFor(c) && stadPunkt.has(c.gid));
 }
 function utforskStadLage() {
-  return currentMode === 'explore' && villStader
+  return currentMode === 'explore' && villUtforska === 'huvudstad'
     && !document.body.classList.contains('startlage') && utforskStaderKan();
+}
+// det Utforska visar här: valet om det går, annars länderna
+function utforskVal() {
+  if (villUtforska === 'huvudstad' && utforskStaderKan()) return 'huvudstad';
+  if (villUtforska === 'flagga' && flaggaKanSpelas()) return 'flagga';
+  return 'land';
 }
 // Utforska + Huvudstäder: landbilderna följer knappen — alla eller inga.
 // Anropas efter allt som täcker länderna (resetOverlays, en ny region).
+// Länder och Flaggor rörs aldrig: där följer bilderna upptäckterna.
 function sattUtforskBilder() {
   if (!utforskStadLage()) return;
   for (const c of COUNTRIES) setLand(c.gid, { tackt: !utforskBilder, hover: false });
@@ -365,7 +400,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '110';
+const V = '113';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -577,23 +612,54 @@ function huvudstadKanSpelas() {
   return HUVUDSTAD.size > 0 && !aktivUtmaning && COUNTRIES.length > 0
     && COUNTRIES.every(c => huvudstadFor(c));
 }
+// Flaggläget: samma villkor, och varje land i rundan måste ha en riktig
+// flagga (assets/flaggor, en svg per kod i FLAGG_ISO). Delstaterna har inga.
+function flaggaKanSpelas() {
+  // aktivSlug: på väg ut till startsidan (eller världsvalet) ligger förra
+  // regionens länder kvar i COUNTRIES — ingen tavla och ingen växel då
+  return SPRAK.lang === 'sv' && !aktivUtmaning && !!aktivSlug && COUNTRIES.length > 0
+    && COUNTRIES.every(c => flaggKod(c));
+}
+// Läget för rundan (Länder/Huvudstäder/Flaggor) och växelns knappar. En
+// knapp vars läge inte går att spela här göms; går inget av dem göms hela
+// växeln (USA, engelska sajten, kompisutmaningar). Utforska har en egen
+// växel (#utforska-val, uppdateraUtforskStader); här sätts bara om dess
+// val Flaggor visar flaggtavlan.
 function uppdateraHuvudstadslage() {
-  const kan = currentMode !== 'explore' && huvudstadKanSpelas();
-  huvudstadslage = kan && villHuvudstader;
+  const quiz = currentMode !== 'explore';
+  const kanHs = quiz && huvudstadKanSpelas();
+  const kanFlagga = quiz && flaggaKanSpelas();
+  huvudstadslage = kanHs && villFraga === 'huvudstad';
+  flagglage = kanFlagga && villFraga === 'flagga';
+  utforskaFlaggor = !quiz && utforskVal() === 'flagga';
+  if (flagglage || utforskaFlaggor) { laddaFlaggbilder(); forladdaFlaggor(); }
   uppdateraHsKey();
   const vx = document.getElementById('fraga-val');
   if (vx) {
-    vx.style.display = kan ? '' : 'none';
+    vx.style.display = kanHs || kanFlagga ? '' : 'none';
+    const aktiv = fragaLage();
+    let synliga = 0;
     vx.querySelectorAll('.fraga-btn').forEach(b => {
-      const pa = (b.dataset.fraga === 'huvudstad') === huvudstadslage;
+      const f = b.dataset.fraga;
+      const dold = (f === 'huvudstad' && !kanHs) || (f === 'flagga' && !kanFlagga);
+      b.style.display = dold ? 'none' : '';
+      if (!dold) synliga++;
+      const pa = f === aktiv;
       b.classList.toggle('active', pa);
       b.setAttribute('aria-pressed', pa ? 'true' : 'false');
     });
+    // tre knappar: rubrikraden blir lite tätare (glob.html .tre-val) —
+    // bara då, så att två knappar och engelska sajten ser ut som förut
+    vx.closest('.info-header')?.classList.toggle('tre-val', !!(kanHs || kanFlagga) && synliga === 3);
   }
   uppdateraStadBildKnapp();
   uppdateraQuizTexter();
+  window.flaggtavla?.uppdatera();      // tavlan eller globen
+  window.flaggblixt?.uppdatera();      // Flaggblixtens knappar (och stäng den vid lägesbyte)
   uppdateraSpelVideo();
 }
+// vad rundan som pågår frågar efter
+const fragaLage = () => huvudstadslage ? 'huvudstad' : flagglage ? 'flagga' : 'land';
 // "Visa landbilder" i stadsläget: syns bara där, och visar sitt läge
 function uppdateraStadBildKnapp() {
   const k = document.getElementById('stad-bilder-btn');
@@ -609,7 +675,7 @@ function promptNamn(c) {
   const hs = huvudstadslage ? huvudstadFor(c) : null;
   return hs ? hs.huvudstad : c.name;
 }
-const ordFragor = () => huvudstadslage ? 'huvudstäder' : ordLander();
+const ordFragor = () => huvudstadslage ? 'huvudstäder' : flagglage ? 'flaggor' : ordLander();
 // huvudstadsrutan i quizets feedback (samma utseende som på landets kort).
 // Vid rätt svar står huvudstaden redan i rubriken, så där räcker regeln.
 function huvudstadRuta(hs, medRubrik) {
@@ -625,6 +691,14 @@ function huvudstadRuta(hs, medRubrik) {
 function uppdateraQuizTexter() {
   if (currentMode === 'explore') return;
   const ho = document.getElementById('hitta-ord');
+  if (flagglage) {
+    if (ho) ho.textContent = 'Klicka på flaggan för:';
+    // (tipset i sidhuvudet har fast bredd på datorn, glob.html .header-hint:
+    // det här ska rymmas på en rad som Huvudstädernas längsta)
+    headerHint.textContent = bildlage ? 'Klicka på rätt flagga – den blir Jonas minnesbild!'
+                                      : 'Klicka på rätt flagga!';
+    return;
+  }
   if (huvudstadslage) {
     if (ho) ho.textContent = stadslage ? 'Klicka på huvudstaden:' : 'Hitta landet med huvudstaden:';
     headerHint.textContent = stadslage ? 'Klicka på den vita cirkeln där huvudstaden ligger!'
@@ -987,6 +1061,117 @@ function flagga(namn) {
   }
   // subnationella flaggor (gbeng/gbsct/gbwls): svart flagga + tag-tecken
   return '\u{1F3F4}' + [...kod].map(c => String.fromCodePoint(0xE0000 + c.charCodeAt(0))) .join('') + '\u{E007F}';
+}
+// ── Riktiga flaggor och Jonas flaggbilder (bara svenska sajten) ──
+// assets/flaggor/<kod>.svg: en riktig flagga per kod i FLAGG_ISO (källor i
+// assets/flaggor/LICENSE). Flaggtavlan (flaggtavla.js) visar dem, och landets
+// kort i utforska-läget och quizets svar visar dem. Delstaterna har inga.
+// Flaggorna har ingen ?v: en flagga ändras nästan aldrig, och med ?v laddade
+// varje ny version ner alla igen (service workern cachar per URL och rensar
+// aldrig). Ändras en flagga får filen ett nytt namn.
+function flaggKod(c) {
+  if (!c || c.gid >= USA_GID) return null;
+  return FLAGG_ISO[c.namnSv || c.flaggNamn] || null;
+}
+function flaggSrc(c) {
+  const kod = flaggKod(c);
+  return kod ? `assets/flaggor/${kod.toLowerCase()}.svg` : '';
+}
+// länder vars flaggor ser likadana ut (bara nyansen skiljer); de ligger i
+// olika världsdelar, så det gäller bara världsquizet
+const FLAGG_TVILLINGAR = [['ID', 'MC'], ['TD', 'RO']];
+function flaggTvilling(a, b) {
+  const ka = flaggKod(a), kb = flaggKod(b);
+  return !!ka && !!kb && ka !== kb && FLAGG_TVILLINGAR.some(p => p.includes(ka) && p.includes(kb));
+}
+// flaggor som inte är 3:2 (platsen hålls med aspect-ratio medan de laddar):
+// Schweiz och Vatikanstaten är kvadratiska, Nepal är en dubbelvimpel
+const FLAGG_FORM = { ch: 'kvadrat', va: 'kvadrat', np: 'vimpel' };
+// alt-texten säger inte landet: namnet står alltid intill
+function flaggImg(c, klass) {
+  const src = flaggSrc(c);
+  const form = FLAGG_FORM[(flaggKod(c) || '').toLowerCase()];
+  return src ? `<img class="${klass}${form ? ' ' + form : ''}" src="${src}" alt="Flagga" draggable="false">` : '';
+}
+// Rundans flaggor hämtas när rundan börjar (som landbilderna i
+// preloadCountryImages): tavlan ska stå komplett direkt, och service
+// workern får dem till offlineläget. Små SVG:er (ett par kB styck).
+// Objekten sparas så att de inte städas bort.
+const flaggForladdade = new Map();     // src → Image
+function forladdaFlaggor() {
+  for (const c of COUNTRIES) {
+    const src = flaggSrc(c);
+    if (!src || flaggForladdade.has(src)) continue;
+    const i = new Image();
+    i.decoding = 'async';
+    i.src = src;
+    flaggForladdade.set(src, i);
+  }
+}
+// assets/flaggbilder.json: svenskt landnamn → Jonas minnesbild för flaggan
+// (en tecknad bild där flaggans delar är scenen) och hans korta text. Den
+// hämtas först när den behövs (flaggläget eller ett lands kort), och
+// bilderna först när de visas. Fälten utöver bild och text:
+//   h       bildens innehållshash (blir ?h=, så en URL bara byts när bilden gör det)
+//   not     en rad till under texten
+//   dolj, ledtrad  från v98, då frågan var flaggan och ledtråden inte fick
+//           säga landet. Nu är frågan landets namn: de läses inte längre.
+// En minnesbild som tecknas senare (för ett land som saknar en) läggs bara
+// till i filen — tavlan, ledtråden och korten tar med den av sig själva.
+const FLAGGBILD = new Map();     // svenskt landnamn → {bild, text, h, not}
+let flaggbilderLofte = null;
+function laddaFlaggbilder() {
+  if (SPRAK.lang !== 'sv') return Promise.resolve();
+  if (!flaggbilderLofte) {
+    flaggbilderLofte = fetchJson('assets/flaggbilder.json?v=' + V).then(d => {
+      for (const b of d.bilder) FLAGGBILD.set(b.land, b);
+      flaggbilderLaddade();
+    }).catch(e => {
+      console.warn('kunde inte läsa flaggbilder.json', e);
+      flaggbilderLofte = null;           // nästa behov försöker igen
+    });
+  }
+  return flaggbilderLofte;
+}
+function flaggbildFor(c) {
+  if (!c || c.gid >= USA_GID) return null;
+  return FLAGGBILD.get(c.namnSv || c.flaggNamn) || null;
+}
+// URL:en till Jonas minnesbild (?h= byts bara när bilden gör det)
+const flaggbildSrc = fb => fb.bild + (fb.h ? '?h=' + fb.h : '');
+// Minnesbilden med Jonas hela text (och noten) under.
+// ledtrad: quizets ledtråd och fel svar — utan minnesbild (ett land som
+//   saknar en, eller innan filen hunnit laddas) blir det inget: i
+//   ledtråden vore den riktiga flaggan ju själva svaret.
+// annars (rätt svar, landets kort): utan minnesbild visas den riktiga
+//   flaggan stor i stället.
+function flaggMinneHtml(c, ledtrad) {
+  const fb = flaggbildFor(c);
+  if (!fb) return ledtrad ? '' : `<div class="flagg-minne utan-bild">${flaggImg(c, 'flagg-riktig')}</div>`;
+  const text = escHtml(fb.text || '');
+  const not = fb.not ? `<div class="flagg-not">${escHtml(fb.not)}</div>` : '';
+  return '<div class="flagg-minne">' +
+    `<img class="flagg-minnesbild" src="${escHtml(flaggbildSrc(fb))}" alt="Jonas minnesbild för flaggan" draggable="false">` +
+    (text ? `<div class="flagg-minnestext">${text}</div>` : '') + not + '</div>';
+}
+// En minnesbild som inte går att hämta (offline innan den visats en gång)
+// göms i stället för att synas som en trasig bild; texten står kvar.
+// (error bubblar inte — fångas på vägen ner)
+document.addEventListener('error', e => {
+  const img = e.target;
+  if (img instanceof HTMLImageElement && img.classList.contains('flagg-minnesbild')) {
+    img.style.display = 'none';
+  }
+}, true);
+// när flaggbilderna kommit: fyll i det som redan visas med reservflaggan
+function flaggbilderLaddade() {
+  if (flagglage && seterraTarget) {
+    setHint(flaggMinneHtml(seterraTarget, true), 'flagga', seterraHintBox.style.display !== 'none');
+  }
+  if (activeCountry !== null && infoCard.classList.contains('active')) {
+    const c = aktivByGid.get(activeCountry);
+    if (c) visaFlaggRuta(c);
+  }
 }
 
 
@@ -2712,6 +2897,9 @@ async function startRegion(slug, flyg, delId) {
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
   uppdateraOrdval();   // delstat/land i alla spelartexter
+  window.flaggblixt?.uppdatera();   // ny region: en pågående Flaggblixt stängs (mikrofonen av)
+  // Utforska: flaggtavlan för de nya länderna (eller globen, om Flaggor inte går här)
+  if (currentMode === 'explore') uppdateraHuvudstadslage();
   // hann någon välja quiz medan regionen laddade? starta det nu på riktigt
   if (seterraVantarPaData && currentMode !== 'explore') startSeterra();
 
@@ -2878,59 +3066,95 @@ function uppdateraOrdval() {
   const ho = document.getElementById('hitta-ord');
   if (ho) ho.textContent = aktivSlug === 'usa' ? SPRAK.t('Hitta denna delstat:') : SPRAK.t('Hitta detta land:');
   if (currentMode === 'explore') headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
-  if (huvudstadslage) uppdateraQuizTexter();
+  if (huvudstadslage || flagglage) uppdateraQuizTexter();
   uppdateraUtforskStader();
   uppdateraSpelVideo();
 }
-// Utforskas Länder/Huvudstäder-växel och texterna när man upptäcker städer
-// (vanlig svenska: läget finns bara på svenska sajten). Länder-texterna
-// skrivs av uppdateraOrdval ovan, som alltid anropar hit sist.
+// Utforskas växel Länder/Huvudstäder/Flaggor och texterna när man upptäcker
+// städer eller flaggor (vanlig svenska: lägena finns bara på svenska
+// sajten). En knapp vars läge inte går här göms (Huvudstäder: alla länder
+// har en huvudstad på kartan, Flaggor: flaggaKanSpelas); finns bara Länder
+// kvar göms hela växeln. Länder-texterna skrivs av uppdateraOrdval ovan,
+// som alltid anropar hit sist.
 function uppdateraUtforskStader() {
+  const kanStad = utforskStaderKan(), kanFlagga = flaggaKanSpelas();
+  const val = utforskVal();
   const vx = document.getElementById('utforska-val');
   if (vx) {
-    vx.style.display = utforskStaderKan() ? '' : 'none';
+    vx.style.display = kanStad || kanFlagga ? '' : 'none';
+    let synliga = 0;
     vx.querySelectorAll('.fraga-btn').forEach(b => {
-      const pa = (b.dataset.utforska === 'huvudstad') === villStader;
+      const f = b.dataset.utforska;
+      const dold = (f === 'huvudstad' && !kanStad) || (f === 'flagga' && !kanFlagga);
+      b.style.display = dold ? 'none' : '';
+      if (!dold) synliga++;
+      const pa = f === val;
       b.classList.toggle('active', pa);
       b.setAttribute('aria-pressed', pa ? 'true' : 'false');
     });
+    // tre knappar: rubrikraden blir tätare, som i quizen (glob.html .tre-val)
+    vx.closest('.info-header')?.classList.toggle('tre-val', (kanStad || kanFlagga) && synliga === 3);
   }
+  // "Visa landbilder" (utforskBilder) hör bara till Huvudstäder: i Länder
+  // och Flaggor följer bilderna upptäckterna, och raden göms
   const rad = document.getElementById('utforsk-bild-rad');
-  if (rad) rad.style.display = villStader && utforskStaderKan() ? '' : 'none';
+  if (rad) rad.style.display = val === 'huvudstad' ? '' : 'none';
   const bk = document.getElementById('utforsk-bilder-btn');
   if (bk) {
     bk.classList.toggle('pa', utforskBilder);
     const txt = bk.querySelector('span');
     if (txt) txt.textContent = utforskBilder ? 'Dölj landbilder' : 'Visa landbilder';
   }
-  if (!villStader || !utforskStaderKan()) return;
+  if (val === 'land') return;
   const p = document.querySelector('#info-default p');
-  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>för att upptäcka huvudstaden!';
   const uo = document.getElementById('utforsk-ord');
-  if (uo) uo.textContent = 'huvudstäder';
   const so = document.getElementById('stang-ord');
+  if (val === 'flagga') {
+    // flaggtavlan: det är länderna som räknas (som i Länder), och kortets
+    // "klicka igen för att dölja" göms (glob.html)
+    if (p) p.innerHTML = 'Klicka på en flagga<br>för att läsa om landet<br>och se Jonas minnesbild!';
+    if (currentMode === 'explore') headerHint.textContent = 'Klicka på en flagga';
+    return;
+  }
+  if (p) p.innerHTML = 'Klicka på en vit cirkel<br>för att upptäcka huvudstaden!';
+  if (uo) uo.textContent = 'huvudstäder';
   if (so) so.textContent = 'staden';
   if (currentMode === 'explore') headerHint.textContent = 'Klicka på en vit cirkel för att upptäcka huvudstaden';
 }
 document.querySelectorAll('#utforska-val .fraga-btn').forEach(b => b.addEventListener('click', () => {
-  const vill = b.dataset.utforska === 'huvudstad';
-  if (vill === villStader) return;
-  villStader = vill;
-  try { localStorage.setItem('utforska-fraga', vill ? 'huvudstad' : 'land'); } catch (e) { /* privat läge */ }
-  window.kakSpara?.('utforska_vald', { fraga: vill ? 'huvudstad' : 'land',
+  const vill = ['huvudstad', 'flagga'].includes(b.dataset.utforska) ? b.dataset.utforska : 'land';
+  if (vill === villUtforska) return;
+  const fore = utforskVal();
+  villUtforska = vill;
+  try { localStorage.setItem('utforska-fraga', vill); } catch (e) { /* privat läge */ }
+  window.kakSpara?.('utforska_vald', { fraga: vill,
     region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden' });
-  // ett nytt pass, som när man går in i Utforska: kartan täcks och räknaren nollas
+  const nu = utforskVal();
+  // (valet gick inte här, så Utforska visade redan länderna: inget byte)
+  if (nu === fore) { uppdateraUtforskStader(); return; }
   stoppaBlinkKvar();
   hideExploreTooltip();
-  resetOverlays();
-  nollaStader();
-  sattUtforskBilder();
-  utforskade.clear();
-  activeCountry = null;
-  infoCard.classList.remove('active');
-  infoDefault.style.display = '';
-  exploredCountEl.textContent = '0';
+  // Till eller från Huvudstäder: ett nytt pass, som när man går in i
+  // Utforska — kartan täcks, räknaren nollas och städernas cirklar städas
+  // bort (avtäckt betyder en upptäckt stad där, ett land annars). Mellan
+  // Länder och Flaggor är det samma länder som upptäcks: passet, kortet och
+  // räknaren står kvar. Under flaggtavlan sparar setLand bara tillståndet;
+  // tavlan lägger på allt när globen syns igen (flaggtavla.js tackKartan).
+  // Till Huvudstäder: landbilderna följer sedan knappen (sattUtforskBilder,
+  // valet står kvar mellan passen); till Länder eller Flaggor står alla
+  // länder täckta, som i ett nytt pass där.
+  if (fore === 'huvudstad' || nu === 'huvudstad') {
+    resetOverlays();
+    nollaStader();
+    sattUtforskBilder();
+    utforskade.clear();
+    activeCountry = null;
+    infoCard.classList.remove('active');
+    infoDefault.style.display = '';
+    exploredCountEl.textContent = '0';
+  }
   uppdateraOrdval();
+  uppdateraHuvudstadslage();   // flaggtavlan eller globen (sist: tavlans texter)
   huvudstadDirty();
 }));
 // "Visa landbilder" i Utforska + Huvudstäder: alla länders bilder av/på
@@ -2960,6 +3184,7 @@ function showInfoCard(c) {
   infoAssoc.textContent = c.assoc || '';
   infoAssoc.style.display = c.assoc ? '' : 'none';   // minnesregeln syns alltid
   visaHuvudstad(huvudstadFor(c));
+  visaFlaggRuta(c);
   infoDesc.innerHTML = escHtml(c.desc);
   visaInfoUtfalld();
   infoDefault.style.display = 'none';
@@ -2980,6 +3205,18 @@ function visaHuvudstad(hs) {
   not.textContent = hs.not || '';
   not.style.display = hs.not ? '' : 'none';
 }
+// "Flaggan" på landets kort (svenska sajten): den riktiga flaggan och Jonas
+// minnesbild med texten. Göms för ett land utan minnesbild och tills
+// flaggbilder.json kommit (flaggbilderLaddade fyller i).
+function visaFlaggRuta(c) {
+  const ruta = document.getElementById('info-flagga');
+  if (!ruta) return;
+  if (SPRAK.lang === 'sv' && c.gid < USA_GID && !FLAGGBILD.size) laddaFlaggbilder();   // delstaterna har inga
+  const fb = SPRAK.lang === 'sv' ? flaggbildFor(c) : null;
+  ruta.style.display = fb ? '' : 'none';
+  ruta.querySelector('.flagg-rubrik-flagga').innerHTML = fb ? flaggImg(c, 'flagg-riktig') : '';
+  document.getElementById('info-flagga-minne').innerHTML = fb ? flaggMinneHtml(c, false) : '';
+}
 function exploreClick(c, e) {
   const stad = utforskStadLage();
   if (stad) {
@@ -2997,7 +3234,7 @@ function exploreClick(c, e) {
     // minnesregeln direkt vid pekaren — och längre tid när det finns
     // en regel att hinna läsa. Städerna: staden, landet och stadens regel
     const hs = stad ? huvudstadFor(c) : null;
-    cursorLabel.classList.remove('gg-etikett');
+    cursorLabel.classList.remove('gg-etikett', 'tavla-etikett', 'utanfor');
     cursorLabel.innerHTML = hs
       ? `<div class="tt-namn">🏛️ ${escHtml(hs.huvudstad)}, ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div>` +
         (hs.association ? `<div class="tt-assoc">${minnesHtml(hs.association)}</div>` : '')
@@ -3054,6 +3291,7 @@ function startSeterra() {
   if (bildlage && (!stadslage || stadBilder)) COUNTRIES.forEach(c => setLand(c.gid, { tackt: false }));
   huvudstadDirty();
   seterraQueue = shuffle([...COUNTRIES]);
+  window.flaggtavla?.nyRunda();       // flaggläget: tavlan blandas för rundan
   seterraCorrect = 0; seterraWrong = 0; seterraSvit = 0;
   seterraTotal = COUNTRIES.length;
   seterraLocked = false; seterraTargetMisses = 0;
@@ -3077,7 +3315,9 @@ function startSeterraRetry() {
   if (missedList.length === 0) return;
   resetOverlays();
   nollaStader();
-  COUNTRIES.forEach(c => { if (!seterraMissedCountries.has(c.gid)) revealCountry(c.gid); });
+  // flaggtavlan: hela rundans tavla igen, och ett klick på en annan flagga
+  // är fel — de klarade länderna avtäcks inte (seterraClick hoppar över dem)
+  if (!flagglage) COUNTRIES.forEach(c => { if (!seterraMissedCountries.has(c.gid)) revealCountry(c.gid); });
   if (stadslage) {
     // bara de missade städernas cirklar är kvar; de andra länderna visar
     // sina bilder (de är ju klara)
@@ -3088,6 +3328,7 @@ function startSeterraRetry() {
   } else if (bildlage) COUNTRIES.forEach(c =>
     setLand(c.gid, { tackt: false, gron: !seterraMissedCountries.has(c.gid) }));
   seterraQueue = shuffle([...missedList]);
+  window.flaggtavla?.nyRunda(true);   // samma tavla som rundan, nollställd
   seterraCorrect = 0; seterraWrong = 0; seterraSvit = 0;
   seterraTotal = missedList.length;
   seterraLocked = false; seterraTargetMisses = 0;
@@ -3126,28 +3367,57 @@ function nextSeterraTarget() {
     document.getElementById('hitta-ord').textContent = stadslage ? 'Klicka på huvudstaden:'
       : flera(hs) ? 'Hitta landet med huvudstäderna:' : 'Hitta landet med huvudstaden:';
     setHint(minnesHtml(hs.association), true);
+  } else if (flagglage) {
+    // flaggtavlan: ledtråden är Jonas minnesbild för flaggan med hela
+    // texten (öppnas när spelaren ber om den). Utan minnesbild (ett land
+    // som saknar en) göms knappen. "Klicka på Kina" vid pekaren.
+    setHint(flaggMinneHtml(seterraTarget, true), 'flagga');
+    window.flaggtavla?.fraga();
   } else {
     setHint(escHtml(seterraTarget.assoc || ''), false);
   }
 }
 
-// html: redan escapad (minnesreglernas *kursiv* blir <em>)
-function setHint(html, huvudstad) {
+// html: redan escapad (minnesreglernas *kursiv* blir <em>). typ: true eller
+// 'huvudstad' (huvudstadens regel, grön ruta), 'flagga' (Jonas minnesbild
+// för flaggan), annars landets vanliga ledtråd. visa: rutan öppen direkt.
+function setHint(html, typ, visa) {
   currentHintHtml = html || '';
   seterraHintBox.style.display = 'none';
   seterraHintBox.innerHTML = '';
-  seterraHintBox.classList.toggle('hs-ledtrad', !!huvudstad);
+  seterraHintBox.classList.toggle('hs-ledtrad', typ === true || typ === 'huvudstad');
+  seterraHintBox.classList.toggle('flagg-ledtrad', typ === 'flagga');
   seterraHintBtn.classList.remove('used');
   seterraHintBtn.style.display = currentHintHtml ? '' : 'none';
+  if (visa) visaLedtrad();
 }
-// Länder/Huvudstäder: valet sparas och en ny runda börjar direkt (som när
-// man byter mellan Bildquiz och Klassiskt Quiz)
+function visaLedtrad() {
+  if (!currentHintHtml) return;
+  seterraHintBox.innerHTML = currentHintHtml;
+  seterraHintBox.style.display = '';
+  seterraHintBtn.classList.add('used');
+  // flaggans ledtråd (bild + text) är hög: skrolla panelen så att den syns
+  // under frågan, som står fäst överst (flaggtavla.js). Platsen för bilden
+  // hålls med aspect-ratio, så måttet stämmer direkt — men rutan "poppar"
+  // in (hintPop skalar den), så en gång till när animationen är klar.
+  if (seterraHintBox.classList.contains('flagg-ledtrad')) {
+    const visa = () => {
+      if (seterraHintBox.style.display === 'none' || !seterraHintBox.classList.contains('flagg-ledtrad')) return;
+      window.flaggtavla?.visaRuta(seterraHintBox);
+    };
+    visa();
+    seterraHintBox.addEventListener('animationend', visa, { once: true });
+  }
+}
+// Länder/Huvudstäder/Flaggor: valet sparas och en ny runda börjar direkt
+// (som när man byter mellan Bildquiz och Klassiskt Quiz). Växeln finns bara
+// i quizen; Utforska har en egen (#utforska-val).
 document.querySelectorAll('#fraga-val .fraga-btn').forEach(b => b.addEventListener('click', () => {
-  const vill = b.dataset.fraga === 'huvudstad';
-  if (vill === huvudstadslage && vill === villHuvudstader) return;
-  villHuvudstader = vill;
-  try { localStorage.setItem('quiz-fraga', vill ? 'huvudstad' : 'land'); } catch (e) { /* privat läge */ }
-  window.kakSpara?.('fraga_vald', { fraga: vill ? 'huvudstad' : 'land', quiz: bildlage ? 'bild' : 'klassisk',
+  const vill = ['huvudstad', 'flagga'].includes(b.dataset.fraga) ? b.dataset.fraga : 'land';
+  if (vill === fragaLage() && vill === villFraga) return;
+  villFraga = vill;
+  try { localStorage.setItem('quiz-fraga', vill); } catch (e) { /* privat läge */ }
+  window.kakSpara?.('fraga_vald', { fraga: vill, quiz: bildlage ? 'bild' : 'klassisk',
     region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden' });
   if (currentMode !== 'explore') startSeterra();
 }));
@@ -3162,12 +3432,7 @@ document.getElementById('stad-bilder-btn')?.addEventListener('click', () => {
   });
   uppdateraStadBildKnapp();
 });
-seterraHintBtn.addEventListener('click', () => {
-  if (!currentHintHtml) return;
-  seterraHintBox.innerHTML = currentHintHtml;
-  seterraHintBox.style.display = '';
-  seterraHintBtn.classList.add('used');
-});
+seterraHintBtn.addEventListener('click', visaLedtrad);
 
 function seterraClick(c) {
   if (!seterraTarget || seterraLocked) return;
@@ -3196,7 +3461,13 @@ function seterraClick(c) {
     const hs = huvudstadslage ? huvudstadFor(c) : null;
     // huvudstadsläget: "Kiev är huvudstad i Ukraina", huvudstadens regel och
     // bildens regel — landbeskrivningen hoppas över så panelen blir kort
-    seterraFeedback.innerHTML = hs
+    // flaggläget: flaggan och landets namn, och Jonas minnesbild med texten
+    // som förstärkning (tavlan markerar flaggan). Utan minnesbild blir den
+    // riktiga flaggan stor under namnet i stället.
+    const flaggTitel = () => `<div class="fb-title fb-flagg-titel">${flaggbildFor(c) ? flaggImg(c, 'fb-flagga') : ''}<span>${escHtml(c.name)}</span></div>`;
+    seterraFeedback.innerHTML = flagglage
+      ? `<div class="fb-banner correct-banner">${SPRAK.t('RÄTT!')}</div>${flaggTitel()}${flaggMinneHtml(c, false)}`
+      : hs
       ? `<div class="fb-banner correct-banner">${SPRAK.t('RÄTT!')}</div><div class="fb-title">${escHtml(hs.huvudstad)} ${flera(hs) ? 'är huvudstäder' : 'är huvudstad'} i ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${huvudstadRuta(hs, false)}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}`
       : `<div class="fb-banner correct-banner">${SPRAK.t('RÄTT!')}</div><div class="fb-title">${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}</div><div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}<div class="fb-desc">${escHtml(c.desc)}</div>`;
     // konfetti bara vid var femte rätta svar i rad — lagom festligt
@@ -3204,6 +3475,15 @@ function seterraClick(c) {
     if (seterraSvit % 5 === 0) burstConfetti();
     updateSeterraUI();
     nextSeterraTarget();
+  } else if (flagglage && flaggTvilling(c, seterraTarget)) {
+    // samma flagga (Indonesien/Monaco, Tchad/Rumänien): klicket är inget
+    // fel, men frågan gäller den andra flaggan på tavlan — leta vidare
+    const genitiv = n => /[sxz]$/i.test(n) ? n : n + 's';
+    seterraFeedback.className = 'seterra-feedback wrong-fb';
+    seterraFeedback.innerHTML = `<div class="fb-title fb-flagg-titel">${flaggImg(c, 'fb-flagga')}<span>${escHtml(c.name)}</span></div>`
+      + `<div class="assoc-box">Det där var ${escHtml(genitiv(c.name))} flagga – nästan likadan som ${escHtml(genitiv(seterraTarget.name))}! Det räknas inte som fel. Leta efter den andra.</div>`;
+    seterraLocked = true;
+    setTimeout(() => { seterraLocked = false; }, 600);
   } else {
     seterraWrong++;
     seterraSvit = 0;
@@ -3215,10 +3495,16 @@ function seterraClick(c) {
     // huvudstadsläget: det klickade landets huvudstad (avslöjar inte svaret)
     const hsFel = huvudstadslage ? huvudstadFor(c) : null;
     // stadsläget: "Det var Quito, huvudstad i Ecuador" (staden står i rubriken)
+    // flaggläget: "Det var 🇨🇳 Kina" med den klickade flaggans riktiga bild
+    // (emojin syns inte överallt) och dess minnesbild med texten — så lär
+    // sig spelaren även den flaggan. Ledtråden öppnas inte av sig själv.
+    const felFlagga = flagglage ? flaggImg(c, 'fb-flagga') : '';
     const felTitel = stadslage && hsFel
       ? `Det var ${escHtml(hsFel.huvudstad)}, ${flera(hsFel) ? 'huvudstäder' : 'huvudstad'} i ${flagga(c.flaggNamn || c.name)} ${escHtml(c.name)}`
-      : SPRAK.t('Det var {namn}', { namn: flagga(c.flaggNamn || c.name) + ' ' + escHtml(c.name) });
-    seterraFeedback.innerHTML = `<div class="fb-title">${felTitel}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${huvudstadRuta(hsFel, !stadslage)}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc && !huvudstadslage ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
+      : SPRAK.t('Det var {namn}', { namn: (felFlagga || flagga(c.flaggNamn || c.name)) + ' ' + escHtml(c.name) });
+    seterraFeedback.innerHTML = flagglage
+      ? `<div class="fb-title fb-flagg-titel">${felTitel}</div>${flaggMinneHtml(c, true)}`
+      : `<div class="fb-title">${felTitel}</div>${c.filename ? `<div class="fb-shape"><img src="${countryImgSrc(c)}" alt=""></div>` : ''}${huvudstadRuta(hsFel, !stadslage)}${c.assoc ? `<div class="assoc-box">${escHtml(c.assoc)}</div>` : ''}${c.desc && !huvudstadslage ? `<div class="fb-desc">${escHtml(c.desc)}</div>` : ''}`;
     updateSeterraUI();
     if (seterraTargetMisses >= 3) (stadslage ? blinkStad : blinkHint)(seterraTarget.gid);
     seterraLocked = true;
@@ -3261,7 +3547,7 @@ function endSeterra() {
   // spel_start säger 'varlden' — quiz_klar ska inte säga 'world' om samma runda
   window.kakSpara?.('quiz_klar', { region: (aktivSlug === 'world' ? 'varlden' : aktivSlug) || 'varlden',
     antal: seterraTotal, poang: score, tid: seterraElapsed, fel: seterraWrong, utmaning: !!aktivUtmaning,
-    ...(huvudstadslage ? { fraga: 'huvudstad' } : {}),
+    ...(huvudstadslage ? { fraga: 'huvudstad' } : flagglage ? { fraga: 'flagga' } : {}),
     ...(stadslage ? { stad: true, bilder: rundanMedBilder } : {}) });
   seterraGame.classList.remove('active');
   seterraDone.classList.add('active');
@@ -3296,17 +3582,18 @@ function endSeterra() {
   spela('fanfar');
   // personbästa (medalj) och världsresans stämpel — bara riktiga, hela
   // klassiska omgångar räknas (en DEL av en världsdel ger varken medalj
-  // eller passtämpel: de gäller hela världsdelen). Huvudstäderna har egna
-  // medaljer men ger ingen stämpel: Jorden runt-resan gäller länderna
-  if (huvudstadslage && !bildlage && !seterraIsRetry && aktivSlug && !aktivDel) {
-    const nyckel = 'medalj-huvudstad-' + aktivSlug;
+  // eller passtämpel: de gäller hela världsdelen). Huvudstäderna och
+  // flaggorna har egna medaljer men ger ingen stämpel: Jorden runt-resan
+  // gäller länderna
+  if ((huvudstadslage || flagglage) && !bildlage && !seterraIsRetry && aktivSlug && !aktivDel) {
+    const nyckel = (flagglage ? 'medalj-flagga-' : 'medalj-huvudstad-') + aktivSlug;
     if (score > (+localStorage.getItem(nyckel) || 0)) localStorage.setItem(nyckel, score);
     if (score >= 80 && RESA_ORDNING[resaState().steg] === aktivSlug) {
       document.getElementById('seterra-final-detail').innerHTML +=
         '<br><span class="resa-stampel">🧳 Passtämpeln får du i Länder-quizet — växla till Länder och kör igen!</span>';
     }
   }
-  if (!huvudstadslage && !bildlage && !seterraIsRetry && aktivSlug && !aktivDel) {
+  if (!huvudstadslage && !flagglage && !bildlage && !seterraIsRetry && aktivSlug && !aktivDel) {
     const gammal = +localStorage.getItem('medalj-' + aktivSlug) || 0;
     if (score > gammal) localStorage.setItem('medalj-' + aktivSlug, score);
     if (score >= 80) {
@@ -3682,7 +3969,7 @@ async function renderHighscores(highlightEntry) {
   }
   container.innerHTML = (list.length === 0
     ? `<div class="hs-empty">${SPRAK.t('Inga sparade resultat ännu.')}</div>`
-    : hsTabellHtml(list, markera, huvudstadslage ? 'Topp 30 — huvudstäder' : undefined)) + notis;
+    : hsTabellHtml(list, markera, huvudstadslage ? 'Topp 30 — huvudstäder' : flagglage ? 'Topp 30 — flaggor' : undefined)) + notis;
 }
 
 // ── Topplistemodalen: global och personlig lista, nåbar när som helst ──
@@ -3690,8 +3977,8 @@ const topplistaModal = document.getElementById('topplista-modal');
 async function visaTopplista(flik) {
   document.getElementById('hs-flik-alla').classList.toggle('aktiv', flik === 'alla');
   document.getElementById('hs-flik-mina').classList.toggle('aktiv', flik === 'mina');
-  document.getElementById('topplista-region').textContent = huvudstadslage
-    ? `${aktivRegionNamn} — Huvudstäder · ${bildlage ? 'Bildquiz' : 'Klassiskt Quiz'}`
+  document.getElementById('topplista-region').textContent = huvudstadslage || flagglage
+    ? `${aktivRegionNamn} — ${flagglage ? 'Flaggor' : 'Huvudstäder'} · ${bildlage ? 'Bildquiz' : 'Klassiskt Quiz'}`
     : bildlage ? SPRAK.t('{region} — Bildquiz', { region: aktivRegionNamn })
              : SPRAK.t('{region} — Klassiskt Quiz', { region: aktivRegionNamn });
   const inneh = document.getElementById('topplista-innehall');
@@ -3916,11 +4203,12 @@ document.getElementById('seterra-diplom')?.addEventListener('click', () => {
   const sparat = localStorage.getItem(UTM_NAMN_KEY);
   if (namnEl && sparat) namnEl.textContent = sparat;
   document.getElementById('diplom-region').textContent = huvudstadslage
-    ? 'huvudstäderna i ' + (aktivRegionNamn || 'världen') : aktivRegionNamn || SPRAK.t('världen');
+    ? 'huvudstäderna i ' + (aktivRegionNamn || 'världen')
+    : flagglage ? 'flaggorna i ' + (aktivRegionNamn || 'världen') : aktivRegionNamn || SPRAK.t('världen');
   // (svenskan säger "länder" även i delstatsregionen — den engelska texten
   // gäller bara USA: "all 50 states")
-  document.getElementById('diplom-detalj').textContent = huvudstadslage
-    ? `alla ${seterraTotal} huvudstäder · 100 % rätt · tid ${seterraTimeEl.textContent}`
+  document.getElementById('diplom-detalj').textContent = huvudstadslage || flagglage
+    ? `alla ${seterraTotal} ${flagglage ? 'flaggor' : 'huvudstäder'} · 100 % rätt · tid ${seterraTimeEl.textContent}`
     : SPRAK.t('alla {n} länder · 100 % rätt · tid {tid}', { n: seterraTotal, tid: seterraTimeEl.textContent });
   document.getElementById('diplom-datum').textContent =
     new Date().toLocaleDateString(SPRAK.datum, { year: 'numeric', month: 'long', day: 'numeric' });
@@ -3996,6 +4284,7 @@ function switchMode(mode, force) {
     startSeterra();
   }
   huvudstadDirty();
+  window.flaggtavla?.uppdatera();     // utforska-passet är nollat: tavlans bockar också
 }
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => switchMode(btn.dataset.mode));
@@ -4450,6 +4739,7 @@ const delOverlay = document.getElementById('del-overlay');
 function visaDelVal(slug, raw) {
   const delar = delarFor(raw);
   if (!delar.length) return;
+  window.flaggblixt?.stang();   // en Flaggblixt-runda (mikrofonen) stängs först
   document.getElementById('del-rubrik').textContent = raw.name.toUpperCase();
   const lista = document.getElementById('del-knappar');
   lista.innerHTML = '';
@@ -4505,16 +4795,18 @@ window.addEventListener('popstate', () => {
 function medaljFor(pct) { return pct >= 100 ? '🥇' : pct >= 90 ? '🥈' : pct >= 70 ? '🥉' : ''; }
 // klick på medaljen visar resultatet bakom den — utan att knappen
 // under hinner resa i väg till regionen
-function visaMedaljInfo(span, slug, huvud) {
+// typ: undefined (länderna), 'huvudstad' eller 'flagga'
+function visaMedaljInfo(span, slug, typ) {
   let ruta = document.getElementById('medalj-info');
   if (!ruta) {
     ruta = document.createElement('div');
     ruta.id = 'medalj-info';
     document.body.appendChild(ruta);
   }
-  const pct = +localStorage.getItem((huvud ? 'medalj-huvudstad-' : 'medalj-') + slug) || 0;
-  ruta.textContent = huvud ? `🏛️ ${medaljFor(pct)} Huvudstäder — ditt rekord: ${pct} %`
-                           : `${medaljFor(pct)} Ditt rekord: ${pct} %`;
+  const pct = +localStorage.getItem((typ ? 'medalj-' + typ + '-' : 'medalj-') + slug) || 0;
+  ruta.textContent = typ === 'huvudstad' ? `🏛️ ${medaljFor(pct)} Huvudstäder — ditt rekord: ${pct} %`
+    : typ === 'flagga' ? `🚩 ${medaljFor(pct)} Flaggor — ditt rekord: ${pct} %`
+    : `${medaljFor(pct)} Ditt rekord: ${pct} %`;
   const r = span.getBoundingClientRect();
   // klampa in i vyn — medaljerna vid kanten fick annars bubblan avklippt
   // utanför skärmen på smala mobiler
@@ -4545,29 +4837,39 @@ function visaMedaljer() {
     span.textContent = m;
     span.title = `Ditt rekord: ${pct} %`;
   });
-  visaHuvudstadMedaljer();
+  visaHuvudstadMedaljer('huvudstad', 'Huvudstäder');
+  visaHuvudstadMedaljer('flagga', 'Flaggor');
+  // medaljerna som finns packas i rad (glob.html --plats): ingen tom lucka
+  // där en medalj saknas, och raden når inte filmknappen i onödan
+  document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
+    const finns = ['.medalj', '.medalj-huvudstad', '.medalj-flagga']
+      .map(k => a.querySelector(':scope > ' + k)).filter(Boolean);
+    finns.forEach((span, i) => span.style.setProperty('--plats', i));
+    a.classList.toggle('tre-medaljer', finns.length === 3);
+  });
 }
-// huvudstadsquizets medaljer: en egen liten medalj (med en pelarbyggnad)
-// bredvid landquizets uppe till vänster på världsdelens knapp
-function visaHuvudstadMedaljer() {
+// huvudstadsquizets och flaggquizets medaljer: var sin liten medalj (med en
+// pelarbyggnad resp. en flagga) bredvid landquizets uppe till vänster på
+// världsdelens knapp
+function visaHuvudstadMedaljer(typ, rubrik) {
   document.querySelectorAll('.start-knappar .knapp:not(#resa-knapp)').forEach(a => {
     const slug = new URL(a.href, location.href).searchParams.get('region');
-    const pct = SPRAK.lang === 'sv' ? +localStorage.getItem('medalj-huvudstad-' + slug) || 0 : 0;
+    const pct = SPRAK.lang === 'sv' ? +localStorage.getItem(`medalj-${typ}-${slug}`) || 0 : 0;
     const m = medaljFor(pct);
-    let span = a.querySelector('.medalj-huvudstad');
+    let span = a.querySelector('.medalj-' + typ);
     if (!m) { if (span) span.remove(); return; }
     if (!span) {
       span = document.createElement('span');
-      span.className = 'medalj-huvudstad';
+      span.className = 'medalj-' + typ;
       span.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
-        visaMedaljInfo(span, slug, true);
+        visaMedaljInfo(span, slug, typ);
       });
       a.appendChild(span);
     }
     span.textContent = m;
-    span.title = `Huvudstäder — ditt rekord: ${pct} %`;
+    span.title = `${rubrik} — ditt rekord: ${pct} %`;
   });
 }
 
@@ -4714,8 +5016,10 @@ document.getElementById('world-start-btn').addEventListener('click', async () =>
 // visar listan för det antal som är valt i knappraden ovanför.
 document.getElementById('world-mina-btn').addEventListener('click', () => {
   bildlage = false;   // världstestets listor är klassiska quizets
-  // ...för det läge spelaren valt (alla världsdelar har huvudstäder)
-  huvudstadslage = HUVUDSTAD.size > 0 && villHuvudstader;
+  // ...för det läge spelaren valt (alla världsdelar har huvudstäder och
+  // flaggor)
+  huvudstadslage = HUVUDSTAD.size > 0 && villFraga === 'huvudstad';
+  flagglage = SPRAK.lang === 'sv' && villFraga === 'flagga';
   HS_BAS = 'glob-world-highscores-' + (worldCount === 999 ? 'alla' : worldCount);
   uppdateraHsKey();
   aktivRegionNamn = worldCount === 999
@@ -4879,6 +5183,13 @@ const SPEL_TOUR = [
     om: () => HUVUDSTAD.size > 0 && aktivSlug !== 'usa',
     bild: 'assets/jonas/kul.webp', plats: underKnappen,
     text: 'Du kan också välja Huvudstäder! I Utforska upptäcker du städerna. I Bildquiz säger jag en huvudstad och du klickar på den vita cirkeln där staden ligger, och i Klassiskt Quiz klickar du på landet. Min minnesregel för huvudstaden finns som ledtråd!' },
+  // Flaggor: bara svenska sajten, inte bland delstaterna. Pekar på
+  // quizknappen som steget före: texten handlar mest om quizen (Utforskas
+  // Flaggor-knapp visar bara tavlan att bläddra i)
+  { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
+    om: () => SPRAK.lang === 'sv' && aktivSlug !== 'usa',
+    bild: 'assets/jonas/pekar.webp', plats: underKnappen,
+    text: 'Eller välj Flaggor: då lägger jag ut flaggorna på en tavla, säger ett land och du klickar på rätt flagga. Fastnar du får du se min minnesbild för flaggan! I Utforska kan du bläddra bland flaggorna i lugn och ro.' },
   { el: () => document.getElementById('back-btn'), om: () => !SPRAK.startRegion,
     bild: 'assets/jonas/upp.webp', spegel: true, plats: underKnappen,
     text: SPRAK.t('Pilen tar dig tillbaka till jordgloben när du vill välja något annat.') },
@@ -5101,6 +5412,7 @@ function spelaVideo(delar, start, startSek) {
 // startSek: tränar man en DEL av världsdelen hoppar filmen till den delens
 // avsnitt i stället för att börja om från början
 function oppnaVideo(delar, start, startSek) {
+  window.flaggblixt?.stang();   // videon läser upp länder: ingen Flaggblixt-mikrofon samtidigt
   start = Math.min(Math.max(start || 0, 0), delar.length - 1);
   videoDelar.innerHTML = '';
   videoDelar.style.display = delar.length > 1 ? 'flex' : 'none';
@@ -5125,15 +5437,22 @@ function regionVideo(slug) {
     `.start-knappar .knapp[href*="region=${slug}"] .knapp-video`);
   return knapp ? knapp.dataset.video : null;
 }
-// Jonas egna filmer för ett val i växlarna (Länder/Huvudstäder): finns en
-// för världsdelen spelar ▶ den i stället för världsdelens film så länge
-// valet gäller. Valen finns bara på svenska sajten.
-const VAL_VIDEO = { huvudstad: { sydamerika: 'XXEq3nzAEWc' } };
-const VAL_VIDEO_TITEL = { huvudstad: 'Se videon om världsdelens huvudstäder' };
-// det aktiva valet: Utforskas växel i Utforska, quizens i quizen
+// Jonas egna filmer för ett val i växlarna (Länder/Huvudstäder/Flaggor):
+// finns en för världsdelen spelar ▶ den i stället för världsdelens film så
+// länge valet gäller. Valen finns bara på svenska sajten (därför vanlig
+// svenska i titlarna, inte SPRAK.t).
+const VAL_VIDEO = {
+  huvudstad: { sydamerika: 'XXEq3nzAEWc' },
+  flagga: { sydamerika: '5i5bADJikwY' },
+};
+const VAL_VIDEO_TITEL = {
+  huvudstad: 'Se videon om världsdelens huvudstäder',
+  flagga: 'Se videon om världsdelens flaggor',
+};
+// det aktiva valet ('land' | 'huvudstad' | 'flagga'): det Utforska visar i
+// Utforska (utforskVal), rundans läge i quizen (fragaLage)
 function videoVal() {
-  if (currentMode === 'explore') return utforskStadLage() ? 'huvudstad' : 'land';
-  return huvudstadslage ? 'huvudstad' : 'land';
+  return currentMode === 'explore' ? utforskVal() : fragaLage();
 }
 const spelVideoKnapp = document.getElementById('spel-video');
 const spelVideoTitel = spelVideoKnapp.title;
@@ -5141,8 +5460,11 @@ function visaSpelVideo(slug) {
   spelVideoKnapp.dataset.slug = slug || '';
   uppdateraSpelVideo();
 }
-// ▶ efter valet: anropas när världsdelen, läget eller valet byts
-// (uppdateraOrdval, uppdateraHuvudstadslage)
+// ▶ efter valet: anropas när världsdelen, läget eller valet byts. Alla
+// vägar dit går genom uppdateraOrdval och uppdateraHuvudstadslage (båda
+// anropar hit sist): Utforskas växel (även Länder ⇄ Flaggor, där passet
+// står kvar), quizens växel (startSeterra), switchMode, en ny region
+// (visaSpelVideo) och tillbakaTillStart.
 function uppdateraSpelVideo() {
   const slug = spelVideoKnapp.dataset.slug;
   const val = slug ? videoVal() : 'land';
@@ -5249,6 +5571,15 @@ function showGame() {
     if (header) document.documentElement.style.setProperty('--mobile-header-h', header.offsetHeight + 'px');
   });
 }
+// …och följer sidhuvudet sedan: det blir högre när ▶ och 🧩 kommer fram
+// (startRegion, efter mätningen ovan: panelen slutade 4 px under skärmen)
+// och mäts aldrig ovan när man kommer från startsidan (gaTillRegion)
+if (window.ResizeObserver) {
+  const header = document.querySelector('header');
+  if (header) new ResizeObserver(() => {
+    if (header.offsetHeight) document.documentElement.style.setProperty('--mobile-header-h', header.offsetHeight + 'px');
+  }).observe(header, { box: 'border-box' });
+}
 
 // litet API för tester och felsökning — INTE i produktion: med klick()
 // och target i konsolen kunde vem som helst skripta ett perfekt quiz
@@ -5295,7 +5626,7 @@ function visaUtmanaKnapp(score) {
   // Delar av en världsdel går inte att utmana på: utmaningslänken bär
   // bara regionens slug, så kompisen skulle få hela världsdelen.
   utmanaBtn.style.display =
-    (firebaseDB && !bildlage && !huvudstadslage && !seterraIsRetry && !aktivUtmaning && !aktivDel && seterraTotal)
+    (firebaseDB && !bildlage && !huvudstadslage && !flagglage && !seterraIsRetry && !aktivUtmaning && !aktivDel && seterraTotal)
       ? '' : 'none';
   utmanaBtn.dataset.score = score;
 }

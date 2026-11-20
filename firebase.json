@@ -89,6 +89,24 @@
           ]
         },
         {
+          "source": "flaggtavla.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "flaggblixt.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
           "source": "assets/**",
           "headers": [
             {
@@ -138,7 +156,12 @@
         "tv-grafik.html",
         "design-forslag.html",
         "*-demo.html",
-        "svg-preview.html"
+        "svg-preview.html",
+        "flaggtavla.js",
+        "flaggblixt.js",
+        "assets/flaggbilder/**",
+        "assets/flaggbilder.json",
+        "assets/flaggor/**"
       ],
       "rewrites": [
         {
