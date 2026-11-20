@@ -205,6 +205,37 @@ glob-spel.js och glob.html efteråt, och `USA_TILE_URL`-versionen när
 usa.pmtiles bakats om (arkivet hämtas bara i skivor, så `TILE_CACHE` i
 sw.js behöver inte bytas för det).
 
+### Sveriges landskap (`--dataset sverige`)
+
+Landskapen byggs precis som delstaterna, med samma verktyg (id 2001–2027,
+`tiles/sverige.pmtiles`, `assets/sverige-{regions,borders,markers}.json`).
+Skillnaden är formen: världskartans Sverige (Marge) är smalare än det
+riktiga, Norges val täcker fjällen och nordspetsen går nästan en grad för
+långt norrut. Varpade mot de riktiga gränserna och klippta till Marges yta
+blev västra Jämtland och Härjedalen lösa bitar över Norge. Därför flyttar
+`sverige-varldsform.mjs` först landskapsgränserna in i den målade formen
+(fastlandet rad för rad, Gotland och Öland var för sig) och bakningen
+pinnar teckningarna mot `data/svenska_landskap_varld.geojson`. Inga stora
+sjöar, infällda rutor eller utstickare; Vänern och Vättern är vanliga bitar
+med egna bilder. Postprocess-skriptet bryter ut världens linjer längs
+Sveriges kant till `sverigekant: 1` i art-borders.json.
+
+```bash
+node sverige-varldsform.mjs          # kör om när art-regions.json ändras
+rm -rf ../tmp-sverige
+until node --max-old-space-size=12288 make-tiles.mjs --dataset sverige --outline 0 \
+        --maxzoom 7 --save tmp-sverige; do echo "kraschade — kör igen"; done
+node make-tiles.mjs --dataset sverige --maxzoom 7 --outline 0 --save tmp-sverige --assemble
+node make-tiles.mjs --dataset sverige --outline 0 --borders assets/sverige-borders.json \
+                    --regions assets/sverige-regions.json \
+                    --markers assets/sverige-markers.json   # alla tre i SAMMA körning
+python3 -I -B postprocess-usa-data.py --dataset sverige      # exakt en gång på råexporten
+```
+
+Bumpa `tiles/sverige.pmtiles?v=` i `DELREG` (glob-spel.js) när arkivet
+bakas om. I spelet är delregionerna en tabell (`DELREG`): samma lager och
+samma logik för båda, och `ord` säger landskap/delstat i spelarens texter.
+
 ### Engelska USA-kartan (allusstates)
 
 Jonas engelska PSD har 12 omritade delstater (Nevada, Kansas, North och

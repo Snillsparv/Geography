@@ -31,6 +31,7 @@ const KAMERA = {
   asien: { center: [88, 40], zoom: 1.9 },
   nordamerika: { center: [-95, 45], zoom: 1.9 },
   usa: { center: [-98, 40], zoom: 2.5 },
+  sverige: { center: [16, 62.3], zoom: 3.9 },
   sydamerika: { center: [-60, -22], zoom: 2.2 },
   oceanien: { center: [150, -22], zoom: 2.2 },
   vastindien: { center: [-71, 18], zoom: 3.4 },
@@ -162,13 +163,13 @@ function setLand(gid, patch) {
   if (map) {
     try {
       // delstaterna (gid ≥ USA_GID) bor i sin egen källfamilj
-      const pre = gid >= USA_GID ? 'usa-' : '';
+      const pre = gid >= USA_GID ? (delFor(gid) || DELREG.usa).pre : '';
       map.setFeatureState({ source: pre + 'regioner', id: gid }, t);
       map.setFeatureState({ source: pre + 'markorer', id: gid }, t);
       map.setFeatureState({ source: pre + 'borders', id: gid }, t);
     } catch (e) { /* källan inte laddad än — tillståndet ligger i tillstand-mappen */ }
-    if (gid >= USA_GID && usaUtstickare.length) visaUtstickare(gid);
-    if (gid >= USA_GID && usaInreKant.size) visaInreKant(gid);
+    if (gid >= USA_GID && delUtstickare.length) visaUtstickare(gid);
+    if (gid >= USA_GID && delInreKant.size) visaInreKant(gid);
   }
   flatDirty();
   huvudstadDirty();
@@ -365,7 +366,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '110';
+const V = '112';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -394,21 +395,50 @@ const USA_FILER = {
   sv: { data: 'usa', tiles: 'tiles/usa.pmtiles?v=10' },
   en: { data: 'usa-en', tiles: 'tiles/usa-en.pmtiles?v=2' },
 }[SPRAK.lang];
-const USA_TILE_URL = dataUrl(USA_FILER.tiles);
-const USA_GID = 1000;   // delstaternas id-bas (världens länder ligger under)
-// världens USA-yta läcker in i Mexiko där Mexikos konst inte når ut —
-// i delstatsregionen målas de remsorna gröna (postprocess-usa-data.py)
-const USA_REMSA_GID = 1999;
-// havsmasken runt USA: döljer delstatskonst som hamnat utanför kusten
-const USA_MASK_GID = 1998;
-let usaLaddad = null;   // promise: klickytor/markörer/gränser + kartlager
-// delstatskonst som medvetet sticker ut över grannlandet (Pennsylvanias
+const USA_GID = 1000;   // delregionernas lägsta id (världens länder ligger under)
+// Delregionerna: USA:s delstater och Sveriges landskap (bara svenska
+// sajten) byggs på exakt samma sätt — eget arkiv, egna klickytor/gränser
+// (make-tiles --dataset <slug>, postprocess-usa-data.py --dataset <slug>)
+// och en egen källfamilj på kartan (<pre>art, <pre>regioner …). Id:n:
+// delstaterna 1001–1050, landskapen 2001–2027. Världens målade yta av
+// landet (varld = filnamnet i världen) är kuliss under delregionens konst;
+// remsa (gid +999) är världens yta som läcker in i grannlandet och målas
+// grön, mask (gid +998) havsmasken runt kusten. kant är egenskapen på
+// världens linjer längs landets kant (art-borders), som släcks i regionen.
+// ord: vad en bit heter i spelarens texter.
+const DELREG = {
+  usa: { slug: 'usa', pre: 'usa-', gid: 1000, data: USA_FILER.data, tiles: USA_FILER.tiles,
+         varld: 'usa', kant: 'usakant', utstickare: true,
+         ord: { landet: 'delstaten', lander: 'delstater', ettLand: 'en delstat', land: 'delstat',
+                hitta: 'Hitta denna delstat:' } },
+  sverige: { slug: 'sverige', pre: 'sverige-', gid: 2000, data: 'sverige',
+             tiles: 'tiles/sverige.pmtiles?v=1', varld: 'sverige', kant: 'sverigekant',
+             ord: { landet: 'landskapet', lander: 'landskap', ettLand: 'ett landskap', land: 'landskap',
+                    hitta: 'Hitta detta landskap:' } },
+};
+for (const d of Object.values(DELREG)) {
+  d.remsa = d.gid + 999; d.mask = d.gid + 998;
+  d.laddad = null;   // promise: klickytor/markörer/gränser + kartlager
+}
+const delFor = gid => gid >= 2000 && gid < 3000 ? DELREG.sverige
+  : gid >= 1000 && gid < 2000 ? DELREG.usa : null;
+// världens målade yta av landet (världsfeaturen, inte en delregionsbit)
+const varldsYta = d => regionsGj && regionsGj.features.find(f =>
+  f.id < USA_GID && !f.properties.dekor && f.properties.key.split('/')[1] === d.varld) || null;
+// spelarens ord för en bit i aktiva regionen: land/delstat/landskap (via
+// SPRAK.t, så engelskan får "state")
+const ordFor = (nyckel, land) => {
+  const d = arDelregion(aktivSlug) ? DELREG[aktivSlug] : null;
+  return SPRAK.t(d ? d.ord[nyckel] : land);
+};
+const arDelregion = slug => !!(slug && DELREG[slug] && SPRAK.tillat(slug));
+// konst som medvetet sticker ut över grannlandet (Pennsylvanias
 // penna in i Ontario): egen bild ovanpå grannens gröna, synlig bara när
 // delstaten är avslöjad. [{ gid, lager }]
-let usaUtstickare = [];
+const delUtstickare = [];
 // kantbandens andra halva mot en grannstat (kant: 2): gid → de bitar där
-// delstaten är den ena eller andra parten, {id, gid, granne}
-let usaInreKant = new Map();
+// delstaten är den ena eller andra parten, {id, gid, granne, kalla}
+const delInreKant = new Map();
 let pmArchive = null;   // hela arkivet i minnet (fylls i bakgrunden)
 let pmStream = null;    // strömmande instans tills nedladdningen är klar
 let protocol = null;    // maplibre-pmtiles-protokollet (sätts i initMap)
@@ -632,10 +662,10 @@ function uppdateraQuizTexter() {
       : 'Klicka på landet som har huvudstaden!';
     return;
   }
-  if (ho) ho.textContent = aktivSlug === 'usa' ? SPRAK.t('Hitta denna delstat:') : SPRAK.t('Hitta detta land:');
+  if (ho) ho.textContent = ordFor('hitta', 'Hitta detta land:');
   headerHint.textContent = bildlage
     ? SPRAK.t('Bilderna hjälper dig — klicka på rätt {delstat}!',
-        { delstat: aktivSlug === 'usa' ? SPRAK.t('delstat') : SPRAK.t('land') })
+        { delstat: ordFor('land', 'land') })
     : SPRAK.t('Klicka där du tror {landet} är!', { landet: ordLandet() });
 }
 // Huvudstädernas prickar och namn syns bara på avtäckta länder i
@@ -680,29 +710,29 @@ function huvudstadDirty() {
   });
 }
 
-// ── USA:s delstater: laddas först när regionen öppnas ──
+// ── Delregionerna (USA:s delstater, Sveriges landskap): laddas först när regionen öppnas ──
 // Klickytor, prickar och gränser läggs som en egen källfamilj (usa-*) med
 // KOPIOR av världslagren — identiskt utseende, men de kan tändas/släckas
 // utan att röra världen. Delstatskonsten (usa.pmtiles) ritas ovanpå
 // världsarkivets USA-bild när lagren är tända.
-function laddaUsa() {
-  if (usaLaddad) return usaLaddad;
+function laddaDel(slug) {
+  const d = DELREG[slug];
+  if (d.laddad) return d.laddad;
   // cachas BARA vid framgång (som loadRegionConfig) — en nätblipp får inte
   // göra delstatsregionen obrukbar för resten av sessionen
   const forsok = (async () => {
     const [reg, mark, grans, utst] = await Promise.all([
-      fetchJson(`assets/${USA_FILER.data}-regions.json?v=` + V),
-      fetchJson(`assets/${USA_FILER.data}-markers.json?v=` + V),
-      fetchJson(`assets/${USA_FILER.data}-borders.json?v=` + V),
-      fetchJson(`assets/${USA_FILER.data}-utstickare.json?v=` + V).catch(() => []),
+      fetchJson(`assets/${d.data}-regions.json?v=` + V),
+      fetchJson(`assets/${d.data}-markers.json?v=` + V),
+      fetchJson(`assets/${d.data}-borders.json?v=` + V),
+      d.utstickare ? fetchJson(`assets/${d.data}-utstickare.json?v=` + V).catch(() => []) : [],
     ]);
-    usaInreKant = new Map();
     for (const f of reg.features) {
       if (f.properties.kant === 2) {
-        const bit = { id: f.id, gid: f.properties.gid, granne: f.properties.granne };
+        const bit = { id: f.id, gid: f.properties.gid, granne: f.properties.granne, kalla: d.pre + 'regioner' };
         for (const g of [bit.gid, bit.granne]) {
-          if (!usaInreKant.has(g)) usaInreKant.set(g, []);
-          usaInreKant.get(g).push(bit);
+          if (!delInreKant.has(g)) delInreKant.set(g, []);
+          delInreKant.get(g).push(bit);
         }
       }
       // dekordelar (konst målad i havet) och kantbanden delar id med sin
@@ -713,11 +743,11 @@ function laddaUsa() {
       featureByFilename.set(f.properties.key.split('/')[1], f);
       featureByGid.set(f.id, f);
     }
-    map.addSource('usa-art', {
-      type: 'raster', url: 'pmtiles://' + USA_TILE_URL, tileSize: 256 });
-    map.addSource('usa-regioner', { type: 'geojson', data: reg });
-    map.addSource('usa-markorer', { type: 'geojson', data: mark });
-    map.addSource('usa-borders', { type: 'geojson', data: grans });
+    map.addSource(d.pre + 'art', {
+      type: 'raster', url: 'pmtiles://' + dataUrl(d.tiles), tileSize: 256 });
+    map.addSource(d.pre + 'regioner', { type: 'geojson', data: reg });
+    map.addSource(d.pre + 'markorer', { type: 'geojson', data: mark });
+    map.addSource(d.pre + 'borders', { type: 'geojson', data: grans });
     // klona världslagren: samma paint-uttryck, ny källa, dolda tills regionen
     // öppnas. Ordningen (understa först) ger samma stapling som världens.
     const klona = (fran, till, kalla, fore) => {
@@ -732,20 +762,20 @@ function laddaUsa() {
     // Täcket är klippt till världens målade USA-yta och usa-borders har en
     // yttre kontur ur samma geometri; världens linjer längs USA-kanten
     // (usakant) släcks i regionen, så varje kant får exakt en linje
-    klona('art', 'usa-art', 'usa-art', 'cover');
+    klona('art', d.pre + 'art', d.pre + 'art', 'cover');
     // havsfärg över konstrester utanför kusten (direkt ovanpå konsten)
-    map.addLayer({ id: 'usa-mask', type: 'fill', source: 'usa-regioner',
+    map.addLayer({ id: d.pre + 'mask', type: 'fill', source: d.pre + 'regioner',
       filter: ['==', ['get', 'mask'], 1], layout: { visibility: 'none' },
       paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'cover');
-    klona('cover', 'usa-cover', 'usa-regioner', 'borders');
-    map.setFilter('usa-cover', ['all', ['!', ['has', 'kant']], ['!', ['has', 'sjo']]]);
+    klona('cover', d.pre + 'cover', d.pre + 'regioner', 'borders');
+    map.setFilter(d.pre + 'cover', ['all', ['!', ['has', 'kant']], ['!', ['has', 'sjo']]]);
     // de stora sjöarna: världskartan har dem som land (USA och Kanada möts
     // mitt i sjön), men delstaterna slutar vid den riktiga stranden som på
     // den platta kartan. Sjön målas i havsfärg ovanpå världens täcke
     // (Kanadas gröna halva) och under delstaternas täcke
-    map.addLayer({ id: 'usa-sjo', type: 'fill', source: 'usa-regioner',
+    map.addLayer({ id: d.pre + 'sjo', type: 'fill', source: d.pre + 'regioner',
       filter: ['==', ['get', 'sjo'], 1], layout: { visibility: 'none' },
-      paint: { 'fill-color': '#123050', 'fill-antialias': false } }, 'usa-cover');
+      paint: { 'fill-color': '#123050', 'fill-antialias': false } }, d.pre + 'cover');
     // jämntjock kant runt avslöjade delstater: teckningens egen kontur
     // klipptes bort eller åts upp där konsten inte nådde exakt fram till
     // kusten och gränsen, och mot en grannstat ägs gränsen ofta av grannens
@@ -757,7 +787,7 @@ function laddaUsa() {
     // med eget id; visaInreKant tänder den när delstatens bild syns men
     // grannens inte gör det. Under felblink och tips (rött/gult täcke) göms
     // bandet, och vid hover får det samma vita slöja (0,25) som bilden
-    map.addLayer({ id: 'usa-kant', type: 'fill', source: 'usa-regioner',
+    map.addLayer({ id: d.pre + 'kant', type: 'fill', source: d.pre + 'regioner',
       filter: ['has', 'kant'], layout: { visibility: 'none' },
       paint: {
         'fill-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#474747', '#0a0a0a'],
@@ -767,11 +797,10 @@ function laddaUsa() {
                   ['boolean', ['feature-state', 'tips'], false]], 0,
           ['-', 1, DOLD_KONST]],
       } }, 'borders');
-    klona('borders', 'usa-granser', 'usa-borders');
-    klona('prickar', 'usa-prickar', 'usa-markorer');
-    usaUtstickare = [];
+    klona('borders', d.pre + 'granser', d.pre + 'borders');
+    klona('prickar', d.pre + 'prickar', d.pre + 'markorer');
     for (const u of utst) {
-      const lager = 'usa-utst-' + u.gid;
+      const lager = d.pre + 'utst-' + u.gid;
       map.addSource(lager, { type: 'image', url: dataUrl(u.bild + '?v=' + V), coordinates: u['hörn'] });
       // byts direkt som delstatens bild (feature-state animeras aldrig)
       const direkt = { duration: 0, delay: 0 };
@@ -779,30 +808,30 @@ function laddaUsa() {
         paint: { 'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-resampling': 'linear',
                  'raster-opacity-transition': direkt,
                  'raster-brightness-min-transition': direkt } },
-        'usa-prickar');
-      usaUtstickare.push({ gid: u.gid, lager });
+        d.pre + 'prickar');
+      delUtstickare.push({ gid: u.gid, lager });
     }
     // tillstånd satta innan lagren fanns (t.ex. återbesök) läggs på igen
     for (const [gid, t] of tillstand) {
-      if (gid < USA_GID) continue;
+      if (delFor(gid) !== d) continue;
       try {
-        map.setFeatureState({ source: 'usa-regioner', id: gid }, t);
-        map.setFeatureState({ source: 'usa-markorer', id: gid }, t);
-        map.setFeatureState({ source: 'usa-borders', id: gid }, t);
+        map.setFeatureState({ source: d.pre + 'regioner', id: gid }, t);
+        map.setFeatureState({ source: d.pre + 'markorer', id: gid }, t);
+        map.setFeatureState({ source: d.pre + 'borders', id: gid }, t);
       } catch (e) {}
     }
-    for (const u of usaUtstickare) visaUtstickare(u.gid);
-    for (const gid of usaInreKant.keys()) visaInreKant(gid);
+    for (const u of delUtstickare) visaUtstickare(u.gid);
+    for (const gid of delInreKant.keys()) visaInreKant(gid);
   })();
-  usaLaddad = forsok;
-  forsok.catch(() => { usaLaddad = null; });
+  d.laddad = forsok;
+  forsok.catch(() => { d.laddad = null; });
   return forsok;
 }
 // utstickarbilden syns exakt när delstatens bild syns (DOLD_KONST = 0) och
 // följer täcket ovanpå den: borta under felblink och tips (rött/gult täcke),
 // samma vita slöja vid hover (brightness-min 0,25 = vitt med 0,25 opacitet)
 function visaUtstickare(gid) {
-  const u = usaUtstickare.find(x => x.gid === gid);
+  const u = delUtstickare.find(x => x.gid === gid);
   if (!u || !map || !map.getLayer(u.lager)) return;
   const t = landState(gid);
   const dold = t.gron || t.tackt || (t.svar || 0) >= 1 || t.fel || t.tips;
@@ -819,33 +848,39 @@ function konstSyns(gid) {
 // grannens inte gör det (täckt, grön, kvittofärgad): då blir kanten lika
 // tjock som mot havet. Syns båda bilderna räcker de två första halvorna
 function visaInreKant(gid) {
-  const bitar = usaInreKant.get(gid);
+  const bitar = delInreKant.get(gid);
   if (!bitar || !map) return;
   for (const b of bitar) {
     try {
-      map.setFeatureState({ source: 'usa-regioner', id: b.id }, {
+      map.setFeatureState({ source: b.kalla, id: b.id }, {
         vis: konstSyns(b.gid) && !konstSyns(b.granne),
         hover: !!landState(b.gid).hover,
       });
     } catch (e) { /* källan inte laddad än */ }
   }
 }
-function visaUsaLager(pa) {
-  for (const id of ['usa-art', 'usa-mask', 'usa-sjo', 'usa-cover', 'usa-kant', 'usa-granser', 'usa-prickar',
-                    ...usaUtstickare.map(u => u.lager)]) {
-    // lagren finns inte förrän laddaUsa körts (MapLibre loggar ett fel i
-    // stället för att kasta, så kolla först)
-    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none');
+// slug: delregionen som ska synas (null = ingen)
+function visaDelLager(slug) {
+  for (const d of Object.values(DELREG)) {
+    const pa = d.slug === slug;
+    const egna = delUtstickare.filter(u => delFor(u.gid) === d).map(u => u.lager);
+    for (const id of ['art', 'mask', 'sjo', 'cover', 'kant', 'granser', 'prickar'].map(x => d.pre + x).concat(egna)) {
+      // lagren finns inte förrän laddaDel körts (MapLibre loggar ett fel i
+      // stället för att kasta, så kolla först)
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none');
+    }
   }
-  // världens USA-kontur ersätts av delstaternas egen yttre kontur
-  try { map.setFilter('borders', pa ? ['!=', ['get', 'usakant'], 1] : null); }
+  // världens kontur runt landet ersätts av delregionens egen yttre kontur
+  const d = slug && DELREG[slug];
+  try { map.setFilter('borders', d ? ['!=', ['get', d.kant], 1] : null); }
   catch (e) {}
 }
 // klick och hover frågar delstatslagren FÖRST när regionen är aktiv —
 // de ligger överst och äger då USA-ytan
 function spelLager() {
-  return aktivSlug === 'usa'
-    ? ['usa-prickar', 'usa-cover', 'usa-sjo', 'prickar', 'former', 'cover']
+  const d = arDelregion(aktivSlug) ? DELREG[aktivSlug] : null;
+  return d
+    ? [d.pre + 'prickar', d.pre + 'cover', d.pre + 'sjo', 'prickar', 'former', 'cover']
     : ['prickar', 'former', 'cover'];
 }
 // i delstatsregionen är världens USA-yta bara kuliss (konst under delstats-
@@ -856,14 +891,15 @@ function spelLager() {
 // sjöns kanadensiska halva, men allt som ligger under sjön i ritordningen
 // (träffarna kommer överst först) är dolt och räknas inte
 function spelTraffar(hits) {
-  const usa = aktivSlug === 'usa';
-  const uv = usa ? featureByFilename.get('usa') : null;
+  const d = arDelregion(aktivSlug) ? DELREG[aktivSlug] : null;
+  const usa = !!d;
+  const uv = d ? varldsYta(d) : null;
   if (usa) {
     const sjo = hits.findIndex(h => h.properties && h.properties.sjo);
     if (sjo >= 0) hits = hits.slice(0, sjo);
   }
   return hits.filter(h => {
-    if (usa && (h.id === USA_REMSA_GID || h.id === USA_MASK_GID || (uv && h.id === uv.id))) return false;
+    if (usa && (h.id === d.remsa || h.id === d.mask || (uv && h.id === uv.id))) return false;
     if (h.properties && h.properties.dekor) {
       const t = landState(h.id);
       if (t.tackt || t.gron || (t.svar || 0) >= 1) return false;
@@ -1529,7 +1565,7 @@ function initMap() {
         // (sorteringen är stabil), annars vinner grannen vars mittpunkt
         // råkar ligga närmast i stället för landet man faktiskt nuddade
         const avst = f => {
-          if (!f.layer || (f.layer.id !== 'prickar' && f.layer.id !== 'usa-prickar')) return Infinity;
+          if (!f.layer || (f.layer.id !== 'prickar' && !/^(usa|sverige)-prickar$/.test(f.layer.id))) return Infinity;
           // punktens läge tas ur featurens egen geometri — funkar för både
           // världens och delstaternas prickar (markerPts har bara världens)
           const g = f.geometry && f.geometry.type === 'Point' ? f.geometry.coordinates : null;
@@ -2218,6 +2254,11 @@ const ORIG_MIN = 0.5, ORIG_MAX = 5;
 function origApplyTransform() {
   origWrapper.style.transform = `translate(${origPanX}px, ${origPanY}px) scale(${origZoom})`;
   updateZoomLabel();
+  // svävande karta: globen under följer med (samma tid som wrapperns
+  // övergång, ingen under dragning)
+  if (typeof svavarNu === 'function' && svavarNu()) {
+    svavaGlob(origWrapper.classList.contains('dragging') ? 0 : 180);
+  }
 }
 function origClampPan() {
   const bw = origBase.offsetWidth, bh = origBase.offsetHeight;
@@ -2241,8 +2282,144 @@ function origSetZoom(nz, cursorX, cursorY) {
   origApplyTransform();
 }
 
+// originalkartan byggs för EN region i taget: byter man region utan
+// sidladdning (pilen tillbaka, en annan region) rivs den gamla ner och
+// byggs om för den nya när vyn visas
+let origByggdFor = null;
+function origReset() {
+  for (const el of [...origWrapper.children]) if (el !== origBase) el.remove();
+  for (const o of [origOverlayEls, origHoverEls, origMarkerEls, origHitData, origShapes]) {
+    for (const k of Object.keys(o)) delete o[k];
+  }
+  origSorted = [];
+  origInit = false;
+  origByggdFor = null;
+  origZoom = 1; origPanX = 0; origPanY = 0;
+  origApplyTransform();
+}
+
+// ── Svävande karta (Sveriges landskap) ──
+// Sverige är så utdraget att landskapen blir skeva på globen. Där flyger
+// globen dit och sedan svävar Jonas ritade karta (originalkartan) ovanpå,
+// med globen nedtonad i bakgrunden: grannländerna syns runt om, och
+// globen ställs så att Sverige ligger precis under den ritade kartan.
+const SVAVANDE = { sverige: { ram: [[11.78, 55.65], [24.74, 69.96]] } };
+const svavarNu = () => !!(origSlug && SVAVANDE[origSlug] && aktivVy === 'orig');
+// baskartans rektangel på skärmen räknad ur layouten och zoom/panorering
+// (inte getBoundingClientRect: wrapperns transform har en övergång, och
+// mitt i den låg rektangeln kvar på det gamla läget)
+function origBasRekt() {
+  const p = mapPanel.getBoundingClientRect();
+  const ww = origWrapper.offsetWidth, wh = origWrapper.offsetHeight;
+  const cx = p.left + origWrap.offsetLeft + origWrapper.offsetLeft + ww / 2;
+  const cy = p.top + origWrap.offsetTop + origWrapper.offsetTop + wh / 2;
+  const left = cx + origPanX + origZoom * (origBase.offsetLeft - ww / 2);
+  const top = cy + origPanY + origZoom * (origBase.offsetTop - wh / 2);
+  const width = origBase.offsetWidth * origZoom, height = origBase.offsetHeight * origZoom;
+  return { left, top, width, height, right: left + width, bottom: top + height };
+}
+function svavaGlob(tid) {
+  if (!svavarNu() || !map) return;
+  const kanvas = map.getContainer().getBoundingClientRect();
+  const r = origBasRekt();
+  if (!r.width || !kanvas.width) return;
+  // kartbildens Sverige: baskartan är beskuren tätt runt landet
+  // egen kamera i stället för fitBounds (som inte klarar globprojektionen
+  // med stor padding): zoomen så att Sveriges höjd i Mercator blir
+  // kartbildens höjd (globen har Mercators skala kring mitten), och
+  // mitten förskjuten från kartans (paddade) mitt till bildens mitt
+  const [[x0, y0], [x1, y1]] = SVAVANDE[origSlug].ram;
+  const my = lat => { const f = lat * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + f / 2)) / (2 * Math.PI); };
+  const lngMitt = (x0 + x1) / 2;
+  const yMitt = Math.atan(Math.sinh((my(y1) + my(y0)) * Math.PI)) * 180 / Math.PI;
+  let zoom = Math.log2(r.height / ((my(y1) - my(y0)) * 512));
+  if (!(zoom > 0)) return;
+  // målet i kartbehållarens pixlar: bildens topp/botten/mitt
+  const malX = r.left + r.width / 2 - kanvas.left;
+  const malT = r.top - kanvas.top, malB = r.bottom - kanvas.top;
+  // kameran räknas fram genom att prova: hoppa dit, mät var Sveriges
+  // nord- och sydspets hamnar (globprojektionen, padding och allt) och
+  // rätta zoom och mitt tills de ligger på bildens kanter. Sedan tillbaka
+  // och glid dit (inget hinner ritas mellan hoppen)
+  const forut = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+  map.stop();
+  let center = [lngMitt, yMitt];
+  for (let i = 0; i < 6; i++) {
+    map.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
+    const n = map.project([lngMitt, y1]), s = map.project([lngMitt, y0]);
+    const h = s.y - n.y;
+    if (!(h > 1)) break;
+    const dz = Math.log2((malB - malT) / h);
+    const dx = (n.x + s.x) / 2 - malX, dy = (n.y + s.y) / 2 - (malT + malB) / 2;
+    if (Math.abs(dz) < 0.002 && Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) break;
+    // flytta mitten så att mätpunkternas mitt hamnar på målet
+    const c = map.project(center);
+    const ny = map.unproject([c.x + dx, c.y + dy]);
+    center = [ny.lng, ny.lat];
+    zoom += dz;
+  }
+  map.jumpTo(forut);
+  if (tid) map.easeTo({ center, zoom, bearing: 0, pitch: 0, duration: tid, essential: true });
+  else map.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
+}
+// kartpanelen eller den ritade kartan byter storlek (panelen fälls
+// ihop, fönstret ändras, mobilens adressfält): kameran följer med
+if (typeof ResizeObserver === 'function') {
+  let svavRO = 0;
+  const ro = new ResizeObserver(() => {
+    if (!svavarNu()) return;
+    cancelAnimationFrame(svavRO);
+    svavRO = requestAnimationFrame(() => { svavStorlek(true); svavaGlob(0); });
+  });
+  // (baskartan också: på ett långsamt nät laddas bilden efter att kameran
+  // ställts, och då räknades den mot fel storlek)
+  ro.observe(mapPanel);
+  ro.observe(origBase);
+}
+// under den svävande kartan målas landskapen på globen i havets färg
+// (konst, kanter och prickar släckta): globens Sverige har inte exakt
+// samma form som den ritade kartan, och det som sticker fram ska vara hav,
+// inte ett andra Sverige
+let svavSkuggaFarg = null;
+function svavSkugga(pa) {
+  const d = DELREG[origSlug] || DELREG[aktivSlug];
+  if (!d || !map || !map.getLayer(d.pre + 'cover')) return;
+  // (opaciteten också: avslöjade landskap har genomskinligt täcke, och då
+  // lyste världskartans Sverige igenom i skuggan)
+  if (pa && svavSkuggaFarg === null) {
+    svavSkuggaFarg = ['fill-color', 'fill-opacity'].map(x => map.getPaintProperty(d.pre + 'cover', x));
+  }
+  if (!pa && svavSkuggaFarg === null) return;
+  map.setPaintProperty(d.pre + 'cover', 'fill-color', pa ? '#123050' : svavSkuggaFarg[0]);
+  // (havsmasken ligger i samma lager: den förblir osynlig)
+  map.setPaintProperty(d.pre + 'cover', 'fill-opacity',
+    pa ? ['case', ['has', 'mask'], 0, 1] : svavSkuggaFarg[1]);
+  if (!pa) svavSkuggaFarg = null;
+  const synlig = arDelregion(aktivSlug) && DELREG[aktivSlug] === d;
+  for (const x of ['art', 'kant', 'granser', 'prickar']) {
+    if (map.getLayer(d.pre + x)) map.setLayoutProperty(d.pre + x, 'visibility', !pa && synlig ? 'visible' : 'none');
+  }
+  for (const u of delUtstickare) if (delFor(u.gid) === d && map.getLayer(u.lager)) {
+    map.setLayoutProperty(u.lager, 'visibility', !pa && synlig ? 'visible' : 'none');
+  }
+}
+// den svävande kartan ska få plats i kartpanelen (på mobilen är panelen
+// lägre än fönstret, och bilden räknas annars mot fönsterhöjden)
+function svavStorlek(pa) {
+  origBase.style.maxHeight = pa ? Math.max(200, origWrap.clientHeight - 40) + 'px' : '';
+  if (pa && origInit) { origPosition(); origClampPan(); origApplyTransform(); }
+}
+function uppdateraSvavande() {
+  const pa = svavarNu();
+  mapPanel.classList.toggle('svavar', pa);
+  svavStorlek(pa);
+  svavSkugga(pa);
+  if (pa) requestAnimationFrame(() => svavaGlob(1200));
+}
+
 async function initOrig() {
   const slug = origSlug, raw = origRaw;
+  origByggdFor = slug;
   origBase.src = `assets/${slug}/map.webp`;
   await new Promise(res => {
     if (origBase.complete && origBase.naturalWidth > 0) res();
@@ -2337,10 +2514,92 @@ async function initOrig() {
   origInit = true;
 }
 
+// Svävande kartan (Sveriges landskap): gult hela vägen ut till kartans
+// egna konturlinjer. Landbilderna når inte alltid ända fram till linjerna,
+// och då syntes vita kanter mellan det gula och konturen. I stället fylls
+// baskartans YTOR (sammanhängande ljusa områden mellan konturlinjerna, i
+// full upplösning) som landbilden täcker till minst MIN_ANDEL; linjerna
+// själva lämnas orörda så konturen syns.
+function origHoverYtor(list) {
+  const HR = 255, HG = 220, HB = 50, TH = 150, MIN_ANDEL = 0.3;
+  const MW = ORIG.W, MH = ORIG.H;
+  const mc = document.createElement('canvas');
+  mc.width = MW; mc.height = MH;
+  const mctx = mc.getContext('2d');
+  mctx.drawImage(origBase, 0, 0, MW, MH);
+  const md = mctx.getImageData(0, 0, MW, MH).data;
+  // ytor: 4-grannar bland ljusa, opaka pixlar
+  const yta = new Int32Array(MW * MH).fill(-1);
+  const storlek = [];
+  const ko = new Int32Array(MW * MH);
+  for (let start = 0; start < MW * MH; start++) {
+    if (yta[start] !== -1) continue;
+    const mi = start * 4;
+    if ((md[mi] + md[mi + 1] + md[mi + 2]) / 3 < TH || md[mi + 3] < 128) { yta[start] = -2; continue; }
+    const id = storlek.length;
+    let n = 0, h = 0;
+    ko[n++] = start; yta[start] = id;
+    while (h < n) {
+      const i = ko[h++], x = i % MW;
+      const prova = j => {
+        if (yta[j] !== -1) return;
+        const m = j * 4;
+        if ((md[m] + md[m + 1] + md[m + 2]) / 3 < TH || md[m + 3] < 128) { yta[j] = -2; return; }
+        yta[j] = id; ko[n++] = j;
+      };
+      if (x > 0) prova(i - 1);
+      if (x < MW - 1) prova(i + 1);
+      if (i >= MW) prova(i - MW);
+      if (i < MW * (MH - 1)) prova(i + MW);
+    }
+    storlek.push(n);
+  }
+  for (const c of list) {
+    const hd = origHitData[c.filename];
+    if (!hd) continue;
+    // hur många pixlar av varje yta landbilden täcker
+    const tackt = new Map();
+    const s = hd.s || 1;
+    const sx = c.left - ORIG.L, sy = c.top - ORIG.T;
+    const kx = c.width / hd.w, ky = c.height / hd.h;
+    for (let y = 0; y < hd.h; y++) for (let x = 0; x < hd.w; x++) {
+      if (hd.data[(y * hd.w + x) * 4 + 3] < 128) continue;
+      const mx = Math.floor(sx + (x + 0.5) * kx), my = Math.floor(sy + (y + 0.5) * ky);
+      if (mx < 0 || mx >= MW || my < 0 || my >= MH) continue;
+      const id = yta[my * MW + mx];
+      if (id >= 0) tackt.set(id, (tackt.get(id) || 0) + kx * ky);
+    }
+    const valda = new Set();
+    for (const [id, n] of tackt) if (n >= MIN_ANDEL * storlek[id]) valda.add(id);
+    if (!valda.size) continue;
+    let x0 = MW, y0 = MH, x1 = -1, y1 = -1;
+    for (let i = 0; i < MW * MH; i++) {
+      if (!valda.has(yta[i])) continue;
+      const x = i % MW, y = (i / MW) | 0;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    const W2 = x1 - x0 + 1, H2 = y1 - y0 + 1;
+    const cv = document.createElement('canvas');
+    cv.width = W2; cv.height = H2;
+    const cx2 = cv.getContext('2d');
+    const pix = cx2.createImageData(W2, H2);
+    const d = pix.data;
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      if (!valda.has(yta[(y0 + y) * MW + x0 + x])) continue;
+      const ci = (y * W2 + x) * 4;
+      d[ci] = HR; d[ci + 1] = HG; d[ci + 2] = HB; d[ci + 3] = 255;
+    }
+    cx2.putImageData(pix, 0, 0);
+    const el = origHoverEls[c.filename];
+    if (el) { el.src = cv.toDataURL(); el._rect = { L: ORIG.L + x0, T: ORIG.T + y0, W: W2, H: H2 }; }
+  }
+}
+
 // gula hover-bilder: landbilden tonad gul, klippt vid baskartans konturer.
 // Gränsmasken byggs i HALV upplösning (en fjärdedels minne — mobilen) och
 // hover-bilderna genereras i träffdatans skala; CSS sträcker upp dem.
 function origHoverImages(list) {
+  if (SVAVANDE[origSlug]) return origHoverYtor(list);
   const HR = 255, HG = 220, HB = 50, TH = 150;
   const MW = Math.max(1, ORIG.W >> 1), MH = Math.max(1, ORIG.H >> 1);
   const mc = document.createElement('canvas');
@@ -2611,7 +2870,10 @@ origWrap.addEventListener('wheel', ev => {
 let aktivVy = 'glob';
 async function setView(vy) {
   if (vy === 'orig' && !origSlug) vy = 'glob';   // världstestet saknar originalkarta
+  if (vy === 'orig' && origByggdFor && origByggdFor !== origSlug) origReset();
   aktivVy = vy;
+  mapPanel.classList.toggle('svavar', false);
+  origBase.style.maxHeight = '';
   document.getElementById('view-glob').classList.toggle('active', vy === 'glob');
   document.getElementById('view-platt').classList.toggle('active', vy === 'platt');
   document.getElementById('view-orig').classList.toggle('active', vy === 'orig');
@@ -2648,6 +2910,7 @@ async function setView(vy) {
       origLoading = false;
     }
   }
+  uppdateraSvavande();
   updateZoomLabel();
 }
 document.getElementById('view-glob').addEventListener('click', () => setView('glob'));
@@ -2664,6 +2927,7 @@ document.getElementById('zoom-out').addEventListener('click', () => {
 window.addEventListener('resize', () => {
   if (flatVisible && mdata) renderFlatBase().then(composeFlat);
   if (origInit) { origPosition(); origClampPan(); origApplyTransform(); }
+  if (svavarNu()) { svavStorlek(true); svavaGlob(0); }
 });
 
 // ══════════════════════════════════
@@ -2677,8 +2941,9 @@ function delMed(raw, id) { return delarFor(raw).find(d => d.id === id) || null; 
 
 async function startRegion(slug, flyg, delId) {
   window.kakSpara?.('spel_start', { region: slug, del: delId || null });
-  if (slug === 'usa') await laddaUsa();   // klickytor + lager måste finnas först
-  visaUsaLager(slug === 'usa');
+  const delreg = arDelregion(slug) ? DELREG[slug] : null;
+  if (delreg) await laddaDel(slug);   // klickytor + lager måste finnas först
+  visaDelLager(delreg ? slug : null);
   const raw = await loadRegionConfig(slug);
   const del = delMed(raw, delId);
   aktivDel = del ? del.id : null;
@@ -2722,21 +2987,21 @@ async function startRegion(slug, flyg, delId) {
     if (aktivByGid.has(f.id)) setLand(f.id, { gron: false, tackt: true });
     else setLand(f.id, { gron: true, tackt: false });
   }
-  if (slug === 'usa') {
+  if (delreg) {
     for (const gid of aktivByGid.keys()) setLand(gid, { gron: false, tackt: true });
-    // världens USA-yta är genomskinlig: dess täcke ligger OVANPÅ
-    // delstatskonsten och får inte skymma den. Delstatstäcket täcker hela
-    // ytan inom USA; läckaget in i Mexiko målas grönt som grannlandet
-    const usaVarld = featureByFilename.get('usa');
+    // världens USA-yta (Sverigeyta) är genomskinlig: dess täcke ligger
+    // OVANPÅ delregionens konst och får inte skymma den. Delregionens täcke
+    // täcker hela ytan; läckaget in i grannlandet målas grönt som grannen
+    const usaVarld = varldsYta(delreg);
     if (usaVarld) setLand(usaVarld.id, { gron: false, tackt: false });
-    setLand(USA_REMSA_GID, { gron: true, tackt: false });
+    setLand(delreg.remsa, { gron: true, tackt: false });
   }
   sattUtforskBilder();   // Utforska + Huvudstäder med landbilderna på
   // väggkartan bakas ur världsarkivet och känner inte delstaterna — göm
   // det vyvalet i delstatsregionen (globen + originalkartan räcker gott)
   const plattKnapp = document.getElementById('view-platt');
-  if (plattKnapp) plattKnapp.style.display = slug === 'usa' ? 'none' : '';
-  if (slug === 'usa' && aktivVy === 'platt') setView('glob');
+  if (plattKnapp) plattKnapp.style.display = delreg ? 'none' : '';
+  if (delreg && aktivVy === 'platt') setView('glob');
   spelPadding();
   const kam = KAMERA[slug] || KAMERA.world;
   // en del av världsdelen får en egen kamera: ramen läggs runt just de
@@ -2746,6 +3011,14 @@ async function startRegion(slug, flyg, delId) {
   else if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
   else map.jumpTo({ center: kam.center, zoom: kam.zoom });
   preloadCountryImages();
+  // svävande karta: först flyger globen dit, sedan lyfts den ritade kartan
+  // fram. Annars: en öppen originalvy byggs om för den nya regionen
+  if (SVAVANDE[slug]) {
+    if (flyg) await new Promise(res => setTimeout(res, 2000));
+    if (aktivSlug === slug) await setView('orig');
+  } else if (aktivVy === 'orig') {
+    await setView('orig');
+  }
 }
 
 // omslutande ram kring den aktiva delens länder (markörpunkterna räcker —
@@ -2864,9 +3137,9 @@ const infoExtra = document.getElementById('info-extra');
 let infoUtfalld = false;
 // delstatsregionen pratar om delstater, inte länder — samma texter, rätt ord
 // (på engelska: the state / states / a state — via SPRAK.t)
-const ordLandet = () => aktivSlug === 'usa' ? SPRAK.t('delstaten') : SPRAK.t('landet');
-const ordLander = () => aktivSlug === 'usa' ? SPRAK.t('delstater') : SPRAK.t('länder');
-const ordEttLand = () => aktivSlug === 'usa' ? SPRAK.t('en delstat') : SPRAK.t('ett land');
+const ordLandet = () => ordFor('landet', 'landet');
+const ordLander = () => ordFor('lander', 'länder');
+const ordEttLand = () => ordFor('ettLand', 'ett land');
 function uppdateraOrdval() {
   visaInfoUtfalld();
   const p = document.querySelector('#info-default p');
@@ -2876,7 +3149,7 @@ function uppdateraOrdval() {
   const so = document.getElementById('stang-ord');
   if (so) so.textContent = ordLandet();
   const ho = document.getElementById('hitta-ord');
-  if (ho) ho.textContent = aktivSlug === 'usa' ? SPRAK.t('Hitta denna delstat:') : SPRAK.t('Hitta detta land:');
+  if (ho) ho.textContent = ordFor('hitta', 'Hitta detta land:');
   if (currentMode === 'explore') headerHint.textContent = SPRAK.t('Klicka på {ett}', { ett: ordEttLand() });
   if (huvudstadslage) uppdateraQuizTexter();
   uppdateraUtforskStader();
@@ -4382,7 +4655,8 @@ function tillbakaTillStart() {
   aktivUtmaning = null;          // utmaningen gäller bara tills man lämnar den
   aktivSlug = null;              // ordvalen (land/delstat) ska inte hänga kvar
   uppdateraOrdval();
-  visaUsaLager(false);           // delstatslagren hör bara hemma i sin region
+  svavSkugga(false);
+  visaDelLager(null);            // delregionernas lager hör bara hemma i sin region
   const plattKnappStart = document.getElementById('view-platt');
   if (plattKnappStart) plattKnappStart.style.display = '';
   if (seterraTimerInterval) clearInterval(seterraTimerInterval);
@@ -4583,7 +4857,8 @@ const RESA_ORDNING = ['sydamerika', 'nordamerika', 'europa', 'afrika', 'asien', 
 const SEGER_VIDEO = '';
 const RESA_NAMN = { europa: 'Europa', sydamerika: 'Sydamerika', nordamerika: 'Nordamerika',
   afrika: 'Afrika', asien: 'Asien', oceanien: 'Oceanien', vastindien: 'Västindien',
-  world: 'Hela världen 🌍', usa: SPRAK.t('USA:s delstater') + ' 🇺🇸' };   // usa: bara visningsnamn
+  world: 'Hela världen 🌍', usa: SPRAK.t('USA:s delstater') + ' 🇺🇸',
+  sverige: 'Sveriges landskap 🇸🇪' };   // usa: bara visningsnamn
                                     // (utmaningar m.m.) — INTE med i resan
 function resaState() {
   let resa;
@@ -4876,7 +5151,7 @@ const SPEL_TOUR = [
     text: SPRAK.t('Klassiskt Quiz är den riktiga utmaningen: inga bilder! Minst 80 % ger en stämpel i Jorden runt-resan — och 100 % ger ett diplom!') },
   // bara svenska sajten (texten översätts inte) och där huvudstäderna finns
   { el: () => document.querySelector('.mode-btn[data-mode="seterra"]'),
-    om: () => HUVUDSTAD.size > 0 && aktivSlug !== 'usa',
+    om: () => HUVUDSTAD.size > 0 && !arDelregion(aktivSlug),
     bild: 'assets/jonas/kul.webp', plats: underKnappen,
     text: 'Du kan också välja Huvudstäder! I Utforska upptäcker du städerna. I Bildquiz säger jag en huvudstad och du klickar på den vita cirkeln där staden ligger, och i Klassiskt Quiz klickar du på landet. Min minnesregel för huvudstaden finns som ledtråd!' },
   { el: () => document.getElementById('back-btn'), om: () => !SPRAK.startRegion,
@@ -5598,7 +5873,7 @@ if ('serviceWorker' in navigator) {
     await forberedUtmaning(utmaningId);   // ingen rundtur — kompisen vill duellera
   } else if (region === 'world') {
     worldFlow();
-  } else if (WORLD_SLUGS.includes(region) || region === 'usa') {
+  } else if (WORLD_SLUGS.includes(region) || arDelregion(region)) {
     const del = params.get('del');
     await startRegion(region, false, del);
     const raw = await loadRegionConfig(region);

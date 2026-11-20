@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=110">
+  <link rel="stylesheet" href="style.css?v=112">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=110"></script>
+  <script src="sprak.js?v=112"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -33,6 +33,16 @@
       background: #0e2438; touch-action: none; }
     .map-panel.orig #spel-map { visibility: hidden; }
     .map-panel.orig #orig-wrap { display: flex; }
+    /* svävande karta (Sveriges landskap): globen syns nedtonad bakom, och
+       den ritade kartan lyfts fram med en skugga under sig */
+    .map-panel.orig.svavar #spel-map { visibility: visible; pointer-events: none;
+      filter: brightness(.55) saturate(.85) blur(1px); transition: filter .8s; }
+    .map-panel.orig.svavar #orig-wrap { background: radial-gradient(ellipse at center,
+      rgba(8,20,36,0) 30%, rgba(8,20,36,.55) 100%); animation: svava-in .9s ease-out both; }
+    .map-panel.orig.svavar #orig-base {
+      filter: drop-shadow(0 22px 18px rgba(0,0,0,.55)) drop-shadow(0 4px 4px rgba(0,0,0,.35)); }
+    @keyframes svava-in { from { opacity: 0; transform: translateY(26px) scale(.96); }
+      to { opacity: 1; transform: none; } }
     /* delade zoomknappar för väggkartan och originalkartan (globen har egna) */
     .map-panel .zoom-controls { left: auto; right: 16px; bottom: 16px; display: none; }
     .map-panel.platt .zoom-controls, .map-panel.orig .zoom-controls { display: flex; }
@@ -148,6 +158,7 @@
     .k4 { background: #74b9ff; } .k5 { background: #f4a261; } .k6 { background: #b39ddb; }
     .k7 { background: #8ce99a; } .k8 { background: #ffdc32; }
     .k10 { background: #a5c8ff; }
+    .k11 { background: #ffe066; }
     .knapp-video { position: absolute; top: -10px; right: -10px; width: 30px; height: 30px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: .72rem; cursor: pointer; padding-left: 3px; box-shadow: 0 2px 6px #000a; }
@@ -745,6 +756,7 @@
       <button class="knapp-video" data-video="TEkeVdwJPk8"
               title="Se videon om V&auml;stindiens l&auml;nder">&#9654;</button></a>
     <a class="knapp k10" href="?region=usa">&#127482;&#127480; USA:s delstater</a>
+    <a class="knapp k11" href="?region=sverige">&#127480;&#127466; Sveriges landskap</a>
     <a class="knapp k8" href="?region=world">&#127757; Hela v&auml;rlden</a>
   </div>
   <button class="start-hjalp" id="start-hjalp" title="Visa rundturen igen">?</button>
@@ -1206,8 +1218,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=110"></script>
-<script src="glob-spel.js?v=110"></script>
+<script src="kakor.js?v=112"></script>
+<script src="glob-spel.js?v=112"></script>
 
 </body>
 </html>

@@ -130,10 +130,20 @@ const GRID_STEP = 80;               // region-canvas px between shared warp-grid
 // ländernas 50m-data så delstaterna passar exakt i USA:s kontur) och
 // exporterade feature-id:n får GID_BASE så de aldrig krockar med ländernas.
 // (DATASET läses tidigt, eftersom --out:s standardnamn bygger på den.)
-const GID_BASE = DATASET === 'usa' ? 1000 : 0;
+// --dataset sverige: landskapen på samma sätt, geometrin ur
+// data/svenska_landskap.geojson, id:n från 2000.
+// DELLAND: allt som skiljer delregionsdataseten åt (världens målade yta som
+// snäpp-passet fyller till, Natural Earth-landet, upplindningslongituden)
+const DELLAND = {
+  usa: { gidBase: 1000, geo: 'data/us_states.geojson', varld: 'nordamerika/usa', a3: 'USA', cLng: -100 },
+  sverige: { gidBase: 2000, geo: 'data/svenska_landskap_varld.geojson', varld: 'europa/sverige', a3: 'SWE', cLng: 15 },
+};
+if (DATASET !== 'world' && !DELLAND[DATASET]) throw new Error(`okänt --dataset "${DATASET}"`);
+const DEL = DELLAND[DATASET] || null;
+const GID_BASE = DEL ? DEL.gidBase : 0;
 
-const REGIONS = DATASET === 'usa'
-  ? ['usa']
+const REGIONS = DEL
+  ? [DATASET]
   : ['europa', 'afrika', 'asien', 'nordamerika', 'sydamerika', 'oceanien', 'vastindien'];
 // filename → Natural Earth A3 for spellings the name match can't bridge
 const ALIAS = {
@@ -203,13 +213,14 @@ function mercY(lat) {
 
 // ── Load Natural Earth; map_units first (England/Skottland/FXX/GUF …) ──
 function loadFeatures() {
-  if (DATASET === 'usa') {
+  if (DEL) {
     // delstaterna: NAME_SV är satt till configens filnamn, så namnmatchningen
-    // träffar rakt av; inga map_units, ingen Krim-flytt
-    const states = JSON.parse(readFileSync(path.join(here, 'data/us_states.geojson'), 'utf8'));
+    // träffar rakt av; inga map_units, ingen Krim-flytt. Landskapen har
+    // filename i stället (samma som configens)
+    const states = JSON.parse(readFileSync(path.join(here, DEL.geo), 'utf8'));
     const bySv = {}, byA3 = {};
     for (const f of states.features) {
-      bySv[norm(f.properties.NAME_SV)] = f;
+      bySv[norm(f.properties.NAME_SV || f.properties.filename)] = f;
       if (f.properties.GU_A3) byA3[f.properties.GU_A3] = f;
     }
     return { bySv, byA3 };
@@ -393,7 +404,7 @@ function matchRegions() {
       } : null;
       const f = bySv[norm(base)] || (ALIAS[base] && byA3[ALIAS[base]]);
       if (!f) continue;
-      const key = f.properties.GU_A3 || f.properties.ISO_A3 || f.properties.NAME;
+      const key = f.properties.GU_A3 || f.properties.ISO_A3 || f.properties.NAME || f.properties.filename;
       if (used.has(key)) continue;
       used.add(key);
       const lock = SHAPE_LOCK.get(`${slug}/${base}`) || null;
@@ -895,7 +906,7 @@ async function buildWarps(regions) {
       const ratio = pm ? Math.sqrt(bodyArea * detA / Math.max(pm.area, 1e-12)) : 1;
       // delstaterna: Hawaii är överritat men SKA till sin riktiga plats —
       // inga kompositionsplacerade badges i usa-datasetet
-      c.badge = DATASET !== 'usa' && !c.hasLandBorder && ratio > 3;
+      c.badge = !DEL && !c.hasLandBorder && ratio > 3;
       if (c.badge) console.log(`  badge: ${r.slug}/${c.base} (${ratio.toFixed(1)}× överritad)`);
       const eg = eigen2(Cm[0], Cm[1], Cm[2]);
       const K = 1.6;
@@ -1451,7 +1462,7 @@ async function getPieceArtBounds(key, svgPath, geom) {
 // källan kan ligga i grannrutan — guttern måste rymma hela räckvidden VID
 // DJUPASTE ZOOMEN, annars fylls samma världspixel i en ruta men inte i
 // grannen (skarvband + trasig kantexport)
-const G = DATASET === 'usa'
+const G = DEL
   ? Math.max(48, Math.ceil(TILE * (1 << MAXZOOM) * 1.25 / 360) + 4)
   : OUTLINE > 0 ? Math.ceil(OUTLINE / 2) + 1 : (BORDERS ? 2 : 0);
 const TG = TILE + 2 * G;
@@ -1586,7 +1597,7 @@ function buildMask(groups, world, tx, ty, mode, lineWidth) {
 let usaSnap = null;   // { fyll: [pieces], skydd: [pieces] } — fylls i main()
 // Hawaii undantas helt: delstatskonsten är medvetet mycket större än öarna
 // och får varken klippas eller "fyllas" mot de små målade öblobbarna
-const HAWAII = ([lng, lat]) => lng > -162 && lng < -152 && lat > 17 && lat < 24;
+const HAWAII = ([lng, lat]) => DATASET === 'usa' && lng > -162 && lng < -152 && lat > 17 && lat < 24;
 // konst som MEDVETET sticker ut över grannlandet och ska synas när delstaten
 // avslöjas fredas från klippet (lng0, lat0, lng1, lat1). Spelet lägger den
 // som en egen bild ovanpå grannens gröna (tools/make-usa-utstickare.mjs)
@@ -1650,13 +1661,13 @@ function byggUsaSnap() {
   // konturer. Kustöar (Kodiak, Long Island …) är egna målade polygoner och
   // fylls också.
   const varld = JSON.parse(readFileSync(path.join(repo, 'assets/art-regions.json'), 'utf8'));
-  const f = varld.features.find(x => x.properties && x.properties.key === 'nordamerika/usa');
-  if (!f) throw new Error('hittar inte nordamerika/usa i assets/art-regions.json');
+  const f = varld.features.find(x => x.properties && x.properties.key === DEL.varld && !x.properties.dekor);
+  if (!f) throw new Error(`hittar inte ${DEL.varld} i assets/art-regions.json`);
   // OBS: INTE geoCentroid — exportringarnas vindning får d3 att läsa
   // komplementet av sfären (centroiden hamnade i Asien) och upplindningen
   // klöv då fastlandsringen mitt itu. −100° håller hela USA i ett stycke
   // och lindar bara västra Aleuterna (+172…+179 → −188…−181), som ska.
-  const cLng = -100;
+  const cLng = DEL.cLng;
   const ejHawaii = poly => !HAWAII(poly[0][0]);
   // vindningssäker area: exportringarna är vridna så att d3 läser sfärens
   // komplement (samma fälla som cLng ovan) — ta min(a, 4π−a)
@@ -1673,12 +1684,14 @@ function byggUsaSnap() {
   // utanför världens gräns — det ska klippas till fotavtrycket som allt annat.
   const skydd = snapPieces(f.geometry, cLng, null);
   const ne = JSON.parse(readFileSync(path.join(here, 'data/ne_50m_countries.geojson'), 'utf8'));
-  const nef = ne.features.find(x => x.properties.ADM0_A3 === 'USA' || x.properties.GU_A3 === 'USA');
+  const nef = ne.features.find(x => x.properties.ADM0_A3 === DEL.a3 || x.properties.GU_A3 === DEL.a3);
   // öarnas konst (Aleuterna, Kodiak, Long Island …) är medvetet större än
   // öarna själva och fredas i en dilaterad zon runt varje liten NE-polygon
-  const oar = nef ? snapPieces(nef.geometry, cLng, poly => ytan(poly) < 1e-3) : [];
+  // (Sverige: Gotland och Öland är egna landskap med vanlig konst — ingen
+  // ö-fredning, då hade Smålands havskonst längs Kalmarsund också fredats)
+  const oar = nef && DATASET === 'usa' ? snapPieces(nef.geometry, cLng, poly => ytan(poly) < 1e-3) : [];
   usaSnap = { fyll, skydd, oar };
-  console.log(`USA-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner, ${oar.length} öar.`);
+  console.log(`${DATASET}-snäpp: ${fyll.length} fyllpolygoner, ${skydd.length} skyddspolygoner, ${oar.length} öar.`);
 }
 const snapMask = (pieces, world, tx, ty) => {
   const grupper = [];
@@ -2690,7 +2703,7 @@ function writeBorders(regions, fills) {
     // kust- och landsgränslinje ÄR ytterlinjen (fyllnaden slutar på exakt
     // samma spricka), och där fyllnadsbandet tar slut mitt i världens vita
     // underlägg ska ingen svävande gränslinje synas alls
-    if (DATASET === 'usa' && (!a || !b)) continue;
+    if (DEL && (!a || !b)) continue;
     const g = havBadge.has(a) ? a : havBadge.has(b) ? b : 0;
     let arr = groups.get(g);
     if (!arr) { arr = []; groups.set(g, arr); }
@@ -3261,7 +3274,7 @@ async function main() {
     return;
   }
   if (DATASET === 'usa') laggTillFredadPolygoner();
-  if (DATASET === 'usa') byggUsaSnap();
+  if (DEL) byggUsaSnap();
   if (GUIDES) {
     if (DATASET !== 'usa') throw new Error('--guides kräver --dataset usa');
     await byggMallar(regions);
@@ -3344,7 +3357,7 @@ async function main() {
         // usa-snäppet fyller upp till ~1,25° utanför arkens målade kant —
         // registrera rutraderna intill också, annars tappas fyllband som
         // hamnar utanför delstatens egen bbox
-        if (DATASET === 'usa') pad = Math.max(1, Math.ceil(world * 1.4 / 360 / TILE));
+        if (DEL) pad = Math.max(1, Math.ceil(world * 1.4 / 360 / TILE));
         if (c.gapAdj) {
           if (c.mercGeom.minX * world < minX) minX = c.mercGeom.minX * world;
           if (c.mercGeom.maxX * world > maxX) maxX = c.mercGeom.maxX * world;
