@@ -7,7 +7,7 @@
 //  - HTML: nätet först med cache som reserv (uppdateringar slår igenom,
 //    offline funkar ändå)
 const CACHE = 'geografi-v1';
-const TILE_CACHE = 'geografi-tiles-3';   // bumpas när world.pmtiles bakas om
+const TILE_CACHE = 'geografi-tiles-3';   // bumpas när world.pmtiles bakas om (usa.pmtiles hämtas bara i skivor och cachas aldrig här — dess ?v räcker)
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {

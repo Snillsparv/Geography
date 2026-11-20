@@ -223,6 +223,13 @@
       "width": 905,
       "height": 703,
       "filename": "alaska",
+      "glob": {
+        "file": "countries/alaska-glob.webp",
+        "left": 74,
+        "top": 1862,
+        "width": 834,
+        "height": 702
+      },
       "desc": "Alaska är USA:s största delstat till ytan men en av de minst befolkade. Delstaten köptes från Ryssland 1867 och är hem för Nordamerikas högsta berg, Denali (6 190 meter). Alaska har midnattssol på sommaren, norrsken på vintern och en otrolig vildmark med björnar, valar och glaciärer.",
       "imageAssociation": "Maffiabossen AL Capone som fimpar ASKA i en askkopp"
     },
@@ -234,6 +241,13 @@
       "width": 501,
       "height": 309,
       "filename": "hawaii",
+      "glob": {
+        "file": "countries/hawaii-glob.webp",
+        "left": 994,
+        "top": 2190,
+        "width": 416,
+        "height": 240
+      },
       "desc": "Hawaii är en ögrupp mitt i Stilla havet och USA:s enda delstat som helt består av öar. Delstaten är känd för sina vulkaner, tropiska stränder och unika kultur med influenser från Polynesien. Hawaii blev USA:s 50:e och senaste delstat 1959.",
       "imageAssociation": "En HAJ i Stilla havet"
     },
@@ -256,6 +270,13 @@
       "width": 515,
       "height": 538,
       "filename": "new_mexico",
+      "glob": {
+        "file": "countries/new_mexico-glob.webp",
+        "left": 1016,
+        "top": 1347,
+        "width": 515,
+        "height": 578
+      },
       "desc": "New Mexico ligger i sydvästra USA och kallas \"Land of Enchantment\" för sina magiska landskap. Delstaten har en unik blandning av ursprungsamerikansk, spansk och mexikansk kultur. Santa Fe, delstatens huvudstad, är USA:s äldsta huvudstad och känd för sin adobe-arkitektur.",
       "imageAssociation": "Skatteindrivaren ska bilda en ny stat, NEW MEXICO, med skattepengarna och håller därför i en ny version av Mexikos flagga"
     },
@@ -344,6 +365,13 @@
       "width": 541,
       "height": 410,
       "filename": "new_york",
+      "glob": {
+        "file": "countries/new_york-glob.webp",
+        "left": 3117,
+        "top": 485,
+        "width": 543,
+        "height": 443
+      },
       "desc": "New York är en av USA:s mest kända delstater, hem för New York City med Frihetsgudinnan och Times Square. Men delstaten har mycket mer än storstaden, med Niagarafallen och de vackra Adirondack-bergen i norr. New York kallas \"The Empire State\" och har varit ett centrum för invandring och kultur.",
       "imageAssociation": "En kille som betraktar en modell av staden NEW YORK"
     },

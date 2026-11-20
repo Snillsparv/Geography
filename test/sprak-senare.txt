@@ -1,0 +1,139 @@
+# Svenska texter som MEDVETET inte är översatta till engelska ännu ([L] i
+# klientrapporten): de syns bara på startsidan, i världstestet, i
+# världsdelarna eller på Jorden runt-resan — delar som den engelska sidan
+# (bara USA) aldrig visar. De är inte märkta med data-t / SPRAK.t, så
+# sprak-tackning.mjs behöver dem inte; listan är facit för nästa steg.
+# En nyckel per rad, exakt som SPRAK.t / oversattDom skulle se den.
+
+# ── glob.html: header (video och delar finns inte för USA) ──
+Se videon om världsdelens länder
+Välj del av världsdelen
+
+# ── glob.html: startsidan ──
+Redo att ta över världen? 🌍
+Snurra på jordgloben — och klicka på en världsdel för att börja träna!
+🍎 För lärare
+🧳 Jorden runt
+Kampanjläget: res världsdel för världsdel
+Sydamerika
+Nordamerika
+Europa
+Afrika
+Asien
+Oceanien
+Västindien
+Se videon om Sydamerikas länder
+Se videon om Nordamerikas länder
+Se videon om Europas länder
+Se videorna om Afrikas länder (tre delar)
+Se videon om Asiens länder
+Se videon om Oceaniens länder
+Se videon om Västindiens länder
+🇺🇸 USA:s delstater
+🌍 Hela världen
+Visa rundturen igen
+High fives:
+
+# ── glob.html: tyck till + installera appen (bara startsidan) ──
+Tyck till!
+💌 Tyck till!
+Har du feedback eller förbättringsförslag? Skriv till Jonas — meddelandet skickas till <b>info@jonasvonessen.se</b>.
+Namn (valfritt)
+E-post (valfritt — om du vill ha svar)
+Meddelande
+Skicka
+Installera appen
+📱 Installera appen
+Jonas geografi funkar som en riktig app — egen ikon på hemskärmen, helskärm och stöd för dåligt nät. Alla resultat sparas precis som vanligt.
+Så här gör du på iPhone/iPad:
+1. Öppna sidan i <b>Safari</b><br> 2. Tryck på <b>dela-knappen</b> (fyrkanten med pilen uppåt)<br> 3. Välj <b>”Lägg till på hemskärmen”</b><br> 4. Klart! Leta upp jordglobs-ikonen 🌍
+Så här gör du:
+Öppna webbläsarens meny (⋮ uppe till höger) och välj <b>”Installera app”</b> eller <b>”Lägg till på startskärmen”</b>.
+
+# ── glob.html: videomodalen (USA har ingen video) ──
+Genomgångsvideo
+
+# ── glob.html: Jorden runt och passet ──
+🛖 Visa passet
+PASS
+JONAS GEOGRAFI
+STÄMPLAR · VISAS VID GRÄNSEN
+Klara <b>Klassiskt Quiz</b> med minst <b>80&nbsp;%</b> på aktuellt stopp för att få stämpeln och låsa upp nästa. Klarade stopp kan du alltid resa tillbaka till och spela igen — ett bättre resultat uppdaterar stämpeln. Du kan förstås alltid spela fritt också!
+🏆 <b>Hela Jorden runt-resan är klar — du är en riktig världsmästare!</b>
+🎬 Se segerfilmen!
+
+# ── glob.html: välj del, världstestet, "öva på en del" ──
+Ta det i bitar — eller allt på en gång!
+Många tycker det är lättare att lära sig en del i taget först, och sedan köra hela världsdelen.
+🧩 Många fel? Öva på en mindre del i taget!
+HELA VÄRLDEN
+Välkommen globetrotter!
+Du får ett antal länder från hela världen.
+Snurra på jordgloben och klicka på rätt land!
+Lycka till!
+Världen laddas...
+Antal länder:
+Alla!
+Starta!
+🏆 Topplista & mina resultat
+
+# ── glob-spel.js: förladdning och startsidans laddskärm ──
+Målar jordgloben … {p} %
+Nästan klart …
+Bygger väggkartan …
+Har du alltid velat ha koll på världskartan?
+Med minnestekniker är det enkelt!
+På den här sidan kan du lära dig Jonas bilder för ALLA världens länder…
+Du kommer imponera både på dig själv och din omgivning!
+Alldeles strax har vi laddat klart världen åt dig…
+Det kommer att vara väl värt väntan!
+Medan vi väntar kan du få höra en rolig vits:
+Var i världen är det billigast att köpa nötkreatur?
+I nordvästra Asien, för där har de Ko-rea! 😄
+
+# ── glob-spel.js: världstestet ──
+Hela världen – Jonas geografi
+Hela världen 🌍
+hela världen (alla {n} länder)
+hela världen ({n} länder)
+hela världen (alla länder)
+
+# ── glob-spel.js: välj del, medaljer, Jorden runt, passet ──
+{antal} länder
+Hela {namn}
+Ditt rekord: {p} %
+Hela världen
+Stämpel {namn}
+ALPERNA
+KORALLHAVET
+KARIBIEN
+HELA JORDEN
+Ännu inga stämplar — klara ett stopp så får du din första!
+{n} / {m} STÄMPLAR
+Res tillbaka och spela igen
+Res igen
+Res hit!
+🛂 Dölj passet
+🛂 Visa passet
+🧳 Stämpel i passet!
+Nästa stopp: <b>{namn}</b>
+HELA JORDEN RUNT-RESAN ÄR KLAR! 🏆
+🧳 Ny stämpel — bättre resultat på {namn}!
+Del {n}
+
+# ── glob-spel.js: startsidans rundtur och engångsnotiser ──
+Hej! Det är jag som är Jonas, och det här är min geografisida. Ska jag visa dig runt?
+Alla minns var Italien ligger eftersom det ser ut som en stövel. På samma sätt går det att hitta på en bild för varje land i världen och på så vis minnas det mycket lättare!
+Du kan träna på en världsdel i taget eller utmana dig på hela världen på en gång!
+Om du vill gå igenom hela sidan systematiskt rekommenderar jag Jorden runt-resan!
+Varje världsdel har en film bakom play-knappen! Om något är oklart är det en bra idé att titta på filmen om Sydamerikas länder där jag också förklarar hur minnesteknikerna fungerar!
+Varje gång du känner dig extra nöjd med att ha lyckats minnas något är du välkommen att ge mig en high five i hörnet!
+Och bakom brevet här uppe kan du tycka till om sidan! Jag tar jättegärna emot feedback och förslag på förbättringar.
+Tack, bra att veta!
+Psst — en nyhet! Bakom brevet här uppe kan du numera tycka till om sidan. Jag tar jättegärna emot feedback och förslag på förbättringar!
+Psst — en sak till! Spelet går att lägga som en app på hemskärmen. Tryck på knappen här nere, så får du en egen ikon att starta från — och då funkar hela världen även när du är utan internet, till exempel i bilen eller på flyget!
+
+# ── glob-spel.js: tyck till-formuläret (bara startsidan) ──
+Skickar …
+🎉 Tack för din feedback! Meddelandet är skickat till Jonas.
+Hoppsan, det gick inte att skicka just nu. Prova igen — eller mejla direkt till {mejl}.
