@@ -400,7 +400,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '111';
+const V = '113';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -655,6 +655,7 @@ function uppdateraHuvudstadslage() {
   uppdateraStadBildKnapp();
   uppdateraQuizTexter();
   window.flaggtavla?.uppdatera();      // tavlan eller globen
+  window.flaggblixt?.uppdatera();      // Flaggblixtens knappar (och stäng den vid lägesbyte)
   uppdateraSpelVideo();
 }
 // vad rundan som pågår frågar efter
@@ -2896,6 +2897,7 @@ async function startRegion(slug, flyg, delId) {
   document.querySelectorAll('[data-total]').forEach(el => el.textContent = COUNTRIES.length);
   seterraProgressLabel.textContent = `0 / ${COUNTRIES.length}`;
   uppdateraOrdval();   // delstat/land i alla spelartexter
+  window.flaggblixt?.uppdatera();   // ny region: en pågående Flaggblixt stängs (mikrofonen av)
   // Utforska: flaggtavlan för de nya länderna (eller globen, om Flaggor inte går här)
   if (currentMode === 'explore') uppdateraHuvudstadslage();
   // hann någon välja quiz medan regionen laddade? starta det nu på riktigt

@@ -3146,6 +3146,540 @@ try {
   ok('v109: ▶ spelar flaggvideon i Utforska + Flaggor i Sydamerika (🚩, titeln, från början)', false, String(e).slice(0, 160));
 }
 
+// ── v113: Flaggblixt — säg flaggans land på en minut (flaggblixt.js) ──
+// Jonas önskan: en flagga i taget, man säger landet, rösten ger bara
+// godkänt eller inte, och allt går fort. Ingen riktig mikrofon och inget
+// nät: en låtsas-SpeechRecognition (window.__sr) styrs av testet och ger
+// del- och slutresultat med alternativ, end och fel. Rundan kortas med
+// flaggblixt.installningar (tid, nedräkning, fördröjning, forst = ordning).
+try {
+  const FAKE_SR = `(() => {
+    const F = window.__sr = { instanser: [], startade: 0, abortade: 0, stoppade: 0, auto: true, gum: 0, fel: null };
+    try { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = () => { F.gum++; return Promise.reject(new DOMException('nej', 'NotAllowedError')); }; } catch (e) {}
+    class FakeSR extends EventTarget {
+      constructor() { super(); this.lang = ''; this.continuous = false; this.interimResults = false; this.maxAlternatives = 1;
+        this.aktiv = false; this.lista = []; F.instanser.push(this); }
+      _e(typ, extra) { const e = new Event(typ); if (extra) Object.assign(e, extra); this.dispatchEvent(e);
+        const h = this['on' + typ]; if (typeof h === 'function') h.call(this, e); }
+      start() {
+        if (this.aktiv) throw new DOMException('redan', 'InvalidStateError');
+        this.aktiv = true; F.startade++; F.senaste = this;
+        if (F.fel) { const f = F.fel; setTimeout(() => { if (!this.aktiv) return; this._e('error', { error: f }); this.aktiv = false; this._e('end'); }, 20); return; }
+        if (F.auto) setTimeout(() => { if (!this.aktiv) return; this._e('start'); this._e('audiostart'); }, 20);
+      }
+      stop() { F.stoppade++; if (!this.aktiv) return; this.aktiv = false; setTimeout(() => this._e('end'), 0); }
+      abort() { F.abortade++; if (!this.aktiv) return; this.aktiv = false; setTimeout(() => this._e('end'), 0); }
+    }
+    window.SpeechRecognition = FakeSR;
+    window.webkitSpeechRecognition = FakeSR;
+    F.lyssna = () => { const r = F.senaste; if (r && r.aktiv) { r._e('start'); r._e('audiostart'); } };
+    F.sag = (alts, slutgiltig) => {
+      const r = F.senaste; if (!r || !r.aktiv || typeof r.onresult !== 'function') return -1;
+      const res = alts.map((t, i) => ({ transcript: t, confidence: 1 - i * 0.1 }));
+      res.isFinal = !!slutgiltig; res.item = i => res[i];
+      let idx;
+      if (r.lista.length && !r.lista[r.lista.length - 1].isFinal) { idx = r.lista.length - 1; r.lista[idx] = res; }
+      else { idx = r.lista.length; r.lista.push(res); }
+      const results = [...r.lista]; results.item = i => results[i];
+      r._e('result', { resultIndex: idx, results });
+      return idx;
+    };
+    F.yttra = t => { F.sag([t], false); return F.sag([t], true); };
+    F.slut = () => { const r = F.senaste; if (r && r.aktiv) { r.aktiv = false; r._e('end'); } };
+    F.fela = kod => { const r = F.senaste; if (r && r.aktiv) { r._e('error', { error: kod }); r.aktiv = false; r._e('end'); } };
+    F.aktiva = () => F.instanser.filter(x => x.aktiv).length;
+  })()`;
+  const UTAN_SR = '(() => { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; })()';
+  const INIT = (q, u) => "try { localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej');"
+    + ` localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('quiz-fraga','${q}'); localStorage.setItem('utforska-fraga','${u}') } catch (e) {}`;
+  const YT = /youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com/;
+  const fFel = [];
+  const sidor = [];
+  const nySida = async (o = {}) => {
+    const ctx = await browser.newContext({ viewport: o.vy || { width: 1100, height: 750 }, ...(o.mobil ? { isMobile: true, hasTouch: true } : {}) });
+    sidor.push(ctx);
+    const p = await ctx.newPage();
+    p.on('pageerror', e => fFel.push(String(e)));
+    await p.route(YT, r => r.abort());
+    await p.addInitScript(INIT(o.q || 'flagga', o.u || 'land'));
+    await p.addInitScript(o.sr === false ? UTAN_SR : FAKE_SR);
+    await p.goto(BASE + '/glob.html?' + (o.sok || 'region=' + (o.region || 'sydamerika')), { waitUntil: 'domcontentloaded' });
+    if (o.slug !== null) {
+      await p.waitForFunction(`document.getElementById('spel-load').style.display === 'none' && aktivSlug === '${o.slug || o.region || 'sydamerika'}'`
+        + ' && COUNTRIES.length > 0 && typeof flaggblixt !== "undefined"', null, { timeout: 30000 });
+      await p.evaluate("document.getElementById('del-overlay')?.classList.remove('active'); document.fonts.ready.then(() => 0)");
+      await p.waitForTimeout(300);
+    }
+    return p;
+  };
+  // hjälpare i sidan: vila, läget, klockan av/på och en runda som startas
+  const H = `const vila = ms => new Promise(r => setTimeout(r, ms));
+    const L = () => flaggblixt.lage();
+    const fb = document.getElementById('flaggblixt');
+    const kvizz = () => { document.querySelector('.mode-btn[data-mode="seterra"]').click(); };
+    const starta = async (inst) => {
+      Object.assign(flaggblixt.installningar, { tid: 60000, nedrakning: 0, steg: 450, fordroj: 450, forst: null }, inst || {});
+      if (L().lage === 'stangd') flaggblixt.oppna('quiz');
+      document.querySelector('#flaggblixt .blixt-starta').click();
+      for (let i = 0; i < 40 && L().lage !== 'spelar'; i++) await vila(25);
+    };`;
+
+  // ── A: matchningen (rena funktioner) över alla länder ──
+  const sp = await nySida();
+  const m = await sp.evaluate(`(() => {
+    const k = (t, kod) => flaggblixt.matchaKod(t, kod);
+    const FEL = [['Guinea','GW'], ['Guinea','GQ'], ['Guinea','PG'], ['Niger','NG'], ['Nigeria','NE'], ['Sudan','SS'], ['Sydsudan','SD'],
+      ['Kongo','CD'], ['Kongo','CG'], ['Kongo Brazzaville','CD'], ['Kongo Kinshasa','CG'], ['Dominica','DO'], ['Dominikanska republiken','DM'],
+      ['Österrike','AU'], ['Australien','AT'], ['Irak','IR'], ['Iran','IQ'], ['Nordkorea','KR'], ['Korea','KP'], ['Island','IE'],
+      ['Irland','IS'], ['Gambia','ZM'], ['Zambia','GM'], ['Slovakien','SI'], ['Slovenien','SK'], ['England','GB'], ['Storbritannien','gbeng'],
+      ['Sverige','NO'], ['pass','SE'], ['Indonesien','TD'], ['Tchad','MC'], ['', 'SE'], ['det är', 'SE']];
+    const RATT = [['Guinea','GN'], ['Guinea-Bissau','GW'], ['guinea bissau','GW'], ['Ekvatorialguinea','GQ'], ['Papua Nya Guinea','PG'],
+      ['Niger','NE'], ['Nigeria','NG'], ['Sudan','SD'], ['Sydsudan','SS'], ['syd sudan','SS'], ['Kongo-Kinshasa','CD'],
+      ['Demokratiska republiken Kongo','CD'], ['Kongo-Brazzaville','CG'], ['Dominica','DM'], ['Dominikanska republiken','DO'],
+      ['Österrike','AT'], ['Australien','AU'], ['Holland','NL'], ['Nederländerna','NL'], ['Vitryssland','BY'], ['Belarus','BY'],
+      ['Burma','MM'], ['Myanmar','MM'], ['Makedonien','MK'], ['Nordmakedonien','MK'], ['Elfenbenskusten','CI'], ["Côte d'Ivoire",'CI'],
+      ['Tjeckien','CZ'], ['Tjeckiska republiken','CZ'], ['Storbritannien','GB'], ['Förenade kungariket','GB'], ['Nordirland','GB'],
+      ['USA','US'], ['Förenta staterna','US'], ['Amerika','US'], ['Sydkorea','KR'], ['Korea','KR'], ['Östtimor','TL'], ['Timor-Leste','TL'],
+      ['Eswatini','SZ'], ['Swaziland','SZ'], ['Bosnien','BA'], ['Bosnien och Hercegovina','BA'], ['Saint Kitts och Nevis','KN'],
+      ['Saint Kitts & Nevis','KN'], ['Trinidad och Tobago','TT'], ['Vatikanstaten','VA'], ['Vatikanen','VA'], ['Kongo-Brazzaville','CG'],
+      ['det är Sverige','SE'], ['jag tror att det är flaggan från Norge','NO'], ['Sveriges flagga','SE'], ['mexico','MX'],
+      ['Kolombia','CO'], ['Schweitz','CH'], ['Moçambique','MZ'], ['Tjad','TD'], ['Indonesien','MC'], ['Monaco','ID'], ['Tchad','RO'],
+      ['Rumänien','TD'], ['Niger nej Nigeria','NG']];
+    const t0 = performance.now();
+    const sjalv = flaggblixt.sjalvkontroll();
+    return { sjalv, ms: Math.round(performance.now() - t0), koder: new Set(Object.values(FLAGG_ISO)).size,
+      fel: FEL.filter(([t, kod]) => k(t, kod)), ratt: RATT.filter(([t, kod]) => !k(t, kod)),
+      hoppa: ['pass', 'nästa', 'hoppa över', 'jag vet inte'].map(t => flaggblixt.tolka(t).map(x => x.kod).join()),
+      kongo: flaggblixt.tolka('Kongo').map(x => x.tvetydig + ':' + x.koder.join('/')) };
+  })()`);
+  ok('v113: matchningen: varje lands namn och alias (alla flaggkoder) pekar bara på landet självt eller tvillingen',
+    m.sjalv.length === 0 && m.koder >= 200, `${m.koder} koder, ${m.ms} ms ` + JSON.stringify(m.sjalv).slice(0, 300));
+  ok('v113: matchningen: tvetydigt räknas inte (Guinea, Niger, Sudan, Kongo, Dominica, Österrike/Australien …)',
+    m.fel.length === 0 && m.kongo.join() === 'true:CD/CG', JSON.stringify(m.fel) + ' ' + m.kongo);
+  ok('v113: matchningen: alias, tvillingar, fyllnadsord, böjningar och stavningar räknas, och hoppord hoppar',
+    m.ratt.length === 0 && m.hoppa.every(h => h === 'HOPPA'), JSON.stringify(m.ratt) + ' ' + m.hoppa);
+
+  // ── B: ingångarna, och ingen mikrofon före Starta ──
+  const ing = await sp.evaluate(`(async () => { ${H}
+    const syns = e => !!e && !e.closest('[hidden]') && e.offsetParent !== null && getComputedStyle(e).display !== 'none';
+    const rad = document.getElementById('blixt-startrad'), tl = document.getElementById('topplista-knapp');
+    const ut = { utfLand: syns(document.querySelector('.blixt-utforska')) };
+    document.querySelector('#utforska-val [data-utforska="flagga"]').click(); await vila(300);
+    ut.utfFlagga = syns(document.getElementById('blixt-utforska-knapp'));
+    document.querySelector('#utforska-val [data-utforska="land"]').click(); await vila(200);
+    kvizz(); await vila(500);
+    ut.quiz = syns(document.getElementById('blixt-quiz-knapp')) && tl.parentNode === rad
+      && rad.firstElementChild === tl && rad.parentNode === document.getElementById('seterra-game');
+    ut.text = document.getElementById('blixt-quiz-knapp').textContent;
+    document.querySelector('#fraga-val [data-fraga="land"]').click(); await vila(300);
+    ut.lander = !syns(document.getElementById('blixt-quiz-knapp')) && tl.parentNode === document.getElementById('seterra-game')
+      && tl.nextElementSibling === document.querySelector('#seterra-game .seterra-target');
+    document.querySelector('#fraga-val [data-fraga="huvudstad"]').click(); await vila(300);
+    ut.huvudstad = !syns(document.getElementById('blixt-quiz-knapp'));
+    document.querySelector('#fraga-val [data-fraga="flagga"]').click(); await vila(300);
+    // kompisutmaning: ingen Flaggblixt
+    aktivUtmaning = { id: 'x', data: { slug: 'sydamerika' } }; uppdateraHuvudstadslage();
+    ut.utmaning = !syns(document.getElementById('blixt-quiz-knapp'));
+    flaggblixt.oppna('quiz'); ut.utmaningOppna = L().lage;
+    aktivUtmaning = null; switchMode('seterra', true); await vila(300);
+    ut.efter = syns(document.getElementById('blixt-quiz-knapp'));
+    // öppna: introt med raden om mikrofonen, men ingen mikrofon än
+    document.getElementById('blixt-quiz-knapp').click(); await vila(300);
+    ut.intro = L().lage === 'intro' && syns(fb.querySelector('.blixt-starta'));
+    ut.integritet = fb.querySelector('.blixt-integritet').textContent;
+    ut.fokus = document.activeElement === fb.querySelector('.blixt-starta');
+    ut.inert = document.querySelector('.game-container').hasAttribute('inert');
+    ut.mik = [__sr.instanser.length, __sr.startade, __sr.gum];
+    fb.querySelector('.blixt-stang').click(); await vila(100);
+    ut.stangd = L().lage === 'stangd' && fb.hidden && !document.querySelector('.game-container').hasAttribute('inert');
+    ut.mik2 = [__sr.instanser.length, __sr.startade, __sr.gum];
+    return ut;
+  })()`);
+  ok('v113: Flaggblixt-knappen bredvid Topplista med Flaggor valt (inte Länder, Huvudstäder eller i en kompisutmaning), och i Utforska + Flaggor',
+    !ing.utfLand && ing.utfFlagga && ing.quiz && /Flaggblixt/.test(ing.text) && ing.lander && ing.huvudstad && ing.utmaning
+    && ing.utmaningOppna === 'stangd' && ing.efter, JSON.stringify(ing));
+  ok('v113: introt säger att mikrofonen bara lyssnar medan klockan går — och ingen mikrofon begärs före Starta',
+    ing.intro && /lyssnar bara medan klockan går/.test(ing.integritet) && /Google/.test(ing.integritet) && ing.fokus && ing.inert
+    && ing.stangd && ing.mik.join() === '0,0,0' && ing.mik2.join() === '0,0,0', JSON.stringify(ing));
+
+  // ── C: en runda med rösten ──
+  const r = await sp.evaluate(`(async () => { ${H}
+    const ut = {};
+    __sr.auto = false;
+    flaggblixt.oppna('quiz');
+    await starta({});
+    const rek = __sr.senaste;
+    ut.start = [L().lage, __sr.startade, rek && rek.lang, rek && rek.continuous, rek && rek.interimResults, rek && rek.maxAlternatives];
+    await vila(600);
+    // klockan står still tills mikrofonen lyssnar
+    ut.vantar = [L().lage, L().kvar, fb.querySelector('.blixt-tid').textContent];
+    __sr.lyssna(); await vila(60);
+    ut.lyssnar = [L().lage, L().kvar > 58000 && L().kvar <= 60000];
+    // ett delresultat som stämmer: ✓ och nästa flagga direkt (samma anrop)
+    const forsta = L().aktuell;
+    __sr.sag(['det är ' + forsta], false);
+    ut.direkt = [L().poang, L().aktuell !== forsta, fb.querySelector('.blixt-svar').textContent.includes(forsta),
+      fb.querySelector('.blixt-svar').classList.contains('ratt')];
+    await vila(30);
+    ut.live = fb.querySelector('.blixt-live').textContent;
+    // samma yttrande blir slutgiltigt: räknas inte igen och ger inget ✗
+    __sr.sag(['det är ' + forsta], true);
+    ut.enGang = [L().poang, fb.querySelector('.blixt-kort').classList.contains('fel'), fb.querySelector('.blixt-hort').classList.contains('fel')];
+    // fel slutresultat: ✗ och "Jag hörde", flaggan står kvar
+    const andra = L().aktuell;
+    const fel = COUNTRIES.find(c => c.name !== andra && !L().resultat.some(x => x[0] === c.name)).name;
+    __sr.sag(['jag tror ' + fel], false);
+    ut.felDel = [L().poang, L().aktuell === andra, fb.querySelector('.blixt-hort').textContent];
+    __sr.sag(['jag tror ' + fel], true);
+    await vila(30);
+    ut.fel = [L().poang, L().aktuell === andra, fb.querySelector('.blixt-kort').classList.contains('fel'),
+      fb.querySelector('.blixt-hort').textContent, fb.querySelector('.blixt-live').textContent];
+    // alla alternativ prövas
+    __sr.sag(['blä bla', andra], true);
+    ut.alternativ = [L().poang, L().aktuell !== andra];
+    // pass, och knappen
+    const tredje = L().aktuell;
+    __sr.yttra('pass');
+    ut.pass = [L().aktuell !== tredje, L().resultat.find(x => x[0] === tredje)[1], fb.querySelector('.blixt-svar').textContent.includes(tredje)];
+    const fjarde = L().aktuell;
+    fb.querySelector('.blixt-hoppa').click();
+    ut.knapp = [L().aktuell !== fjarde, L().resultat.find(x => x[0] === fjarde)[1]];
+    // igenkänningen stannar (tystnad): startas om, klockan går vidare
+    const fore = __sr.startade;
+    __sr.slut(); await vila(80);
+    ut.omstart = [__sr.startade === fore + 1, __sr.aktiva(), L().lage, L().lyssnar];
+    __sr.lyssna();
+    // ett ofarligt fel (no-speech): den gamla avbryts, en ny startas, rösten är kvar
+    const f0 = __sr.startade;
+    __sr.fela('no-speech'); await vila(80);
+    ut.tyst = [__sr.startade === f0 + 1, __sr.aktiva(), L().satt, L().lage];
+    __sr.lyssna();
+    // tiden ut (kort runda): mikrofonen stängs direkt, sena resultat räknas inte
+    fb.querySelector('.blixt-stang').click(); await vila(50);
+    ut.stang = [L().lage, __sr.aktiva()];
+    __sr.auto = true;
+    await starta({ tid: 1200 });
+    __sr.yttra(L().aktuell);
+    const abort = __sr.abortade;
+    for (let i = 0; i < 60 && L().lage !== 'slut'; i++) await vila(50);
+    const poang = L().poang;
+    ut.tidUt = [L().lage, __sr.aktiva(), __sr.abortade > abort, __sr.sag([L().aktuell || 'Chile'], true), L().poang === poang && poang === 1];
+    ut.slut = [fb.querySelector('.blixt-slutrubrik').textContent, fb.querySelector('.blixt-resultat').textContent,
+      fb.querySelectorAll('.blixt-lista li').length, fb.querySelector('.blixt-lista li.ratt') && fb.querySelector('.blixt-lista li.ratt .blixt-st').textContent,
+      fb.querySelector('.blixt-rekordrad').textContent];
+    ut.rekord = JSON.parse(localStorage.getItem('flaggblixt-glob-sydamerika-highscores') || 'null');
+    // Spela igen: en ny runda (mikrofonen startas igen först nu)
+    const s0 = __sr.startade;
+    fb.querySelector('.blixt-igen').click();
+    for (let i = 0; i < 40 && L().lage !== 'spelar'; i++) await vila(25);
+    ut.igen = [L().lage, L().poang, __sr.startade === s0 + 1, __sr.aktiva()];
+    return ut;
+  })()`);
+  ok('v113: Starta begär mikrofonen (sv-SE, interim, continuous, 5 alternativ); klockan börjar först när den lyssnar',
+    r.start.join() === 'vantar,1,sv-SE,true,true,5' && r.vantar[0] === 'vantar' && r.vantar[1] === null && r.vantar[2] === '1:00'
+    && r.lyssnar[0] === 'spelar' && r.lyssnar[1], JSON.stringify([r.start, r.vantar, r.lyssnar]));
+  ok('v113: ett delresultat som stämmer ger ✓ och nästa flagga direkt, och räknas en gång',
+    r.direkt.join() === '1,true,true,true' && /Rätt/.test(r.live) && r.enGang.join() === '1,false,false', JSON.stringify([r.direkt, r.live, r.enGang]));
+  ok('v113: fel slutresultat ger ✗ och "Jag hörde" och flaggan står kvar; alla alternativ prövas',
+    r.felDel[0] === 1 && r.felDel[1] && /Jag hörde: jag tror/.test(r.felDel[2]) && r.fel[0] === 1 && r.fel[1] && r.fel[2]
+    && /✗ Jag hörde: jag tror/.test(r.fel[3]) && /Fel/.test(r.fel[4]) && r.alternativ.join() === '2,true', JSON.stringify([r.felDel, r.fel, r.alternativ]));
+  ok('v113: "pass" och Hoppa över visar svaret och går vidare',
+    r.pass.join() === 'true,hoppad,true' && r.knapp.join() === 'true,hoppad', JSON.stringify([r.pass, r.knapp]));
+  ok('v113: igenkänningen startas om när den stannar av sig själv eller inte hör något (no-speech)',
+    r.omstart.join() === 'true,1,spelar,true' && r.tyst.join() === 'true,1,rost,spelar', JSON.stringify([r.omstart, r.tyst]));
+  ok('v113: när tiden är ute stängs mikrofonen, slutsidan visar listan och rekordet sparas per region',
+    r.stang.join() === 'stangd,0' && r.tidUt.join() === 'slut,0,true,-1,true' && r.slut[0] === 'Tiden är ute!' && /^1\s*rätt/.test(r.slut[1])
+    && r.slut[2] >= 2 && r.slut[3] === '✓ rätt' && /rekord/.test(r.slut[4]) && r.rekord && r.rekord.ratt === 1
+    && r.igen.join() === 'spelar,0,true,1', JSON.stringify([r.stang, r.tidUt, r.slut, r.rekord, r.igen]));
+
+  // ── D: mikrofonen av vid lägesbyte, ny region och dold sida ──
+  const ab = await sp.evaluate(`(async () => { ${H}
+    const ut = {};
+    flaggblixt.stang();
+    __sr.auto = true;
+    kvizz(); await vila(300);
+    await starta({});
+    ut.fore = [L().lage, __sr.aktiva()];
+    return ut;
+  })()`);
+  // lägesbytet med en riktig klickning i sidhuvudet (det täcks inte)
+  await sp.click('.mode-btn[data-mode="explore"]');
+  await sp.waitForTimeout(200);
+  ab.lageByte = await sp.evaluate(`[flaggblixt.lage().lage, __sr.aktiva(), document.getElementById('flaggblixt').hidden]`);
+  Object.assign(ab, await sp.evaluate(`(async () => { ${H}
+    const ut = {};
+    kvizz(); await vila(400);
+    // quizens klocka bakom: väntar om inget svar getts än, går vidare mitt i ett quiz
+    const k0 = seterraStartTime;
+    ut.klocka = [!!seterraTarget && !seterraCorrect && !seterraWrong];
+    flaggblixt.oppna('quiz'); await vila(400); flaggblixt.stang();
+    ut.klocka.push(seterraStartTime - k0 >= 350);
+    seterraCorrect = 1;
+    const k1 = seterraStartTime;
+    flaggblixt.oppna('quiz'); await vila(300); flaggblixt.stang();
+    ut.klocka.push(seterraStartTime === k1);
+    seterraCorrect = 0;
+    await starta({});
+    ut.fore2 = [L().lage, __sr.aktiva()];
+    const rek = JSON.stringify(localStorage.getItem('flaggblixt-glob-sydamerika-highscores'));
+    // dold sida: mikrofonen av, rundan avbryts och räknas inte
+    __sr.yttra(L().aktuell); __sr.yttra(L().aktuell);
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    ut.dold = [L().lage, __sr.aktiva(), fb.querySelector('.blixt-avbruten').textContent,
+      JSON.stringify(localStorage.getItem('flaggblixt-glob-sydamerika-highscores')) === rek];
+    delete document.hidden;
+    // ny region (Nordamerika): Flaggblixt stängs
+    await starta({});
+    ut.fore3 = [L().lage, __sr.aktiva()];
+    await startRegion('nordamerika');
+    await vila(100);
+    ut.region = [L().lage, __sr.aktiva(), fb.hidden];
+    return ut;
+  })()`));
+  ok('v113: quizens klocka väntar bara om quizet inte börjat (mitt i ett quiz går den, som med videon)',
+    ab.klocka.join() === 'true,true,true', JSON.stringify(ab.klocka));
+  ok('v113: mikrofonen stängs vid lägesbyte, ny region och när sidan göms (rundan räknas då inte)',
+    ab.fore.join() === 'spelar,1' && ab.lageByte.join() === 'stangd,0,true' && ab.fore2.join() === 'spelar,1'
+    && ab.dold[0] === 'slut' && ab.dold[1] === 0 && /räknas inte/.test(ab.dold[2]) && ab.dold[3]
+    && ab.fore3.join() === 'spelar,1' && ab.region.join() === 'stangd,0,true', JSON.stringify(ab));
+  await sp.close();
+
+  // ── E: reserven: skriv i stället ──
+  const rp = await nySida({ sr: false });
+  const res = await rp.evaluate(`(async () => { ${H}
+    const ut = {};
+    kvizz(); await vila(400);
+    document.getElementById('blixt-quiz-knapp').click(); await vila(200);
+    ut.intro = [fb.querySelector('.blixt-meddelande').textContent, fb.querySelector('.blixt-integritet').hidden,
+      fb.querySelector('.blixt-starta').textContent, fb.querySelector('.blixt-skrivval').hidden];
+    Object.assign(flaggblixt.installningar, { tid: 60000, nedrakning: 0, forst: ['Argentina', 'Brasilien', 'Venezuela'] });
+    fb.querySelector('.blixt-starta').click(); await vila(50);
+    const inp = fb.querySelector('.blixt-skriv input');
+    ut.skriv = [L().lage, L().satt, document.activeElement === inp, getComputedStyle(fb.querySelector('.blixt-skriv')).display,
+      getComputedStyle(fb.querySelector('.blixt-mik')).display];
+    // ett exakt namn godkänns medan man skriver
+    const a = L().aktuell;
+    inp.value = a; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    ut.exakt = [L().poang, L().aktuell !== a, inp.value];
+    // fel + Enter: ✗ och "Du skrev"
+    const b = L().aktuell;
+    inp.value = 'Atlantis'; fb.querySelector('.blixt-skriv').requestSubmit();
+    ut.fel = [L().poang, L().aktuell === b, fb.querySelector('.blixt-hort').textContent];
+    // stavfel + Enter räknas (samma matchning)
+    inp.value = 'brazilien'; fb.querySelector('.blixt-skriv').requestSubmit();
+    ut.stavning = [L().poang, L().aktuell !== b];
+    inp.value = 'pass'; fb.querySelector('.blixt-skriv').requestSubmit();
+    ut.pass = L().resultat.at(-2)[1];
+    return ut;
+  })()`);
+  ok('v113: utan röstigenkänning (Firefox): introt säger det, man skriver i stället (fokus, Enter, ✗, pass)',
+    /kan inte lyssna/.test(res.intro[0]) && res.intro[1] && /skriv/.test(res.intro[2]) && res.intro[3]
+    && res.skriv.join() === 'spelar,skriv,true,flex,none' && res.exakt.join() === '1,true,' && res.fel[0] === 1 && res.fel[1]
+    && /Du skrev: Atlantis/.test(res.fel[2]) && res.stavning.join() === '2,true' && res.pass === 'hoppad', JSON.stringify(res));
+  await rp.close();
+  const np = await nySida();
+  const na = await np.evaluate(`(async () => { ${H}
+    const ut = {};
+    kvizz(); await vila(400);
+    __sr.fel = 'not-allowed';
+    flaggblixt.oppna('quiz');
+    await starta({});
+    await vila(150);
+    ut.nekad = [L().lage, __sr.aktiva(), fb.querySelector('.blixt-meddelande').textContent, fb.querySelector('.blixt-starta').textContent];
+    __sr.fel = null;
+    const s0 = __sr.startade;
+    fb.querySelector('.blixt-starta').click(); await vila(50);
+    ut.skriv = [L().lage, L().satt, __sr.startade === s0];
+    // nätet går ner mitt i en rösttrunda: tangentbordet tar över, klockan går vidare
+    fb.querySelector('.blixt-stang').click();
+    flaggblixt.oppna('quiz');
+    document.querySelector('#flaggblixt .blixt-knapp:not(.blixt-gron):not(.blixt-skrivval)').click();   // Försök med rösten
+    await vila(30);
+    await starta({});
+    ut.rost = [L().lage, L().satt];
+    __sr.fela('network'); await vila(50);
+    ut.natet = [L().lage, L().satt, __sr.aktiva(), fb.querySelector('.blixt-hort').textContent, L().kvar > 50000];
+    return ut;
+  })()`);
+  ok('v113: not-allowed före start och network mitt i rundan: tangentbordet tar över, mikrofonen är av',
+    na.nekad[0] === 'intro' && na.nekad[1] === 0 && /inte tillåten/.test(na.nekad[2]) && /skriv/.test(na.nekad[3])
+    && na.skriv.join() === 'spelar,skriv,true' && na.rost.join() === 'spelar,rost'
+    && na.natet[0] === 'spelar' && na.natet[1] === 'skriv' && na.natet[2] === 0 && /skriv landets namn/.test(na.natet[3]) && na.natet[4],
+    JSON.stringify(na));
+  await np.close();
+
+  // ── F: tvillingar, alias och samma andetag (Europa) ──
+  const ep = await nySida({ region: 'europa' });
+  const eu = await ep.evaluate(`(async () => { ${H}
+    kvizz(); await vila(400);
+    await starta({ forst: ['Monaco', 'Rumänien', 'Nederländerna', 'Belarus', 'Nordmakedonien', 'Bosnien-Hercegovina',
+      'Vatikanstaten', 'Nordirland', 'Tjeckien', 'Sverige', 'Norge', 'Danmark'] });
+    const ut = { ordning: L().aktuell, svar: [] };
+    for (const t of ['Indonesien', 'Tchad', 'Holland', 'Vitryssland', 'Makedonien', 'Bosnien', 'Vatikanen', 'Storbritannien',
+      'Tjeckiska republiken']) {
+      const fore = L().aktuell;
+      __sr.yttra('det är ' + t);
+      ut.svar.push([fore, t, L().poang, fb.querySelector('.blixt-kort').classList.contains('fel')]);
+    }
+    // samma andetag: "Sverige … Norge" i ett och samma resultat
+    __sr.sag(['Sverige'], false);
+    ut.andetag = [L().poang, L().aktuell];
+    __sr.sag(['Sverige Norge'], false);
+    ut.andetag.push(L().poang, L().aktuell);
+    __sr.sag(['Sverige Norge'], true);
+    ut.andetag.push(L().poang, fb.querySelector('.blixt-kort').classList.contains('fel'));
+    ut.lista = L().resultat.slice(0, 11).map(x => x[1]).join();
+    // rekordet i Europa har egen nyckel
+    flaggblixt.installningar.tid = 1;
+    return ut;
+  })()`);
+  await ep.waitForFunction("flaggblixt.lage().lage === 'slut'", null, { timeout: 15000 }).catch(() => {});
+  const euSlut = await ep.evaluate(`[flaggblixt.lage().lage, JSON.parse(localStorage.getItem(SPRAK.hsPrefix + 'flaggblixt-' + HS_BAS) || 'null'),
+    HS_BAS, Object.keys(localStorage).filter(k => k.includes('flaggblixt-'))]`);
+  ok('v113: tvillingflaggor (Indonesien/Monaco, Tchad/Rumänien) och alias (Holland, Vitryssland, Bosnien …) räknas',
+    eu.ordning === 'Monaco' && eu.svar.every(([, , p, f], i) => p === i + 1 && !f), JSON.stringify(eu.svar));
+  ok('v113: fortsätter man prata i samma andetag räknas nästa land, men inget två gånger',
+    eu.andetag.join() === '10,Norge,11,Danmark,11,false' && eu.lista === 'ratt,ratt,ratt,ratt,ratt,ratt,ratt,ratt,ratt,ratt,ratt',
+    JSON.stringify([eu.andetag, eu.lista]));
+  ok('v113: rekordet sparas lokalt per region (egen nyckel flaggblixt-<regionens rekordnyckel>)',
+    euSlut[0] === 'slut' && euSlut[1] && euSlut[1].ratt === 11 && /europa/.test(euSlut[2]) && euSlut[3].length === 1
+    && euSlut[3][0].endsWith('flaggblixt-' + euSlut[2]), JSON.stringify(euSlut));
+  await ep.close();
+
+  // ── G: Guinea / Guinea-Bissau, Niger, Sudan och Kongo i en runda (Afrika) ──
+  const ap = await nySida({ region: 'afrika' });
+  const af = await ap.evaluate(`(async () => { ${H}
+    kvizz(); await vila(400);
+    await starta({ fordroj: 300, forst: ['Guinea', 'Guinea-Bissau', 'Niger', 'Sudan', 'Demokratiska Republiken Kongo', 'Nigeria'] });
+    const ut = {};
+    const fel = () => fb.querySelector('.blixt-kort').classList.contains('fel');
+    // "Guinea" som blir "Guinea-Bissau": inget godkänt på vägen, ✗ till slut
+    __sr.sag(['Guinea'], false);
+    ut.g1 = [L().poang, L().aktuell];
+    __sr.sag(['Guinea Bissau'], false); await vila(450);
+    ut.g1.push(L().poang);
+    __sr.sag(['Guinea Bissau'], true);
+    ut.g1.push(L().poang, L().aktuell, fel());
+    // "Guinea" ensamt: godkänt när inget mer ord kommit
+    __sr.sag(['Guinea'], false);
+    ut.g2 = [L().poang]; await vila(450);
+    ut.g2.push(L().poang, L().aktuell);
+    __sr.sag(['Guinea'], true);
+    ut.g2.push(L().poang, fel());
+    // Guinea-Bissau: "Guinea" är fel
+    __sr.yttra('Guinea'); ut.gb = [L().poang, L().aktuell, fel()];
+    __sr.yttra('Guinea-Bissau'); ut.gb.push(L().poang, L().aktuell);
+    // Niger: "Nigeria" är fel; "Niger" slutgiltigt godkänns direkt
+    __sr.yttra('Nigeria'); ut.ni = [L().poang, L().aktuell, fel()];
+    __sr.yttra('Niger'); ut.ni.push(L().poang, L().aktuell);
+    // Sudan: "Sydsudan" är fel
+    __sr.yttra('Sydsudan'); ut.su = [L().poang, L().aktuell];
+    __sr.yttra('Sudan'); ut.su.push(L().poang, L().aktuell);
+    // DR Kongo: "Kongo" är tvetydigt (Vilket Kongo?), "Kongo-Kinshasa" rätt
+    __sr.yttra('Kongo'); ut.ko = [L().poang, fb.querySelector('.blixt-hort').textContent];
+    __sr.yttra('Kongo Kinshasa'); ut.ko.push(L().poang, L().aktuell);
+    // Nigeria: "Niger" är fel
+    __sr.yttra('Niger'); ut.ng = [L().poang, L().aktuell, fel()];
+    return ut;
+  })()`);
+  ok('v113: Guinea/Guinea-Bissau, Niger/Nigeria, Sudan/Sydsudan och Kongo avgörs rätt i rundan',
+    af.g1.join() === '0,Guinea,0,0,Guinea,true' && af.g2.join() === '0,1,Guinea-Bissau,1,false'
+    && af.gb.join() === '1,Guinea-Bissau,true,2,Niger' && af.ni.join() === '2,Niger,true,3,Sudan'
+    && af.su.join() === '3,Sudan,4,Demokratiska Republiken Kongo' && af.ko[0] === 4 && /vilket Kongo/.test(af.ko[1])
+    && af.ko[2] === 5 && af.ko[3] === 'Nigeria' && af.ng.join() === '5,Nigeria,true', JSON.stringify(af));
+  await ap.close();
+
+  // ── H: hela världen (alla 202), USA, engelska sajten och telefonerna ──
+  const vp = await nySida({ sok: 'region=world', slug: null });
+  await vp.waitForFunction("typeof map !== 'undefined' && map && map.loaded && map.loaded() && !!document.getElementById('world-start-btn')", null, { timeout: 30000 });
+  await vp.evaluate("document.querySelector('#world-count-buttons [data-count=\"10\"]').click(); document.getElementById('world-start-btn').click()");
+  await vp.waitForFunction("aktivSlug === 'world' && COUNTRIES.length === 10 && !!seterraTarget", null, { timeout: 30000 });
+  const varld = await vp.evaluate(`(async () => { ${H}
+    flaggblixt.oppna('quiz'); await vila(400);
+    const ut = { pool: L().pool, region: fb.querySelector('.blixt-region').textContent };
+    await starta({});
+    __sr.yttra(L().aktuell);
+    ut.poang = L().poang;
+    flaggblixt.stang();
+    return ut;
+  })()`);
+  ok('v113: Hela världen: rundan har alla 202 länders flaggor (inte bara världstestets urval)',
+    varld.pool === 202 && varld.region === 'Hela världen' && varld.poang === 1, JSON.stringify(varld));
+  // stilen läcker inte: varje regel gäller bara Flaggblixt (blixt-), och
+  // quizsvarets egen flagga (spelets .fb-flagga) ser ut som förut
+  const stilen = await vp.evaluate(`(() => {
+    const ute = [];
+    const gå = rs => { for (const r of rs) {
+      if (r.cssRules && !r.selectorText) gå(r.cssRules);
+      else if (r.selectorText) for (const s of r.selectorText.split(',')) if (!/blixt/.test(s)) ute.push(s.trim());
+    } };
+    gå(document.getElementById('flaggblixt-stil').sheet.cssRules);
+    const prov = document.createElement('img'); prov.className = 'fb-flagga';
+    seterraFeedback.appendChild(prov);
+    const cs = getComputedStyle(prov), svar = [cs.position, cs.height, cs.display];
+    prov.remove();
+    return { ute, svar };
+  })()`);
+  ok('v113: Flaggblixts stil gäller bara Flaggblixt (quizsvarets .fb-flagga orörd)',
+    stilen.ute.length === 0 && stilen.svar.join() === 'static,27px,inline-block', JSON.stringify(stilen));
+  await vp.close();
+  const up = await nySida({ region: 'usa' });
+  const usa = await up.evaluate(`(async () => { ${H}
+    kvizz(); await vila(400);
+    flaggblixt.oppna('quiz');
+    return [document.getElementById('blixt-startrad').hidden, document.getElementById('blixt-klar-knapp').hidden,
+      document.querySelector('.blixt-utforska').hidden, L().lage, __sr.instanser.length];
+  })()`);
+  ok('v113: USA har ingen Flaggblixt', usa.join() === 'true,true,true,stangd,0', JSON.stringify(usa));
+  await up.close();
+  const enp = await nySida({ sok: 'lang=en', slug: 'usa' });
+  const eng = await enp.evaluate(`[window.flaggblixt, !!document.getElementById('flaggblixt'), !!document.getElementById('blixt-quiz-knapp'),
+    !!document.getElementById('blixt-startrad'), document.getElementById('topplista-knapp').parentNode.id]`);
+  ok('v113: engelska sajten har ingen Flaggblixt (och Topplista står kvar på sin plats)',
+    eng.join() === ',false,false,false,seterra-game', JSON.stringify(eng));
+  await enp.close();
+  // telefonerna: allt ryms (320 × 568, 390 × 844), ingen sidledsskroll
+  const tel = [];
+  for (const [w, h] of [[320, 568], [390, 844]]) {
+    const tp = await nySida({ vy: { width: w, height: h }, mobil: true });
+    tel.push(await tp.evaluate(`(async () => { ${H}
+      kvizz(); await vila(500);
+      const r = e => e.getBoundingClientRect();
+      const inne = e => { const b = r(e); return b.width > 0 && b.left >= -1 && b.right <= innerWidth + 1 && b.top >= -1 && b.bottom <= innerHeight + 1; };
+      const hj = r(document.getElementById('spel-hjalp')), kn = r(document.getElementById('blixt-quiz-knapp')), tl = r(document.getElementById('topplista-knapp'));
+      const ut = { vy: innerWidth + 'x' + innerHeight, knapp: inne(document.getElementById('blixt-quiz-knapp')),
+        rad: Math.abs(kn.top - tl.top) < 2, friHjalp: tl.left >= hj.right || tl.top >= hj.bottom || tl.bottom <= hj.top };
+      flaggblixt.oppna('quiz'); await vila(200);
+      ut.intro = ['.blixt-starta', '.blixt-skrivval', '.blixt-integritet', '.blixt-stang'].every(s => inne(fb.querySelector(s)));
+      ut.huvud = r(fb).top >= r(document.querySelector('header')).bottom - 1;
+      await starta({});
+      await vila(100);
+      ut.spel = ['.blixt-tid', '.blixt-poang', '.blixt-flagga', '.blixt-hoppa', '.blixt-stang'].every(s => inne(fb.querySelector(s)));
+      const f = r(fb.querySelector('.blixt-flagga'));
+      ut.flagga = Math.round(f.width) + 'x' + Math.round(f.height);
+      const h0 = r(fb.querySelector('.blixt-hoppa')).top;
+      __sr.yttra(L().aktuell); __sr.yttra('Atlantis');
+      await vila(50);
+      ut.stilla = Math.abs(r(fb.querySelector('.blixt-hoppa')).top - h0) < 1;
+      ut.bred = document.documentElement.scrollWidth <= innerWidth && fb.scrollWidth <= fb.clientWidth;
+      flaggblixt.installningar.tid = 1;
+      for (let i = 0; i < 200 && L().lage !== 'slut'; i++) await vila(50);
+      await vila(100);
+      ut.slut = L().lage === 'slut' && ['.blixt-igen', '.blixt-tillbaka'].every(s => inne(fb.querySelector(s)));
+      return ut;
+    })()`));
+    await tp.close();
+  }
+  ok('v113: telefonerna (320 × 568, 390 × 844): knappen bredvid Topplista fri från ?-knappen, introt, flaggan och slutet ryms',
+    tel.every(t => t.knapp && t.rad && t.friHjalp && t.intro && t.huvud && t.spel && parseInt(t.flagga) >= 270 && t.stilla && t.bred && t.slut),
+    JSON.stringify(tel));
+  ok('v113: Flaggblixt utan JS-fel', fFel.length === 0, fFel.join(' | ').slice(0, 200));
+  for (const c of sidor) await c.close().catch(() => {});
+} catch (e) {
+  ok('v113: Flaggblixt', false, String(e && e.stack || e).slice(0, 300));
+}
+
 // ── v72: lärarsidan + lärarlänken på startsidan ──
 try {
   const lp = await browser.newPage({ viewport: { width: 1100, height: 750 } });
