@@ -16,50 +16,70 @@
 // urval) i slumpad ordning utan upprepning, en stor riktig flagga i taget
 // (assets/flaggor, samma som tavlan). Klockan (60 s) går först när
 // mikrofonen verkligen lyssnar (audiostart, alltså efter webbläsarens
-// fråga), efter en kort 3-2-1. Man säger landets namn: så fort ett
-// delresultat (interim) eller slutresultat matchar flaggan som visas blir
-// det ✓ med namnet, poäng, och nästa flagga direkt. Ett slutresultat som
-// inte matchar ger ✗ och flaggan står kvar; "Jag hörde: …" visar alltid
-// vad igenkänningen hörde. "Hoppa över" (knappen, eller "pass", "nästa",
-// "hoppa över") visar svaret och går vidare. När tiden är ute stängs
-// mikrofonen direkt och slutsidan visar antal rätt, rundans flaggor
-// (rätt / fel / hoppade över / hann inte) och rekordet per region (bara
-// lokalt: SPRAK.hsPrefix + 'flaggblixt-' + HS_BAS, inga nya Firebase-regler).
-// Quizens klocka bakom väntar bara om quizet inte börjat (inga svar än);
-// mitt i ett quiz går den vidare, som med flaggvideon (v109).
+// fråga), efter en kort 3-2-1 och Kör! i den tomma rutan. Man säger landets
+// namn: så fort ett delresultat (interim) eller slutresultat matchar flaggan
+// som visas blir det ✓ med namnet, poäng, och nästa flagga direkt. Ett
+// slutresultat med ett annat land ger ✗ och flaggan står kvar; "Jag hörde:
+// …" visar alltid vad igenkänningen hörde (grått om inget land sades).
+// "Hoppa över" (knappen, eller exakt "pass", "nästa", "hoppa över",
+// "skippa") visar svaret och går vidare. När tiden är ute stängs mikrofonen
+// direkt och slutsidan visar antal rätt, rundans flaggor (rätt / fel /
+// hoppade över / hann inte) och rekordet per region (bara lokalt:
+// SPRAK.hsPrefix + 'flaggblixt-' + HS_BAS, inga nya Firebase-regler; lika
+// många rätt slår rekordet bara om ALLA flaggor blev rätt på kortare tid).
+// Spela igen tar inte emot ett tryck den första stunden (SLUTVILA). Quizens
+// klocka bakom väntar bara om quizet inte börjat (inga svar än); mitt i ett
+// quiz går den vidare, som med flaggvideon (v109), och introt säger det.
+// Medan panelen är öppen är spelet och ▶ 🧩 ? i sidhuvudet och hörnen
+// inerta (videon läser upp länder i mikrofonen); ← och lägesknapparna
+// stänger panelen, och oppnaVideo/visaDelVal stänger den också.
 //
 // Rösten: SpeechRecognition (webkit i Chrome och Safari), sv-SE, interim,
-// continuous, 5 alternativ (alla prövas). Mikrofonen begärs först när man
-// trycker Starta och stängs (abort) när rundan tar slut, vid Spela igen,
-// när panelen stängs, vid lägesbyte, ny region, startsidan (alla via
+// continuous, 5 alternativ. Mikrofonen begärs först när man trycker Starta
+// och stängs (abort) när rundan tar slut, vid Spela igen, när panelen
+// stängs (✕, Esc), vid lägesbyte, ny region, startsidan (alla via
 // uppdatera(), som glob-spel.js uppdateraHuvudstadslage anropar), när sidan
-// göms (visibilitychange, pagehide) och vid varje fel. Igenkänningen
-// startas om när den stannar av sig själv (tystnad i Chrome, iOS). Varje
-// resultat (session:index) minns hur många ord som redan räknats: samma ord
-// räknas aldrig två gånger och glider aldrig över till nästa flagga, men
-// fortsätter man prata i samma andetag ("Sverige … Norge") räknas de nya
-// orden mot nästa flagga. Ett namn som kan vara början på ett annat land
-// (Guinea → Guinea-Bissau, Niger → Nigeria, Dominica → Dominikanska
-// republiken) godkänns i ett delresultat först när inget mer ord kommit på
-// en stund (installningar.fordroj).
+// göms (visibilitychange, pagehide) och vid varje fel. Igenkänningen startas
+// om när den stannar av sig själv (tystnad i Chrome, iOS; snurrskyddet
+// räknar bara sessioner som inte gav något resultat). Det som hörts och
+// räknats minns per resultat (session:index) som vikt text: bara det som
+// sägs efteråt prövas, även när igenkänningen skriver om orden ("sydkorea"
+// → "Syd-Korea"). Byts flaggan (svar, Hoppa över, väntan) räknas allt som
+// hörts som förbrukat, så att ett sent slutresultat aldrig ger poäng eller ✗
+// på nästa flagga; fortsätter man prata efter ett rätt svar ("Sverige …
+// Norge") prövas de nya orden mot nästa flagga. Ett eko av det nyss rätta
+// svaret ger varken poäng eller ✗. Alternativen avgörs i igenkänningens
+// ordning (ett tydligt grannland först vinner inte på att rätt land står
+// längre ner). Ett namn som kan vara början på ett annat land (Guinea →
+// Guinea-Bissau, Mali → Malawi, Kina → Kanada), och ett hoppord, godkänns i
+// ett delresultat först när inget mer ord kommit på en stund
+// (installningar.fordroj).
 // Reserven: saknas igenkänningen (Firefox) eller ger den not-allowed,
 // service-not-allowed, audio-capture, network eller language-not-supported
 // skriver man i stället (samma matchning, samma klocka, Enter skickar; ett
-// exakt namn godkänns redan medan man skriver). Man kan också välja
-// "Skriv i stället" före start.
+// exakt namn godkänns redan medan man skriver, men bara om inget längre namn
+// börjar likadant, annars efter en kort paus). Man kan också välja "Skriv i
+// stället" före start. Med tangentbordet uppe på en låg telefon blir
+// skrivläget tätare (data-kort).
 //
 // Matchningen (tolka, matcha) är rena funktioner: texten normaliseras
 // (gemener, utan diakritiska tecken, bindestreck och & som mellanslag,
-// fyllnadsord som "det är", "jag tror", "flaggan" bort) och viks fonetiskt
-// (c/k, z/s, w/v, y/i, dubbla bokstäver …). Varje ordfönster jämförs med
-// varje lands namn i spelet och ALIAS nedan (en editeringsgräns som växer
-// med längden; korta namn måste vara exakta). Fönstren väljs girigt efter
-// längd × likhet, så "Guinea-Bissau" vinner över "Guinea". Ett svar räknas
+// fyllnadsord som "det är", "jag tror", "flaggan", "mmm" bort) och viks
+// fonetiskt (c/k, z/s, w/v, y/i, dubbla bokstäver …). Varje ordfönster
+// jämförs med varje lands namn i spelet, ALIAS, engelska namn, adjektiv
+// ("svenska flaggan") och ATRAPPER (Sydamerika, Grönland …: inget land) med
+// en editeringsgräns som växer med längden (korta namn och hoppord måste
+// vara exakta). Fönstren väljs så att summan av längd × likhet blir störst,
+// aldrig över ett skiljeord ("eller", "nej"): "Guinea-Bissau" vinner över
+// "Guinea", men "Niger eller Kina" blir aldrig Nigeria. Ett svar räknas
 // bara om flaggans land (eller dess tvilling, FLAGG_TVILLINGAR) är BÄST
 // bland alla länder i spelet: "Guinea" är fel för Guinea-Bissau, "Niger"
 // för Nigeria, "Sudan" för Sydsudan, och "Kongo" är medvetet tvetydigt
-// (båda Kongo lika bra = inget av dem). sjalvkontroll() prövar att varje
-// lands namn och alias bara matchar landet självt (regress.mjs v113).
+// (båda Kongo lika bra = inget av dem; "Vilket Kongo?" bara på ett Kongo).
+// Av flera länder räknas det första ("Sverige Norge Danmark" är Sverige),
+// eller det första efter ett rättelseord ("Niger, nej Nigeria").
+// sjalvkontroll() prövar att varje lands namn och alias bara matchar landet
+// självt, parkontroll() att två länder i rad blir de två (regress.mjs v113).
 //
 // Klassiska skript delar toppnivåns let/const, så glob-spel.js namn används
 // direkt (som i flaggtavla.js). Byter något av dem namn eller form: kör hela
@@ -75,8 +95,9 @@
 //   uppdatera()        läge, val, region eller länder har ändrats
 //   oppna(kalla)       öppnar Flaggblixt (introt)
 //   stang()            stänger (mikrofonen av)
-//   tolka/matcha/matchaKod/normalisera/sjalvkontroll   matchningen (testerna)
-//   installningar      { tid, nedrakning, steg, fordroj } (testerna kortar rundan)
+//   tolka/matcha/matchaKod/normalisera/sjalvkontroll/parkontroll/vantar
+//                      matchningen (testerna)
+//   installningar      { tid, nedrakning, steg, fordroj, kor, forst } (testerna kortar rundan)
 //   lage()             tillståndet för testerna
 window.flaggblixt = (() => {
   // engelska sajten och USA har inga flaggor (filen laddas inte ens där)
@@ -86,7 +107,8 @@ window.flaggblixt = (() => {
     tid: 60000,          // rundans längd (ms)
     nedrakning: 3,       // 3-2-1 innan första flaggan (0 = direkt)
     steg: 450,           // ms per siffra i nedräkningen
-    fordroj: 450,        // ms innan ett delresultat som kan bli ett längre land godkänns
+    fordroj: 450,        // ms innan ett delresultat som kan bli ett längre land (eller ett hoppord) godkänns
+    kor: 300,            // ms som Kör! står i den tomma rutan innan första flaggan och klockan
     forst: null,         // (testerna) namn som ska komma först, i den ordningen
   };
 
@@ -140,20 +162,65 @@ window.flaggblixt = (() => {
     BF: ['Burkina'],
     IE: ['Eire'],
     BN: ['Brunei Darussalam'],
+    MD: ['Moldova'],
+    BS: ['Bahamaöarna', 'Bahamasöarna'],
+    BR: ['Brasil'],
+    SS: ['Södra Sudan'],
+  };
+  ALIAS.KN.push('St Kitts', 'Sankt Kitts');          // (S:t Kitts blir samma ord)
+  ALIAS.US.push('USAs');
+  // Engelska namn (barn säger ofta Germany eller France). Bara där det
+  // svenska namnet inte redan är samma efter vikningen (Kanada, Mexico …).
+  const ENGELSKA = {
+    DE: ['Germany'], FR: ['France'], ES: ['Spain'], IT: ['Italy'], SE: ['Sweden'], NO: ['Norway'], DK: ['Denmark'],
+    IS: ['Iceland'], IE: ['Ireland'], NL: ['Netherlands', 'The Netherlands'], CH: ['Switzerland'], AT: ['Austria'],
+    AU: ['Australia'], GR: ['Greece'], RU: ['Russia'], CN: ['China'], IN: ['India'], BR: ['Brazil'], PL: ['Poland'],
+    RO: ['Romania'], US: ['United States', 'United States of America'], GB: ['United Kingdom', 'Northern Ireland'],
+    NZ: ['New Zealand'], KR: ['South Korea'], KP: ['North Korea'], ZA: ['South Africa'], SS: ['South Sudan'],
+    CZ: ['Czech Republic', 'Czechia'], BE: ['Belgium'], HU: ['Hungary'], HR: ['Croatia'], RS: ['Serbia'],
+    MA: ['Morocco'], EG: ['Egypt'], TR: ['Turkey'], LY: ['Libya'], UA: ['Ukraine'], LT: ['Lithuania'], LV: ['Latvia'],
+    EE: ['Estonia'], SK: ['Slovakia'], SI: ['Slovenia'], BG: ['Bulgaria'], AL: ['Albania'], CY: ['Cyprus'],
+    PH: ['Philippines'], ID: ['Indonesia'], SA: ['Saudi Arabia'], SY: ['Syria'], JO: ['Jordan'], LB: ['Lebanon'],
+    TN: ['Tunisia'], DZ: ['Algeria'], ET: ['Ethiopia'], CM: ['Cameroon'], CI: ['Ivory Coast'], MN: ['Mongolia'],
+    VA: ['Vatican'], DO: ['Dominican Republic'], gbsct: ['Scotland'], AE: ['United Arab Emirates'],
+  };
+  // "den svenska flaggan", "norska flaggan": landets adjektiv (de vanligaste)
+  const ADJEKTIV = {
+    SE: ['svenska'], NO: ['norska'], DK: ['danska'], FI: ['finska'], IS: ['isländska'], DE: ['tyska'],
+    FR: ['franska'], gbeng: ['engelska'], gbsct: ['skotska'], GB: ['brittiska'], IE: ['irländska'], ES: ['spanska'],
+    IT: ['italienska'], PT: ['portugisiska'], GR: ['grekiska'], TR: ['turkiska'], PL: ['polska'], RU: ['ryska'],
+    UA: ['ukrainska'], EE: ['estniska'], LV: ['lettiska'], LT: ['litauiska'], NL: ['nederländska', 'holländska'],
+    BE: ['belgiska'], CH: ['schweiziska'], AT: ['österrikiska'], HU: ['ungerska'], CZ: ['tjeckiska'],
+    SI: ['slovenska'], SK: ['slovakiska'], JP: ['japanska'], CN: ['kinesiska'], IN: ['indiska'], US: ['amerikanska'],
+    CA: ['kanadensiska'], MX: ['mexikanska'], BR: ['brasilianska'], AR: ['argentinska'], AU: ['australiensiska'],
+    ZA: ['sydafrikanska'], EG: ['egyptiska'], KR: ['sydkoreanska'], KP: ['nordkoreanska'],
   };
   // Medvetet tvetydiga ord: alla koderna är lika bra, så inget av dem räknas
   // ("Vilket Kongo?"). De ingår inte i sjalvkontroll (de ska ju krocka).
   const TVETYDIGA = { Kongo: ['CD', 'CG'] };
-  // Hoppa över med rösten
+  // Ord som liknar ett land men inte är något i spelet (världsdelar, öar,
+  // gamla riken): de matchar sig själva och ger ✗ i stället för att vikas
+  // till närmaste land ("Sydamerika" är inte Sydafrika, "Grönland" inte Grekland).
+  const INGET = 'INGET';
+  const ATRAPPER = ['Europa', 'Afrika', 'Asien', 'Sydamerika', 'Nordamerika', 'Mellanamerika', 'Centralamerika',
+    'Latinamerika', 'Oceanien', 'Antarktis', 'Arktis', 'Grönland', 'Greenland', 'Åland', 'Färöarna', 'Sibirien',
+    'Persien', 'Polynesien', 'Nya Kaledonien', 'Lappland', 'Skandinavien', 'Karibien', 'Hawaii'];
+  // Hoppa över med rösten: bara de här orden, och bara exakt ("hoppas",
+  // "nästan" och "pasta" är inga hoppord; "jag vet inte …" är att tänka högt)
   const HOPPA = 'HOPPA';
-  const HOPPORD = ['pass', 'passar', 'nästa', 'hoppa', 'hoppa över', 'skippa', 'skip', 'vet inte', 'vet ej',
-    'ingen aning'];
-  // Ord som inte är ett svar (tas bort före matchningen)
+  const HOPPORD = ['pass', 'passar', 'nästa', 'hoppa över', 'skippa', 'skip'];
+  // Ord som inte är ett svar (tas bort före matchningen). Utdragna ljud
+  // ("mmm", "eeeh") jämförs med upprepade bokstäver hopslagna.
   const FYLL = new Set(['det', 'där', 'den', 'denna', 'detta', 'är', 'e', 'va', 'var', 'vad', 'jag', 'tror',
     'tänker', 'att', 'kanske', 'nog', 'väl', 'ju', 'typ', 'alltså', 'ehm', 'eh', 'öh', 'äh', 'ah', 'hm',
-    'hmm', 'mm', 'mhm', 'um', 'öhm', 'ähm', 'flaggan', 'flagga', 'flaggor', 'flaggorna', 'landet', 'heter',
-    'nej', 'ja', 'jo', 'okej', 'ok', 'från', 'för', 'tillhör', 'som', 'eller', 'men', 'vänta', 'nu', 'så',
-    'ett', 'en']);
+    'm', 'mh', 'mhm', 'um', 'öhm', 'ähm', 'a', 'åh', 'oh', 'ö', 'ä', 'jaha', 'aha', 'flaggan', 'flagga',
+    'flaggor', 'flaggorna', 'landet', 'heter', 'nej', 'nä', 'ja', 'jo', 'okej', 'ok', 'från', 'för', 'tillhör',
+    'som', 'eller', 'men', 'vänta', 'nu', 'så', 'ett', 'en', 'menar', 'förlåt', 'oj']);
+  // Ord som skiljer två svar åt (inget namn byggs över dem: "Kina eller
+  // Ryssland" är två länder, inte Vitryssland) …
+  const SKILJE = new Set(['eller', 'nej', 'nä', 'men', 'menar', 'förlåt', 'oj', 'vänta']);
+  // … och av dem de som rättar det man nyss sa ("Niger, nej Nigeria")
+  const RATTELSE = new Set(['nej', 'nä', 'menar', 'förlåt', 'oj']);
 
   // fonetisk vikning av ETT ord (gemener, utan fyllnadsord)
   function vik(s) {
@@ -165,21 +232,34 @@ window.flaggblixt = (() => {
       .replace(/w/g, 'v').replace(/z/g, 's').replace(/x/g, 'ks').replace(/y/g, 'i')
       .replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
   }
-  // texten → ord: [{ t: vikt ord, w: index i de råa orden }] och de råa orden
-  // (så att "Jag hörde" kan visa just det som inte räknats än)
+  // texten → ord: [{ t: vikt ord, w: index i de råa orden, g: ett skiljeord
+  // före, r: ett rättelseord före }] och de råa orden (så att "Jag hörde"
+  // kan visa just det som inte räknats än)
   function ord(text) {
     const ra = String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean);
     const ut = [];
+    let g = false, r = false;
     ra.forEach((w, i) => {
       for (const b of w.toLocaleLowerCase('sv').replace(/[&+]/g, ' och ').split(/[^\p{L}\p{N}]+/u)) {
-        if (!b || FYLL.has(b)) continue;
+        if (!b) continue;
+        const hop = b.replace(/(.)\1+/gu, '$1');
+        if (FYLL.has(b) || FYLL.has(hop)) {
+          if (SKILJE.has(b) || SKILJE.has(hop)) g = true;
+          if (RATTELSE.has(b) || RATTELSE.has(hop)) r = true;
+          continue;
+        }
         const f = vik(b);
-        if (f) ut.push({ t: f, w: i });
+        if (!f) continue;
+        ut.push({ t: f, w: i, g, r });
+        g = r = false;
       }
     });
     return { ut, ra };
   }
   const normalisera = text => ord(text).ut.map(o => o.t).join(' ');
+  // vikta ord ihop, med dubbla bokstäver över ordgränsen hopslagna
+  // ("öst timor" och "östtimor" blir samma)
+  const ihop = ut => ut.map(x => x.t).join('').replace(/(.)\1+/g, '$1');
 
   // Damerau (optimal string alignment) med tak: > max betyder "för långt bort"
   function avstand(a, b, max) {
@@ -209,8 +289,9 @@ window.flaggblixt = (() => {
   const MAXORD = 5;              // längsta namnet i ord (Sankt Vincent och Grenadinerna)
 
   // tabellen: [{ kod, f (vikta ord ihop), namn, alias }], byggs första gången
-  let tabell = null, riskabla = null, tvetydigaVikta = null;
+  let tabell = null;
   const tvilling = (a, b) => a !== b && FLAGG_TVILLINGAR.some(p => p.includes(a) && p.includes(b));
+  const ARLAND = k => k !== HOPPA && k !== INGET;
   function byggTabell() {
     if (tabell) return;
     tabell = [];
@@ -223,23 +304,44 @@ window.flaggblixt = (() => {
     };
     for (const [namn, kod] of Object.entries(FLAGG_ISO)) lagg(kod, namn, false);
     for (const [kod, lista] of Object.entries(ALIAS)) for (const n of lista) lagg(kod, n, true);
+    // (engelska namn och adjektiv: inte "början på ett annat land" i riskabel)
+    for (const t of [ENGELSKA, ADJEKTIV]) for (const [kod, lista] of Object.entries(t)) for (const n of lista) lagg(kod, n, 'extra');
     for (const [n, koder] of Object.entries(TVETYDIGA)) for (const kod of koder) lagg(kod, n, 'tvetydig');
+    for (const n of ATRAPPER) lagg(INGET, n, false);
     for (const n of HOPPORD) lagg(HOPPA, n, false);
-    tvetydigaVikta = new Set(Object.keys(TVETYDIGA).map(n => ord(n).ut.map(o => o.t).join('')));
-    // ett namn som är början på ett annat lands namn (Guinea → Guinea-Bissau)
-    riskabla = new Set();
-    for (const a of tabell) {
-      if (a.alias === 'tvetydig') continue;
-      for (const b of tabell) {
-        if (b.kod !== a.kod && !tvilling(a.kod, b.kod) && b.f.length > a.f.length && b.f.startsWith(a.f)) riskabla.add(a.kod);
-      }
-    }
   }
-  // bästa koderna för en vikt sträng: { koder, sim } eller null
+  // Det som hördes (s, vikt) kan vara början på ett annat land: då godkänns
+  // ett delresultat först när inget mer ord kommit (installningar.fordroj).
+  // Exakt början (Guinea → Guinea-Bissau, Niger → Nigeria, Dominica →
+  // Dominikanska republiken) eller nästan (Mali → Malawi, Iran → Irland,
+  // Kina → Kanada: högst ett fel i en början som är lika lång ± 1).
+  const riskMinne = new Map();
+  function riskabel(s, kod) {
+    const nyckel = s + '|' + kod;
+    if (riskMinne.has(nyckel)) return riskMinne.get(nyckel);
+    let svar = false;
+    for (const b of tabell) {
+      if (b.kod === kod || !ARLAND(b.kod) || b.alias === 'extra' || tvilling(kod, b.kod) || b.f.length <= s.length) continue;
+      if (b.f.startsWith(s)) { svar = true; break; }
+      if (s.length < 3) continue;
+      for (let L = s.length - 1; L <= s.length + 1 && !svar; L++) {
+        if (L < b.f.length && avstand(s, b.f.slice(0, L), 1) <= 1) svar = true;
+      }
+      if (svar) break;
+    }
+    if (riskMinne.size > 5000) riskMinne.clear();
+    riskMinne.set(nyckel, svar);
+    return svar;
+  }
+  // bästa koderna för en vikt sträng: { koder, sim } eller null. Hoppord
+  // gäller bara exakt. (Svaren sparas: ett delresultat prövas om och om
+  // igen medan det växer, och bara de nya fönstren behöver räknas.)
+  const minne = new Map();
   function bast(s) {
+    if (minne.has(s)) return minne.get(s);
     let sim = 0, koder = [];
     for (const e of tabell) {
-      const L = Math.max(s.length, e.f.length), max = tal(L);
+      const L = Math.max(s.length, e.f.length), max = e.kod === HOPPA ? 0 : tal(L);
       if (Math.abs(s.length - e.f.length) > max) continue;
       const d = avstand(s, e.f, max);
       if (d > max) continue;
@@ -247,42 +349,71 @@ window.flaggblixt = (() => {
       if (v > sim + 1e-9) { sim = v; koder = [e.kod]; }
       else if (Math.abs(v - sim) <= 1e-9 && !koder.includes(e.kod)) koder.push(e.kod);
     }
-    return koder.length ? { koder, sim } : null;
+    const svar = koder.length ? { koder, sim } : null;
+    if (minne.size > 20000) minne.clear();
+    minne.set(s, svar);
+    return svar;
   }
-  // Tolkningarna av en följd vikta ord, i ordning: [{ kod, koder, tvetydig,
-  // i, j (orden i..j-1), sim }]. Fönstren väljs girigt efter längd × likhet
-  // (så "guinea bissau" blir ETT land, inte Guinea + ett ord över), och ett
-  // fönster där två länder (som inte är tvillingar) är lika bra är tvetydigt.
-  function tolkaOrd(t) {
+  // Tolkningarna av en följd vikta ord (ord().ut), i ordning: [{ kod, koder,
+  // tvetydig, i, j (orden i..j-1), sim }]. Fönstren väljs så att summan av
+  // längd × likhet blir störst (ord som inget matchar ger 0; lika = färre
+  // fönster): "guinea bissau" blir ETT land, men "Niger Kina" blir Niger +
+  // Kina och inte ett ungefärligt Nigeria. Inget fönster går över ett
+  // skiljeord ("eller", "nej"). Ett fönster där två länder (som inte är
+  // tvillingar) är lika bra är tvetydigt.
+  function tolkaOrd(ol) {
     byggTabell();
-    const kand = [];
-    for (let i = 0; i < t.length; i++) {
+    const n = ol.length;
+    const slutar = Array.from({ length: n + 1 }, () => []);
+    for (let i = 0; i < n; i++) {
       let s = '';
-      for (let j = i; j < Math.min(t.length, i + MAXORD); j++) {
-        s += t[j];
+      for (let j = i; j < Math.min(n, i + MAXORD); j++) {
+        if (j > i && ol[j].g) break;
+        s += ol[j].t;
         const b = bast(s);
         if (!b) continue;
         const grupp = b.koder.every(k => k === b.koder[0] || tvilling(k, b.koder[0]));
-        kand.push({ kod: b.koder[0], koder: b.koder, tvetydig: !grupp, i, j: j + 1, sim: b.sim,
+        slutar[j + 1].push({ kod: b.koder[0], koder: b.koder, tvetydig: !grupp, i, j: j + 1, sim: b.sim,
           vikt: b.sim * s.length, s });
       }
     }
-    kand.sort((a, b) => b.vikt - a.vikt || b.sim - a.sim || a.i - b.i);
-    const tagen = [], ut = [];
-    for (const k of kand) {
-      let fri = true;
-      for (let x = k.i; x < k.j; x++) if (tagen[x]) { fri = false; break; }
-      if (!fri) continue;
-      for (let x = k.i; x < k.j; x++) tagen[x] = true;
-      ut.push(k);
+    const bas = [{ v: 0, c: 0, k: null, fran: -1 }];
+    for (let x = 1; x <= n; x++) {
+      let b = { v: bas[x - 1].v, c: bas[x - 1].c, k: null, fran: x - 1 };
+      for (const k of slutar[x]) {
+        const v = bas[k.i].v + k.vikt, c = bas[k.i].c + 1;
+        if (v > b.v + 1e-9 || (Math.abs(v - b.v) <= 1e-9 && c < b.c)) b = { v, c, k, fran: k.i };
+      }
+      bas[x] = b;
     }
-    return ut.sort((a, b) => a.i - b.i);
+    const ut = [];
+    for (let x = n; x > 0; x = bas[x].fran) if (bas[x].k) ut.push(bas[x].k);
+    return ut.reverse();
   }
-  const tolka = text => tolkaOrd(ord(text).ut.map(o => o.t));
+  const tolka = text => tolkaOrd(ord(text).ut);
   // rätt för flaggan med koden kod? (landet självt eller tvillingen)
-  const rattFor = (k, kod) => !k.tvetydig && k.kod !== HOPPA && (k.kod === kod || tvilling(k.kod, kod));
+  const rattFor = (k, kod) => !k.tvetydig && ARLAND(k.kod) && (k.kod === kod || tvilling(k.kod, kod));
+  const SAKER = 0.8;               // så lik måste ett alternativs land vara för att avgöra (se avgor)
+  // Det avgörande svaret i en följd ord (samma regel för rösten, det skrivna
+  // och matcha): det FÖRSTA landet räknas, inte vilket som helst av flera
+  // ("Sverige Norge Danmark Finland" är Sverige). Ett rättelseord ("nej",
+  // "jag menar", "förlåt") börjar om: det första landet efter det sista
+  // rättelseordet räknas ("Niger, nej Nigeria"). eko(k): ett eko av svaret
+  // som nyss räknades (rösten, se eko nedan) räknas inte alls. Ett hoppord
+  // räknas om inte flaggans land också sägs.
+  // → { k, ratt } eller null
+  function avgor(ol, kod, eko) {
+    const fonster = tolkaOrd(ol).filter(k => !(eko && !k.tvetydig && ARLAND(k.kod) && eko(k)));
+    if (!fonster.length) return null;
+    const del = k => { let s = 0; for (let x = 0; x <= k.i; x++) if (ol[x].r) s++; return s; };
+    const sista = Math.max(...fonster.map(del));
+    let k = fonster.find(x => del(x) === sista);
+    if (k.kod === HOPPA) k = fonster.find(x => rattFor(x, kod)) || k;
+    return { k, ratt: rattFor(k, kod) };
+  }
   function matchaKod(text, kod) {
-    return tolka(text).some(k => rattFor(k, kod));
+    const d = avgor(ord(text).ut, kod, null);
+    return !!d && d.ratt;
   }
   function matcha(text, gid) {
     const c = aktivByGid.get(gid) || pool.find(x => x.gid === gid);
@@ -290,7 +421,7 @@ window.flaggblixt = (() => {
     return !!kod && matchaKod(text, kod);
   }
   // varje lands namn och alias ska bara peka på landet självt (eller
-  // tvillingen), hela vägen, och aldrig vara ett hoppord: [fel]
+  // tvillingen), hela vägen; hoppord och atrapper bara på sig själva: [fel]
   function sjalvkontroll() {
     byggTabell();
     const fel = [];
@@ -298,9 +429,24 @@ window.flaggblixt = (() => {
       if (e.alias === 'tvetydig') continue;
       const t = tolka(e.namn);
       const ok = t.length === 1 && t[0].i === 0 && !t[0].tvetydig
-        && (t[0].kod === e.kod || (e.kod !== HOPPA && tvilling(t[0].kod, e.kod)))
+        && (t[0].kod === e.kod || (ARLAND(e.kod) && tvilling(t[0].kod, e.kod)))
         && t[0].j === ord(e.namn).ut.length;
       if (!ok) fel.push(`${e.namn} (${e.kod}) → ${t.map(k => (k.tvetydig ? '?' : '') + k.koder.join('/')).join(' + ') || 'inget'}`);
+    }
+    return fel;
+  }
+  // Två länder i rad ("A B") ska bli A och B, aldrig ett tredje land som
+  // liknar dem ihop (testerna: alla par i spelet): [fel]
+  function parkontroll() {
+    byggTabell();
+    const namn = Object.keys(FLAGG_ISO), fel = [];
+    const lika = (a, b) => a === b || tvilling(a, b);
+    for (const a of namn) for (const b of namn) {
+      if (a === b) continue;
+      const t = tolka(a + ' ' + b);
+      if (!(t.length === 2 && !t[0].tvetydig && !t[1].tvetydig && lika(t[0].kod, FLAGG_ISO[a]) && lika(t[1].kod, FLAGG_ISO[b]))) {
+        fel.push(`${a} ${b} → ${t.map(k => (k.tvetydig ? '?' : '') + k.koder.join('/')).join(' + ') || 'inget'}`);
+      }
     }
     return fel;
   }
@@ -339,6 +485,9 @@ body.flaggtavla #seterra-game > #blixt-startrad { order: 2; margin: 0 auto; }
   color: #e6eef7; }
 #flaggblixt[hidden] { display: none; }
 body.blixt-pa .cursor-label { visibility: hidden !important; }
+/* ▶ (flaggvideon) och 🧩 (delarna) i sidhuvudet öppnar något ovanpå
+   rundan: borta medan Flaggblixt är öppen (← och lägesknapparna stänger den) */
+body.blixt-pa #spel-video, body.blixt-pa #spel-delar { visibility: hidden; }
 .blixt-ram { position: relative; width: 100%; max-width: 760px; height: 100%; display: flex; flex-direction: column;
   padding: 12px 16px 14px; }
 .blixt-del { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; }
@@ -369,8 +518,9 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
 .blixt-introknappar { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 4px; }
 .blixt-integritet { max-width: 30em; font-size: .8rem; line-height: 1.4; color: #8fb1cc; }
 .blixt-meddelande { max-width: 30em; font-size: .9rem; line-height: 1.4; color: #ffb37a; font-weight: 700; }
-.blixt-meddelande:empty, .blixt-integritet[hidden] { display: none; }
-.blixt-ingress, .blixt-integritet, .blixt-meddelande { text-wrap: balance; }   /* inget ensamt sista ord */
+.blixt-klocknot { max-width: 30em; font-size: .8rem; line-height: 1.4; color: #ffcf8a; }
+.blixt-meddelande:empty, .blixt-integritet[hidden], .blixt-klocknot[hidden] { display: none; }
+.blixt-ingress, .blixt-integritet, .blixt-meddelande, .blixt-klocknot { text-wrap: balance; }   /* inget ensamt sista ord */
 
 /* spelet */
 .blixt-spel { gap: 8px; }
@@ -432,6 +582,7 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
 .blixt-hort { flex: none; height: 1.4em; font-size: .9rem; color: #9fbad3; text-align: center; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .blixt-hort.fel { color: #ff8a8a; font-weight: 700; }
+.blixt-hort.kongo { font-size: .82rem; }
 .blixt-mik { flex: none; height: 1.4em; display: flex; align-items: center; justify-content: center; gap: 8px;
   font-size: .85rem; color: #8fb1cc; }
 .blixt-mik i { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
@@ -445,12 +596,30 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
 .blixt-skriv input:focus { outline: none; border-color: #7fc4ff; box-shadow: 0 0 0 3px rgba(127, 196, 255, .25); }
 .blixt-skriv .blixt-knapp { min-width: 64px; padding: 0 14px; }
 .blixt-nedre { flex: none; display: flex; justify-content: center; margin-bottom: auto; }
-#flaggblixt:not([data-lage="spelar"]) .blixt-hoppa { opacity: .4; pointer-events: none; }
+#flaggblixt:not([data-lage="spelar"]) .blixt-hoppa,
+#flaggblixt:not([data-lage="spelar"]) .blixt-hoppa-liten { opacity: .4; pointer-events: none; }
+.blixt-skriv .blixt-hoppa-liten { display: none; min-width: 48px; padding: 0 10px; font-size: 1.1rem; }
+/* Skriva med tangentbordet uppe på en låg telefon (lagret under ~420 px):
+   tätare, ✓ ovanpå flaggans nederkant och ⏭ i samma rad som OK, så att
+   klockan, rutan och Hoppa över alltid syns */
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-ram { padding: 6px 12px 8px; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-spel { gap: 6px; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-status { min-height: 32px; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-tid,
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-poang { font-size: 1.15rem; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-scen { min-height: 56px; margin-top: 0; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-svarrad { height: 0; position: relative; z-index: 2; overflow: visible; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-svar { transform: translateY(-24px); font-size: .95rem; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-skriv input { height: 42px; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-skriv .blixt-knapp { min-height: 42px; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-skriv .blixt-hoppa-liten { display: inline-flex; }
+#flaggblixt[data-kort][data-satt="skriv"] .blixt-nedre { display: none; }
 
 /* slutet */
 .blixt-slut { align-items: center; gap: 10px; overflow-y: auto; padding: 4px 0 6px; text-align: center; }
 .blixt-slutrubrik { font-size: 1rem; font-weight: 700; color: #9fc6e8; padding-right: 0; margin-top: 4px; }
 .blixt-resultat { font-size: 1.25rem; color: #e6eef7; }
+.blixt-resultat:focus, #flaggblixt:focus { outline: none; }
 .blixt-resultat b { display: block; font-size: clamp(2.6rem, 10vmin, 4rem); line-height: 1.05; color: #4ade80; }
 .blixt-rekordrad { font-size: .98rem; font-weight: 800; color: #ffdc32; }
 .blixt-rekordrad.nytt { font-size: 1.15rem; }
@@ -498,6 +667,9 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     return e;
   };
   const MIK = '🎤';
+  // det igenkänningen hörde hålls utanför PostHogs sessionsinspelningar
+  // (kakor.js: inspelning för den som sagt ja till kakor; text maskas inte)
+  const HORT = 'blixt-hort ph-no-capture';
 
   // ── lagret ──
   const rot = el('div');
@@ -521,7 +693,8 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       <button type="button" class="blixt-knapp blixt-skrivval">⌨️ Skriv i stället</button>
     </div>
     <p class="blixt-meddelande" role="status"></p>
-    <p class="blixt-integritet">Mikrofonen lyssnar bara medan klockan går. I Chrome tolkar Google rösten – inget ljud sparas här.</p>
+    <p class="blixt-integritet">Mikrofonen är bara på under rundan. Rösten tolkas av webbläsarens tjänst (Google i Chrome, Apple i Safari) – sidan sparar inget.</p>
+    <p class="blixt-klocknot" hidden>Quizets klocka bakom fortsätter att gå under tiden.</p>
   </div>
   <div class="blixt-del blixt-spel">
     <div class="blixt-status">
@@ -537,18 +710,19 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       <div class="blixt-splash" aria-hidden="true"></div>
     </div>
     <div class="blixt-svarrad"><div class="blixt-svar" aria-hidden="true"></div></div>
-    <div class="blixt-hort" aria-hidden="true"></div>
+    <div class="blixt-hort ph-no-capture" aria-hidden="true"></div>
     <div class="blixt-mik"><i></i><span class="blixt-miktext"></span></div>
     <form class="blixt-skriv" autocomplete="off">
       <input type="text" aria-label="Landets namn" placeholder="Skriv landets namn …" autocomplete="off"
         autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
       <button type="submit" class="blixt-knapp">OK</button>
+      <button type="button" class="blixt-knapp blixt-hoppa-liten" aria-label="Hoppa över" title="Hoppa över">⏭</button>
     </form>
     <div class="blixt-nedre"><button type="button" class="blixt-knapp blixt-hoppa">Hoppa över ⏭</button></div>
   </div>
   <div class="blixt-del blixt-slut">
     <div class="blixt-slutrubrik"></div>
-    <div class="blixt-resultat"></div>
+    <div class="blixt-resultat" tabindex="-1"></div>
     <div class="blixt-rekordrad"></div>
     <div class="blixt-avbruten"></div>
     <div class="blixt-slutknappar">
@@ -557,17 +731,19 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     </div>
     <ol class="blixt-lista" aria-label="Rundans flaggor"></ol>
   </div>
-  <div class="blixt-dold blixt-live" aria-live="polite" aria-atomic="true"></div>
+  <div class="blixt-dold blixt-live ph-no-capture" aria-live="polite" aria-atomic="true"></div>
 </div>`;
   document.body.appendChild(rot);
   const $ = s => rot.querySelector(s);
   const ui = {
     stang: $('.blixt-stang'), region: $('.blixt-region'), rekordtext: $('.blixt-rekordtext'), starta: $('.blixt-starta'),
     skrivval: $('.blixt-skrivval'), meddelande: $('.blixt-meddelande'), integritet: $('.blixt-integritet'),
+    klocknot: $('.blixt-klocknot'), spel: $('.blixt-spel'),
     tid: $('.blixt-tid'), bar: $('.blixt-bar i'), poang: $('.blixt-poang'), poangTal: $('.blixt-poang b'),
     scen: $('.blixt-scen'), kort: $('.blixt-kort'), flagga: $('.blixt-flagga'), vanttext: $('.blixt-vanttext'),
     splash: $('.blixt-splash'), svar: $('.blixt-svar'), hort: $('.blixt-hort'), mik: $('.blixt-mik'),
     miktext: $('.blixt-miktext'), form: $('.blixt-skriv'), input: $('.blixt-skriv input'), hoppa: $('.blixt-hoppa'),
+    hoppaLiten: $('.blixt-hoppa-liten'),
     slutrubrik: $('.blixt-slutrubrik'), resultat: $('.blixt-resultat'), rekordrad: $('.blixt-rekordrad'),
     avbruten: $('.blixt-avbruten'), igen: $('.blixt-igen'), tillbaka: $('.blixt-tillbaka'), lista: $('.blixt-lista'),
     live: $('.blixt-live'),
@@ -624,11 +800,17 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
   let kontext = null;            // { mode, slug, lander } när panelen öppnades
   let kalla = 'quiz';
   let pool = [];                 // rundans möjliga länder
-  let runda = null;              // { lista, i, poang, resultat, slut, start, sagda, gen }
+  let runda = null;              // { lista, i, poang, resultat, slut, start, gen }
   let timer = 0, nedTimer = 0, svarTimer = 0, felTimer = 0;
   let pausFran = null;           // quizens klocka väntar, om quizet inte börjat (inga svar än)
   let fokusFore = null;
   let hintFore = null;
+  let troga = [];                // det vi gjort inert medan panelen är öppen
+  // Medan Flaggblixt är öppen går inget bakom att nå: spelet, och det i
+  // sidhuvudet och i hörnen som öppnar något ovanpå rundan (▶ flaggvideon,
+  // 🧩 delarna, ? genomgången, tyck till, installera). ← och lägesknapparna
+  // får vara kvar: de stänger Flaggblixt (uppdatera).
+  const BAKOM = ['.game-container', '#spel-video', '#spel-delar', '#spel-hjalp', '#feedback-knapp', '#installera-knapp'];
   const HINT = 'Flaggblixt – hur många flaggor på en minut?';
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
@@ -669,9 +851,15 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     // (v109): topplistan går på tid, och Flaggblixt visar namnen till flaggorna.
     pausFran = currentMode !== 'explore' && seterraTarget && !seterraCorrect && !seterraWrong
       ? { t: Date.now(), start: seterraStartTime } : null;
+    // mitt i ett quiz: säg det (minuten läggs på quizets tid)
+    ui.klocknot.hidden = !(currentMode !== 'explore' && seterraTarget && !pausFran);
     rot.hidden = false;
     document.body.classList.add('blixt-pa');
-    document.querySelector('.game-container')?.setAttribute('inert', '');
+    troga = [];
+    for (const sel of BAKOM) {
+      const e = document.querySelector(sel);
+      if (e && !e.hasAttribute('inert')) { e.setAttribute('inert', ''); troga.push(e); }
+    }
     hintFore = headerHint.textContent;
     headerHint.textContent = HINT;
     matt();
@@ -687,7 +875,8 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     rot.hidden = true;
     rot.dataset.lage = 'intro';
     document.body.classList.remove('blixt-pa');
-    document.querySelector('.game-container')?.removeAttribute('inert');
+    for (const e of troga) e.removeAttribute('inert');
+    troga = [];
     if (hintFore != null && headerHint.textContent === HINT) headerHint.textContent = hintFore;
     hintFore = null;
     if (pausFran && seterraTarget && seterraStartTime === pausFran.start && !seterraCorrect && !seterraWrong) {
@@ -747,8 +936,17 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       rot.style.removeProperty('--blixt-hojd');
       rot.style.removeProperty('--blixt-botten');
     }
+    kompakt();
     storlek();
   }
+  // lågt lager (tangentbordet uppe): tätare skrivläge (stilen ovan)
+  function kompakt() {
+    const h = rot.clientHeight;
+    rot.toggleAttribute('data-kort', h > 0 && h < 420);
+  }
+  // lagret har overflow: hidden, men focus() kan ändå rulla det: klockan
+  // överst ska alltid synas
+  rot.addEventListener('scroll', () => { if (rot.scrollTop) rot.scrollTop = 0; });
   if (window.ResizeObserver) {
     new ResizeObserver(() => { if (lage !== 'stangd') storlek(); }).observe(ui.scen);
     const h = document.querySelector('header');
@@ -798,10 +996,22 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
   });
   ui.stang.addEventListener('click', stang);
   ui.tillbaka.addEventListener('click', stang);
-  ui.igen.addEventListener('click', () => startaRunda(satt === 'rost' && !rostTrasig && SR() ? 'rost' : 'skriv'));
-  rot.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.preventDefault(); stang(); }
+  // Spela igen: inte under den första stunden efter slutet (den som skriver
+  // och trycker Enter, eller står på Hoppa över, när klockan når 0:00 ska
+  // hinna se resultatet)
+  let slutVid = 0;
+  const SLUTVILA = 900;
+  ui.igen.addEventListener('click', () => {
+    if (lage !== 'slut' || performance.now() - slutVid < SLUTVILA) return;
+    startaRunda(satt === 'rost' && !rostTrasig && SR() ? 'rost' : 'skriv');
   });
+  // Esc stänger, var fokus än är (efter Starta står det ofta på sidan själv)
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || lage === 'stangd' || e.defaultPrevented) return;
+    e.preventDefault();
+    stang();
+  });
+  rot.tabIndex = -1;
 
   // ══════════════════════════════════════════════════════════════════
   // Rundan
@@ -816,15 +1026,15 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       const forst = installningar.forst.map(n => lista.find(c => c.name === n)).filter(Boolean);
       lista.splice(0, lista.length, ...forst, ...lista.filter(c => !forst.includes(c)));
     }
-    runda = { lista, i: -1, poang: 0, resultat: [], slut: 0, start: 0, sagda: new Set(),
-      gen: 0, avbruten: false };
+    runda = { lista, i: -1, poang: 0, resultat: [], slut: 0, start: 0, gen: 0 };
+    sist = null;
     ui.poangTal.textContent = '0';
     ui.tid.textContent = fmt(installningar.tid);
     ui.tid.className = 'blixt-tid';
     ui.bar.style.transform = 'scaleX(1)';
     ui.svar.className = 'blixt-svar';
     ui.hort.textContent = '';
-    ui.hort.className = 'blixt-hort';
+    ui.hort.className = HORT;
     ui.kort.classList.remove('fel');
     ui.kort.setAttribute('data-tom', '');
     ui.splash.className = 'blixt-splash';
@@ -835,12 +1045,16 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     if (hur === 'skriv') {
       // fokus i klicket (iPhone öppnar bara tangentbordet då), och klockan direkt
       ui.vanttext.textContent = '';
-      ui.input.focus();
+      ui.input.focus({ preventScroll: true });
       nedrakning(true);
     } else {
       ui.vanttext.textContent = 'Tillåt mikrofonen om webbläsaren frågar …';
       ui.miktext.textContent = 'Startar mikrofonen …';
       ui.mik.classList.remove('pa');
+      // fokus kvar i lagret (introt göms): Esc och Tab fungerar
+      if (!rot.contains(document.activeElement) || document.activeElement.closest('.blixt-intro, .blixt-slut')) {
+        rot.focus({ preventScroll: true });
+      }
       startaRost();
     }
     requestAnimationFrame(storlek);
@@ -861,7 +1075,14 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     let k = n;
     const steg = () => {
       if (lage !== 'nedrakning') return;
-      if (k <= 0) { kor(); return; }
+      if (k <= 0) {
+        // Kör! i den tomma rutan en kort stund, sedan flaggan och klockan
+        // (texten ska inte ligga över flaggan när man ska läsa den)
+        if (!installningar.kor) { kor(); return; }
+        visaSplash('Kör!');
+        nedTimer = setTimeout(kor, installningar.kor);
+        return;
+      }
       visaSplash(String(k));
       k--;
       nedTimer = setTimeout(steg, installningar.steg);
@@ -870,14 +1091,15 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     steg();
   }
   function kor() {
+    if (lage !== 'nedrakning') return;
     rot.dataset.lage = lage = 'spelar';
-    visaSplash('Kör!');
     clearTimeout(nedTimer);
-    nedTimer = setTimeout(() => ui.splash.classList.remove('syns'), 550);
+    ui.splash.classList.remove('syns');
     runda.start = performance.now();
     runda.slut = runda.start + installningar.tid;
     if (satt === 'rost') ui.miktext.textContent = rek ? 'Lyssnar – säg landets namn' : 'Lyssnar …';
     nasta();
+    if (satt === 'skriv' && ui.input.value) ui.input.dispatchEvent(new Event('input'));
     clearInterval(timer);
     timer = setInterval(tick, 100);
     tick();
@@ -906,8 +1128,17 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       forladdade.set(src, i);
     }
   }
-  function nasta() {
+  // Namnet som visas: Union Jack heter Nordirland i spelets världsdelar
+  // (England, Skottland och Wales har egna), men flaggan är Storbritanniens
+  const visNamn = c => flaggKod(c) === 'GB' && c.name !== 'Storbritannien' ? `Storbritannien (${c.name})` : c.name;
+  // ett namn för en flaggkod (tvillingens, för ✓-rutan)
+  const namnFor = kod => (pool.find(x => flaggKod(x) === kod) || {}).name
+    || Object.keys(FLAGG_ISO).find(n => FLAGG_ISO[n] === kod) || kod;
+  // nästa flagga; utom = resultatet (rösten) vars träff gav bytet: allt annat
+  // som hörts räknas som förbrukat (se forbrukaAllt)
+  function nasta(utom) {
     if (!runda) return;
+    forbrukaAllt(utom);
     runda.i++;
     runda.gen++;
     avbrytVantan();
@@ -923,51 +1154,64 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     ui.kort.removeAttribute('data-tom');
     storlek();
     forladda(runda.i + 1);
-    if (satt === 'skriv') { ui.input.value = ''; }
+    // (det man hann skriva under Kör! får stå kvar till första flaggan)
+    if (satt === 'skriv' && runda.i > 0) ui.input.value = '';
   }
-  // rätt svar (kod: det som sades, landet eller tvillingen)
-  function ratt(kod, hort) {
+  // rätt svar (kod: det som sades, landet eller tvillingen; nyckel: rösten)
+  function ratt(kod, hort, nyckel) {
     const c = aktuell(), r = runda.resultat[runda.resultat.length - 1];
     r.status = 'ratt';
     r.sagt = hort || '';
-    runda.sagda.add(kod);
     runda.poang++;
     ui.poangTal.textContent = String(runda.poang);
     ui.poang.classList.remove('puls');
     void ui.poang.offsetWidth;
     ui.poang.classList.add('puls');
-    visaSvar('ratt', c, '✓ ' + c.name);
+    // tvillingflaggan: det man sa och flaggans land, båda
+    const annat = kod !== flaggKod(c) ? namnFor(kod) : '';
+    visaSvar('ratt', c, '✓ ' + visNamn(c) + (annat ? ' / ' + annat : ''));
     ui.hort.textContent = '';
-    ui.hort.className = 'blixt-hort';
+    ui.hort.className = HORT;
     spela('ratt');
-    sag(`Rätt, ${c.name}! Nästa flagga.`);
-    nasta();
+    sag(annat ? `Rätt, ${annat}! Samma flagga som ${visNamn(c)}. Nästa flagga.` : `Rätt, ${visNamn(c)}! Nästa flagga.`);
+    nasta(nyckel);
   }
   function hoppa(kalla_) {
     if (lage !== 'spelar') return;
     const c = aktuell(), r = runda.resultat[runda.resultat.length - 1];
     r.status = r.hort ? 'fel' : 'hoppad';
-    visaSvar('hoppad', c, '⏭ ' + c.name);
+    visaSvar('hoppad', c, '⏭ ' + visNamn(c));
     ui.hort.textContent = '';
-    ui.hort.className = 'blixt-hort';
-    sag(`Hoppade över ${c.name}. Nästa flagga.`);
+    ui.hort.className = HORT;
+    sag(`Hoppade över ${visNamn(c)}. Nästa flagga.`);
     nasta();
-    if (satt === 'skriv' && kalla_ === 'knapp') ui.input.focus();
+    if (satt === 'skriv' && kalla_ === 'knapp') ui.input.focus({ preventScroll: true });
   }
-  function fel(text, tvetydig) {
+  // fel svar; kongo: "Kongo" sades och flaggan ÄR ett av Kongo (annars
+  // vore frågan en ledtråd)
+  function fel(text, kongo) {
     const r = runda.resultat[runda.resultat.length - 1];
     r.hort = text;
+    // bara ✗ syns (inte förra flaggans gröna ✓ samtidigt, inte ens tonande)
+    clearTimeout(svarTimer);
+    ui.svar.style.transition = 'none';
+    ui.svar.classList.remove('syns');
+    void ui.svar.offsetWidth;
+    ui.svar.style.transition = '';
     ui.kort.classList.remove('fel');
     void ui.kort.offsetWidth;
     ui.kort.classList.add('fel');
     clearTimeout(felTimer);
     felTimer = setTimeout(() => ui.kort.classList.remove('fel'), 900);
     const vem = satt === 'skriv' ? 'Du skrev' : 'Jag hörde';
-    ui.hort.textContent = tvetydig ? `${vem}: ${text} – vilket Kongo? Kinshasa eller Brazzaville?` : `✗ ${vem}: ${text}`;
-    ui.hort.className = 'blixt-hort fel';
+    ui.hort.textContent = kongo ? '✗ Vilket Kongo? Kinshasa eller Brazzaville?' : `✗ ${vem}: ${text}`;
+    ui.hort.className = HORT + ' fel' + (kongo ? ' kongo' : '');
     spela('fel');
-    sag(tvetydig ? 'Vilket Kongo? Säg Kongo-Kinshasa eller Kongo-Brazzaville.' : `Fel, ${vem.toLowerCase()} ${text}.`);
+    sag(kongo ? `Vilket Kongo? ${satt === 'skriv' ? 'Skriv' : 'Säg'} Kongo-Kinshasa eller Kongo-Brazzaville.`
+      : `Fel, ${vem.toLowerCase()} ${text}.`);
   }
+  const arKongo = (k, kod) => !!k && k.tvetydig && k.koder.includes('CD') && k.koder.includes('CG')
+    && (kod === 'CD' || kod === 'CG');
   function visaSvar(typ, c, text) {
     clearTimeout(svarTimer);
     ui.svar.className = 'blixt-svar ' + typ;
@@ -987,16 +1231,18 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     const sista = runda.resultat[runda.resultat.length - 1];
     if (sista && !sista.status) sista.status = sista.hort ? 'fel' : 'slut';
     const avbruten = orsak === 'gomd' || !hann;
-    ui.slutrubrik.textContent = orsak === 'alla' ? `Alla flaggor klara på ${fmt(brukt)}! 🎉`
-      : avbruten ? 'Rundan avbröts' : 'Tiden är ute!';
+    // alla flaggor rätt (inte bara slut på flaggor för att man hoppade)
+    const allaRatt = orsak === 'alla' && runda.poang === runda.lista.length;
+    ui.slutrubrik.textContent = allaRatt ? `Alla flaggor klara på ${fmt(brukt)}! 🎉`
+      : orsak === 'alla' ? 'Inga fler flaggor' : avbruten ? 'Rundan avbröts' : 'Tiden är ute!';
     ui.resultat.innerHTML = `<b>${runda.poang}</b> rätt`;
     let rekord = false;
     const fore = lasRekord();
-    // rekordet: flest rätt; lika många räknas bara om alla flaggor hanns
-    // med på kortare tid (tid finns bara då)
+    // rekordet: flest rätt; lika många räknas bara om alla flaggor blev
+    // rätt på kortare tid (tid finns bara då)
     let snabbare = false;
     if (!avbruten && hann && runda.poang > 0) {
-      const tid = orsak === 'alla' ? Math.round(brukt) : null;
+      const tid = allaRatt ? Math.round(brukt) : null;
       snabbare = !!fore && runda.poang === fore.ratt && tid != null && tid < (fore.tid == null ? Infinity : fore.tid);
       rekord = !fore || runda.poang > fore.ratt || snabbare;
       if (rekord) {
@@ -1013,16 +1259,24 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     ui.tillbaka.textContent = kalla === 'utforska' ? 'Tillbaka till Utforska' : 'Tillbaka till flaggquizet';
     const ETIKETT = { ratt: '✓ rätt', fel: '✗ fel', hoppad: '⏭ hoppade över', slut: '⏱ hann inte' };
     ui.lista.innerHTML = runda.resultat.filter(r => r.status).map(r => {
-      const extra = r.status === 'fel' && r.hort ? `<small>${satt === 'skriv' ? 'du skrev' : 'jag hörde'}: ${escHtml(r.hort)}</small>` : '';
-      return `<li class="${r.status}"><img src="${flaggSrc(r.c)}" alt=""><span class="blixt-ln">${escHtml(r.c.name)}${extra}</span>`
+      const extra = r.status === 'fel' && r.hort
+        ? `<small class="ph-no-capture">${satt === 'skriv' ? 'du skrev' : 'jag hörde'}: ${escHtml(r.hort)}</small>` : '';
+      return `<li class="${r.status}"><img src="${flaggSrc(r.c)}" alt=""><span class="blixt-ln">${escHtml(visNamn(r.c))}${extra}</span>`
         + `<span class="blixt-st">${ETIKETT[r.status]}</span></li>`;
     }).join('');
     const antal = s => runda.resultat.filter(r => r.status === s).length;
     window.kakSpara?.('flaggblixt_klar', { region: regionKod(), ratt: runda.poang, visade: runda.resultat.length,
       fel: antal('fel'), hoppade: antal('hoppad'), satt, rekord, avbruten, alla: orsak === 'alla' });
-    if (hann && !avbruten) spela('fanfar');
+    if (hann && !avbruten && runda.poang > 0 && (orsak !== 'alla' || allaRatt)) spela('fanfar');
     sag(`${ui.slutrubrik.textContent} ${runda.poang} rätt.${rekord ? ' Nytt rekord!' : ''}`);
-    setTimeout(() => { if (lage === 'slut') ui.igen.focus({ preventScroll: true }); }, 0);
+    // Fokus på resultatet först (ett Enter som var menat för rundan startar
+    // ingen ny), sedan på Spela igen
+    slutVid = performance.now();
+    ui.resultat.focus({ preventScroll: true });
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (lage === 'slut' && (a === ui.resultat || a === document.body || a === rot)) ui.igen.focus({ preventScroll: true });
+    }, SLUTVILA);
   }
   // allt som går stoppas: mikrofonen, klockan och väntande timrar
   function stoppa() {
@@ -1031,21 +1285,30 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     clearTimeout(nedTimer);
     clearTimeout(svarTimer);
     clearTimeout(felTimer);
+    clearTimeout(skrivTimer);
     avbrytVantan();
     ui.mik.classList.remove('pa');
     ui.splash.classList.remove('syns');
   }
 
   ui.hoppa.addEventListener('click', () => hoppa('knapp'));
+  ui.hoppaLiten.addEventListener('click', () => hoppa('knapp'));
 
   // ══════════════════════════════════════════════════════════════════
   // Rösten
   // ══════════════════════════════════════════════════════════════════
   let rek = null;                // igenkänningen som lyssnar nu
   let session = 0;               // en ny för varje start (resultatens index börjar om)
-  let forbrukt = new Map();      // 'session:index' → antal ord som redan räknats
+  // Vad som hörts och räknats, per resultat ('session:index'), som vikt text
+  // ihop + antal ord: { t, n }. sett = allt som hörts i resultatet (översta
+  // alternativet; n = flest ord i något alternativ), forbrukt = det som
+  // redan räknats (se snitt). sist = det land som just gav poäng och i
+  // vilket resultat: samma yttrande ger aldrig två poäng för samma namn.
+  let sett = new Map();
+  let forbrukt = new Map();
+  let sist = null;
   let vantan = null;             // { nyckel, tid } fördröjt godkännande
-  let omstarter = [];            // tidpunkter för omstarter (snurrskydd)
+  let omstarter = [];            // tidpunkter för omstarter utan något resultat (snurrskydd)
   const FATALA = new Set(['not-allowed', 'service-not-allowed', 'audio-capture', 'network', 'language-not-supported',
     'bad-grammar']);
   const ORSAK = {
@@ -1068,6 +1331,9 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       r.maxAlternatives = 5;
     } catch (e) { reserv('saknas'); return; }
     const s = ++session;
+    // en ny session: de gamla resultaten kommer aldrig mer
+    sett = new Map();
+    forbrukt = new Map();
     let lyssnar = false;
     const igang = () => {
       if (rek !== r || lyssnar) return;
@@ -1084,7 +1350,13 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       if (rek !== r) return;
       startReserv = setTimeout(igang, 1000);
     };
-    r.onresult = e => { if (rek === r) resultat(e, s); };
+    r.onresult = e => {
+      if (rek !== r) return;
+      // en session som ger resultat fungerar: Android och iOS slutar efter
+      // varje fras, och det är ingen snurra hur fort man än svarar
+      omstarter = [];
+      resultat(e, s);
+    };
     r.onerror = e => {
       if (rek !== r) return;
       const kod = e && e.error;
@@ -1103,6 +1375,8 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     rek = r;
     try { r.start(); } catch (e) { rek = null; reserv('saknas'); }
   }
+  // Startas om när den stannar av sig själv. Fler än 6 omstarter på 4 s utan
+  // att något hörts är en snurra (start() kastar, end direkt): skriv i stället.
   function omstart() {
     const nu = performance.now();
     omstarter = omstarter.filter(t => nu - t < 4000);
@@ -1124,6 +1398,7 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
   // för tangentbordet på iPhone), mitt i rundan direkt
   function reserv(kod) {
     stoppaRost();
+    avbrytVantan();
     const text = ORSAK[kod] || 'Mikrofonen fungerar inte här – skriv landets namn i stället.';
     rostTrasig = text;
     window.kakSpara?.('flaggblixt_reserv', { orsak: kod || 'okand', lage });
@@ -1136,17 +1411,20 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     satt = 'skriv';
     rot.dataset.satt = 'skriv';
     ui.hort.textContent = text;
-    ui.hort.className = 'blixt-hort fel';
+    ui.hort.className = HORT + ' fel';
     sag(text);
-    ui.input.focus();
+    ui.input.focus({ preventScroll: true });
+    matt();
     requestAnimationFrame(storlek);
   }
 
   // ── resultaten ──
-  // Varje resultat (session:index) har en räknare för ord som redan räknats
-  // (forbrukt). Bara orden efter dem prövas: ett ord ger aldrig två poäng och
-  // ett "Sverige" som blir slutgiltigt efter att flaggan bytts ger inget ✗
-  // på nästa flagga. Under nedräkningen räknas allt som sägs som förbrukat.
+  // Bara det som inte räknats än prövas (snitt): ett ord ger aldrig två
+  // poäng, och ett "Brasilien" som blir slutgiltigt efter att flaggan bytts
+  // (av ett svar, Hoppa över eller en väntan) prövas inte mot nästa flagga.
+  // Fortsätter man prata i samma andetag efter ett rätt svar ("Sverige …
+  // Norge") prövas de nya orden mot nästa flagga. Under nedräkningen räknas
+  // allt som sägs som förbrukat.
   function resultat(e, s) {
     const lista = e.results;
     if (!lista) return;
@@ -1158,60 +1436,121 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       if (!alts.length) continue;
       const nyckel = s + ':' + i;
       const tolkade = alts.map(a => ord(a));
-      if (lage !== 'spelar') {
-        forbrukt.set(nyckel, Math.max(forbrukt.get(nyckel) || 0, ...tolkade.map(o => o.ut.length)));
-        continue;
-      }
+      const allt = { t: ihop(tolkade[0].ut), n: Math.max(...tolkade.map(o => o.ut.length)) };
+      sett.set(nyckel, allt);
+      if (lage !== 'spelar') { forbrukt.set(nyckel, allt); continue; }
       provaRost(nyckel, tolkade, !!r.isFinal);
       if (lage !== 'spelar') return;
     }
   }
+  // Flaggan byts: allt som hörts hittills räknas som förbrukat, utom i
+  // resultatet (utom) vars ord just gav träffen (där gäller orden fram till
+  // träffen, så att resten av andetaget prövas mot nästa flagga).
+  function forbrukaAllt(utom) {
+    for (const [n, v] of sett) {
+      if (n === utom) continue;
+      const f = forbrukt.get(n);
+      if (!f || f.t !== v.t || f.n < v.n) forbrukt.set(n, { t: v.t, n: Math.max(v.n, f ? f.n : 0) });
+    }
+  }
+  // Var det oräknade börjar i ett alternativ (o = ord(...)): efter den
+  // längsta början vars text ihop är den förbrukade, eller nära nog
+  // (igenkänningen skriver om "sydkorea" till "Syd-Korea" och "chi le" till
+  // "Chile Peru" mellan del- och slutresultat). Hittas ingen: samma antal ord.
+  function snitt(o, nyckel) {
+    const f = forbrukt.get(nyckel);
+    if (!f || !f.n) return 0;
+    const tol = tal(f.t.length);
+    let bastK = -1, bastD = Infinity, s = '';
+    for (let k = 1; k <= o.ut.length; k++) {
+      s += o.ut[k - 1].t;
+      const h = s.replace(/(.)\1+/g, '$1');
+      if (h.length - f.t.length > tol) break;
+      if (f.t.length - h.length > tol) continue;
+      const d = avstand(h, f.t, tol);
+      if (d <= tol && d < bastD) { bastD = d; bastK = k; }
+    }
+    return bastK >= 0 ? bastK : Math.min(f.n, o.ut.length);
+  }
+  // Alternativen i igenkänningens ordning: det FÖRSTA som säger ett land
+  // (säkert nog, eller ett hoppord) avgör. Ett sämre alternativ räknas bara
+  // när de bättre inte innehåller något land alls (eller bara ett ungefärligt
+  // eller tvetydigt): "Island" först och "Irland" sedan är Island, men
+  // "Islandia" (ungefärligt) och sedan "Irland" är Irland.
+  // → { o, cut, k, ratt } eller null
+  // Ett eko av svaret som nyss räknades (sist) räknas inte, och ger inget ✗:
+  // samma namn igen i samma yttrande ("Brasilien Brasilien", "Papua … Nya
+  // Guinea"), eller som ett nytt yttrande direkt på flaggan efter ("Chile!"
+  // en gång till) om det inte är rätt där (tvillingflaggorna).
+  const EKO_MS = 2500;
+  const eko = (nyckel, kod) => k => {
+    if (!sist || !(k.kod === sist.kod || tvilling(k.kod, sist.kod))) return false;
+    if (sist.nyckel === nyckel) return true;
+    return !rattFor(k, kod) && runda.i === sist.i + 1 && performance.now() - sist.t < EKO_MS;
+  };
+  function bestam(tolkade, nyckel, kod) {
+    let svag = null, tvet = null;
+    const ekot = eko(nyckel, kod);
+    for (const o of tolkade) {
+      const cut = snitt(o, nyckel);
+      if (cut >= o.ut.length) continue;
+      const d = avgor(o.ut.slice(cut), kod, ekot);
+      if (!d) continue;
+      const res = { o, cut, k: d.k, ratt: d.ratt };
+      if (d.k.tvetydig) { tvet = tvet || res; continue; }
+      if (d.k.kod === HOPPA || d.k.sim >= SAKER - 1e-9) return res;
+      svag = svag || res;
+    }
+    return svag || tvet;
+  }
   function provaRost(nyckel, tolkade, slutgiltig) {
     if (vantan && vantan.nyckel === nyckel) avbrytVantan();
-    const forut = forbrukt.get(nyckel) || 0;
-    let fore = forut;
-    // det som hörts (och inte räknats än) syns direkt
     const forsta = tolkade[0];
-    if (forsta.ut.length > fore || (fore === 0 && forsta.ra.length)) visaHort(forsta, fore);
     for (;;) {
       const kod = flaggKod(aktuell());
-      let traff = null;
-      for (const o of tolkade) {
-        if (o.ut.length <= fore) continue;
-        for (const k of tolkaOrd(o.ut.slice(fore).map(x => x.t))) {
-          if (k.tvetydig) continue;
-          if (k.kod === HOPPA || (rattFor(k, kod) && (k.kod === kod || !runda.sagda.has(k.kod)))) { traff = { o, k }; break; }
-        }
-        if (traff) break;
+      // det som hörts (och inte räknats än) syns direkt
+      const c0 = snitt(forsta, nyckel);
+      if (c0 < forsta.ut.length || (c0 === 0 && forsta.ra.length)) visaHort(forsta, c0);
+      const b = bestam(tolkade, nyckel, kod);
+      if (!b || (!b.ratt && b.k.kod !== HOPPA)) {
+        if (slutgiltig) slutUtanTraff(nyckel, tolkade, b, kod);
+        return;
       }
-      if (!traff) break;
-      const slutOrd = fore + traff.k.j;
-      // ett ord som kan bli ett längre land (Guinea → Guinea-Bissau): vänta
-      // en stund på fler ord, om det inte redan är slutgiltigt
-      if (!slutgiltig && traff.k.kod !== HOPPA && slutOrd >= traff.o.ut.length && riskabla.has(traff.k.kod)) {
-        const gen = runda.gen, k = traff.k, text = hortText(traff.o, fore);
+      const slutOrd = b.cut + b.k.j;
+      const text = hortText(b.o, b.cut);
+      // Ett hoppord, eller ett namn som kan bli ett annat land (Guinea →
+      // Guinea-Bissau, Mali → Malawi), sist i ett delresultat: vänta en
+      // stund på fler ord (kommer det fler prövas allt om)
+      if (!slutgiltig && slutOrd >= b.o.ut.length && (b.k.kod === HOPPA || riskabel(b.k.s, b.k.kod))) {
+        const gen = runda.gen, k = b.k, o = b.o;
         vantan = { nyckel, tid: setTimeout(() => {
           vantan = null;
           if (lage !== 'spelar' || !runda || runda.gen !== gen) return;
-          forbrukt.set(nyckel, Math.max(forbrukt.get(nyckel) || 0, slutOrd));
-          ratt(k.kod, text);
+          if (k.kod === HOPPA) { hoppa('rost'); return; }
+          traff(nyckel, o, slutOrd, k.kod, text);
         }, installningar.fordroj) };
         return;
       }
-      const text = hortText(traff.o, fore);
-      forbrukt.set(nyckel, slutOrd);
-      fore = slutOrd;
-      if (traff.k.kod === HOPPA) hoppa('rost'); else ratt(traff.k.kod, text);
+      // ett hoppord: hela resultatet hittills är förbrukat (nasta)
+      if (b.k.kod === HOPPA) hoppa('rost');
+      else traff(nyckel, b.o, slutOrd, b.k.kod, text);
       if (lage !== 'spelar') return;
     }
-    if (!slutgiltig) return;
-    // slutgiltigt utan träff: ✗ om något nytt sades (ett land, eller vad
-    // som helst i ett yttrande som inte redan gett poäng)
-    const rest = forsta.ut.slice(fore);
-    forbrukt.set(nyckel, Math.max(fore, ...tolkade.map(o => o.ut.length)));
-    if (!rest.length) return;
-    const t = tolkaOrd(rest.map(x => x.t));
-    if (t.length || fore === 0) fel(hortText(forsta, fore), t.some(k => k.tvetydig && k.koder.includes('CD') && k.koder.includes('CG')));
+  }
+  // rätt med rösten: orden fram till träffen är förbrukade
+  function traff(nyckel, o, slutOrd, kod, text) {
+    forbrukt.set(nyckel, { t: ihop(o.ut.slice(0, slutOrd)), n: slutOrd });
+    sist = { nyckel, kod, i: runda.i, t: performance.now() };
+    ratt(kod, text, nyckel);
+  }
+  // Ett slutresultat utan träff: ✗ om ett annat land (eller en atrapp, eller
+  // tvetydiga "Kongo") sades. Upprepar man bara ett land som redan räknats
+  // ("Brasilien Brasilien", "Papua … Nya Guinea"), eller sägs inget som
+  // liknar ett land alls ("mmm vänta", "nästan", att tänka högt), blir det
+  // inget ✗: "Jag hörde: …" står kvar i grått.
+  function slutUtanTraff(nyckel, tolkade, b, kod) {
+    forbrukt.set(nyckel, sett.get(nyckel) || { t: ihop(tolkade[0].ut), n: tolkade[0].ut.length });
+    if (b) fel(hortText(b.o, b.cut), arKongo(b.k, kod));
   }
   function avbrytVantan() {
     if (vantan) clearTimeout(vantan.tid);
@@ -1223,39 +1562,49 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
     const text = hortText(o, fore);
     if (!text) return;
     ui.hort.textContent = 'Jag hörde: ' + text;
-    ui.hort.className = 'blixt-hort';
+    ui.hort.className = HORT;
   }
 
   // ══════════════════════════════════════════════════════════════════
   // Tangentbordet (reserven)
   // ══════════════════════════════════════════════════════════════════
-  // Ett namn som stämmer exakt godkänns redan medan man skriver (om det inte
-  // kan vara början på ett annat land); annars prövas det vid Enter.
+  // Ett namn som stämmer exakt godkänns redan medan man skriver, men bara om
+  // inget längre namn börjar så (annars hamnar resten av ordet i nästa
+  // flaggas ruta: "Elfenbenskust|en", "Trinidad| och Tobago"). Då godkänns
+  // det när man slutat skriva en stund, eller vid Enter.
+  let skrivTimer = 0;
+  const SKRIVPAUS = 600;
   ui.input.addEventListener('input', () => {
+    clearTimeout(skrivTimer);
     if (lage !== 'spelar' || satt !== 'skriv') return;
-    const o = ord(ui.input.value);
+    const varde = ui.input.value;
+    const o = ord(varde);
     if (!o.ut.length) return;
     const s = o.ut.map(x => x.t).join('');
     byggTabell();
     const kod = flaggKod(aktuell());
     const exakt = tabell.filter(e => e.f === s && e.alias !== 'tvetydig');
-    if (exakt.length && exakt.every(e => e.kod === kod || tvilling(e.kod, kod)) && !riskabla.has(exakt[0].kod)
-      && (exakt[0].kod === kod || !runda.sagda.has(exakt[0].kod))) {
+    if (!exakt.length || !exakt.every(e => ARLAND(e.kod) && (e.kod === kod || tvilling(e.kod, kod)))) return;
+    const gen = runda.gen;
+    const godkann = () => {
+      if (lage !== 'spelar' || satt !== 'skriv' || !runda || runda.gen !== gen || ui.input.value !== varde) return;
       ui.input.value = '';
-      ratt(exakt[0].kod, s);
-    }
+      ratt(exakt[0].kod, varde.trim());
+    };
+    if (tabell.some(e => e.f.length > s.length && e.f.startsWith(s))) skrivTimer = setTimeout(godkann, SKRIVPAUS);
+    else godkann();
   });
   ui.form.addEventListener('submit', e => {
     e.preventDefault();
+    clearTimeout(skrivTimer);
     if (lage !== 'spelar') return;
     const text = ui.input.value.trim();
     if (!text) return;
     const kod = flaggKod(aktuell());
-    const t = tolka(text);
-    const traff = t.find(k => !k.tvetydig && (k.kod === HOPPA || (rattFor(k, kod) && (k.kod === kod || !runda.sagda.has(k.kod)))));
-    if (traff && traff.kod === HOPPA) { ui.input.value = ''; hoppa('skriv'); return; }
-    if (traff) { ui.input.value = ''; ratt(traff.kod, text); return; }
-    fel(text, t.some(k => k.tvetydig && k.koder.includes('CD') && k.koder.includes('CG')));
+    const d = avgor(ord(text).ut, kod, null);
+    if (d && d.k.kod === HOPPA) { ui.input.value = ''; hoppa('skriv'); return; }
+    if (d && d.ratt) { ui.input.value = ''; ratt(d.k.kod, text); return; }
+    fel(text, d ? arKongo(d.k, kod) : false);
     ui.input.select();
   });
 
@@ -1279,7 +1628,12 @@ body.blixt-pa .cursor-label { visibility: hidden !important; }
       pool: pool.length, resultat: runda ? runda.resultat.map(r => [r.c.name, r.status]) : [] };
   }
 
-  return { uppdatera, oppna, stang, tolka, matcha, matchaKod, normalisera, sjalvkontroll, installningar,
+  // (testerna) väntar ett delresultat med den här texten en stund (riskabel)?
+  function vantar(text) {
+    const t = tolka(text);
+    return t.length === 1 && riskabel(t[0].s, t[0].kod);
+  }
+  return { uppdatera, oppna, stang, tolka, matcha, matchaKod, normalisera, sjalvkontroll, parkontroll, vantar, installningar,
     lage: lageFor };
 })();
 // ingångarna direkt (glob-spel.js anropar uppdatera vid varje byte)

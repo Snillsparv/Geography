@@ -4739,6 +4739,7 @@ const delOverlay = document.getElementById('del-overlay');
 function visaDelVal(slug, raw) {
   const delar = delarFor(raw);
   if (!delar.length) return;
+  window.flaggblixt?.stang();   // en Flaggblixt-runda (mikrofonen) stängs först
   document.getElementById('del-rubrik').textContent = raw.name.toUpperCase();
   const lista = document.getElementById('del-knappar');
   lista.innerHTML = '';
@@ -5411,6 +5412,7 @@ function spelaVideo(delar, start, startSek) {
 // startSek: tränar man en DEL av världsdelen hoppar filmen till den delens
 // avsnitt i stället för att börja om från början
 function oppnaVideo(delar, start, startSek) {
+  window.flaggblixt?.stang();   // videon läser upp länder: ingen Flaggblixt-mikrofon samtidigt
   start = Math.min(Math.max(start || 0, 0), delar.length - 1);
   videoDelar.innerHTML = '';
   videoDelar.style.display = delar.length > 1 ? 'flex' : 'none';
