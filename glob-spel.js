@@ -366,7 +366,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '111';
+const V = '112';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2330,19 +2330,56 @@ function svavaGlob(tid) {
   // mitten förskjuten från kartans (paddade) mitt till bildens mitt
   const [[x0, y0], [x1, y1]] = SVAVANDE[origSlug].ram;
   const my = lat => { const f = lat * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + f / 2)) / (2 * Math.PI); };
-  const zoom = Math.log2(r.height / ((my(y1) - my(y0)) * 512));
+  const lngMitt = (x0 + x1) / 2;
   const yMitt = Math.atan(Math.sinh((my(y1) + my(y0)) * Math.PI)) * 180 / Math.PI;
-  const mp = map.getPadding ? map.getPadding() : {};
-  const mittX = (mp.left || 0) + (kanvas.width - (mp.left || 0) - (mp.right || 0)) / 2;
-  const mittY = (mp.top || 0) + (kanvas.height - (mp.top || 0) - (mp.bottom || 0)) / 2;
-  const offset = [r.left + r.width / 2 - kanvas.left - mittX, r.top + r.height / 2 - kanvas.top - mittY];
+  let zoom = Math.log2(r.height / ((my(y1) - my(y0)) * 512));
   if (!(zoom > 0)) return;
-  map.easeTo({ center: [(x0 + x1) / 2, yMitt], zoom, offset, bearing: 0, pitch: 0,
-    duration: tid || 0, essential: true });
+  // målet i kartbehållarens pixlar: bildens topp/botten/mitt
+  const malX = r.left + r.width / 2 - kanvas.left;
+  const malT = r.top - kanvas.top, malB = r.bottom - kanvas.top;
+  // kameran räknas fram genom att prova: hoppa dit, mät var Sveriges
+  // nord- och sydspets hamnar (globprojektionen, padding och allt) och
+  // rätta zoom och mitt tills de ligger på bildens kanter. Sedan tillbaka
+  // och glid dit (inget hinner ritas mellan hoppen)
+  const forut = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+  map.stop();
+  let center = [lngMitt, yMitt];
+  for (let i = 0; i < 6; i++) {
+    map.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
+    const n = map.project([lngMitt, y1]), s = map.project([lngMitt, y0]);
+    const h = s.y - n.y;
+    if (!(h > 1)) break;
+    const dz = Math.log2((malB - malT) / h);
+    const dx = (n.x + s.x) / 2 - malX, dy = (n.y + s.y) / 2 - (malT + malB) / 2;
+    if (Math.abs(dz) < 0.002 && Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) break;
+    // flytta mitten så att mätpunkternas mitt hamnar på målet
+    const c = map.project(center);
+    const ny = map.unproject([c.x + dx, c.y + dy]);
+    center = [ny.lng, ny.lat];
+    zoom += dz;
+  }
+  map.jumpTo(forut);
+  if (tid) map.easeTo({ center, zoom, bearing: 0, pitch: 0, duration: tid, essential: true });
+  else map.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
 }
-// under den svävande kartan blir landskapen på globen en mörk skugga
-// (konst, kanter och prickar släckta) — globens Sverige ligger inte exakt
-// under den ritade kartan, och det som sticker fram ska se ut som skuggan
+// kartpanelen eller den ritade kartan byter storlek (panelen fälls
+// ihop, fönstret ändras, mobilens adressfält): kameran följer med
+if (typeof ResizeObserver === 'function') {
+  let svavRO = 0;
+  const ro = new ResizeObserver(() => {
+    if (!svavarNu()) return;
+    cancelAnimationFrame(svavRO);
+    svavRO = requestAnimationFrame(() => { svavStorlek(true); svavaGlob(0); });
+  });
+  // (baskartan också: på ett långsamt nät laddas bilden efter att kameran
+  // ställts, och då räknades den mot fel storlek)
+  ro.observe(mapPanel);
+  ro.observe(origBase);
+}
+// under den svävande kartan målas landskapen på globen i havets färg
+// (konst, kanter och prickar släckta): globens Sverige har inte exakt
+// samma form som den ritade kartan, och det som sticker fram ska vara hav,
+// inte ett andra Sverige
 let svavSkuggaFarg = null;
 function svavSkugga(pa) {
   const d = DELREG[origSlug] || DELREG[aktivSlug];
@@ -2353,7 +2390,7 @@ function svavSkugga(pa) {
     svavSkuggaFarg = ['fill-color', 'fill-opacity'].map(x => map.getPaintProperty(d.pre + 'cover', x));
   }
   if (!pa && svavSkuggaFarg === null) return;
-  map.setPaintProperty(d.pre + 'cover', 'fill-color', pa ? '#05101c' : svavSkuggaFarg[0]);
+  map.setPaintProperty(d.pre + 'cover', 'fill-color', pa ? '#123050' : svavSkuggaFarg[0]);
   // (havsmasken ligger i samma lager: den förblir osynlig)
   map.setPaintProperty(d.pre + 'cover', 'fill-opacity',
     pa ? ['case', ['has', 'mask'], 0, 1] : svavSkuggaFarg[1]);
