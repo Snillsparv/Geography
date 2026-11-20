@@ -5469,7 +5469,9 @@ function uppdateraSpelVideo() {
   spelVideoKnapp.style.display = video ? '' : 'none';
   spelVideoKnapp.dataset.video = video || '';
   spelVideoKnapp.dataset.val = egen ? val : '';
-  spelVideoKnapp.title = egen ? VAL_VIDEO_TITEL[val] : spelVideoTitel;
+  // en film utan egen titel i VAL_VIDEO_TITEL får världsdelens titel, inte
+  // "undefined" (tabellerna ska hållas i takt, men en miss syns inte då)
+  spelVideoKnapp.title = (egen && VAL_VIDEO_TITEL[val]) || spelVideoTitel;
 }
 spelVideoKnapp.addEventListener('click', () => {
   if (!spelVideoKnapp.dataset.video) return;

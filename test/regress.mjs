@@ -2869,6 +2869,8 @@ try {
   // (i try: init-skriptet körs även i videons iframe, där localStorage är spärrat)
   const INIT_LS = "try { localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','huvudstad'); localStorage.setItem('quiz-fraga','land') } catch (e) {}";
   const vp = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  // klicken på ▶ sätter iframens src: YouTube laddas aldrig i testerna
+  await vp.route(/youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com/, r => r.abort());
   const vFel = [];
   vp.on('pageerror', e => vFel.push(String(e)));
   await vp.addInitScript(INIT_LS);
@@ -3067,6 +3069,32 @@ try {
     && eu.film[0] === 'flex' && fran(eu.film[1], EU)
     && ar(tillbaka.utf, FL, 'flagga') && ar(tillbaka.bild, FL, 'flagga'),
     JSON.stringify({ start, eu, tillbaka }));
+  // en kompisutmaning kan inte spela Flaggor (aktivUtmaning): ▶ har
+  // världsdelens film fast Flaggor är sparat i båda växlarna, och
+  // flaggvideon kommer tillbaka efteråt. Sydamerika är den enda världsdelen
+  // med egna filmer, och utmaningen det enda där valet inte går att spela —
+  // utan den här kontrollen gick ett videoVal() som läser de råa önskemålen
+  // (villUtforska/villFraga) igenom alla andra.
+  const utm = await vp.evaluate(`(async () => { ${HJALP}
+    const ut = { vill: [villUtforska, villFraga] };
+    aktivUtmaning = { id: 'x', data: { slug: 'sydamerika' } };
+    switchMode('seterra', true); await vila(300); ut.klass = st(); ut.lage = fragaLage();
+    switchMode('explore', true); await vila(300); ut.utf = st(); ut.utfVal = utforskVal();
+    aktivUtmaning = null;
+    switchMode('seterra', true); await vila(300); ut.klassEfter = st();
+    switchMode('explore', true); await vila(300); ut.utfEfter = st();
+    // en film utan titel i VAL_VIDEO_TITEL: världsdelens titel, aldrig "undefined"
+    const titel = VAL_VIDEO_TITEL.flagga;
+    delete VAL_VIDEO_TITEL.flagga; uppdateraSpelVideo(); ut.utanTitel = [k.dataset.val, k.title];
+    VAL_VIDEO_TITEL.flagga = titel; uppdateraSpelVideo(); ut.medTitel = st();
+    return ut;
+  })()`);
+  ok('v109: i en kompisutmaning (Flaggor går inte) har ▶ världsdelens film, efteråt flaggvideon igen',
+    utm.vill[0] === 'flagga' && utm.vill[1] === 'flagga'
+    && ar(utm.klass, SYD, '') && utm.lage === 'land' && ar(utm.utf, SYD, '') && utm.utfVal === 'land'
+    && ar(utm.klassEfter, FL, 'flagga') && ar(utm.utfEfter, FL, 'flagga')
+    && utm.utanTitel[0] === 'flagga' && utm.utanTitel[1] === 'Se videon om världsdelens länder'
+    && ar(utm.medTitel, FL, 'flagga'), JSON.stringify(utm));
   await vp.close();
   // USA och engelska sajten (bara usa): ingen egen film, ▶ göms som förut
   const usa = [];
@@ -3088,6 +3116,31 @@ try {
   ok('v109: USA och engelska sajten: ▶ som förut (ingen film, inget märke)',
     usa.length === 2 && usa[0].lang === 'sv' && usa[1].lang === 'en'
     && usa.every(u => dold(u.utf) && dold(u.klass) && dold(u.bild) && u.lage === 'land'), JSON.stringify(usa));
+  // telefonen: videons ×-knapp sticker inte ut över skärmkanten (spelaren
+  // är 94vw bred, ×:et satt 14 px utanför den)
+  const tp = await nySida('flagga', 'land');
+  await tp.setViewportSize({ width: 390, height: 844 });
+  await tp.goto(BASE + '/glob.html?region=sydamerika', { waitUntil: 'domcontentloaded' });
+  await tp.waitForFunction("document.getElementById('spel-load').style.display === 'none' && aktivSlug === 'sydamerika'"
+    + " && utforskVal() === 'flagga'", null, { timeout: 30000 });
+  await tp.waitForTimeout(400);
+  const stang = [];
+  for (const [w, h] of [[390, 844], [320, 640]]) {
+    await tp.setViewportSize({ width: w, height: h });
+    await tp.waitForTimeout(250);
+    stang.push(await tp.evaluate(`(async () => { ${HJALP}
+      k.click(); await vila(150);
+      const b = document.getElementById('video-stang').getBoundingClientRect();
+      const r = [innerWidth, k.dataset.val, +b.left.toFixed(1), +b.right.toFixed(1), +b.top.toFixed(1),
+        document.getElementById('video-iframe').src.includes('/embed/${FL}?')];
+      document.getElementById('video-stang').click(); await vila(100);
+      return r;
+    })()`));
+  }
+  await tp.close();
+  ok('v109: telefon: videons × ryms på skärmen (390 och 320 px)',
+    stang.length === 2 && stang.every(s => s[1] === 'flagga' && s[5] && s[2] >= 0 && s[3] <= s[0] && s[4] >= 0),
+    JSON.stringify(stang));
   ok('v109: flaggvideon utan JS-fel', fFel.length === 0, fFel.join(' | ').slice(0, 160));
 } catch (e) {
   ok('v109: ▶ spelar flaggvideon i Utforska + Flaggor i Sydamerika (🚩, titeln, från början)', false, String(e).slice(0, 160));

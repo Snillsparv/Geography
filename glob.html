@@ -322,6 +322,9 @@
     #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: 1rem; cursor: pointer; z-index: 2; }
+    /* smala telefoner: spelaren är 94vw bred, så bara 3vw (12 px på 390)
+       är kvar till kanten — ×:et sticker inte ut över skärmkanten */
+    @media (max-width: 480px) { #video-stang { top: -18px; right: -6px; } }
     /* ── Spelvyn = SAMMA vy som starten: kartan täcker hela fönstret,
        headern är en genomskinlig remsa och infopanelen SVÄVAR över rymden
        i stället för att vara en fast blå sida ── */
