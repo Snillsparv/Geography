@@ -366,7 +366,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '110';
+const V = '111';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2254,6 +2254,11 @@ const ORIG_MIN = 0.5, ORIG_MAX = 5;
 function origApplyTransform() {
   origWrapper.style.transform = `translate(${origPanX}px, ${origPanY}px) scale(${origZoom})`;
   updateZoomLabel();
+  // svävande karta: globen under följer med (samma tid som wrapperns
+  // övergång, ingen under dragning)
+  if (typeof svavarNu === 'function' && svavarNu()) {
+    svavaGlob(origWrapper.classList.contains('dragging') ? 0 : 180);
+  }
 }
 function origClampPan() {
   const bw = origBase.offsetWidth, bh = origBase.offsetHeight;
@@ -2300,10 +2305,23 @@ function origReset() {
 // globen ställs så att Sverige ligger precis under den ritade kartan.
 const SVAVANDE = { sverige: { ram: [[11.78, 55.65], [24.74, 69.96]] } };
 const svavarNu = () => !!(origSlug && SVAVANDE[origSlug] && aktivVy === 'orig');
+// baskartans rektangel på skärmen räknad ur layouten och zoom/panorering
+// (inte getBoundingClientRect: wrapperns transform har en övergång, och
+// mitt i den låg rektangeln kvar på det gamla läget)
+function origBasRekt() {
+  const p = mapPanel.getBoundingClientRect();
+  const ww = origWrapper.offsetWidth, wh = origWrapper.offsetHeight;
+  const cx = p.left + origWrap.offsetLeft + origWrapper.offsetLeft + ww / 2;
+  const cy = p.top + origWrap.offsetTop + origWrapper.offsetTop + wh / 2;
+  const left = cx + origPanX + origZoom * (origBase.offsetLeft - ww / 2);
+  const top = cy + origPanY + origZoom * (origBase.offsetTop - wh / 2);
+  const width = origBase.offsetWidth * origZoom, height = origBase.offsetHeight * origZoom;
+  return { left, top, width, height, right: left + width, bottom: top + height };
+}
 function svavaGlob(tid) {
   if (!svavarNu() || !map) return;
   const kanvas = map.getContainer().getBoundingClientRect();
-  const r = origBase.getBoundingClientRect();
+  const r = origBasRekt();
   if (!r.width || !kanvas.width) return;
   // kartbildens Sverige: baskartan är beskuren tätt runt landet
   // egen kamera i stället för fitBounds (som inte klarar globprojektionen
@@ -2459,10 +2477,92 @@ async function initOrig() {
   origInit = true;
 }
 
+// Svävande kartan (Sveriges landskap): gult hela vägen ut till kartans
+// egna konturlinjer. Landbilderna når inte alltid ända fram till linjerna,
+// och då syntes vita kanter mellan det gula och konturen. I stället fylls
+// baskartans YTOR (sammanhängande ljusa områden mellan konturlinjerna, i
+// full upplösning) som landbilden täcker till minst MIN_ANDEL; linjerna
+// själva lämnas orörda så konturen syns.
+function origHoverYtor(list) {
+  const HR = 255, HG = 220, HB = 50, TH = 150, MIN_ANDEL = 0.3;
+  const MW = ORIG.W, MH = ORIG.H;
+  const mc = document.createElement('canvas');
+  mc.width = MW; mc.height = MH;
+  const mctx = mc.getContext('2d');
+  mctx.drawImage(origBase, 0, 0, MW, MH);
+  const md = mctx.getImageData(0, 0, MW, MH).data;
+  // ytor: 4-grannar bland ljusa, opaka pixlar
+  const yta = new Int32Array(MW * MH).fill(-1);
+  const storlek = [];
+  const ko = new Int32Array(MW * MH);
+  for (let start = 0; start < MW * MH; start++) {
+    if (yta[start] !== -1) continue;
+    const mi = start * 4;
+    if ((md[mi] + md[mi + 1] + md[mi + 2]) / 3 < TH || md[mi + 3] < 128) { yta[start] = -2; continue; }
+    const id = storlek.length;
+    let n = 0, h = 0;
+    ko[n++] = start; yta[start] = id;
+    while (h < n) {
+      const i = ko[h++], x = i % MW;
+      const prova = j => {
+        if (yta[j] !== -1) return;
+        const m = j * 4;
+        if ((md[m] + md[m + 1] + md[m + 2]) / 3 < TH || md[m + 3] < 128) { yta[j] = -2; return; }
+        yta[j] = id; ko[n++] = j;
+      };
+      if (x > 0) prova(i - 1);
+      if (x < MW - 1) prova(i + 1);
+      if (i >= MW) prova(i - MW);
+      if (i < MW * (MH - 1)) prova(i + MW);
+    }
+    storlek.push(n);
+  }
+  for (const c of list) {
+    const hd = origHitData[c.filename];
+    if (!hd) continue;
+    // hur många pixlar av varje yta landbilden täcker
+    const tackt = new Map();
+    const s = hd.s || 1;
+    const sx = c.left - ORIG.L, sy = c.top - ORIG.T;
+    const kx = c.width / hd.w, ky = c.height / hd.h;
+    for (let y = 0; y < hd.h; y++) for (let x = 0; x < hd.w; x++) {
+      if (hd.data[(y * hd.w + x) * 4 + 3] < 128) continue;
+      const mx = Math.floor(sx + (x + 0.5) * kx), my = Math.floor(sy + (y + 0.5) * ky);
+      if (mx < 0 || mx >= MW || my < 0 || my >= MH) continue;
+      const id = yta[my * MW + mx];
+      if (id >= 0) tackt.set(id, (tackt.get(id) || 0) + kx * ky);
+    }
+    const valda = new Set();
+    for (const [id, n] of tackt) if (n >= MIN_ANDEL * storlek[id]) valda.add(id);
+    if (!valda.size) continue;
+    let x0 = MW, y0 = MH, x1 = -1, y1 = -1;
+    for (let i = 0; i < MW * MH; i++) {
+      if (!valda.has(yta[i])) continue;
+      const x = i % MW, y = (i / MW) | 0;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    const W2 = x1 - x0 + 1, H2 = y1 - y0 + 1;
+    const cv = document.createElement('canvas');
+    cv.width = W2; cv.height = H2;
+    const cx2 = cv.getContext('2d');
+    const pix = cx2.createImageData(W2, H2);
+    const d = pix.data;
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      if (!valda.has(yta[(y0 + y) * MW + x0 + x])) continue;
+      const ci = (y * W2 + x) * 4;
+      d[ci] = HR; d[ci + 1] = HG; d[ci + 2] = HB; d[ci + 3] = 255;
+    }
+    cx2.putImageData(pix, 0, 0);
+    const el = origHoverEls[c.filename];
+    if (el) { el.src = cv.toDataURL(); el._rect = { L: ORIG.L + x0, T: ORIG.T + y0, W: W2, H: H2 }; }
+  }
+}
+
 // gula hover-bilder: landbilden tonad gul, klippt vid baskartans konturer.
 // Gränsmasken byggs i HALV upplösning (en fjärdedels minne — mobilen) och
 // hover-bilderna genereras i träffdatans skala; CSS sträcker upp dem.
 function origHoverImages(list) {
+  if (SVAVANDE[origSlug]) return origHoverYtor(list);
   const HR = 255, HG = 220, HB = 50, TH = 150;
   const MW = Math.max(1, ORIG.W >> 1), MH = Math.max(1, ORIG.H >> 1);
   const mc = document.createElement('canvas');
