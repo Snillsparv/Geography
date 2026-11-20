@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=109">
+  <link rel="stylesheet" href="style.css?v=110">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=109"></script>
+  <script src="sprak.js?v=110"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -33,6 +33,16 @@
       background: #0e2438; touch-action: none; }
     .map-panel.orig #spel-map { visibility: hidden; }
     .map-panel.orig #orig-wrap { display: flex; }
+    /* svävande karta (Sveriges landskap): globen syns nedtonad bakom, och
+       den ritade kartan lyfts fram med en skugga under sig */
+    .map-panel.orig.svavar #spel-map { visibility: visible; pointer-events: none;
+      filter: brightness(.55) saturate(.85) blur(1px); transition: filter .8s; }
+    .map-panel.orig.svavar #orig-wrap { background: radial-gradient(ellipse at center,
+      rgba(8,20,36,0) 30%, rgba(8,20,36,.55) 100%); animation: svava-in .9s ease-out both; }
+    .map-panel.orig.svavar #orig-base {
+      filter: drop-shadow(0 22px 18px rgba(0,0,0,.55)) drop-shadow(0 4px 4px rgba(0,0,0,.35)); }
+    @keyframes svava-in { from { opacity: 0; transform: translateY(26px) scale(.96); }
+      to { opacity: 1; transform: none; } }
     /* delade zoomknappar för väggkartan och originalkartan (globen har egna) */
     .map-panel .zoom-controls { left: auto; right: 16px; bottom: 16px; display: none; }
     .map-panel.platt .zoom-controls, .map-panel.orig .zoom-controls { display: flex; }
@@ -1203,8 +1213,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=109"></script>
-<script src="glob-spel.js?v=109"></script>
+<script src="kakor.js?v=110"></script>
+<script src="glob-spel.js?v=110"></script>
 
 </body>
 </html>

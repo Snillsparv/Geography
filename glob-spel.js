@@ -366,7 +366,7 @@ function resetOverlays() {
 // cachar hårt, och en gammal glob-spel.js mot nya datafiler gav trasiga
 // halvlägen (döda flikar/klick). V bumpas i EN konstant här och i
 // glob.html:s skriptreferens — aldrig fler handbumpade URL:er.
-const V = '109';
+const V = '110';
 // På *.githack.com (förhandslänkar) klarar proxyn varken stora filer eller
 // range-requests pålitligt — datafilerna hämtas då direkt från GitHubs
 // råfilsserver (206 + CORS verifierat). /ägare/repo/gren läses ur sidans URL.
@@ -2277,8 +2277,94 @@ function origSetZoom(nz, cursorX, cursorY) {
   origApplyTransform();
 }
 
+// originalkartan byggs för EN region i taget: byter man region utan
+// sidladdning (pilen tillbaka, en annan region) rivs den gamla ner och
+// byggs om för den nya när vyn visas
+let origByggdFor = null;
+function origReset() {
+  for (const el of [...origWrapper.children]) if (el !== origBase) el.remove();
+  for (const o of [origOverlayEls, origHoverEls, origMarkerEls, origHitData, origShapes]) {
+    for (const k of Object.keys(o)) delete o[k];
+  }
+  origSorted = [];
+  origInit = false;
+  origByggdFor = null;
+  origZoom = 1; origPanX = 0; origPanY = 0;
+  origApplyTransform();
+}
+
+// ── Svävande karta (Sveriges landskap) ──
+// Sverige är så utdraget att landskapen blir skeva på globen. Där flyger
+// globen dit och sedan svävar Jonas ritade karta (originalkartan) ovanpå,
+// med globen nedtonad i bakgrunden: grannländerna syns runt om, och
+// globen ställs så att Sverige ligger precis under den ritade kartan.
+const SVAVANDE = { sverige: { ram: [[11.78, 55.65], [24.74, 69.96]] } };
+const svavarNu = () => !!(origSlug && SVAVANDE[origSlug] && aktivVy === 'orig');
+function svavaGlob(tid) {
+  if (!svavarNu() || !map) return;
+  const kanvas = map.getContainer().getBoundingClientRect();
+  const r = origBase.getBoundingClientRect();
+  if (!r.width || !kanvas.width) return;
+  // kartbildens Sverige: baskartan är beskuren tätt runt landet
+  // egen kamera i stället för fitBounds (som inte klarar globprojektionen
+  // med stor padding): zoomen så att Sveriges höjd i Mercator blir
+  // kartbildens höjd (globen har Mercators skala kring mitten), och
+  // mitten förskjuten från kartans (paddade) mitt till bildens mitt
+  const [[x0, y0], [x1, y1]] = SVAVANDE[origSlug].ram;
+  const my = lat => { const f = lat * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + f / 2)) / (2 * Math.PI); };
+  const zoom = Math.log2(r.height / ((my(y1) - my(y0)) * 512));
+  const yMitt = Math.atan(Math.sinh((my(y1) + my(y0)) * Math.PI)) * 180 / Math.PI;
+  const mp = map.getPadding ? map.getPadding() : {};
+  const mittX = (mp.left || 0) + (kanvas.width - (mp.left || 0) - (mp.right || 0)) / 2;
+  const mittY = (mp.top || 0) + (kanvas.height - (mp.top || 0) - (mp.bottom || 0)) / 2;
+  const offset = [r.left + r.width / 2 - kanvas.left - mittX, r.top + r.height / 2 - kanvas.top - mittY];
+  if (!(zoom > 0)) return;
+  map.easeTo({ center: [(x0 + x1) / 2, yMitt], zoom, offset, bearing: 0, pitch: 0,
+    duration: tid || 0, essential: true });
+}
+// under den svävande kartan blir landskapen på globen en mörk skugga
+// (konst, kanter och prickar släckta) — globens Sverige ligger inte exakt
+// under den ritade kartan, och det som sticker fram ska se ut som skuggan
+let svavSkuggaFarg = null;
+function svavSkugga(pa) {
+  const d = DELREG[origSlug] || DELREG[aktivSlug];
+  if (!d || !map || !map.getLayer(d.pre + 'cover')) return;
+  // (opaciteten också: avslöjade landskap har genomskinligt täcke, och då
+  // lyste världskartans Sverige igenom i skuggan)
+  if (pa && svavSkuggaFarg === null) {
+    svavSkuggaFarg = ['fill-color', 'fill-opacity'].map(x => map.getPaintProperty(d.pre + 'cover', x));
+  }
+  if (!pa && svavSkuggaFarg === null) return;
+  map.setPaintProperty(d.pre + 'cover', 'fill-color', pa ? '#05101c' : svavSkuggaFarg[0]);
+  // (havsmasken ligger i samma lager: den förblir osynlig)
+  map.setPaintProperty(d.pre + 'cover', 'fill-opacity',
+    pa ? ['case', ['has', 'mask'], 0, 1] : svavSkuggaFarg[1]);
+  if (!pa) svavSkuggaFarg = null;
+  const synlig = arDelregion(aktivSlug) && DELREG[aktivSlug] === d;
+  for (const x of ['art', 'kant', 'granser', 'prickar']) {
+    if (map.getLayer(d.pre + x)) map.setLayoutProperty(d.pre + x, 'visibility', !pa && synlig ? 'visible' : 'none');
+  }
+  for (const u of delUtstickare) if (delFor(u.gid) === d && map.getLayer(u.lager)) {
+    map.setLayoutProperty(u.lager, 'visibility', !pa && synlig ? 'visible' : 'none');
+  }
+}
+// den svävande kartan ska få plats i kartpanelen (på mobilen är panelen
+// lägre än fönstret, och bilden räknas annars mot fönsterhöjden)
+function svavStorlek(pa) {
+  origBase.style.maxHeight = pa ? Math.max(200, origWrap.clientHeight - 40) + 'px' : '';
+  if (pa && origInit) { origPosition(); origClampPan(); origApplyTransform(); }
+}
+function uppdateraSvavande() {
+  const pa = svavarNu();
+  mapPanel.classList.toggle('svavar', pa);
+  svavStorlek(pa);
+  svavSkugga(pa);
+  if (pa) requestAnimationFrame(() => svavaGlob(1200));
+}
+
 async function initOrig() {
   const slug = origSlug, raw = origRaw;
+  origByggdFor = slug;
   origBase.src = `assets/${slug}/map.webp`;
   await new Promise(res => {
     if (origBase.complete && origBase.naturalWidth > 0) res();
@@ -2647,7 +2733,10 @@ origWrap.addEventListener('wheel', ev => {
 let aktivVy = 'glob';
 async function setView(vy) {
   if (vy === 'orig' && !origSlug) vy = 'glob';   // världstestet saknar originalkarta
+  if (vy === 'orig' && origByggdFor && origByggdFor !== origSlug) origReset();
   aktivVy = vy;
+  mapPanel.classList.toggle('svavar', false);
+  origBase.style.maxHeight = '';
   document.getElementById('view-glob').classList.toggle('active', vy === 'glob');
   document.getElementById('view-platt').classList.toggle('active', vy === 'platt');
   document.getElementById('view-orig').classList.toggle('active', vy === 'orig');
@@ -2684,6 +2773,7 @@ async function setView(vy) {
       origLoading = false;
     }
   }
+  uppdateraSvavande();
   updateZoomLabel();
 }
 document.getElementById('view-glob').addEventListener('click', () => setView('glob'));
@@ -2700,6 +2790,7 @@ document.getElementById('zoom-out').addEventListener('click', () => {
 window.addEventListener('resize', () => {
   if (flatVisible && mdata) renderFlatBase().then(composeFlat);
   if (origInit) { origPosition(); origClampPan(); origApplyTransform(); }
+  if (svavarNu()) { svavStorlek(true); svavaGlob(0); }
 });
 
 // ══════════════════════════════════
@@ -2783,6 +2874,14 @@ async function startRegion(slug, flyg, delId) {
   else if (flyg) map.flyTo({ center: kam.center, zoom: kam.zoom, duration: 2400, essential: true });
   else map.jumpTo({ center: kam.center, zoom: kam.zoom });
   preloadCountryImages();
+  // svävande karta: först flyger globen dit, sedan lyfts den ritade kartan
+  // fram. Annars: en öppen originalvy byggs om för den nya regionen
+  if (SVAVANDE[slug]) {
+    if (flyg) await new Promise(res => setTimeout(res, 2000));
+    if (aktivSlug === slug) await setView('orig');
+  } else if (aktivVy === 'orig') {
+    await setView('orig');
+  }
 }
 
 // omslutande ram kring den aktiva delens länder (markörpunkterna räcker —
@@ -4419,6 +4518,7 @@ function tillbakaTillStart() {
   aktivUtmaning = null;          // utmaningen gäller bara tills man lämnar den
   aktivSlug = null;              // ordvalen (land/delstat) ska inte hänga kvar
   uppdateraOrdval();
+  svavSkugga(false);
   visaDelLager(null);            // delregionernas lager hör bara hemma i sin region
   const plattKnappStart = document.getElementById('view-platt');
   if (plattKnappStart) plattKnappStart.style.display = '';
