@@ -1002,6 +1002,8 @@ try {
   // (i try: init-skriptet körs även i videons iframe, där localStorage är spärrat)
   const INIT_LS = "try { localStorage.setItem('rundtur-klar','1'); localStorage.setItem('speltur-klar','1'); localStorage.setItem('kakval','nej'); localStorage.setItem('feedback-tips-klar','1'); localStorage.setItem('utforska-fraga','huvudstad'); localStorage.setItem('quiz-fraga','land') } catch (e) {}";
   const vp = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  // klicken på ▶ sätter iframens src: YouTube laddas aldrig i testerna
+  await vp.route(/youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com/, r => r.abort());
   const vFel = [];
   vp.on('pageerror', e => vFel.push(String(e)));
   await vp.addInitScript(INIT_LS);

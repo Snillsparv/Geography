@@ -12,9 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Jonas Geografi">
 <title data-t>Jonas geografi – jordglob</title>
   <!-- huvud:slut -->
-  <link rel="stylesheet" href="style.css?v=108">
+  <link rel="stylesheet" href="style.css?v=110">
   <!-- språk och webbplats (svenska / engelska allusstates) före allt annat -->
-  <script src="sprak.js?v=108"></script>
+  <script src="sprak.js?v=110"></script>
   <link rel="stylesheet" href="vendor/maplibre-gl.css">
   <!-- rundturens hälsningspose laddas i förväg så att den visas direkt -->
   <link rel="preload" as="image" href="assets/jonas/hej.webp">
@@ -194,12 +194,14 @@
       padding-left: 3px; margin-left: 8px; vertical-align: middle;
       box-shadow: 0 2px 6px #000a; flex: none; }
     #spel-video:hover { transform: scale(1.12); }
-    /* ▶ spelar Jonas film för valet (Huvudstäder): ett märke som på
-       huvudstadsmedaljen visar vilken film det är */
+    /* ▶ spelar Jonas film för valet (Huvudstäder, Flaggor): ett märke som
+       på medaljerna visar vilken film det är */
     #spel-video[data-val] { position: relative; }
-    #spel-video[data-val="huvudstad"]::after { content: '🏛️'; position: absolute;
+    #spel-video[data-val]:not([data-val=""])::after { position: absolute;
       right: -7px; bottom: -6px; font-size: .62rem; line-height: 1;
       filter: drop-shadow(0 1px 2px #000c); }
+    #spel-video[data-val="huvudstad"]::after { content: '🏛️'; }
+    #spel-video[data-val="flagga"]::after { content: '🚩'; }
     #feedback-modal { position: fixed; inset: 0; z-index: 310; background: rgba(2,6,13,.88);
       display: flex; align-items: center; justify-content: center; padding: 3vmin; }
     .feedback-kort { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
@@ -320,6 +322,9 @@
     #video-stang { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
       border-radius: 50%; border: 2px solid #fff; background: #e0453a; color: #fff;
       font-size: 1rem; cursor: pointer; z-index: 2; }
+    /* smala telefoner: spelaren är 94vw bred, så bara 3vw (12 px på 390)
+       är kvar till kanten — ×:et sticker inte ut över skärmkanten */
+    @media (max-width: 480px) { #video-stang { top: -18px; right: -6px; } }
     /* ── Spelvyn = SAMMA vy som starten: kartan täcker hela fönstret,
        headern är en genomskinlig remsa och infopanelen SVÄVAR över rymden
        i stället för att vara en fast blå sida ── */
@@ -1201,8 +1206,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
 <!-- kakor.js före spelet: definierar kakSpara som spelet rapporterar till -->
-<script src="kakor.js?v=108"></script>
-<script src="glob-spel.js?v=108"></script>
+<script src="kakor.js?v=110"></script>
+<script src="glob-spel.js?v=110"></script>
 
 </body>
 </html>
